@@ -1,11 +1,10 @@
 FROM python:3.11-slim
 
 WORKDIR /code
-ADD ./pyproject.toml ./pyproject.toml
-RUN pip install --upgrade pip && pip install --no-cache-dir .
-ADD ./app ./app
-ADD ./pyproject.toml ./app/pyproject.toml
+COPY . .
+RUN pip install --upgrade pip && pip install -e .
 
 WORKDIR /code/app
+ENV PYTHONPATH=/code/app
 
-CMD ["python3", "."]
+CMD ["python3", "-m", "app"]

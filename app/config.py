@@ -51,6 +51,18 @@ class Config(BaseConfig):
     albert_api_url: str = Field("http://localhost:8090", description="Albert API base URL")
     albert_api_token: str = Field("", description="Albert API Token")
 
+    # Mistral API settings
+    mistral_api_url: str = Field("https://api.mistral.ai", description="Mistral API base URL")
+    mistral_api_token: str = Field("", description="Mistral API Token")
+
+    # WebDAV Configuration
+    # ===================
+    webdav_url: str = Field("", description="URL du serveur WebDAV")
+    webdav_username: str = Field("", description="Nom d'utilisateur WebDAV")
+    webdav_password: str = Field("", description="Mot de passe WebDAV")
+    webdav_root_path: str = Field("/documents", description="Chemin racine WebDAV")
+    webdav_index_name: str = Field("index.json", description="Nom du fichier d'index WebDAV")
+
     # Albert Conversation settings
     # ============================
     # PER USER SETTINGS !
@@ -60,7 +72,7 @@ class Config(BaseConfig):
         "AgentPublic/albertlight-7b",
         description="Albert model name to use (see Albert models hub on HuggingFace)",
     )
-    albert_model_embedding: str = Field("BAAI/bge-m3", description="Embedding model (Rag, COT, etc)")
+    albert_model_embedding: str = Field("AgentPublic/e5-small-v2", description="Embedding model (Rag, COT, etc)")
     albert_mode: str = Field("rag", description="Albert API mode")
     albert_with_history: bool = Field(True, description="Conversational mode")
     albert_history_lookup: int = Field(0, description="How far we lookup in the history")
@@ -71,6 +83,15 @@ class Config(BaseConfig):
         15 * 60, description="time after which a conversation is considered obsolete, in seconds"
     )
     last_rag_chunks: list[dict] | None = Field(None, description="Last chunks used for the RAG.")
+
+    # Configuration des embeddings
+    embedding_dimension: int = Field(384, description="Embedding dimension")
+    embedding_cache_duration: int = Field(24, description="Embedding cache duration in hours")
+    
+    # Configuration de l'index
+    index_dir: str = Field(".index", description="Index directory")
+    chunk_size: int = Field(1000, description="Chunk size in characters")
+    chunk_overlap: int = Field(200, description="Chunk overlap in characters")
 
     @property
     def is_conversation_obsolete(self) -> bool:

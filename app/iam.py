@@ -75,22 +75,35 @@ class TchapIam:
 
     def __init__(self, config):
         self.config = config
-        self.users_table_id = config.grist_users_table_id
-        self.users_table_name = config.grist_users_table_name
-        self.iam_client = AsyncGristDocAPI(
-            self.users_table_id,
-            server=config.grist_api_server,
-            api_key=config.grist_api_key,
-        )
+        # Vérifier si la configuration Grist est présente
+        if (
+            not getattr(config, "grist_api_server", None)
+            or not getattr(config, "grist_api_key", None)
+            or not getattr(config, "grist_users_table_id", None)
+            or not getattr(config, "grist_users_table_name", None)
+        ):
+            # Grist n'est pas configuré, désactivez l'intégration
+            self.iam_client = None
+            print("Grist integration disabled: missing configuration")
+        else:
+            self.users_table_id = config.grist_users_table_id
+            self.users_table_name = config.grist_users_table_name
+            self.iam_client = AsyncGristDocAPI(
+                self.users_table_id,
+                server=config.grist_api_server,
+                api_key=config.grist_api_key,
+            )
 
-        # White-listed users
+        # Listes d'utilisateurs
         self.users_allowed = {}
-        # Users that have been adde to the pendings list.
-        # Used to send notification for new pending users.
         self.users_not_allowed = {}
-
         self.last_refresh = None
-        asyncio.run(self._refresh())
+
+        # Si l'intégration Grist est active, lancer le refresh
+        if self.iam_client:
+            asyncio.run(self._refresh())
+        else:
+            print("Skipping Grist refresh as integration is disabled")
 
     @staticmethod
     def domain_from_sender(sender: str) -> str:
@@ -107,9 +120,12 @@ class TchapIam:
         print("Could not extract domain from sender: %s" % sender)
 
     async def _refresh(self):
+        if not self.iam_client:
+            print("Skipping _refresh: Grist integration disabled")
+            return
         ttl = datetime.utcnow() - timedelta(seconds=self.REFRESH_DELTA)
         if not self.last_refresh or self.last_refresh < ttl:
-            # Build allowed users list
+            # Met à jour la liste des utilisateurs autorisés
             users_table = await self.iam_client.fetch_table(
                 self.users_table_name, filters={"status": ["allowed"]}
             )
@@ -117,7 +133,7 @@ class TchapIam:
             for record in users_table:
                 self.users_allowed[record.tchap_user] = record
 
-            # Build not allowed users list
+            # Met à jour la liste des utilisateurs non autorisés
             users_table = await self.iam_client.fetch_table(
                 self.users_table_name, filters={"status": ["pending", "forbidden"]}
             )
@@ -129,21 +145,18 @@ class TchapIam:
             print("User table (IAM) updated")
 
     async def is_user_allowed(self, config, username, refresh=False) -> tuple[bool, str]:
-        """Check if user is allowed to use the tchap bot:
-        1. User should be in the whitelist, otherwise send user_not_allowed message
-        2. User should be in allowed_domain, otherwise domain_not_allowed_message message
-        """
+        # Si Grist n'est pas configuré, on autorise tous les utilisateurs par défaut
+        if not self.iam_client:
+            return True, ""
         if refresh:
             await self._refresh()
         is_allowed = False
         msg = ""
-
-        # 1. check user
+        # 1. Vérification de l'utilisateur
         is_allowed = username in self.users_allowed
         if not is_allowed:
             msg = AlbertMsg.user_not_allowed
-
-        # 2. Check domains
+        # 2. Vérification du domaine
         if is_allowed:
             if "*" in config.user_allowed_domains:
                 is_allowed = True
@@ -152,11 +165,14 @@ class TchapIam:
             else:
                 is_allowed = False
                 msg = AlbertMsg.domain_not_allowed
-
         return is_allowed, msg
 
     async def add_pending_user(self, config, username) -> bool:
-        """Return True if the used as been added to the list"""
+        # Si Grist n'est pas configuré, on ne peut pas ajouter l'utilisateur en pending
+        if not self.iam_client:
+            print("Cannot add pending user: Grist integration disabled")
+            return False
+
         if username in list(self.users_allowed) + list(self.users_not_allowed):
             return False
 
@@ -167,16 +183,17 @@ class TchapIam:
             "n_questions": 0,
         }
         results = await self.iam_client.add_records(self.users_table_name, [record])
-
-        # Update the {not_allowed} table
+        # Mise à jour de la liste des utilisateurs non autorisés
         records = [to_record(results["records"][0]["id"], record)]
-
         for r in records:
             self.users_not_allowed[r.tchap_user] = r
-
         return True
 
     async def increment_user_question(self, username, n=1, update_last_activity=True):
+        if not self.iam_client:
+            print("Grist integration is disabled, skipping increment_user_question")
+            return
+
         try:
             record = self.users_allowed[username]
         except Exception as err:
@@ -187,5 +204,4 @@ class TchapIam:
             updates["last_activity"] = str(datetime.now(self.TZ))
 
         await self.iam_client.update_records(self.users_table_name, [{"id": record.id, **updates}])
-
         self.users_allowed[username] = record._replace(**updates)

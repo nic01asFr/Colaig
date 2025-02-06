@@ -8,6 +8,7 @@ import traceback
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import wraps
+import os
 
 from matrix_bot.client import MatrixClient
 from matrix_bot.config import logger
@@ -26,6 +27,7 @@ from core_llm import (
     get_available_models,
     get_available_modes,
     upload_file,
+    AlbertApiClient,
 )
 from iam import TchapIam
 from tchap_utils import (
@@ -35,6 +37,9 @@ from tchap_utils import (
     get_thread_messages, 
     isa_reply_to
 )
+from actions.rag_action import AskAlbertRagAction
+from services.webdav import WebDAVService
+from services.document_index import DocumentIndex
 
 @dataclass
 class CommandRegistry:
@@ -609,7 +614,7 @@ async def albert_answer(ep: EventParser, matrix_client: MatrixClient):
         if not messages:
             messages = [{"role": "user", "content": user_query}]
 
-        answer = generate(config, messages)
+        answer = await generate(config, messages)
 
     except Exception as albert_err:
         logger.error(f"{albert_err}")
@@ -685,3 +690,475 @@ async def albert_wrong_command(ep: EventParser, matrix_client: MatrixClient):
     await matrix_client.send_markdown_message(
         ep.room.room_id, AlbertMsg.unknown_command(cmds_msg), msgtype="m.notice"
     )
+
+@register_feature(
+    group="albert",
+    onEvent=RoomMessageText,
+    command="docquery",
+    help="Interroge Albert en utilisant la documentation comme contexte",
+)
+@only_allowed_user
+async def doc_query_command(ep: EventParser, matrix_client: MatrixClient):
+    """Interroge Albert en utilisant la documentation comme contexte."""
+    config = user_configs[ep.sender]
+    
+    # Vérification de la question
+    command = ep.get_command()
+    if len(command) <= 1:
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            "Veuillez fournir une question. Usage: !docquery <votre question>",
+            msgtype="m.notice"
+        )
+        return
+
+    query = " ".join(command[1:])
+    await matrix_client.room_typing(ep.room.room_id)
+    
+    try:
+        # Utilisation du service d'indexation
+        from services.index_service import IndexService
+        async with IndexService(config) as index_service:
+            # Vérification et mise à jour de l'index si nécessaire
+            if not await index_service.verify():
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    "⚠️ L'index n'est pas à jour. Mise à jour en cours...",
+                    msgtype="m.notice"
+                )
+                await index_service.update()
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    "✅ Index mis à jour avec succès.",
+                    msgtype="m.notice"
+                )
+            
+            # Recherche des chunks pertinents
+            chunks = await index_service.search(query)
+            if not chunks:
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    "❌ Aucune information pertinente trouvée dans la documentation pour votre question.",
+                    msgtype="m.notice"
+                )
+                return
+            
+            # Préparation pour Albert API
+            chunks_for_prompt = [{
+                "id": chunk.id,
+                "content": chunk.content,
+                "metadata": {
+                    "document_name": chunk.metadata.get("document_name", ""),
+                    **chunk.metadata
+                }
+            } for chunk in chunks]
+            
+            # Initialisation du client Albert
+            albert_client = AlbertApiClient(
+                base_url=config.albert_api_url,
+                api_key=config.albert_api_token
+            )
+            
+            # Formatage du prompt avec le contexte
+            prompt = albert_client.format_albert_template(
+                query=query,
+                chunks=chunks_for_prompt
+            )
+            
+            # Génération de la réponse
+            messages = [{"role": "user", "content": prompt}]
+            response = await generate(config, messages)
+            
+            # Formatage de la réponse avec les sources
+            sources = set(chunk.metadata.get("document_name", "") for chunk in chunks)
+            sources_text = "\n".join(f"- {source}" for source in sources if source)
+            final_response = f"{response}\n\nSources consultées:\n{sources_text}"
+            
+            # Envoi de la réponse
+            await matrix_client.send_markdown_message(
+                ep.room.room_id,
+                final_response
+            )
+            
+            # Sauvegarde des chunks pour la commande !sources
+            config.last_rag_chunks = chunks_for_prompt
+            
+    except Exception as e:
+        logger.error(f"Erreur lors de la génération RAG: {str(e)}")
+        traceback.print_exc()
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            AlbertMsg.failed,
+            msgtype="m.notice"
+        )
+    finally:
+        await matrix_client.room_typing(ep.room.room_id, typing_state=False)
+
+@register_feature(
+    group="albert",
+    onEvent=RoomMessageText,
+    command="index",
+    help="Gestion de l'index FAISS (status/verify/rebuild/clean)",
+)
+@only_allowed_user
+async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
+    """Commande pour gérer l'index FAISS"""
+    config = user_configs[ep.sender]
+    
+    command = ep.get_command()
+    if len(command) <= 1:
+        message = (
+            "Usage: !index <action>\n\n"
+            "Actions disponibles:\n"
+            "- status : affiche l'état de l'index\n"
+            "- verify : vérifie la fraîcheur de l'index\n"
+            "- update : met à jour l'index (documents manquants uniquement)\n"
+            "- rebuild : reconstruit l'index complètement\n"
+            "- clean : nettoie l'index"
+        )
+        await matrix_client.send_markdown_message(ep.room.room_id, message, msgtype="m.notice")
+        return
+        
+    action = command[1]
+    
+    try:
+        # Initialiser le service d'indexation
+        from services.index_service import IndexService
+        async with IndexService(config) as index_service:
+            if action == "status":
+                # Message initial
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    "Chargement de l'état de l'index...",
+                    msgtype="m.notice"
+                )
+                
+                # Obtenir et afficher le statut
+                status = await index_service.get_status()
+                
+                message = (
+                    f"État de l'index FAISS:\n\n"
+                    f"Documents indexés : {status['total_documents']}\n"
+                    f"Chunks total : {status['total_chunks']}\n"
+                    f"Dimension des embeddings : {status['embedding_dimension']}\n"
+                    f"Index à jour : {'Oui' if status['is_fresh'] else 'Non'}\n"
+                    f"Dernière mise à jour : {status['last_update'].strftime('%Y-%m-%d %H:%M:%S') if status['last_update'] else 'Jamais'}"
+                )
+                
+                if not status['is_fresh']:
+                    message += "\n\n⚠️ L'index n'est pas à jour. Utilisez !index update pour le mettre à jour ou !index rebuild pour le reconstruire."
+                
+                await matrix_client.send_markdown_message(ep.room.room_id, message, msgtype="m.notice")
+                
+            elif action == "verify":
+                # Message initial
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    "Vérification de l'index...",
+                    msgtype="m.notice"
+                )
+                
+                # Vérifier l'index
+                is_fresh = await index_service.verify()
+                message = "✅ L'index est à jour." if is_fresh else "⚠️ L'index n'est pas à jour. Utilisez !index update pour le mettre à jour ou !index rebuild pour le reconstruire."
+                await matrix_client.send_markdown_message(ep.room.room_id, message, msgtype="m.notice")
+                
+            elif action == "update":
+                # Message initial
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    "Mise à jour de l'index...",
+                    msgtype="m.notice"
+                )
+                
+                # Mettre à jour l'index
+                await index_service.update()
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    "✅ Index mis à jour avec succès.",
+                    msgtype="m.notice"
+                )
+                
+            elif action == "rebuild":
+                # Message initial
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    "Reconstruction de l'index...",
+                    msgtype="m.notice"
+                )
+                
+                # Reconstruire l'index
+                await index_service.rebuild()
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    "✅ Index reconstruit avec succès.",
+                    msgtype="m.notice"
+                )
+                
+            elif action == "clean":
+                # Message initial
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    "Nettoyage de l'index...",
+                    msgtype="m.notice"
+                )
+                
+                # Nettoyer l'index
+                await index_service.clean()
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    "✅ Index nettoyé avec succès.",
+                    msgtype="m.notice"
+                )
+                
+            else:
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    f"❌ Action inconnue: {action}",
+                    msgtype="m.notice"
+                )
+            
+    except Exception as e:
+        logger.error(f"Erreur lors de la gestion de l'index: {str(e)}")
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            f"❌ Erreur lors de la gestion de l'index: {str(e)}",
+            msgtype="m.notice"
+        )
+
+@register_feature(
+    group="albert",
+    onEvent=RoomEncryptedFile,
+    command="classer",
+    help="Analyse et classe automatiquement un fichier dans le bon dossier"
+)
+@only_allowed_user
+async def classify_file_command(ep: EventParser, matrix_client: MatrixClient):
+    """Commande pour classifier automatiquement un fichier"""
+    config = user_configs[ep.sender]
+    
+    try:
+        await matrix_client.room_typing(ep.room.room_id)
+        
+        # Vérification du type MIME
+        if ep.event.mimetype not in WebDAVService.SUPPORTED_MIME_TYPES:
+            await matrix_client.send_markdown_message(
+                ep.room.room_id,
+                f"❌ Type de fichier non supporté : {ep.event.mimetype}\n"
+                "Types supportés : PDF, DOCX, TXT, JSON, MD",
+                msgtype="m.notice"
+            )
+            return
+            
+        # Récupération du fichier
+        file = await get_decrypted_file(ep)
+        
+        # Message initial
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            f"📁 Analyse du fichier \"{file.name}\"...",
+            msgtype="m.notice"
+        )
+        
+        # Initialisation du service de classification
+        from services.classifier_service import ClassifierService
+        async with ClassifierService(config) as classifier:
+            # Lecture et classification du fichier
+            content = await classifier.webdav_service.read_document(file.name)
+            result = await classifier.classify_file(file.name, content)
+            
+            # Formatage des catégories détectées
+            categories_text = "\n".join(
+                f"- {cat} ({score:.0%})" 
+                for cat, score in result.categories
+            )
+            
+            # Formatage des chemins alternatifs
+            alternatives_text = "\n".join(
+                f"{i+1}. {path} ({score:.0%})" 
+                for i, (path, score) in enumerate(result.alternative_paths)
+            )
+            
+            # Message avec les résultats
+            message = (
+                f"📊 Catégories détectées :\n{categories_text}\n\n"
+                f"📍 Emplacement proposé : {result.suggested_path}\n"
+                f"   Confiance : {result.confidence:.0%}\n\n"
+            )
+            
+            if alternatives_text:
+                message += f"✨ Autres suggestions :\n{alternatives_text}\n\n"
+            
+            message += (
+                "Souhaitez-vous :\n"
+                "1️⃣ Valider l'emplacement proposé\n"
+                "2️⃣ Choisir une autre suggestion\n"
+                "3️⃣ Spécifier un autre emplacement\n"
+                "4️⃣ Annuler"
+            )
+            
+            await matrix_client.send_markdown_message(
+                ep.room.room_id,
+                message,
+                msgtype="m.notice"
+            )
+            
+            # Sauvegarder le contexte pour la suite
+            config.last_classification_result = result
+            config.last_classified_file = file
+            
+    except Exception as e:
+        logger.error(f"Erreur lors de la classification: {str(e)}")
+        traceback.print_exc()
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            "❌ Une erreur est survenue lors de la classification du fichier.",
+            msgtype="m.notice"
+        )
+        if config.errors_room_id:
+            try:
+                await matrix_client.send_markdown_message(
+                    config.errors_room_id,
+                    f"Erreur de classification pour {ep.sender}:\n{str(e)}"
+                )
+            except:
+                print("Failed to find error room ?!")
+
+@register_feature(
+    group="albert",
+    onEvent=RoomMessageText,
+    help=None
+)
+@only_allowed_user
+async def classify_file_response(ep: EventParser, matrix_client: MatrixClient):
+    """Gère la réponse de l'utilisateur pour la classification"""
+    config = user_configs[ep.sender]
+    
+    if not hasattr(config, 'last_classification_result') or not config.last_classification_result:
+        return
+        
+    try:
+        result = config.last_classification_result
+        file = config.last_classified_file
+        
+        # Si on attend un chemin personnalisé
+        if hasattr(config, 'waiting_for_custom_path') and config.waiting_for_custom_path:
+            custom_path = ep.event.body.strip()
+            if not custom_path:
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    "❌ Le chemin ne peut pas être vide.",
+                    msgtype="m.notice"
+                )
+                return
+                
+            # Normalisation du chemin
+            custom_path = os.path.normpath(custom_path)
+            if custom_path.startswith(('/', '\\')):
+                custom_path = custom_path[1:]
+            
+            # Vérification de sécurité basique
+            if '..' in custom_path or custom_path.startswith(('~', '$')):
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    "❌ Chemin invalide. N'utilisez pas .., ~ ou $",
+                    msgtype="m.notice"
+                )
+                return
+                
+            # Ajout du nom du fichier s'il n'est pas spécifié
+            if not os.path.basename(custom_path):
+                custom_path = os.path.join(custom_path, file.name)
+            elif not os.path.splitext(os.path.basename(custom_path))[1]:
+                custom_path = os.path.join(custom_path, file.name)
+                
+            # Initialisation du service et déplacement
+            from services.classifier_service import ClassifierService
+            async with ClassifierService(config) as classifier:
+                await classifier.move_file(file.name, custom_path)
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    f"✅ Fichier déplacé vers : {custom_path}",
+                    msgtype="m.notice"
+                )
+                
+            # Nettoyage du contexte
+            config.last_classification_result = None
+            config.last_classified_file = None
+            config.waiting_for_custom_path = False
+            return
+            
+        # Sinon, traitement normal des choix 1-4
+        choice = ep.event.body.strip()
+        if not choice.isdigit() or int(choice) not in [1, 2, 3, 4]:
+            return
+            
+        choice = int(choice)
+        
+        if choice == 4:  # Annuler
+            await matrix_client.send_markdown_message(
+                ep.room.room_id,
+                "❌ Classification annulée.",
+                msgtype="m.notice"
+            )
+            # Nettoyage du contexte
+            config.last_classification_result = None
+            config.last_classified_file = None
+            return
+            
+        # Initialisation du service
+        from services.classifier_service import ClassifierService
+        async with ClassifierService(config) as classifier:
+            target_path = None
+            
+            if choice == 1:  # Valider l'emplacement proposé
+                target_path = result.suggested_path
+            elif choice == 2:  # Choisir une alternative
+                # Demander quelle alternative
+                alternatives = "\n".join(
+                    f"{i+1}. {path}" 
+                    for i, (path, _) in enumerate(result.alternative_paths)
+                )
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    f"Choisissez une alternative :\n{alternatives}",
+                    msgtype="m.notice"
+                )
+                return
+            elif choice == 3:  # Spécifier un chemin
+                config.waiting_for_custom_path = True
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    "Veuillez spécifier le chemin souhaité :",
+                    msgtype="m.notice"
+                )
+                return
+                
+            if target_path:
+                # Déplacer le fichier
+                await classifier.move_file(file.name, target_path)
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    f"✅ Fichier déplacé vers : {target_path}",
+                    msgtype="m.notice"
+                )
+                
+                # Nettoyer le contexte
+                config.last_classification_result = None
+                config.last_classified_file = None
+                
+    except Exception as e:
+        logger.error(f"Erreur lors du traitement de la réponse: {str(e)}")
+        traceback.print_exc()
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            "❌ Une erreur est survenue lors du traitement de votre choix.",
+            msgtype="m.notice"
+        )
+        # Nettoyage du contexte en cas d'erreur
+        if hasattr(config, 'last_classification_result'):
+            config.last_classification_result = None
+        if hasattr(config, 'last_classified_file'):
+            config.last_classified_file = None
+        if hasattr(config, 'waiting_for_custom_path'):
+            config.waiting_for_custom_path = False

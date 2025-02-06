@@ -42,6 +42,7 @@ class AlbertMsg:
         msg += f"J'utilise le modèle de langage _[{model_short_name}]({model_url})_ et j'ai été alimenté par des bases de connaissances gouvernementales, comme les fiches pratiques de service-public.fr éditées par la Direction de l'information légale et administrative (DILA).\n\n"
         msg += "Maintenant que nous avons fait plus connaissance, quelques **règles pour m'utiliser** :\n\n"
         msg += "✅ Vous pouvez m'attacher en pièces jointes des documents pdf qui m'aideront à répondre plus efficacement.\n\n"
+        msg += "✅ Utilisez !docquery pour me poser une question en utilisant la documentation comme contexte.\n\n"
         msg += "🔮 Ne m'utilisez pas pour élaborer une décision administrative individuelle.\n\n"
         msg += "❌ **Ne me transmettez pas** :\n"
         msg += "- des fichiers autres que pdf, ni des images;\n"
