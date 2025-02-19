@@ -173,7 +173,7 @@ class IndexService:
             
             # Nettoyer le cache des embeddings
             if self.document_index.embedding_service:
-                self.document_index.embedding_service.cache.clear_old_entries(
+                await self.document_index.embedding_service.cache.clear_old_entries(
                     timedelta(hours=0)  # Tout nettoyer
                 )
             
@@ -230,7 +230,7 @@ class IndexService:
             )
             
             # Nettoyer le cache des embeddings
-            self.document_index.embedding_service.cache.clear_old_entries(
+            await self.document_index.embedding_service.cache.clear_old_entries(
                 timedelta(hours=0)  # Tout nettoyer
             )
             

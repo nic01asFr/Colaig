@@ -133,8 +133,37 @@ class FAISSIndex:
                 f"!= dimension de l'index ({self.dimension})"
             )
             
-        D, I = self.index.search(query_embedding.reshape(1, -1), min(k, self.index.ntotal))
-        return [self.document_map[i] for i in I[0]]
+        # Normaliser le vecteur de requête
+        query_embedding = query_embedding / np.linalg.norm(query_embedding)
+        
+        # Rechercher les k*2 plus proches voisins pour avoir plus de contexte
+        k_search = min(k * 2, self.index.ntotal)
+        D, I = self.index.search(query_embedding.reshape(1, -1), k_search)
+        
+        # Convertir les distances L2 en scores de similarité cosinus
+        similarities = 1 - D[0] / 2  # Conversion L2 en similarité cosinus
+        
+        # Filtrer les résultats avec un seuil de similarité minimum
+        min_similarity = 0.3  # Seuil minimum de similarité
+        filtered_results = []
+        
+        for idx, sim in zip(I[0], similarities):
+            if sim < min_similarity:
+                continue
+                
+            chunk = self.document_map[idx]
+            # Ajouter le score à la métadonnée
+            if chunk.metadata is None:
+                chunk.metadata = {}
+            chunk.metadata['similarity_score'] = float(sim)
+            filtered_results.append(chunk)
+            
+            if len(filtered_results) >= k:
+                break
+        
+        # Trier par score de similarité
+        filtered_results.sort(key=lambda x: x.metadata.get('similarity_score', 0), reverse=True)
+        return filtered_results
         
     def save(self, index_path: str, map_path: str):
         """Sauvegarde l'index et la map
@@ -586,7 +615,7 @@ class DocumentIndex:
             raise
     
     def _chunk_document(self, content: str, doc_path: str) -> List[DocumentChunk]:
-        """Découpe un document en chunks"""
+        """Découpe un document en chunks en préservant le contexte"""
         chunks = []
         
         # Traitement spécial pour les fichiers Markdown
@@ -594,27 +623,29 @@ class DocumentIndex:
             # Découpage en sections basé sur les titres Markdown
             sections = []
             current_section = []
+            current_title = ""
             
             for line in content.split('\n'):
-                if line.strip().startswith('#') or line.strip().startswith('🚀') or line.strip().startswith('📜'):
+                if line.strip().startswith('#'):
                     if current_section:
-                        sections.append('\n'.join(current_section).strip())
+                        sections.append((current_title, '\n'.join(current_section).strip()))
                         current_section = []
+                    current_title = line.strip()
                 current_section.append(line)
             
             if current_section:
-                sections.append('\n'.join(current_section).strip())
+                sections.append((current_title, '\n'.join(current_section).strip()))
             
             # Filtrer les sections vides
-            sections = [s for s in sections if s.strip()]
+            sections = [(title, content) for title, content in sections if content.strip()]
             
             if not sections:
                 logger.warning(f"Document Markdown vide ou sans contenu valide: {doc_path}")
                 return []
                 
             logger.debug(f"Découpage du document Markdown {doc_path} en {len(sections)} sections")
-            for i, section in enumerate(sections):
-                logger.debug(f"Section {i+1}/{len(sections)} : {section[:100]}...")
+            for i, (title, section) in enumerate(sections):
+                logger.debug(f"Section {i+1}/{len(sections)} : {title}")
                 chunk = DocumentChunk(
                     id=f"{doc_path}_{i}",
                     content=section,
@@ -623,34 +654,180 @@ class DocumentIndex:
                     metadata={
                         "document_name": os.path.basename(doc_path),
                         "total_chunks": len(sections),
-                        "is_markdown": True
+                        "is_markdown": True,
+                        "section_title": title,
+                        "document_title": sections[0][0] if sections else "",
                     },
                     last_updated=datetime.now()
                 )
                 chunks.append(chunk)
         else:
-            # Découpage standard en paragraphes pour les autres types de documents
-            paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
+            # Découpage intelligent pour les PDF et autres documents
+            # Détecter si c'est un PDF structuré (avec nos marqueurs)
+            is_structured_pdf = '[Page 1]' in content and any(line.strip().startswith('##') for line in content.split('\n'))
             
-            if not paragraphs:
-                logger.warning(f"Document vide ou sans contenu valide: {doc_path}")
-                return []
+            if is_structured_pdf:
+                # Découpage basé sur les pages et sections avec chevauchement
+                current_page = 0
+                current_section = []
+                current_title = ""
+                document_title = ""
+                sections = []
+                page_content = {}
                 
-            logger.debug(f"Découpage du document {doc_path} en {len(paragraphs)} paragraphes")
-            for i, para in enumerate(paragraphs):
-                logger.debug(f"Paragraphe {i+1}/{len(paragraphs)} : {para[:100]}...")
-                chunk = DocumentChunk(
-                    id=f"{doc_path}_{i}",
-                    content=para,
-                    document_path=doc_path,
-                    chunk_number=i,
-                    metadata={
-                        "document_name": os.path.basename(doc_path),
-                        "total_chunks": len(paragraphs)
-                    },
-                    last_updated=datetime.now()
-                )
-                chunks.append(chunk)
+                # Première passe : collecter le contenu par page
+                for line in content.split('\n'):
+                    if line.strip().startswith('[Page '):
+                        current_page = int(line.strip()[6:-1])
+                        if current_page not in page_content:
+                            page_content[current_page] = []
+                    else:
+                        if current_page > 0:
+                            page_content[current_page].append(line)
+
+                # Deuxième passe : identifier les sections avec leur contexte
+                current_page = 0
+                for line in content.split('\n'):
+                    if line.strip().startswith('[Page '):
+                        current_page = int(line.strip()[6:-1])
+                        if current_section and current_title:
+                            # Ajouter le contexte des pages adjacentes
+                            context_before = []
+                            context_after = []
+                            if current_page > 1 and (current_page-1) in page_content:
+                                context_before = page_content[current_page-1][-5:]  # 5 dernières lignes
+                            if (current_page+1) in page_content:
+                                context_after = page_content[current_page+1][:5]    # 5 premières lignes
+                            
+                            full_section = []
+                            if context_before:
+                                full_section.append("--- Contexte de la page précédente ---")
+                                full_section.extend(context_before)
+                            full_section.extend(current_section)
+                            if context_after:
+                                full_section.append("--- Contexte de la page suivante ---")
+                                full_section.extend(context_after)
+                            
+                            sections.append((current_title, current_page - 1, '\n'.join(full_section).strip()))
+                            current_section = []
+                    elif line.strip().startswith('###'):
+                        if not document_title:
+                            document_title = line.strip()[4:].strip()
+                        if current_section and current_title:
+                            sections.append((current_title, current_page, '\n'.join(current_section).strip()))
+                            current_section = []
+                        current_title = line.strip()[4:].strip()
+                    elif line.strip().startswith('##'):
+                        if current_section and current_title:
+                            sections.append((current_title, current_page, '\n'.join(current_section).strip()))
+                            current_section = []
+                        current_title = line.strip()[3:].strip()
+                    elif line.strip().startswith('#'):
+                        if current_section and current_title:
+                            sections.append((current_title, current_page, '\n'.join(current_section).strip()))
+                            current_section = []
+                        current_title = line.strip()[2:].strip()
+                    else:
+                        current_section.append(line)
+                
+                if current_section and current_title:
+                    sections.append((current_title, current_page, '\n'.join(current_section).strip()))
+                
+                # Créer les chunks avec contexte enrichi
+                for i, (title, page, section) in enumerate(sections):
+                    if not section.strip():
+                        continue
+                        
+                    # Extraire les positions si présentes
+                    positions = []
+                    for line in section.split('\n'):
+                        if '[pos:' in line:
+                            pos_start = line.find('[pos:')
+                            pos_end = line.find(']', pos_start)
+                            if pos_end > pos_start:
+                                positions.append(line[pos_start:pos_end+1])
+                    
+                    # Ajouter le contexte du document
+                    contextualized_content = []
+                    contextualized_content.append(f"Document: {os.path.basename(doc_path)}")
+                    if document_title:
+                        contextualized_content.append(f"Titre du document: {document_title}")
+                    contextualized_content.append(f"Section actuelle: {title}")
+                    contextualized_content.append(f"Page: {page}")
+                    
+                    # Ajouter le contexte des sections adjacentes
+                    if i > 0:
+                        prev_title, prev_page, _ = sections[i-1]
+                        contextualized_content.append(f"Section précédente: {prev_title} (Page {prev_page})")
+                    if i < len(sections) - 1:
+                        next_title, next_page, _ = sections[i+1]
+                        contextualized_content.append(f"Section suivante: {next_title} (Page {next_page})")
+                    
+                    # Ajouter les positions si présentes
+                    if positions:
+                        contextualized_content.append("Positions dans la page: " + ", ".join(positions))
+                    
+                    contextualized_content.append("\nContenu:")
+                    contextualized_content.append(section)
+                    
+                    chunk = DocumentChunk(
+                        id=f"{doc_path}_{i}",
+                        content='\n'.join(contextualized_content),
+                        document_path=doc_path,
+                        chunk_number=i,
+                        page_number=page,
+                        metadata={
+                            "document_name": os.path.basename(doc_path),
+                            "document_title": document_title,
+                            "total_chunks": len(sections),
+                            "section_title": title,
+                            "is_pdf": True,
+                            "page": page,
+                            "has_position_data": bool(positions),
+                            "adjacent_sections": {
+                                "previous": sections[i-1][0] if i > 0 else None,
+                                "next": sections[i+1][0] if i < len(sections) - 1 else None
+                            }
+                        },
+                        last_updated=datetime.now()
+                    )
+                    chunks.append(chunk)
+            else:
+                # Découpage standard en paragraphes avec chevauchement
+                paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
+                
+                if not paragraphs:
+                    logger.warning(f"Document vide ou sans contenu valide: {doc_path}")
+                    return []
+                
+                # Créer des chunks avec chevauchement pour préserver le contexte
+                overlap = 2  # Nombre de paragraphes de chevauchement
+                chunk_size = 5  # Nombre de paragraphes par chunk
+                
+                for i in range(0, len(paragraphs), chunk_size - overlap):
+                    # Prendre chunk_size paragraphes avec chevauchement
+                    chunk_paragraphs = paragraphs[i:i + chunk_size]
+                    if not chunk_paragraphs:
+                        continue
+                        
+                    # Ajouter le contexte du document
+                    contextualized_content = f"Document: {os.path.basename(doc_path)}\n\n"
+                    contextualized_content += '\n\n'.join(chunk_paragraphs)
+                    
+                    chunk = DocumentChunk(
+                        id=f"{doc_path}_{i//chunk_size}",
+                        content=contextualized_content,
+                        document_path=doc_path,
+                        chunk_number=i//chunk_size,
+                        metadata={
+                            "document_name": os.path.basename(doc_path),
+                            "total_chunks": (len(paragraphs) + chunk_size - 1) // chunk_size,
+                            "start_paragraph": i,
+                            "end_paragraph": min(i + chunk_size, len(paragraphs))
+                        },
+                        last_updated=datetime.now()
+                    )
+                    chunks.append(chunk)
         
         logger.info(f"Document découpé en {len(chunks)} chunks: {doc_path}")
         return chunks
@@ -685,12 +862,16 @@ class DocumentIndex:
                 logger.error(f"Dimension de l'embedding incorrecte: {len(query_embedding)} != {self.faiss_index.dimension}")
                 return []
 
-            # Effectuer la recherche
-            chunks = self.faiss_index.search(query_embedding, limit)
+            # Effectuer la recherche avec plus de résultats pour avoir plus de contexte
+            chunks = self.faiss_index.search(query_embedding, limit * 2)
             
             # Formater les résultats au format attendu par l'API Albert
             formatted_chunks = []
             for chunk in chunks:
+                # Vérifier le score de similarité minimum
+                if chunk.metadata.get('similarity_score', 0) < 0.3:
+                    continue
+                    
                 formatted_chunk = {
                     "id": chunk.id,
                     "content": chunk.content,
@@ -699,11 +880,18 @@ class DocumentIndex:
                         "document_path": chunk.document_path,
                         "chunk_number": chunk.chunk_number,
                         "page_number": chunk.page_number,
+                        "similarity_score": chunk.metadata.get('similarity_score', 0),
                         **(chunk.metadata or {})
                     }
                 }
                 formatted_chunks.append(formatted_chunk)
+                
+                # Limiter au nombre demandé après filtrage
+                if len(formatted_chunks) >= limit:
+                    break
             
+            # Trier par score de similarité
+            formatted_chunks.sort(key=lambda x: x['metadata'].get('similarity_score', 0), reverse=True)
             return formatted_chunks
             
         except Exception as e:

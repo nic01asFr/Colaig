@@ -5,6 +5,10 @@ import requests
 from urllib.parse import urljoin
 import io
 from pdfminer.high_level import extract_text
+from pdfminer.layout import LAParams, LTTextContainer, LTChar, LTPage
+from pdfminer.pdfpage import PDFPage
+from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
+from pdfminer.converter import PDFPageAggregator
 import xml.etree.ElementTree as ET
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -125,9 +129,71 @@ class WebDAVService:
                 
                 # Traiter selon le type MIME
                 if 'application/pdf' in content_type:
-                    # Convertir le PDF en texte
+                    # Convertir le PDF en texte structuré
                     pdf_content = io.BytesIO(response.content)
-                    return extract_text(pdf_content)
+                    
+                    # Paramètres d'extraction améliorés
+                    laparams = LAParams(
+                        line_margin=0.3,      # Réduit pour mieux détecter les lignes
+                        word_margin=0.1,      # Marge entre les mots
+                        char_margin=1.0,      # Réduit pour mieux grouper les caractères
+                        boxes_flow=0.7,       # Augmenté pour mieux suivre le flux de texte
+                        detect_vertical=True,  # Détection du texte vertical
+                        all_texts=True        # Capture tout le texte, même décoratif
+                    )
+                    
+                    # Initialiser les outils PDFMiner
+                    resource_manager = PDFResourceManager()
+                    device = PDFPageAggregator(resource_manager, laparams=laparams)
+                    interpreter = PDFPageInterpreter(resource_manager, device)
+                    
+                    structured_text = []
+                    current_page = 1
+                    
+                    # Extraire le texte page par page
+                    for page in PDFPage.get_pages(pdf_content):
+                        interpreter.process_page(page)
+                        layout = device.get_result()
+                        
+                        page_text = []
+                        for element in layout:
+                            if isinstance(element, LTTextContainer):
+                                # Extraire le texte avec sa position et ses propriétés
+                                text = element.get_text().strip()
+                                if text:
+                                    # Détecter si c'est un titre basé sur la taille de police
+                                    font_sizes = []
+                                    for text_line in element:
+                                        if isinstance(text_line, LTTextContainer):
+                                            for char in text_line:
+                                                if isinstance(char, LTChar):
+                                                    font_sizes.append(char.size)
+                                    
+                                    avg_font_size = sum(font_sizes) / len(font_sizes) if font_sizes else 0
+                                    
+                                    # Ajouter des marqueurs de structure
+                                    if avg_font_size > 14:  # Titre probable
+                                        text = f"### {text}"
+                                    elif avg_font_size > 12:  # Sous-titre probable
+                                        text = f"## {text}"
+                                    elif avg_font_size > 10:  # Sous-section probable
+                                        text = f"# {text}"
+                                        
+                                    # Ajouter le texte avec sa position
+                                    bbox = element.bbox
+                                    if bbox:
+                                        text = f"{text} [pos: {bbox[0]:.0f}, {bbox[1]:.0f}]"
+                                    
+                                    page_text.append(text)
+                        
+                        # Ajouter le numéro de page et le texte
+                        if page_text:
+                            structured_text.append(f"\n[Page {current_page}]\n")
+                            structured_text.extend(page_text)
+                            current_page += 1
+                    
+                    device.close()
+                    return "\n".join(structured_text)
                 else:
                     # Pour les autres types, retourner le contenu comme texte
                     return response.text

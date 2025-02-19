@@ -85,6 +85,7 @@ async def generate(
     if mode == "rag":
         try:
             # Tentative de recherche sémantique
+            logger.info(f"Tentative de recherche RAG avec le modèle {config.albert_model_embedding}")
             messages = await aclient.make_rag_prompt(
                 model_embedding=config.albert_model_embedding, 
                 messages=messages,
@@ -93,7 +94,7 @@ async def generate(
             )
             rag_chunks = aclient.last_chunks
             
-            # Si aucun chunk pertinent n'est trouvé, on bascule en mode norag
+            # Si aucun chunk pertinent n'est trouvé, bascule en norag
             if not rag_chunks:
                 logger.info("Aucun chunk pertinent trouvé, basculement en mode norag")
                 messages = [
@@ -101,17 +102,22 @@ async def generate(
                         "role": "system",
                         "content": SYSTEM_PROMPT
                     }
-                ] + messages[1:]  # On garde la question de l'utilisateur
-                
+                ] + messages[1:]
+            else:
+                logger.info(f"Recherche RAG réussie avec {len(rag_chunks)} chunks pertinents")
+            
+        except ValueError as ve:
+            # Erreur de validation (ex: paramètres invalides)
+            logger.warning(f"Erreur de validation RAG: {str(ve)}")
+            messages = [{"role": "system", "content": SYSTEM_PROMPT}] + messages[1:]
+        except ConnectionError as ce:
+            # Erreur de connexion
+            logger.warning(f"Erreur de connexion RAG: {str(ce)}")
+            messages = [{"role": "system", "content": SYSTEM_PROMPT}] + messages[1:]
         except Exception as e:
-            # En cas d'erreur (403, index manquant, etc.), on bascule en mode norag
-            logger.warning(f"Erreur lors de la recherche sémantique, basculement en mode norag: {str(e)}")
-            messages = [
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT
-                }
-            ] + messages[1:]  # On garde la question de l'utilisateur
+            # Autres erreurs
+            logger.error(f"Erreur inattendue lors de la recherche RAG: {str(e)}")
+            messages = [{"role": "system", "content": SYSTEM_PROMPT}] + messages[1:]
     else:
         messages = [
             {
@@ -297,22 +303,39 @@ class AlbertApiClient:
 
     def format_albert_template(self, query: str, chunks: list[dict]) -> str:
         # Template configuration
-        prompt_template = """Utilisez le contexte suivant comme votre base de connaissances, à l'intérieur des balises XML <context></context>.
+        prompt_template = """Il va falloir utiliser le contexte suivant comme base de connaissances, situé à l'intérieur des balises XML <context></context>. Il est composé de chunks issus d'un espace documentaire indexé, recherchés à partir de la requête suivante à laquelle ils vont servir pour formuler ta réponse : {{query}}
 
 <context>
 {% for chunk in chunks %}
-id: {{chunk.id}}
-document: {{chunk.metadata.document_name}}
-content: {{chunk.content}} {% if not loop.last %}{{"\n"}}{% endif %}
+[Document: {{chunk.metadata.document_name}}]
+{% if chunk.metadata.document_title %}[Titre du document: {{chunk.metadata.document_title}}]{% endif %}
+{% if chunk.metadata.section_title %}[Section: {{chunk.metadata.section_title}}]{% endif %}
+{% if chunk.metadata.page %}[Page: {{chunk.metadata.page}}]{% endif %}
+[Score de pertinence: {% if chunk.metadata.similarity_score is not none %}{{chunk.metadata.similarity_score|round(3)}}{% else %}N/A{% endif %}]
+
+{{chunk.content}}
+
+{% if not loop.last %}---{% endif %}
 {% endfor %}
 </context>
 
-Lors de la réponse à l'utilisateur :
-- Si vous ne savez pas ou si vous n'êtes pas sûr, demandez une clarification.
-- Évitez de mentionner que vous avez obtenu les informations du contexte.
-- Citez vos sources en utilisant les noms des documents.
+Instructions pour la réponse :
+1. Base ta réponse uniquement sur les informations fournies dans le contexte ci-dessus.
+2. Si les informations du contexte sont insuffisantes ou peu pertinentes, indique-le clairement.
+3. La réponse que tu vas faire sera ensuite affiché dans une messagerie instantanée, il faut donc que tu la formates de manière à être lisible, compréhensible et adptée à la requête :
+   - Imagine et adapte un format de réponse adpté à la requête et au contexte de la conversation
+   - Présente les événements par ordre chronologique et étudie la fraicheur des sources utilisées lorsque cela est pertinent
+   - réfléchis à la logique et la cohérence des réponses apportées au regard des informations du contexte
+   - indique les sources utilisées en fin de massage de manière à crédibiliser le contenu de ta réponse sans invention
+   - Sois critique sur la qualité de la réponse qu'il est possible de fournir au regard de de l'intentionnalité de la requête et de la pertinence des sources utilisées
+4. Évite les répétitions d'information
+5. Structure ta réponse de manière claire et concise
+6. Pour les dates passées, indique clairement qu'elles ne sont plus d'actualité
 
 Question : {{query}}
+
+
+Réponse :
 """
         conf = {
             "limit": len(chunks),
