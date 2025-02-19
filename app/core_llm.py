@@ -81,14 +81,37 @@ async def generate(
     # Build prompt
     sampling_params: dict = {}
     aclient = AlbertApiClient(base_url=url, api_key=api_key)
+    
     if mode == "rag":
-        messages = await aclient.make_rag_prompt(
-            model_embedding=config.albert_model_embedding, 
-            messages=messages,
-            collections=collections,
-            limit=7
-        )
-        rag_chunks = aclient.last_chunks
+        try:
+            # Tentative de recherche sémantique
+            messages = await aclient.make_rag_prompt(
+                model_embedding=config.albert_model_embedding, 
+                messages=messages,
+                collections=collections,
+                limit=7
+            )
+            rag_chunks = aclient.last_chunks
+            
+            # Si aucun chunk pertinent n'est trouvé, on bascule en mode norag
+            if not rag_chunks:
+                logger.info("Aucun chunk pertinent trouvé, basculement en mode norag")
+                messages = [
+                    {
+                        "role": "system",
+                        "content": SYSTEM_PROMPT
+                    }
+                ] + messages[1:]  # On garde la question de l'utilisateur
+                
+        except Exception as e:
+            # En cas d'erreur (403, index manquant, etc.), on bascule en mode norag
+            logger.warning(f"Erreur lors de la recherche sémantique, basculement en mode norag: {str(e)}")
+            messages = [
+                {
+                    "role": "system",
+                    "content": SYSTEM_PROMPT
+                }
+            ] + messages[1:]  # On garde la question de l'utilisateur
     else:
         messages = [
             {
@@ -97,13 +120,16 @@ async def generate(
             }
         ] + messages
 
-    # Generate answer
-    answer = aclient.generate(model=model, messages=messages, **sampling_params)
-
-    # Set the chunks used by the rag or empty list.
-    config.last_rag_chunks = rag_chunks
-
-    return answer.strip()
+    try:
+        # Génération de la réponse
+        response = aclient.generate(model, messages, **sampling_params)
+        config.last_rag_chunks = rag_chunks
+        return response
+    except Exception as e:
+        logger.error(f"Erreur lors de la génération: {str(e)}")
+        raise
+    finally:
+        await aclient.close()
 
 
 def get_all_public_collections(config: Config) -> List[Dict]:
@@ -300,7 +326,7 @@ Question : {{query}}
         return t.render(**conf)
 
     async def create_collection(self, collection_name: str, model_embedding: str) -> dict:
-        """Call the POST /collections endpoint of the Albert API"""
+        """Crée une nouvelle collection via l'API Albert"""
         data = {"name": collection_name, "model": model_embedding, "type": "private"}
         response = await self.http_client.post(
             f"{self.base_url}/v1/collections",
@@ -312,14 +338,14 @@ Question : {{query}}
         return data
     
     async def delete_collection(self, collection_id: str) -> None:
-        """Call the DELETE /collections/{collection_id} endpoint of the Albert API"""
+        """Supprime une collection via l'API Albert"""
         response = await self.http_client.delete(
             f"{self.base_url}/v1/collections/{collection_id}"
         )
         response.raise_for_status()
     
     async def fetch_collections(self) -> dict:
-        """Call the GET /collections endpoint of the Albert API"""
+        """Récupère la liste des collections via l'API Albert"""
         response = await self.http_client.get(
             f"{self.base_url}/v1/collections"
         )
@@ -329,7 +355,7 @@ Question : {{query}}
         return collections_by_id
     
     async def delete_document(self, collection_id: str, document_id: str) -> None:
-        """Call the DELETE /documents/{collection_id}/{document_id} endpoint of the Albert API"""
+        """Supprime un document d'une collection via l'API Albert"""
         response = await self.http_client.delete(
             f"{self.base_url}/v1/documents/{collection_id}/{document_id}"
         )
@@ -340,7 +366,7 @@ Question : {{query}}
         file: BytesIO, 
         collection_id: str
     ) -> list[dict]:
-        """Call the /files endpoint of the Albert API"""
+        """Upload un fichier via l'API Albert"""
         files = {"file": (file.name, file.getvalue(), file.type)}
         data = {"request": '{"collection": "%s"}' % collection_id}
         response = await self.http_client.post(
@@ -352,71 +378,9 @@ Question : {{query}}
         return response.json()
 
     async def fetch_documents(self, collection_id: str) -> list[dict]:
-        """Call the /documents endpoint of the Albert API"""
+        """Récupère la liste des documents d'une collection via l'API Albert"""
         response = await self.http_client.get(
             f"{self.base_url}/v1/documents/{collection_id}"
         )
         response.raise_for_status()
         return response.json()['data']
-
-
-class MistralApiClient:
-    """Client dédié pour l'API Mistral"""
-    def __init__(self, base_url: str, api_key: str):
-        self.base_url = base_url.rstrip('/')
-        self.api_key = api_key
-        
-        # Client HTTP pour les embeddings
-        self.http_client = httpx.AsyncClient(
-            timeout=60.0,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
-            },
-            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
-            http2=True
-        )
-
-    async def create_embedding(self, text: str, model: str = "mistral-embed") -> np.ndarray:
-        """Crée un embedding pour le texte donné via l'API Mistral"""
-        try:
-            data = {
-                "model": model,
-                "input": [text],
-                "encoding_format": "float"
-            }
-            response = await self.http_client.post(
-                f"{self.base_url}/v1/embeddings",
-                json=data
-            )
-            response.raise_for_status()
-            embedding_data = response.json()
-            return np.array(embedding_data["data"][0]["embedding"])
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de la création de l'embedding Mistral: {str(e)}")
-            raise
-
-    async def create_embeddings_batch(self, texts: List[str], model: str = "mistral-embed") -> np.ndarray:
-        """Crée des embeddings pour plusieurs textes via l'API Mistral"""
-        try:
-            data = {
-                "model": model,
-                "input": texts,
-                "encoding_format": "float"
-            }
-            response = await self.http_client.post(
-                f"{self.base_url}/v1/embeddings",
-                json=data
-            )
-            response.raise_for_status()
-            embedding_data = response.json()
-            return np.array([data["embedding"] for data in embedding_data["data"]])
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de la création des embeddings Mistral: {str(e)}")
-            raise
-
-    async def close(self):
-        """Ferme proprement le client HTTP"""
-        await self.http_client.aclose()

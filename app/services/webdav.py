@@ -254,23 +254,46 @@ class WebDAVService:
             
         return content, version_info
 
-    async def create_directory(self, path: str) -> None:
-        """Crée un dossier sur WebDAV"""
-        try:
-            logger.info(f"Création du dossier WebDAV: {path}")
-            url = self._get_url(path)
-            response = await self.http_client.request('MKCOL', url)
-            response.raise_for_status()
-            logger.info(f"Dossier créé avec succès: {path}")
-        except httpx.HTTPError as e:
-            if e.response.status_code in [405, 423]:  # Method Not Allowed (existe déjà) ou Locked
-                logger.debug(f"Le dossier existe déjà ou est verrouillé: {path}")
-                return
-            logger.error(f"Erreur lors de la création du dossier WebDAV {path}: {str(e)}")
-            raise
-        except Exception as e:
-            logger.error(f"Erreur lors de la création du dossier WebDAV {path}: {str(e)}")
-            raise
+    async def create_directory(self, path: str) -> bool:
+        """Crée un dossier sur le serveur WebDAV avec gestion des verrous
+        
+        Args:
+            path: Chemin du dossier à créer
+            
+        Returns:
+            bool: True si le dossier a été créé ou existe déjà
+        """
+        max_retries = 3
+        retry_delay = 1
+        
+        for attempt in range(max_retries):
+            try:
+                if await self.exists(path):
+                    logger.debug(f"Le dossier existe déjà: {path}")
+                    return True
+                    
+                url = self._get_url(path)
+                response = await self.http_client.request("MKCOL", url)
+                if response.status_code in [201, 405]:  # 201=Created, 405=Already exists
+                    return True
+                    
+                if response.status_code == 423:  # Locked
+                    if attempt < max_retries - 1:
+                        logger.debug(f"Dossier verrouillé, tentative {attempt + 1}/{max_retries}")
+                        await asyncio.sleep(retry_delay)
+                        continue
+                        
+                logger.error(f"Échec création dossier: {path} (status={response.status_code})")
+                return False
+                    
+            except Exception as e:
+                logger.error(f"Erreur création dossier: {path} - {str(e)}")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(retry_delay)
+                    continue
+                return False
+                
+        return False
 
     def _validate_filename(self, filename: str) -> bool:
         """Valide un nom de fichier selon les règles WebDAV et de sécurité"""
@@ -334,6 +357,45 @@ class WebDAVService:
         except Exception as e:
             logger.error(f"Erreur lors de la validation du chemin: {str(e)}")
             return False
+
+    async def exists(self, path: str) -> bool:
+        """Vérifie si un fichier ou dossier existe sur le serveur WebDAV
+        
+        Args:
+            path: Chemin à vérifier
+            
+        Returns:
+            bool: True si le chemin existe
+        """
+        try:
+            url = self._get_url(path)
+            response = await self.http_client.request(
+                "PROPFIND",
+                url,
+                headers={"Depth": "0"}
+            )
+            return response.status_code in [200, 207]
+        except Exception as e:
+            logger.debug(f"Erreur vérification existence {path}: {str(e)}")
+            return False
+
+    async def download_file(self, path: str) -> bytes:
+        """Télécharge un fichier depuis WebDAV
+        
+        Args:
+            path: Chemin du fichier à télécharger
+            
+        Returns:
+            bytes: Contenu du fichier
+        """
+        try:
+            url = self._get_url(path)
+            response = await self.http_client.get(url)
+            response.raise_for_status()
+            return response.content
+        except Exception as e:
+            logger.error(f"Erreur téléchargement fichier {path}: {str(e)}")
+            raise
 
     async def __aenter__(self):
         return self

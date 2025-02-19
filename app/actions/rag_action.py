@@ -9,7 +9,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from config import Config
 from core_llm import AlbertApiClient
-from services.document_index import DocumentIndex
+from services.index_service import IndexService
 from services.webdav import WebDAVService
 from matrix_bot.config import logger
 
@@ -18,32 +18,47 @@ class AskAlbertRagAction:
     """Action pour interroger Albert en utilisant le RAG (Retrieval Augmented Generation)"""
     query: str
     config: Config
-    document_index: Optional[DocumentIndex] = None
+    index_service: Optional[IndexService] = None
     chunks: List[Dict[str, Any]] = None
     webdav_service: Optional[WebDAVService] = None
     
     async def initialize(self) -> None:
-        """Initialise l'index de documents si nécessaire"""
+        """Initialise le service d'index en mode lecture seule"""
         try:
             if not self.webdav_service:
                 self.webdav_service = WebDAVService(self.config)
                 
-            if not self.document_index:
-                self.document_index = DocumentIndex(
+            if not self.index_service:
+                self.index_service = IndexService(
                     config=self.config,
                     webdav_service=self.webdav_service
                 )
-                await self.document_index.initialize()
+                # Initialisation sans reconstruction
+                try:
+                    await self.index_service.initialize(allow_rebuild=False)
+                except Exception as e:
+                    logger.error(f"Impossible d'initialiser l'index: {str(e)}")
+                    # Ne pas lever l'erreur, laisser l'action continuer avec un index vide
+                    pass
                 
         except Exception as e:
             logger.error(f"Erreur lors de l'initialisation du RAG: {str(e)}")
-            raise
+            # Ne pas lever l'erreur, laisser l'action continuer
+            pass
     
     async def retrieve_relevant_chunks(self, limit: int = 5) -> List[Dict[str, Any]]:
         """Récupère les chunks pertinents pour la requête"""
         try:
-            # Recherche des chunks pertinents
-            relevant_chunks = await self.document_index.search(self.query, limit=limit)
+            if not self.index_service:
+                logger.warning("Service d'index non disponible")
+                return []
+                
+            # Recherche des chunks pertinents sans reconstruction
+            relevant_chunks = await self.index_service.search(self.query, limit=limit)
+            
+            if not relevant_chunks:
+                logger.info("Aucun chunk pertinent trouvé dans l'index existant")
+                return []
             
             # Formatage des chunks pour le prompt
             self.chunks = [{
@@ -64,6 +79,9 @@ class AskAlbertRagAction:
     async def generate_response(self) -> str:
         """Génère une réponse basée sur les chunks trouvés"""
         try:
+            if not self.chunks:
+                return "Je ne peux pas répondre à votre question car aucune information pertinente n'a été trouvée dans l'index existant."
+                
             # Initialisation du client Albert
             albert_client = AlbertApiClient(
                 base_url=self.config.albert_api_url,
@@ -90,26 +108,28 @@ class AskAlbertRagAction:
             
         except Exception as e:
             logger.error(f"Erreur lors de la génération de la réponse: {str(e)}")
-            raise
+            return "Une erreur est survenue lors de la génération de la réponse."
     
     async def execute(self) -> str:
         """Exécute l'action RAG complète"""
         try:
-            # Initialisation
+            # Initialisation sans reconstruction
             await self.initialize()
             
             # Récupération des chunks pertinents
             chunks = await self.retrieve_relevant_chunks()
             if not chunks:
-                return "Aucune information pertinente n'a été trouvée dans la documentation pour votre question."
+                return "Je ne peux pas répondre à votre question car l'index n'est pas disponible ou aucune information pertinente n'a été trouvée. Veuillez vérifier que l'index a été construit correctement."
             
             # Génération de la réponse
             return await self.generate_response()
             
         except Exception as e:
             logger.error(f"Erreur lors de l'exécution de l'action RAG: {str(e)}")
-            raise
+            return "Une erreur est survenue lors de l'exécution de la recherche."
         finally:
             # Nettoyage des ressources
             if self.webdav_service:
-                await self.webdav_service.__aexit__(None, None, None) 
+                await self.webdav_service.__aexit__(None, None, None)
+            if self.index_service:
+                await self.index_service.__aexit__(None, None, None) 

@@ -26,7 +26,8 @@ dependencies = [
     "pdfminer.six==20231228",
     "numpy==1.26.4",
     "faiss-cpu==1.7.4",
-    "mistralai",
+    "httpx==0.27.0",
+    "tenacity==8.2.3",
 ]
 
 [build-system]

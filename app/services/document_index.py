@@ -29,30 +29,124 @@ class FAISSIndex:
     """Gère l'index FAISS pour la recherche vectorielle"""
     
     def __init__(self, dimension: int = 384):
+        """Initialise l'index FAISS
+        
+        Args:
+            dimension: Dimension des vecteurs d'embedding
+        """
+        if dimension <= 0 or dimension > 1024:
+            raise ValueError(f"Dimension invalide: {dimension}")
+            
         self.dimension = dimension
-        self.index = faiss.IndexFlatL2(dimension)
+        self._index = None
         self.document_map: Dict[int, DocumentChunk] = {}
+        self._initialize_index()
+        
+    def _initialize_index(self):
+        """Initialise l'index FAISS avec la dimension spécifiée"""
+        self._index = faiss.IndexFlatL2(self.dimension)
+        
+    @property
+    def index(self):
+        """Accès à l'index FAISS sous-jacent"""
+        if self._index is None:
+            self._initialize_index()
+        return self._index
+        
+    def resize_index(self, new_dimension: int):
+        """Redimensionne l'index pour une nouvelle dimension
+        
+        Args:
+            new_dimension: Nouvelle dimension des vecteurs
+            
+        Returns:
+            Liste des documents à réindexer
+        """
+        if new_dimension <= 0 or new_dimension > 1024:
+            raise ValueError(f"Nouvelle dimension invalide: {new_dimension}")
+            
+        if new_dimension == self.dimension:
+            return []
+            
+        logger.info(f"Redimensionnement de l'index: {self.dimension} -> {new_dimension}")
+        
+        # Sauvegarder les documents actuels
+        old_documents = list(self.document_map.values())
+        
+        # Réinitialiser l'index
+        self.dimension = new_dimension
+        self._index = faiss.IndexFlatL2(new_dimension)
+        self.document_map.clear()
+        
+        return old_documents
         
     def add_document(self, chunk: DocumentChunk, embedding: np.ndarray):
-        """Ajoute un document à l'index"""
+        """Ajoute un document à l'index
+        
+        Args:
+            chunk: Chunk de document à indexer
+            embedding: Vecteur d'embedding
+        """
+        if embedding is None:
+            raise ValueError("Embedding invalide (None)")
+            
+        if len(embedding) != self.dimension:
+            raise ValueError(
+                f"Dimension de l'embedding ({len(embedding)}) "
+                f"!= dimension de l'index ({self.dimension})"
+            )
+            
+        # Normaliser l'embedding avant l'ajout
+        normalized = embedding / np.linalg.norm(embedding)
+        
         index_id = self.index.ntotal
-        self.index.add(embedding.reshape(1, -1))
-        self.document_map[index_id] = chunk
+        self.index.add(normalized.reshape(1, -1))
+        
+        # Stocker uniquement les métadonnées, pas l'embedding complet
+        chunk_copy = DocumentChunk(
+            id=chunk.id,
+            content=chunk.content,
+            document_path=chunk.document_path,
+            chunk_number=chunk.chunk_number,
+            page_number=chunk.page_number,
+            metadata=chunk.metadata,
+            last_updated=chunk.last_updated
+        )
+        self.document_map[index_id] = chunk_copy
         
     def search(self, query_embedding: np.ndarray, k: int = 5) -> List[DocumentChunk]:
-        """Recherche les k plus proches voisins"""
+        """Recherche les k plus proches voisins
+        
+        Args:
+            query_embedding: Vecteur de requête
+            k: Nombre de résultats à retourner
+            
+        Returns:
+            Liste des chunks les plus pertinents
+        """
         if self.index.ntotal == 0:
             return []
+            
+        if len(query_embedding) != self.dimension:
+            raise ValueError(
+                f"Dimension de la requête ({len(query_embedding)}) "
+                f"!= dimension de l'index ({self.dimension})"
+            )
             
         D, I = self.index.search(query_embedding.reshape(1, -1), min(k, self.index.ntotal))
         return [self.document_map[i] for i in I[0]]
         
     def save(self, index_path: str, map_path: str):
-        """Sauvegarde l'index et la map"""
+        """Sauvegarde l'index et la map
+        
+        Args:
+            index_path: Chemin pour sauvegarder l'index FAISS
+            map_path: Chemin pour sauvegarder la map des documents
+        """
         # Sauvegarder l'index FAISS
         faiss.write_index(self.index, index_path)
         
-        # Sauvegarder la map des documents
+        # Sauvegarder la map des documents (sans les embeddings)
         map_data = {
             str(idx): {
                 "id": chunk.id,
@@ -70,11 +164,19 @@ class FAISSIndex:
             
     @classmethod
     def load(cls, index_path: str, map_path: str) -> 'FAISSIndex':
-        """Charge l'index et la map"""
-        instance = cls()
+        """Charge l'index et la map
         
+        Args:
+            index_path: Chemin de l'index FAISS
+            map_path: Chemin de la map des documents
+            
+        Returns:
+            Instance de FAISSIndex
+        """
         # Charger l'index FAISS
-        instance.index = faiss.read_index(index_path)
+        index = faiss.read_index(index_path)
+        instance = cls(dimension=index.d)
+        instance._index = index
         
         # Charger la map des documents
         with open(map_path, 'r') as f:
@@ -104,6 +206,17 @@ class DocumentIndex:
     def __init__(self, config: Config, webdav_service: WebDAVService):
         self.config = config
         self.webdav = webdav_service
+        
+        # Validation de la configuration
+        if not config.albert_model_embedding:
+            raise ValueError("Modèle d'embedding non configuré")
+            
+        if config.embedding_dimension <= 0 or config.embedding_dimension > 1024:
+            raise ValueError(f"Dimension d'embedding invalide: {config.embedding_dimension}")
+            
+        if config.embedding_batch_size <= 0:
+            raise ValueError(f"Taille de batch invalide: {config.embedding_batch_size}")
+            
         self.embedding_service = EmbeddingService(config)
         
         # Chemins des fichiers d'index
@@ -118,15 +231,44 @@ class DocumentIndex:
     async def initialize(self) -> None:
         """Initialise l'index, le charge s'il existe ou le crée si nécessaire"""
         try:
+            # Vérification de la dimension des embeddings
+            current_dimension = self.embedding_service.embedding_dimension
+            if current_dimension != self.faiss_index.dimension:
+                logger.warning(
+                    f"Différence de dimension détectée - Index: {self.faiss_index.dimension}, "
+                    f"Service: {current_dimension}"
+                )
+                
+                try:
+                    # Récupérer les documents existants
+                    old_documents = self.faiss_index.resize_index(current_dimension)
+                    
+                    # Recalculer les embeddings avec la nouvelle dimension
+                    for chunk in old_documents:
+                        try:
+                            embedding = await self.embedding_service.get_embedding(chunk.content)
+                            if embedding is not None:
+                                self.faiss_index.add_document(chunk, embedding)
+                            else:
+                                logger.warning(f"Impossible de recalculer l'embedding pour {chunk.id}")
+                        except Exception as e:
+                            logger.error(f"Erreur lors du recalcul de l'embedding pour {chunk.id}: {str(e)}")
+                            continue
+                            
+                    await self.save_index()
+                    logger.info(f"Index redimensionné avec succès: {current_dimension}")
+                    
+                except Exception as e:
+                    logger.error(f"Erreur lors du redimensionnement de l'index: {str(e)}")
+                    raise
+                    
             # Tentative de chargement de l'index existant
             await self.load_index()
             logger.info("Index chargé avec succès")
             
             # Vérification de la fraîcheur
             is_fresh, missing_docs, extra_docs = await self.verify_index_freshness()
-            if is_fresh:
-                logger.info("Index à jour")
-            else:
+            if not is_fresh:
                 logger.info("Index partiellement obsolète, mise à jour nécessaire")
                 await self.update_index(missing_docs, extra_docs)
                 await self.save_index()
@@ -145,24 +287,37 @@ class DocumentIndex:
         """Détermine si un fichier est un fichier système"""
         normalized_path = path.replace('\\', '/').strip('/')
         
-        # Liste des motifs de fichiers système à ignorer
-        system_patterns = [
-            f"{self.SYSTEM_DIR}/",  # Dossier .albert
-            f"{self.SYSTEM_DIR}\\", # Variante Windows
-            "/.git/",               # Git
-            "\\.git\\",            # Git (Windows)
-            "/__pycache__/",        # Python cache
-            "/.pytest_cache/",      # Pytest cache
-            "/.venv/",              # Environnement virtuel
-            "/.env",                # Fichiers de configuration
-            "/.gitignore",          # Git ignore
-            "/desktop.ini",         # Windows
-            "/.DS_Store"            # macOS
-        ]
+        # Liste des fichiers cachés légitimes à ne pas exclure
+        ALLOWED_HIDDEN_FILES = {
+            '.gitkeep',
+            '.nojekyll',
+            '.env.example'
+        }
         
-        # Vérifier si le chemin commence par ou contient un motif système
-        for pattern in system_patterns:
-            if normalized_path.startswith(pattern) or f"/{normalized_path}" == pattern or pattern in normalized_path.split('/'):
+        # Vérification de chaque composant du chemin
+        path_parts = normalized_path.split('/')
+        for part in path_parts:
+            # Exclure tous les dossiers/fichiers cachés sauf ceux de la liste autorisée
+            if part.startswith('.') and part not in ALLOWED_HIDDEN_FILES:
+                return True
+                
+            # Liste des motifs de fichiers système à ignorer
+            system_patterns = [
+                "__pycache__",         # Python cache
+                ".pytest_cache",       # Pytest cache
+                ".venv",              # Environnement virtuel
+                "desktop.ini",        # Windows
+                ".DS_Store",          # macOS
+                "node_modules",       # Node.js
+                ".idea",              # IntelliJ
+                ".vscode",            # VSCode
+                ".cache",             # Cache générique
+                "tmp",                # Dossiers temporaires
+                ".tmp"                # Fichiers temporaires
+            ]
+            
+            # Vérification des motifs système
+            if any(pattern in part for pattern in system_patterns):
                 return True
                 
         return False
@@ -232,129 +387,127 @@ class DocumentIndex:
             logger.error(f"Erreur vérification index: {str(e)}")
             return False, set(), set()
 
+    async def _process_document_batch(self, documents: List[str]) -> None:
+        """Traite un lot de documents pour l'indexation"""
+        empty_docs = set()
+        
+        for doc_path in documents:
+            try:
+                # Vérifier si le document est vide
+                content = await self.webdav.read_document(doc_path)
+                if not content or not content.strip():
+                    logger.info(f"Document ignoré car vide: {doc_path}")
+                    empty_docs.add(doc_path)
+                    continue
+
+                # Pour les fichiers Markdown, on conserve les sauts de ligne
+                if doc_path.lower().endswith(('.md', '.markdown')):
+                    logger.debug(f"Traitement spécial pour le fichier Markdown: {doc_path}")
+                    content = content.replace('\r\n', '\n')
+
+                # Découper le document
+                chunks = self._chunk_document(content, doc_path)
+                if not chunks:
+                    logger.warning(f"Aucun chunk généré pour le document: {doc_path}")
+                    empty_docs.add(doc_path)
+                    continue
+                
+                # Obtenir les embeddings pour tous les chunks
+                texts = [chunk.content for chunk in chunks]
+                try:
+                    embeddings = await self.embedding_service.get_embeddings(texts)
+                    
+                    # Ajouter à l'index FAISS
+                    for chunk, embedding in zip(chunks, embeddings):
+                        if embedding is not None:  # Vérifier que l'embedding est valide
+                            self.faiss_index.add_document(chunk, embedding)
+                        else:
+                            logger.warning(f"Embedding invalide pour le chunk {chunk.id}")
+                            
+                    logger.info(f"Document indexé: {doc_path} ({len(chunks)} chunks)")
+                    
+                except Exception as embed_error:
+                    logger.error(f"Erreur d'embedding pour {doc_path}: {str(embed_error)}")
+                    continue
+                    
+            except Exception as doc_error:
+                logger.error(f"Erreur indexation {doc_path}: {str(doc_error)}")
+                continue
+
+        if empty_docs:
+            logger.info(f"Documents vides ignorés: {empty_docs}")
+            
     async def update_index(self, documents_to_add: set[str], documents_to_remove: set[str]) -> None:
         """Met à jour l'index en ajoutant et supprimant les documents spécifiés"""
         try:
             # Supprimer les documents obsolètes
             if documents_to_remove:
-                logger.info(f"Suppression de {len(documents_to_remove)} documents de l'index")
-                new_document_map = {}
+                logger.info(f"Suppression de {len(documents_to_remove)} documents obsolètes")
+                # Créer un nouvel index temporaire
+                temp_index = FAISSIndex(dimension=self.embedding_service.embedding_dimension)
+                
+                # Copier uniquement les documents à conserver
                 for idx, chunk in self.faiss_index.document_map.items():
                     if chunk.document_path not in documents_to_remove:
-                        new_document_map[idx] = chunk
-                self.faiss_index.document_map = new_document_map
+                        temp_index.add_document(chunk, np.array(chunk.embedding))
                 
+                # Remplacer l'ancien index
+                self.faiss_index = temp_index
+                logger.info(f"Documents supprimés, {self.faiss_index.index.ntotal} chunks restants")
+            
             # Ajouter les nouveaux documents
             if documents_to_add:
-                logger.info(f"Ajout de {len(documents_to_add)} documents à l'index")
-                empty_docs = set()
-                for doc_path in documents_to_add:
-                    try:
-                        # Vérifier si le document est vide avant de tenter l'indexation
-                        content = await self.webdav.read_document(doc_path)
-                        if not content or not content.strip():
-                            logger.info(f"Document ignoré car vide: {doc_path}")
-                            empty_docs.add(doc_path)
-                            continue
-
-                        # Découper le document
-                        chunks = self._chunk_document(content, doc_path)
-                        if not chunks:
-                            logger.warning(f"Aucun chunk généré pour le document: {doc_path}")
-                            empty_docs.add(doc_path)
-                            continue
-                            
-                        # Obtenir les embeddings pour les chunks
-                        texts = [chunk.content for chunk in chunks]
-                        embeddings = await self.embedding_service.get_embeddings(texts)
-                        
-                        # Ajouter à l'index FAISS
-                        for chunk, embedding in zip(chunks, embeddings):
-                            chunk.embedding = embedding.tolist()
-                            self.faiss_index.add_document(chunk, embedding)
-                            
-                        logger.info(f"Document indexé: {doc_path} ({len(chunks)} chunks)")
-                        
-                    except Exception as doc_error:
-                        logger.error(f"Erreur indexation {doc_path}: {str(doc_error)}")
-                        continue
-
-                if empty_docs:
-                    logger.info(f"Documents vides ignorés lors de la mise à jour: {empty_docs}")
-                        
-            logger.info(f"Mise à jour terminée: {self.faiss_index.index.ntotal} chunks au total")
+                logger.info(f"Ajout de {len(documents_to_add)} nouveaux documents")
+                
+                # Traiter les documents par lots
+                batch_size = 10
+                for i in range(0, len(documents_to_add), batch_size):
+                    batch = list(documents_to_add)[i:i+batch_size]
+                    await self._process_document_batch(batch)
+                    
+                logger.info(f"Documents ajoutés, {self.faiss_index.index.ntotal} chunks au total")
             
         except Exception as e:
-            logger.error(f"Erreur mise à jour index: {str(e)}")
+            logger.error(f"Erreur lors de la mise à jour de l'index: {str(e)}")
             raise
-    
+            
     async def build_index(self) -> None:
-        """Reconstruit l'index complet"""
+        """Construit l'index à partir de zéro"""
         try:
+            # Créer le dossier .albert s'il n'existe pas
+            system_dir = str(Path(self.config.webdav_root_path) / self.SYSTEM_DIR)
+            if not await self.webdav.exists(system_dir):
+                logger.info(f"Création du dossier système {system_dir}")
+                if not await self.webdav.create_directory(system_dir):
+                    raise RuntimeError(f"Impossible de créer le dossier {system_dir}")
+            
             # Réinitialiser l'index
             self.faiss_index = FAISSIndex(dimension=self.embedding_service.embedding_dimension)
             
-            # Lister tous les documents
-            all_documents = await self.webdav.list_documents()
-            
-            # Filtrer les documents système de manière plus stricte
-            documents = []
-            excluded_docs = []
-            
-            for doc in all_documents:
-                # Vérifier si le document est dans un dossier système
-                if self._is_system_file(doc) or '.albert' in doc.split('/'):
-                    excluded_docs.append(doc)
-                    continue
-                documents.append(doc)
+            # Lister tous les documents et filtrer les fichiers système
+            all_docs = await self.webdav.list_documents()
+            documents = [
+                doc for doc in all_docs 
+                if not self._is_system_file(doc) and not any(
+                    pattern in doc for pattern in [
+                        f"/{self.SYSTEM_DIR}/",
+                        f"\\{self.SYSTEM_DIR}\\",
+                        f"{self.SYSTEM_DIR}/"
+                    ]
+                )
+            ]
             
             total = len(documents)
-            logger.info(f"Début de l'indexation de {total} documents")
-            logger.info(f"Documents exclus ({len(excluded_docs)}): {', '.join(excluded_docs)}")
+            logger.info(f"Construction de l'index pour {total} documents (exclus {len(all_docs) - total} fichiers système)")
             
-            empty_docs = set()
-            indexed_count = 0
+            # Traiter les documents par lots
+            batch_size = 10
+            for i in range(0, total, batch_size):
+                batch = documents[i:i+batch_size]
+                await self._process_document_batch(batch)
+                logger.info(f"Progression: {min(i+batch_size, total)}/{total} documents traités")
             
-            for i, doc_path in enumerate(documents, 1):
-                try:
-                    # Vérifier si le document est vide
-                    content = await self.webdav.read_document(doc_path)
-                    if not content or not content.strip():
-                        logger.info(f"Document ignoré car vide ({i}/{total}): {doc_path}")
-                        empty_docs.add(doc_path)
-                        continue
-
-                    # Pour les fichiers Markdown, on conserve les sauts de ligne pour préserver la structure
-                    if doc_path.lower().endswith(('.md', '.markdown')):
-                        logger.debug(f"Traitement spécial pour le fichier Markdown: {doc_path}")
-                        content = content.replace('\r\n', '\n')  # Normalisation des sauts de ligne
-
-                    # Découper le document
-                    chunks = self._chunk_document(content, doc_path)
-                    if not chunks:
-                        logger.warning(f"Aucun chunk généré pour le document ({i}/{total}): {doc_path}")
-                        empty_docs.add(doc_path)
-                        continue
-                    
-                    # Obtenir les embeddings pour tous les chunks
-                    texts = [chunk.content for chunk in chunks]
-                    embeddings = await self.embedding_service.get_embeddings(texts)
-                    
-                    # Ajouter à l'index FAISS
-                    for chunk, embedding in zip(chunks, embeddings):
-                        self.faiss_index.add_document(chunk, embedding)
-                    
-                    indexed_count += 1
-                    logger.info(f"Document indexé ({i}/{total}): {doc_path} ({len(chunks)} chunks)")
-                    
-                except Exception as doc_error:
-                    logger.error(f"Erreur indexation {doc_path}: {str(doc_error)}")
-                    continue
-            
-            if empty_docs:
-                logger.info(f"Documents vides ignorés ({len(empty_docs)}): {empty_docs}")
-            
-            logger.info(f"Indexation terminée: {indexed_count} documents indexés, {self.faiss_index.index.ntotal} chunks au total")
+            logger.info(f"Construction terminée: {self.faiss_index.index.ntotal} chunks au total")
             
         except Exception as e:
             logger.error(f"Erreur construction index: {str(e)}")
@@ -389,34 +542,45 @@ class DocumentIndex:
             raise
     
     async def load_index(self) -> None:
-        """Charge l'index depuis WebDAV"""
+        """Charge l'index depuis le stockage"""
         try:
-            # Créer le répertoire d'index si nécessaire
-            os.makedirs(os.path.dirname(self.faiss_index_path), exist_ok=True)
+            # Vérifier que les fichiers existent
+            if not await self.webdav.exists(self.faiss_index_path):
+                logger.error("Fichier d'index FAISS manquant")
+                raise FileNotFoundError("Fichier d'index FAISS manquant")
+                
+            if not await self.webdav.exists(self.map_path):
+                logger.error("Fichier de mapping manquant")
+                raise FileNotFoundError("Fichier de mapping manquant")
             
-            # S'assurer que le dossier système existe sur WebDAV
-            system_dir = str(Path(self.config.webdav_root_path) / self.SYSTEM_DIR)
-            await self.webdav.create_directory(system_dir)
+            # Télécharger les fichiers
+            index_data = await self.webdav.download_file(self.faiss_index_path)
+            map_data = await self.webdav.download_file(self.map_path)
             
-            # Télécharger les fichiers depuis WebDAV
-            for local_path, remote_name in [
-                (self.faiss_index_path, "faiss.index"),
-                (self.map_path, "document_map.json"),
-                (self.cache_path, "embedding_cache.json")
-            ]:
-                remote_path = str(Path(self.config.webdav_root_path) / self.SYSTEM_DIR / remote_name)
-                content = await self.webdav.read_document(remote_path)
-                with open(local_path, 'wb') as f:
-                    f.write(content.encode() if isinstance(content, str) else content)
+            # Sauvegarder temporairement
+            temp_index = "temp_faiss.index"
+            temp_map = "temp_map.json"
             
-            # Charger l'index FAISS et la map
-            self.faiss_index = FAISSIndex.load(self.faiss_index_path, self.map_path)
-            
-            # Charger le cache des embeddings
-            self.embedding_service.load_cache(self.cache_path)
-            
-            logger.info(f"Index chargé avec {self.faiss_index.index.ntotal} chunks")
-            
+            try:
+                with open(temp_index, "wb") as f:
+                    f.write(index_data)
+                with open(temp_map, "w") as f:
+                    f.write(map_data.decode())
+                
+                # Charger l'index
+                self.faiss_index = FAISSIndex.load(temp_index, temp_map)
+                
+                # Vérifier la dimension
+                if self.faiss_index.dimension != self.embedding_service.embedding_dimension:
+                    raise ValueError(f"Dimension incorrecte: {self.faiss_index.dimension} != {self.embedding_service.embedding_dimension}")
+                
+            finally:
+                # Nettoyage
+                if os.path.exists(temp_index):
+                    os.remove(temp_index)
+                if os.path.exists(temp_map):
+                    os.remove(temp_map)
+                
         except Exception as e:
             logger.error(f"Erreur chargement index: {str(e)}")
             raise
@@ -491,49 +655,56 @@ class DocumentIndex:
         logger.info(f"Document découpé en {len(chunks)} chunks: {doc_path}")
         return chunks
     
-    async def search(self, query: str, limit: int = 5) -> List[DocumentChunk]:
-        """Recherche les chunks les plus pertinents pour une requête"""
+    async def search(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
+        """Recherche les chunks les plus pertinents pour une requête
+        
+        Args:
+            query: Requête de recherche
+            limit: Nombre maximum de résultats
+            
+        Returns:
+            Liste des chunks au format attendu par l'API Albert
+        """
         try:
             if self.faiss_index.index.ntotal == 0:
                 logger.warning("Index vide, impossible d'effectuer la recherche")
                 return []
 
-            # Obtenir l'embedding de la requête avec le même modèle que l'index
-            query_embedding = await self.embedding_service.get_embedding(query)
-            if query_embedding is None:
-                logger.error("Impossible d'obtenir l'embedding pour la requête")
+            # Obtenir l'embedding de la requête
+            try:
+                query_embedding = await self.embedding_service.get_embedding(query)
+                if query_embedding is None:
+                    logger.error("Impossible d'obtenir l'embedding pour la requête")
+                    return []
+            except Exception as e:
+                logger.error(f"Erreur lors de la génération de l'embedding de recherche: {str(e)}")
                 return []
 
             # Vérifier la dimension de l'embedding
             if len(query_embedding) != self.faiss_index.dimension:
                 logger.error(f"Dimension de l'embedding incorrecte: {len(query_embedding)} != {self.faiss_index.dimension}")
-                logger.info("Reconstruction de l'index avec le nouveau modèle...")
-                
-                # Sauvegarder la nouvelle dimension
-                self.faiss_index = FAISSIndex(dimension=len(query_embedding))
-                
-                # Reconstruire l'index
-                await self.build_index()
-                
-                # Réessayer la recherche avec le nouvel index
-                return await self.search(query, limit)
-
-            # Rechercher dans l'index FAISS
-            try:
-                results = self.faiss_index.search(query_embedding, limit)
-                if not results:
-                    logger.info("Aucun résultat trouvé pour la requête")
-                    return []
-                    
-                # Log des résultats pour debug
-                logger.debug(f"Résultats trouvés: {len(results)} chunks")
-                for i, chunk in enumerate(results):
-                    logger.debug(f"Résultat {i+1}: {chunk.document_path} - {chunk.content[:100]}...")
-                    
-                return results
-            except Exception as search_error:
-                logger.error(f"Erreur lors de la recherche FAISS: {str(search_error)}")
                 return []
+
+            # Effectuer la recherche
+            chunks = self.faiss_index.search(query_embedding, limit)
+            
+            # Formater les résultats au format attendu par l'API Albert
+            formatted_chunks = []
+            for chunk in chunks:
+                formatted_chunk = {
+                    "id": chunk.id,
+                    "content": chunk.content,
+                    "metadata": {
+                        "document_name": os.path.basename(chunk.document_path),
+                        "document_path": chunk.document_path,
+                        "chunk_number": chunk.chunk_number,
+                        "page_number": chunk.page_number,
+                        **(chunk.metadata or {})
+                    }
+                }
+                formatted_chunks.append(formatted_chunk)
+            
+            return formatted_chunks
             
         except Exception as e:
             logger.error(f"Erreur lors de la recherche: {str(e)}")

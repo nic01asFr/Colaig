@@ -9,6 +9,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from functools import wraps
 import os
+from typing import List
 
 from matrix_bot.client import MatrixClient
 from matrix_bot.config import logger
@@ -40,6 +41,7 @@ from tchap_utils import (
 from actions.rag_action import AskAlbertRagAction
 from services.webdav import WebDAVService
 from services.document_index import DocumentIndex
+from services.index_service import IndexService
 
 @dataclass
 class CommandRegistry:
@@ -699,100 +701,65 @@ async def albert_wrong_command(ep: EventParser, matrix_client: MatrixClient):
 )
 @only_allowed_user
 async def doc_query_command(ep: EventParser, matrix_client: MatrixClient):
-    """Interroge Albert en utilisant la documentation comme contexte."""
+    """Recherche dans les documents indexés"""
     config = user_configs[ep.sender]
     
-    # Vérification de la question
+    # Récupérer la commande et ses arguments
     command = ep.get_command()
     if len(command) <= 1:
         await matrix_client.send_markdown_message(
             ep.room.room_id,
-            "Veuillez fournir une question. Usage: !docquery <votre question>",
+            "❌ Veuillez spécifier une requête de recherche",
             msgtype="m.notice"
         )
         return
 
+    # Joindre tous les arguments après la commande pour former la requête
     query = " ".join(command[1:])
-    await matrix_client.room_typing(ep.room.room_id)
+    logger.info(f"Traitement de la requête docquery: {query}")
     
+    # Effectuer la recherche sans initialisation d'index
     try:
-        # Utilisation du service d'indexation
-        from services.index_service import IndexService
         async with IndexService(config) as index_service:
-            # Vérification et mise à jour de l'index si nécessaire
-            if not await index_service.verify():
-                await matrix_client.send_markdown_message(
-                    ep.room.room_id,
-                    "⚠️ L'index n'est pas à jour. Mise à jour en cours...",
-                    msgtype="m.notice"
-                )
-                await index_service.update()
-                await matrix_client.send_markdown_message(
-                    ep.room.room_id,
-                    "✅ Index mis à jour avec succès.",
-                    msgtype="m.notice"
-                )
+            results = await index_service.search(query)
             
-            # Recherche des chunks pertinents
-            chunks = await index_service.search(query)
-            if not chunks:
+            if not results:
                 await matrix_client.send_markdown_message(
                     ep.room.room_id,
-                    "❌ Aucune information pertinente trouvée dans la documentation pour votre question.",
+                    "ℹ️ Aucun résultat trouvé dans les documents indexés. "
+                    "Si vous n'avez pas encore indexé vos documents, utilisez la commande !index",
                     msgtype="m.notice"
                 )
                 return
-            
-            # Préparation pour Albert API
-            chunks_for_prompt = [{
-                "id": chunk.id,
-                "content": chunk.content,
-                "metadata": {
-                    "document_name": chunk.metadata.get("document_name", ""),
-                    **chunk.metadata
-                }
-            } for chunk in chunks]
-            
-            # Initialisation du client Albert
-            albert_client = AlbertApiClient(
-                base_url=config.albert_api_url,
-                api_key=config.albert_api_token
+                
+            # Formater les résultats
+            formatted_results = []
+            for i, chunk in enumerate(results, 1):
+                doc_name = chunk["metadata"]["document_name"]
+                formatted_results.append(
+                    f"{i}. **{doc_name}**\n"
+                    f"{chunk['content']}\n"
+                )
+                
+            response = (
+                "🔍 Résultats de la recherche :\n\n" + 
+                "\n".join(formatted_results)
             )
             
-            # Formatage du prompt avec le contexte
-            prompt = albert_client.format_albert_template(
-                query=query,
-                chunks=chunks_for_prompt
-            )
-            
-            # Génération de la réponse
-            messages = [{"role": "user", "content": prompt}]
-            response = await generate(config, messages)
-            
-            # Formatage de la réponse avec les sources
-            sources = set(chunk.metadata.get("document_name", "") for chunk in chunks)
-            sources_text = "\n".join(f"- {source}" for source in sources if source)
-            final_response = f"{response}\n\nSources consultées:\n{sources_text}"
-            
-            # Envoi de la réponse
             await matrix_client.send_markdown_message(
                 ep.room.room_id,
-                final_response
+                response,
+                msgtype="m.notice"
             )
             
-            # Sauvegarde des chunks pour la commande !sources
-            config.last_rag_chunks = chunks_for_prompt
-            
     except Exception as e:
-        logger.error(f"Erreur lors de la génération RAG: {str(e)}")
-        traceback.print_exc()
+        logger.error(f"Erreur lors de l'exécution de docquery: {str(e)}")
         await matrix_client.send_markdown_message(
             ep.room.room_id,
-            AlbertMsg.failed,
+            "❌ Une erreur est survenue lors de la recherche. "
+            "Veuillez réessayer plus tard ou contacter un administrateur.",
             msgtype="m.notice"
         )
-    finally:
-        await matrix_client.room_typing(ep.room.room_id, typing_state=False)
 
 @register_feature(
     group="albert",
@@ -823,8 +790,30 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
     
     try:
         # Initialiser le service d'indexation
-        from services.index_service import IndexService
-        async with IndexService(config) as index_service:
+        index_service = IndexService(config)
+        
+        if action == "rebuild":
+            # Message initial
+            await matrix_client.send_markdown_message(
+                ep.room.room_id,
+                "Reconstruction de l'index...",
+                msgtype="m.notice"
+            )
+            
+            # Marquer que nous sommes en mode rebuild
+            index_service._is_rebuilding = True
+            
+            # Reconstruire l'index
+            await index_service.rebuild()
+            await matrix_client.send_markdown_message(
+                ep.room.room_id,
+                "✅ Index reconstruit avec succès.",
+                msgtype="m.notice"
+            )
+            return
+            
+        # Pour les autres actions, utiliser le contexte normal
+        async with index_service as service:
             if action == "status":
                 # Message initial
                 await matrix_client.send_markdown_message(
@@ -834,7 +823,7 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
                 )
                 
                 # Obtenir et afficher le statut
-                status = await index_service.get_status()
+                status = await service.get_status()
                 
                 message = (
                     f"État de l'index FAISS:\n\n"
@@ -859,7 +848,7 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
                 )
                 
                 # Vérifier l'index
-                is_fresh = await index_service.verify()
+                is_fresh = await service.verify()
                 message = "✅ L'index est à jour." if is_fresh else "⚠️ L'index n'est pas à jour. Utilisez !index update pour le mettre à jour ou !index rebuild pour le reconstruire."
                 await matrix_client.send_markdown_message(ep.room.room_id, message, msgtype="m.notice")
                 
@@ -872,26 +861,10 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
                 )
                 
                 # Mettre à jour l'index
-                await index_service.update()
+                await service.update()
                 await matrix_client.send_markdown_message(
                     ep.room.room_id,
                     "✅ Index mis à jour avec succès.",
-                    msgtype="m.notice"
-                )
-                
-            elif action == "rebuild":
-                # Message initial
-                await matrix_client.send_markdown_message(
-                    ep.room.room_id,
-                    "Reconstruction de l'index...",
-                    msgtype="m.notice"
-                )
-                
-                # Reconstruire l'index
-                await index_service.rebuild()
-                await matrix_client.send_markdown_message(
-                    ep.room.room_id,
-                    "✅ Index reconstruit avec succès.",
                     msgtype="m.notice"
                 )
                 
@@ -904,7 +877,7 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
                 )
                 
                 # Nettoyer l'index
-                await index_service.clean()
+                await service.clean()
                 await matrix_client.send_markdown_message(
                     ep.room.room_id,
                     "✅ Index nettoyé avec succès.",

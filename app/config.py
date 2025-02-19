@@ -48,15 +48,10 @@ class Config(BaseConfig):
     grist_users_table_name: str = Field("", description="Grist Users table name/ID")
 
     # Albert API settings
-    albert_api_url: str = Field("http://localhost:8090", description="Albert API base URL")
-    albert_api_token: str = Field("", description="Albert API Token")
-
-    # Mistral API settings
-    mistral_api_url: str = Field("https://api.mistral.ai", description="Mistral API base URL")
-    mistral_api_token: str = Field("", description="Mistral API Token")
+    albert_api_url: str = Field("https://api.albert.ai", description="Albert API base URL")
+    albert_api_token: str = Field(..., description="Albert API token")
 
     # WebDAV Configuration
-    # ===================
     webdav_url: str = Field("", description="URL du serveur WebDAV")
     webdav_username: str = Field("", description="Nom d'utilisateur WebDAV")
     webdav_password: str = Field("", description="Mot de passe WebDAV")
@@ -64,15 +59,12 @@ class Config(BaseConfig):
     webdav_index_name: str = Field("index.json", description="Nom du fichier d'index WebDAV")
 
     # Albert Conversation settings
-    # ============================
-    # PER USER SETTINGS !
-    # ============================
     albert_collections_by_id: dict[str, dict] = Field({}, description="Collections to use for Albert API chat completion with RAG")
     albert_model: str = Field(
         "AgentPublic/albertlight-7b",
         description="Albert model name to use (see Albert models hub on HuggingFace)",
     )
-    albert_model_embedding: str = Field("AgentPublic/e5-small-v2", description="Embedding model (Rag, COT, etc)")
+    albert_model_embedding: str = Field("BAAI/bge-m3", description="Embedding model (Rag, COT, etc)")
     albert_mode: str = Field("rag", description="Albert API mode")
     albert_with_history: bool = Field(True, description="Conversational mode")
     albert_history_lookup: int = Field(0, description="How far we lookup in the history")
@@ -85,13 +77,14 @@ class Config(BaseConfig):
     last_rag_chunks: list[dict] | None = Field(None, description="Last chunks used for the RAG.")
 
     # Configuration des embeddings
-    embedding_dimension: int = Field(384, description="Embedding dimension")
-    embedding_cache_duration: int = Field(24, description="Embedding cache duration in hours")
+    embedding_dimension: int = Field(1024, description="Dimension des embeddings (1024 pour BAAI/bge-m3)")
+    embedding_cache_duration: int = Field(24, description="Durée de rétention du cache des embeddings en heures")
+    embedding_cache_size: int = Field(10000, description="Nombre maximum d'embeddings en cache")
+    embedding_batch_size: int = Field(20, description="Taille des lots pour les requêtes d'embedding")
     
     # Configuration de l'index
-    index_dir: str = Field(".index", description="Index directory")
-    chunk_size: int = Field(1000, description="Chunk size in characters")
-    chunk_overlap: int = Field(200, description="Chunk overlap in characters")
+    index_dir: str = Field(".index", description="Répertoire de l'index")
+    chunk_size: int = Field(1000, description="Taille des chunks en caractères")
 
     @property
     def is_conversation_obsolete(self) -> bool:
