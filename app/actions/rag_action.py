@@ -62,11 +62,13 @@ class AskAlbertRagAction:
             
             # Formatage des chunks pour le prompt
             self.chunks = [{
-                "id": chunk.id,
-                "content": chunk.content,
+                "content": chunk["content"] if isinstance(chunk, dict) else chunk.content,
                 "metadata": {
-                    "document_name": os.path.basename(chunk.document_path),
-                    **chunk.metadata
+                    "document_name": os.path.basename(
+                        chunk["metadata"]["document_path"] if isinstance(chunk, dict) 
+                        else chunk.document_path
+                    ),
+                    **(chunk["metadata"] if isinstance(chunk, dict) else chunk.metadata)
                 }
             } for chunk in relevant_chunks]
             
@@ -95,16 +97,49 @@ class AskAlbertRagAction:
             )
             
             # Génération de la réponse
-            response = await albert_client.generate(
+            messages = [
+                {
+                    "role": "system",
+                    "content": "Vous êtes Albert, l'assistant de l'État français dédié aux questions légales et administratives. "
+                              "Votre rôle est d'aider les agents en fournissant des réponses précises et sourcées, "
+                              "basées uniquement sur la documentation officielle fournie."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+            
+            response = albert_client.generate(
                 model=self.config.albert_model,
-                messages=[{"role": "user", "content": prompt}]
+                messages=messages
             )
             
             # Formatage de la réponse avec les sources
-            sources = set(chunk["metadata"]["document_name"] for chunk in self.chunks)
-            sources_text = "\n".join(f"- {source}" for source in sources)
+            formatted_sources = []
+            for chunk in self.chunks:
+                metadata = chunk["metadata"]
+                source_info = f"📄 **{metadata['document_name']}**"
+                if "document_title" in metadata:
+                    source_info += f"\n   *{metadata['document_title']}*"
+                if "section_title" in metadata:
+                    source_info += f"\n   Section: {metadata['section_title']}"
+                if "page" in metadata:
+                    source_info += f"\n   Page: {metadata['page']}"
+                if "similarity_score" in metadata:
+                    source_info += f"\n   Score de pertinence: {metadata['similarity_score']:.3f}"
+                formatted_sources.append(source_info)
             
-            return f"{response}\n\nSources consultées:\n{sources_text}"
+            sources_text = "\n\n".join(formatted_sources)
+            
+            final_response = (
+                f"🤖 **Réponse d'Albert** :\n\n"
+                f"{response}\n\n"
+                f"📚 **Sources consultées** :\n\n"
+                f"{sources_text}"
+            )
+            
+            return final_response
             
         except Exception as e:
             logger.error(f"Erreur lors de la génération de la réponse: {str(e)}")

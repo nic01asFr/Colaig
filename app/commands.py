@@ -719,12 +719,20 @@ async def doc_query_command(ep: EventParser, matrix_client: MatrixClient):
     query = " ".join(command[1:])
     logger.info(f"Traitement de la requête docquery: {query}")
     
-    # Effectuer la recherche sans initialisation d'index
     try:
+        # Initialiser le service d'index
         async with IndexService(config) as index_service:
-            results = await index_service.search(query)
+            # Créer une instance de AskAlbertRagAction
+            rag_action = AskAlbertRagAction(
+                config=config,
+                query=query,
+                index_service=index_service
+            )
             
-            if not results:
+            # Récupérer les chunks pertinents
+            chunks = await rag_action.retrieve_relevant_chunks()
+            
+            if not chunks:
                 await matrix_client.send_markdown_message(
                     ep.room.room_id,
                     "ℹ️ Aucun résultat trouvé dans les documents indexés. "
@@ -732,20 +740,9 @@ async def doc_query_command(ep: EventParser, matrix_client: MatrixClient):
                     msgtype="m.notice"
                 )
                 return
-                
-            # Formater les résultats
-            formatted_results = []
-            for i, chunk in enumerate(results, 1):
-                doc_name = chunk["metadata"]["document_name"]
-                formatted_results.append(
-                    f"{i}. **{doc_name}**\n"
-                    f"{chunk['content']}\n"
-                )
-                
-            response = (
-                "🔍 Résultats de la recherche :\n\n" + 
-                "\n".join(formatted_results)
-            )
+            
+            # Générer la réponse formatée
+            response = await rag_action.generate_response()
             
             await matrix_client.send_markdown_message(
                 ep.room.room_id,
@@ -902,101 +899,149 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
 
 @register_feature(
     group="albert",
-    onEvent=RoomEncryptedFile,
-    command="classer",
-    help="Analyse et classe automatiquement un fichier dans le bon dossier"
+    onEvent=RoomMessageText,
+    command="pj",
+    help="Récupère et classe les pièces jointes d'un message référencé"
 )
 @only_allowed_user
-async def classify_file_command(ep: EventParser, matrix_client: MatrixClient):
-    """Commande pour classifier automatiquement un fichier"""
+async def handle_attachments_command(ep: EventParser, matrix_client: MatrixClient):
+    """Commande pour récupérer et classer les pièces jointes d'un message"""
     config = user_configs[ep.sender]
     
     try:
         await matrix_client.room_typing(ep.room.room_id)
         
-        # Vérification du type MIME
-        if ep.event.mimetype not in WebDAVService.SUPPORTED_MIME_TYPES:
+        # Vérifier si c'est une réponse à un message
+        if not isa_reply_to(ep.event):
             await matrix_client.send_markdown_message(
                 ep.room.room_id,
-                f"❌ Type de fichier non supporté : {ep.event.mimetype}\n"
-                "Types supportés : PDF, DOCX, TXT, JSON, MD",
+                "❌ Cette commande doit être utilisée en réponse à un message contenant une pièce jointe.",
                 msgtype="m.notice"
             )
             return
             
-        # Récupération du fichier
-        file = await get_decrypted_file(ep)
+        # Récupérer le message d'origine
+        reply_to_id = ep.event.source["content"]["m.relates_to"]["m.in_reply_to"]["event_id"]
+        original_event = await matrix_client.room_get_event(ep.room.room_id, reply_to_id)
+        
+        if not original_event:
+            await matrix_client.send_markdown_message(
+                ep.room.room_id,
+                "❌ Impossible de récupérer le message d'origine.",
+                msgtype="m.notice"
+            )
+            return
+            
+        # Vérifier si le message est un fichier
+        if original_event.event.source["content"].get("msgtype") != "m.file":
+            await matrix_client.send_markdown_message(
+                ep.room.room_id,
+                "❌ Le message ne contient pas de pièce jointe.",
+                msgtype="m.notice"
+            )
+            return
+            
+        # Récupérer les informations du fichier
+        file_url = original_event.event.source["content"]["url"]
+        file_name = original_event.event.source["content"]["body"]
+        file_size = original_event.event.source["content"]["info"].get("size", 0)
+        file_mimetype = original_event.event.source["content"]["info"].get("mimetype", "application/octet-stream")
+        
+        # Vérifier le type MIME
+        if file_mimetype not in WebDAVService.SUPPORTED_MIME_TYPES:
+            await matrix_client.send_markdown_message(
+                ep.room.room_id,
+                f"❌ Type de fichier non supporté : {file_mimetype}\n"
+                "Types supportés : PDF, DOCX, TXT, JSON, MD",
+                msgtype="m.notice"
+            )
+            return
         
         # Message initial
         await matrix_client.send_markdown_message(
             ep.room.room_id,
-            f"📁 Analyse du fichier \"{file.name}\"...",
+            f"📁 Analyse du fichier \"{file_name}\" ({file_size} octets)...",
             msgtype="m.notice"
         )
         
-        # Initialisation du service de classification
-        from services.classifier_service import ClassifierService
-        async with ClassifierService(config) as classifier:
-            # Lecture et classification du fichier
-            content = await classifier.webdav_service.read_document(file.name)
-            result = await classifier.classify_file(file.name, content)
+        # Télécharger le fichier
+        try:
+            response = await matrix_client.download(file_url)
+            file_content = response.body
             
-            # Formatage des catégories détectées
-            categories_text = "\n".join(
-                f"- {cat} ({score:.0%})" 
-                for cat, score in result.categories
-            )
-            
-            # Formatage des chemins alternatifs
-            alternatives_text = "\n".join(
-                f"{i+1}. {path} ({score:.0%})" 
-                for i, (path, score) in enumerate(result.alternative_paths)
-            )
-            
-            # Message avec les résultats
-            message = (
-                f"📊 Catégories détectées :\n{categories_text}\n\n"
-                f"📍 Emplacement proposé : {result.suggested_path}\n"
-                f"   Confiance : {result.confidence:.0%}\n\n"
-            )
-            
-            if alternatives_text:
-                message += f"✨ Autres suggestions :\n{alternatives_text}\n\n"
-            
-            message += (
-                "Souhaitez-vous :\n"
-                "1️⃣ Valider l'emplacement proposé\n"
-                "2️⃣ Choisir une autre suggestion\n"
-                "3️⃣ Spécifier un autre emplacement\n"
-                "4️⃣ Annuler"
-            )
-            
+            # Traiter la pièce jointe
+            from services.attachment_handler import AttachmentHandler
+            async with AttachmentHandler(config) as handler:
+                success, result, file = await handler.process_attachment(
+                    file_content=file_content,
+                    file_name=file_name,
+                    file_size=file_size
+                )
+                
+                if not success:
+                    await matrix_client.send_markdown_message(
+                        ep.room.room_id,
+                        "❌ Erreur lors de l'analyse du fichier.",
+                        msgtype="m.notice"
+                    )
+                    return
+                
+                # Formatage des catégories détectées
+                categories_text = "\n".join(
+                    f"- {cat} ({score:.0%})" 
+                    for cat, score in result.categories
+                )
+                
+                # Formatage des chemins alternatifs
+                alternatives_text = "\n".join(
+                    f"{i+1}. {path} ({score:.0%})" 
+                    for i, (path, score) in enumerate(result.alternative_paths)
+                )
+                
+                # Message avec les résultats
+                message = (
+                    f"📊 Catégories détectées :\n{categories_text}\n\n"
+                    f"📍 Emplacement proposé : {result.suggested_path}\n"
+                    f"   Confiance : {result.confidence:.0%}\n\n"
+                )
+                
+                if alternatives_text:
+                    message += f"✨ Autres suggestions :\n{alternatives_text}\n\n"
+                
+                message += (
+                    "Souhaitez-vous :\n"
+                    "1️⃣ Valider l'emplacement proposé\n"
+                    "2️⃣ Choisir une autre suggestion\n"
+                    "3️⃣ Spécifier un autre emplacement\n"
+                    "4️⃣ Annuler"
+                )
+                
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    message,
+                    msgtype="m.notice"
+                )
+                
+                # Sauvegarder le contexte pour la suite
+                config.last_classification_result = result
+                config.last_classified_file = file
+
+        except Exception as e:
+            logger.error(f"Erreur lors du traitement du fichier: {str(e)}")
             await matrix_client.send_markdown_message(
                 ep.room.room_id,
-                message,
+                f"❌ Erreur lors du traitement du fichier: {str(e)}",
                 msgtype="m.notice"
             )
-            
-            # Sauvegarder le contexte pour la suite
-            config.last_classification_result = result
-            config.last_classified_file = file
-            
+            return
+
     except Exception as e:
-        logger.error(f"Erreur lors de la classification: {str(e)}")
-        traceback.print_exc()
+        logger.error(f"Erreur lors du traitement des pièces jointes: {str(e)}")
         await matrix_client.send_markdown_message(
             ep.room.room_id,
-            "❌ Une erreur est survenue lors de la classification du fichier.",
+            "❌ Une erreur est survenue lors du traitement des pièces jointes.",
             msgtype="m.notice"
         )
-        if config.errors_room_id:
-            try:
-                await matrix_client.send_markdown_message(
-                    config.errors_room_id,
-                    f"Erreur de classification pour {ep.sender}:\n{str(e)}"
-                )
-            except:
-                print("Failed to find error room ?!")
 
 @register_feature(
     group="albert",
@@ -1004,8 +1049,8 @@ async def classify_file_command(ep: EventParser, matrix_client: MatrixClient):
     help=None
 )
 @only_allowed_user
-async def classify_file_response(ep: EventParser, matrix_client: MatrixClient):
-    """Gère la réponse de l'utilisateur pour la classification"""
+async def handle_attachments_response(ep: EventParser, matrix_client: MatrixClient):
+    """Gère la réponse de l'utilisateur pour le classement du fichier"""
     config = user_configs[ep.sender]
     
     if not hasattr(config, 'last_classification_result') or not config.last_classification_result:
@@ -1046,15 +1091,27 @@ async def classify_file_response(ep: EventParser, matrix_client: MatrixClient):
             elif not os.path.splitext(os.path.basename(custom_path))[1]:
                 custom_path = os.path.join(custom_path, file.name)
                 
-            # Initialisation du service et déplacement
-            from services.classifier_service import ClassifierService
-            async with ClassifierService(config) as classifier:
-                await classifier.move_file(file.name, custom_path)
-                await matrix_client.send_markdown_message(
-                    ep.room.room_id,
-                    f"✅ Fichier déplacé vers : {custom_path}",
-                    msgtype="m.notice"
+            # Sauvegarder le fichier
+            from services.attachment_handler import AttachmentHandler
+            async with AttachmentHandler(config) as handler:
+                success = await handler.save_attachment(
+                    file_content=file.getvalue(),
+                    file_name=file.name,
+                    target_path=custom_path
                 )
+                
+                if success:
+                    await matrix_client.send_markdown_message(
+                        ep.room.room_id,
+                        f"✅ Fichier déplacé vers : {custom_path}",
+                        msgtype="m.notice"
+                    )
+                else:
+                    await matrix_client.send_markdown_message(
+                        ep.room.room_id,
+                        "❌ Erreur lors du déplacement du fichier.",
+                        msgtype="m.notice"
+                    )
                 
             # Nettoyage du contexte
             config.last_classification_result = None
@@ -1081,8 +1138,8 @@ async def classify_file_response(ep: EventParser, matrix_client: MatrixClient):
             return
             
         # Initialisation du service
-        from services.classifier_service import ClassifierService
-        async with ClassifierService(config) as classifier:
+        from services.attachment_handler import AttachmentHandler
+        async with AttachmentHandler(config) as handler:
             target_path = None
             
             if choice == 1:  # Valider l'emplacement proposé
@@ -1109,13 +1166,25 @@ async def classify_file_response(ep: EventParser, matrix_client: MatrixClient):
                 return
                 
             if target_path:
-                # Déplacer le fichier
-                await classifier.move_file(file.name, target_path)
-                await matrix_client.send_markdown_message(
-                    ep.room.room_id,
-                    f"✅ Fichier déplacé vers : {target_path}",
-                    msgtype="m.notice"
+                # Sauvegarder le fichier
+                success = await handler.save_attachment(
+                    file_content=file.getvalue(),
+                    file_name=file.name,
+                    target_path=target_path
                 )
+                
+                if success:
+                    await matrix_client.send_markdown_message(
+                        ep.room.room_id,
+                        f"✅ Fichier déplacé vers : {target_path}",
+                        msgtype="m.notice"
+                    )
+                else:
+                    await matrix_client.send_markdown_message(
+                        ep.room.room_id,
+                        "❌ Erreur lors du déplacement du fichier.",
+                        msgtype="m.notice"
+                    )
                 
                 # Nettoyer le contexte
                 config.last_classification_result = None

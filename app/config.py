@@ -6,6 +6,7 @@
 import logging
 import time
 from pathlib import Path
+from typing import Optional, Any
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -85,6 +86,11 @@ class Config(BaseConfig):
     # Configuration de l'index
     index_dir: str = Field(".index", description="Répertoire de l'index")
     chunk_size: int = Field(1000, description="Taille des chunks en caractères")
+
+    # Champs pour la gestion des pièces jointes
+    last_classification_result: Optional[Any] = None
+    last_classified_file: Optional[Any] = None
+    waiting_for_custom_path: bool = False
 
     @property
     def is_conversation_obsolete(self) -> bool:
