@@ -42,6 +42,7 @@ from actions.rag_action import AskAlbertRagAction
 from services.webdav import WebDAVService
 from services.document_index import DocumentIndex
 from services.index_service import IndexService
+from services.bnum_service import BnumService
 
 @dataclass
 class CommandRegistry:
@@ -1135,3 +1136,117 @@ async def classify_file_response(ep: EventParser, matrix_client: MatrixClient):
             config.last_classified_file = None
         if hasattr(config, 'waiting_for_custom_path'):
             config.waiting_for_custom_path = False
+
+
+@register_feature(
+    group="albert",
+    onEvent=RoomMessageText,
+    command="bnum",
+    help="Gestion de la bibliothèque numérique (!bnum index, !bnum cherche <requête>)",
+)
+@only_allowed_user
+async def bnum_command(ep: EventParser, matrix_client: MatrixClient):
+    """Gestion des commandes bnum"""
+    config = user_configs[ep.sender]
+    
+    # Récupérer la commande et ses arguments
+    command = ep.get_command()
+    if len(command) <= 1:
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            "❌ Veuillez spécifier une sous-commande (index ou cherche)",
+            msgtype="m.notice"
+        )
+        return
+
+    subcommand = command[1].lower()
+    
+    async with BnumService(config) as bnum_service:
+        try:
+            if subcommand == "index":
+                # Informer du début
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    "🔄 Début de l'indexation de l'espace documentaire...",
+                    msgtype="m.notice"
+                )
+                
+                # Indexer
+                indexed_count, total_docs = await bnum_service.index_documents()
+                
+                # Informer du résultat
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    f"✅ Indexation terminée ! {indexed_count}/{total_docs} documents indexés",
+                    msgtype="m.notice"
+                )
+                
+            elif subcommand == "cherche":
+                if len(command) <= 2:
+                    await matrix_client.send_markdown_message(
+                        ep.room.room_id,
+                        "❌ Veuillez spécifier une requête de recherche",
+                        msgtype="m.notice"
+                    )
+                    return
+                    
+                if not bnum_service.collection_id:
+                    await matrix_client.send_markdown_message(
+                        ep.room.room_id,
+                        "❌ Aucune collection indexée. Utilisez d'abord !bnum index",
+                        msgtype="m.notice"
+                    )
+                    return
+                
+                # Récupérer la requête
+                query = " ".join(command[2:])
+                
+                # Informer du début de la recherche
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    "🔍 Recherche en cours...",
+                    msgtype="m.notice"
+                )
+                
+                # Rechercher
+                results = await bnum_service.search(query)
+                
+                if not results:
+                    await matrix_client.send_markdown_message(
+                        ep.room.room_id,
+                        "ℹ️ Aucun résultat pertinent trouvé",
+                        msgtype="m.notice"
+                    )
+                    return
+                
+                # Générer la réponse
+                response = await bnum_service.generate_response(query, results)
+                
+                # Formater les sources
+                sources = "\n\n**Sources :**\n" + "\n".join([
+                    f"- {result['chunk']['metadata']['document_name']} "
+                    f"(score: {result['score']:.2f})"
+                    for result in results
+                ])
+                
+                # Envoyer la réponse avec les sources
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    f"{response}\n{sources}",
+                    msgtype="m.text"
+                )
+                
+            else:
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    "❌ Sous-commande invalide. Utilisez 'index' ou 'cherche'",
+                    msgtype="m.notice"
+                )
+                
+        except Exception as e:
+            logger.error(f"Erreur commande bnum: {str(e)}")
+            await matrix_client.send_markdown_message(
+                ep.room.room_id,
+                f"❌ Erreur: {str(e)}",
+                msgtype="m.notice"
+            )
