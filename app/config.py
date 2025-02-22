@@ -62,7 +62,7 @@ class Config(BaseConfig):
     # Albert Conversation settings
     albert_collections_by_id: dict[str, dict] = Field({}, description="Collections to use for Albert API chat completion with RAG")
     albert_model: str = Field(
-        "AgentPublic/albertlight-7b",
+        "meta-llama/Llama-3.1-8B-Instruct",
         description="Albert model name to use (see Albert models hub on HuggingFace)",
     )
     albert_model_embedding: str = Field("BAAI/bge-m3", description="Embedding model (Rag, COT, etc)")

@@ -7,11 +7,15 @@ from pathlib import Path
 import asyncio
 import faiss
 import numpy as np
+from functools import lru_cache
 
 from matrix_bot.config import logger
 from config import Config
 from services.webdav import WebDAVService
 from services.embedding_service import EmbeddingService
+from services.scoring import DynamicScoreManager, ScoringResult
+from services.chunk_selector import ChunkSelector
+from services.models import DocumentChunk
 
 @dataclass
 class DocumentChunk:
@@ -40,11 +44,39 @@ class FAISSIndex:
         self.dimension = dimension
         self._index = None
         self.document_map: Dict[int, DocumentChunk] = {}
+        self.score_manager = DynamicScoreManager()
+        self.chunk_selector = ChunkSelector()
+        self._embedding_cache = {}  # Cache des embeddings
         self._initialize_index()
         
     def _initialize_index(self):
         """Initialise l'index FAISS avec la dimension spécifiée"""
+        # Pour les petites collections (<10k vecteurs), utiliser IndexFlatL2
+        # Pour les grandes collections, utiliser IVF avec clustering
         self._index = faiss.IndexFlatL2(self.dimension)
+        self._is_ivf = False
+        
+    def _maybe_convert_to_ivf(self):
+        """Convertit l'index en IVF si nécessaire"""
+        if not self._is_ivf and self.index.ntotal > 10000:
+            logger.info("Converting to IVF index for better performance")
+            # Nombre de centroids = sqrt(N)
+            n_centroids = int(np.sqrt(self.index.ntotal))
+            quantizer = faiss.IndexFlatL2(self.dimension)
+            new_index = faiss.IndexIVFFlat(quantizer, self.dimension, n_centroids)
+            
+            # Copier les vecteurs
+            if self.index.ntotal > 0:
+                # Récupérer tous les vecteurs
+                all_vectors = faiss.vector_to_array(self.index.get_xb())
+                all_vectors = all_vectors.reshape(-1, self.dimension)
+                
+                # Entraîner et ajouter à l'index IVF
+                new_index.train(all_vectors)
+                new_index.add(all_vectors)
+                
+            self._index = new_index
+            self._is_ivf = True
         
     @property
     def index(self):
@@ -80,6 +112,21 @@ class FAISSIndex:
         
         return old_documents
         
+    @lru_cache(maxsize=1000)
+    def _normalize_vector(self, vector_key: str) -> np.ndarray:
+        """Normalise un vecteur et le met en cache
+        
+        Args:
+            vector_key: Clé unique du vecteur (hash du contenu)
+            
+        Returns:
+            Vecteur normalisé
+        """
+        vector = self._embedding_cache.get(vector_key)
+        if vector is None:
+            return None
+        return vector / np.linalg.norm(vector)
+        
     def add_document(self, chunk: DocumentChunk, embedding: np.ndarray):
         """Ajoute un document à l'index
         
@@ -96,23 +143,32 @@ class FAISSIndex:
                 f"!= dimension de l'index ({self.dimension})"
             )
             
-        # Normaliser l'embedding avant l'ajout
+        # Stocker l'embedding dans le cache avec une clé str cohérente
+        vector_key = str(hash(chunk.content))
+        self._embedding_cache[vector_key] = embedding
+        
+        # Normaliser et ajouter à l'index
         normalized = embedding / np.linalg.norm(embedding)
+        if normalized is not None:
+            index_id = self.index.ntotal
+            self.index.add(normalized.reshape(1, -1))
+            
+            # Stocker le chunk avec son embedding
+            chunk.embedding = embedding.tolist()  # Convertir en liste pour la sérialisation
+            chunk_copy = DocumentChunk(
+                id=chunk.id,
+                content=chunk.content,
+                document_path=chunk.document_path,
+                chunk_number=chunk.chunk_number,
+                page_number=chunk.page_number,
+                metadata=chunk.metadata,
+                embedding=chunk.embedding,  # Sauvegarder l'embedding
+                last_updated=chunk.last_updated
+            )
+            self.document_map[index_id] = chunk_copy
         
-        index_id = self.index.ntotal
-        self.index.add(normalized.reshape(1, -1))
-        
-        # Stocker uniquement les métadonnées, pas l'embedding complet
-        chunk_copy = DocumentChunk(
-            id=chunk.id,
-            content=chunk.content,
-            document_path=chunk.document_path,
-            chunk_number=chunk.chunk_number,
-            page_number=chunk.page_number,
-            metadata=chunk.metadata,
-            last_updated=chunk.last_updated
-        )
-        self.document_map[index_id] = chunk_copy
+        # Vérifier si on doit convertir en IVF
+        self._maybe_convert_to_ivf()
         
     def search(self, query_embedding: np.ndarray, k: int = 5) -> List[DocumentChunk]:
         """Recherche les k plus proches voisins
@@ -136,34 +192,92 @@ class FAISSIndex:
         # Normaliser le vecteur de requête
         query_embedding = query_embedding / np.linalg.norm(query_embedding)
         
-        # Rechercher les k*2 plus proches voisins pour avoir plus de contexte
-        k_search = min(k * 2, self.index.ntotal)
+        # Rechercher plus de voisins pour avoir plus de contexte
+        k_search = min(k * 4, self.index.ntotal)
+        
+        # Si c'est un index IVF, configurer le nombre de probes
+        if self._is_ivf:
+            # Augmenter nprobe pour plus de précision
+            self._index.nprobe = min(32, int(np.sqrt(self.index.ntotal)))
+            
         D, I = self.index.search(query_embedding.reshape(1, -1), k_search)
         
         # Convertir les distances L2 en scores de similarité cosinus
-        similarities = 1 - D[0] / 2  # Conversion L2 en similarité cosinus
+        # Pour des vecteurs normalisés, la relation exacte est : cos_sim = 1 - (L2_dist ** 2) / 2
+        similarities = 1 - (D[0] ** 2) / 2  # Conversion L2 en similarité cosinus exacte
         
-        # Filtrer les résultats avec un seuil de similarité minimum
-        min_similarity = 0.3  # Seuil minimum de similarité
-        filtered_results = []
+        # Récupérer les chunks candidats
+        candidate_chunks = []
+        candidate_scores = []
         
         for idx, sim in zip(I[0], similarities):
-            if sim < min_similarity:
+            try:
+                chunk = self.document_map[idx]
+                candidate_chunks.append(chunk)
+                candidate_scores.append(float(sim))
+            except Exception as e:
+                logger.warning(f"Erreur récupération chunk {idx}: {str(e)}")
                 continue
+        
+        # Utiliser le sélecteur de chunks pour choisir les meilleurs
+        selected_chunks_with_scores = self.chunk_selector.select_best_chunks(
+            chunks=candidate_chunks,
+            similarity_scores=candidate_scores,
+            limit=k
+        )
+        
+        # Préparer les chunks pour le scoring final
+        chunks_to_score = []
+        for chunk, sim in selected_chunks_with_scores:
+            try:
+                chunk_dict = {
+                    "id": chunk.id,
+                    "content": chunk.content,
+                    "metadata": {
+                        "document_name": os.path.basename(chunk.document_path),
+                        "document_path": chunk.document_path,
+                        "chunk_number": chunk.chunk_number,
+                        "page_number": chunk.page_number,
+                        "similarity_score": self.score_manager._safe_float(sim),
+                        **(chunk.metadata or {})
+                    }
+                }
+                chunks_to_score.append(chunk_dict)
+            except Exception as e:
+                logger.warning(f"Erreur préparation chunk {chunk.id}: {str(e)}")
+                continue
+        
+        # Utiliser le score manager pour ajuster les scores finaux
+        scoring_results = self.score_manager.adjust_scores(
+            chunks=chunks_to_score,
+            query="",  # La requête sera utilisée dans une version future
+            base_similarities=np.array([s for _, s in selected_chunks_with_scores])
+        )
+        
+        # Préparer les résultats finaux
+        final_results = []
+        for result in scoring_results:
+            try:
+                chunk_dict = next(c for c in chunks_to_score if c["id"] == result.chunk_id)
+                chunk = next(c for c in candidate_chunks if c.id == result.chunk_id)
                 
-            chunk = self.document_map[idx]
-            # Ajouter le score à la métadonnée
-            if chunk.metadata is None:
-                chunk.metadata = {}
-            chunk.metadata['similarity_score'] = float(sim)
-            filtered_results.append(chunk)
+                if chunk.metadata is None:
+                    chunk.metadata = {}
+                    
+                # Mettre à jour les scores
+                chunk.metadata['similarity_score'] = self.score_manager._safe_float(result.adjusted_score)
+                chunk.metadata['context_boost'] = self.score_manager._safe_float(result.context_boost)
+                chunk.metadata['metadata_boost'] = self.score_manager._safe_float(result.metadata_boost)
+                final_results.append(chunk)
+                
+            except Exception as e:
+                logger.warning(f"Erreur traitement résultat {result.chunk_id}: {str(e)}")
+                continue
             
-            if len(filtered_results) >= k:
+            if len(final_results) >= k:
                 break
         
-        # Trier par score de similarité
-        filtered_results.sort(key=lambda x: x.metadata.get('similarity_score', 0), reverse=True)
-        return filtered_results
+        return final_results
         
     def save(self, index_path: str, map_path: str):
         """Sauvegarde l'index et la map
@@ -172,24 +286,35 @@ class FAISSIndex:
             index_path: Chemin pour sauvegarder l'index FAISS
             map_path: Chemin pour sauvegarder la map des documents
         """
-        # Sauvegarder l'index FAISS
-        faiss.write_index(self.index, index_path)
-        
-        # Sauvegarder la map des documents (sans les embeddings)
-        map_data = {
-            str(idx): {
-                "id": chunk.id,
-                "content": chunk.content,
-                "document_path": chunk.document_path,
-                "chunk_number": chunk.chunk_number,
-                "page_number": chunk.page_number,
-                "metadata": chunk.metadata,
-                "last_updated": chunk.last_updated.isoformat() if chunk.last_updated else None
+        try:
+            # Sauvegarder l'index FAISS
+            if self.index.ntotal == 0:
+                logger.warning("Tentative de sauvegarde d'un index vide")
+            faiss.write_index(self.index, index_path)
+            
+            # Sauvegarder la map des documents avec les embeddings
+            map_data = {
+                str(idx): {
+                    "id": chunk.id,
+                    "content": chunk.content,
+                    "document_path": chunk.document_path,
+                    "chunk_number": chunk.chunk_number,
+                    "page_number": chunk.page_number,
+                    "metadata": chunk.metadata,
+                    "embedding": chunk.embedding,  # Sauvegarder l'embedding
+                    "last_updated": chunk.last_updated.isoformat() if chunk.last_updated else None
+                }
+                for idx, chunk in self.document_map.items()
             }
-            for idx, chunk in self.document_map.items()
-        }
-        with open(map_path, 'w') as f:
-            json.dump(map_data, f, indent=2)
+            
+            with open(map_path, 'w') as f:
+                json.dump(map_data, f, indent=2)
+                
+            logger.info(f"Index sauvegardé avec {self.index.ntotal} vecteurs")
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de la sauvegarde de l'index: {str(e)}")
+            raise
             
     @classmethod
     def load(cls, index_path: str, map_path: str) -> 'FAISSIndex':
@@ -202,29 +327,47 @@ class FAISSIndex:
         Returns:
             Instance de FAISSIndex
         """
-        # Charger l'index FAISS
-        index = faiss.read_index(index_path)
-        instance = cls(dimension=index.d)
-        instance._index = index
-        
-        # Charger la map des documents
-        with open(map_path, 'r') as f:
-            map_data = json.load(f)
+        try:
+            # Charger l'index FAISS
+            index = faiss.read_index(index_path)
+            instance = cls(dimension=index.d)
+            instance._index = index
             
-        instance.document_map = {
-            int(idx): DocumentChunk(
-                id=data["id"],
-                content=data["content"],
-                document_path=data["document_path"],
-                chunk_number=data["chunk_number"],
-                page_number=data["page_number"],
-                metadata=data["metadata"],
-                last_updated=datetime.fromisoformat(data["last_updated"]) if data["last_updated"] else None
-            )
-            for idx, data in map_data.items()
-        }
-        
-        return instance
+            # Charger la map des documents
+            with open(map_path, 'r') as f:
+                map_data = json.load(f)
+                
+            # Restaurer les documents avec leurs embeddings
+            instance.document_map = {}
+            for idx, data in map_data.items():
+                try:
+                    chunk = DocumentChunk(
+                        id=data["id"],
+                        content=data["content"],
+                        document_path=data["document_path"],
+                        chunk_number=data["chunk_number"],
+                        page_number=data["page_number"],
+                        metadata=data["metadata"],
+                        embedding=data["embedding"],
+                        last_updated=datetime.fromisoformat(data["last_updated"]) if data["last_updated"] else None
+                    )
+                    
+                    # Restaurer l'embedding dans le cache
+                    if chunk.embedding:
+                        vector_key = str(hash(chunk.content))
+                        instance._embedding_cache[vector_key] = np.array(chunk.embedding)
+                        
+                    instance.document_map[int(idx)] = chunk
+                except Exception as e:
+                    logger.warning(f"Erreur lors du chargement du chunk {idx}: {str(e)}")
+                    continue
+            
+            logger.info(f"Index chargé avec {instance.index.ntotal} vecteurs")
+            return instance
+            
+        except Exception as e:
+            logger.error(f"Erreur lors du chargement de l'index: {str(e)}")
+            raise
 
 class DocumentIndex:
     """Gère l'indexation et la recherche dans les documents"""
@@ -868,10 +1011,6 @@ class DocumentIndex:
             # Formater les résultats au format attendu par l'API Albert
             formatted_chunks = []
             for chunk in chunks:
-                # Vérifier le score de similarité minimum
-                if chunk.metadata.get('similarity_score', 0) < 0.3:
-                    continue
-                    
                 formatted_chunk = {
                     "id": chunk.id,
                     "content": chunk.content,
@@ -881,17 +1020,18 @@ class DocumentIndex:
                         "chunk_number": chunk.chunk_number,
                         "page_number": chunk.page_number,
                         "similarity_score": chunk.metadata.get('similarity_score', 0),
+                        "context_boost": chunk.metadata.get('context_boost', 0),
+                        "metadata_boost": chunk.metadata.get('metadata_boost', 0),
+                        "adjusted_score": chunk.metadata.get('similarity_score', 0),  # Le score ajusté est déjà dans similarity_score
                         **(chunk.metadata or {})
                     }
                 }
                 formatted_chunks.append(formatted_chunk)
                 
-                # Limiter au nombre demandé après filtrage
+                # Limiter au nombre demandé
                 if len(formatted_chunks) >= limit:
                     break
             
-            # Trier par score de similarité
-            formatted_chunks.sort(key=lambda x: x['metadata'].get('similarity_score', 0), reverse=True)
             return formatted_chunks
             
         except Exception as e:
