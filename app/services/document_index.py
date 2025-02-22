@@ -725,26 +725,77 @@ class DocumentIndex:
                 logger.error("Fichier de mapping manquant")
                 raise FileNotFoundError("Fichier de mapping manquant")
             
-            # Télécharger les fichiers
-            index_data = await self.webdav.download_file(self.faiss_index_path)
-            map_data = await self.webdav.download_file(self.map_path)
-            
-            # Sauvegarder temporairement
-            temp_index = "temp_faiss.index"
-            temp_map = "temp_map.json"
-            
+            # Télécharger l'index FAISS d'abord
             try:
+                index_data = await self.webdav.download_file(self.faiss_index_path)
+                temp_index = "temp_faiss.index"
                 with open(temp_index, "wb") as f:
                     f.write(index_data)
+                
+                # Vérifier l'intégrité de l'index
+                try:
+                    faiss_index = faiss.read_index(temp_index)
+                    if faiss_index.ntotal == 0:
+                        logger.warning("Index FAISS vide détecté")
+                except Exception as idx_error:
+                    logger.error(f"Index FAISS corrompu: {str(idx_error)}")
+                    raise
+                    
+            except Exception as e:
+                logger.error(f"Erreur téléchargement index FAISS: {str(e)}")
+                raise
+            
+            # Télécharger la map des documents ensuite
+            try:
+                map_data = await self.webdav.download_file(self.map_path)
+                temp_map = "temp_map.json"
                 with open(temp_map, "w") as f:
                     f.write(map_data.decode())
+                    
+                # Vérifier l'intégrité de la map
+                try:
+                    with open(temp_map, 'r') as f:
+                        map_content = json.load(f)
+                    if not isinstance(map_content, dict):
+                        raise ValueError("Format de map invalide")
+                except json.JSONDecodeError as json_error:
+                    logger.error(f"Map JSON corrompue: {str(json_error)}")
+                    raise
+                except Exception as map_error:
+                    logger.error(f"Erreur validation map: {str(map_error)}")
+                    raise
+                    
+            except Exception as e:
+                logger.error(f"Erreur téléchargement document map: {str(e)}")
+                # Si la map est corrompue mais l'index existe, tenter une reconstruction
+                if os.path.exists(temp_index):
+                    logger.warning("Map corrompue, tentative de reconstruction...")
+                    # Créer un nouvel index avec la même dimension
+                    self.faiss_index = FAISSIndex(dimension=self.embedding_service.embedding_dimension)
+                    self.faiss_index._index = faiss.read_index(temp_index)
+                    self.faiss_index.document_map = {}
+                    
+                    # Sauvegarder immédiatement le nouvel état
+                    await self.save_index()
+                    logger.info(f"Index reconstruit avec {self.faiss_index.index.ntotal} vecteurs")
+                    return
+                raise
                 
-                # Charger l'index
+            try:
+                # Charger l'index complet
                 self.faiss_index = FAISSIndex.load(temp_index, temp_map)
+                
+                # Vérifier la cohérence
+                if self.faiss_index.index.ntotal == 0:
+                    logger.warning("Index chargé est vide")
+                elif self.faiss_index.index.ntotal != len(self.faiss_index.document_map):
+                    logger.warning(f"Incohérence détectée: {self.faiss_index.index.ntotal} vecteurs mais {len(self.faiss_index.document_map)} documents")
                 
                 # Vérifier la dimension
                 if self.faiss_index.dimension != self.embedding_service.embedding_dimension:
                     raise ValueError(f"Dimension incorrecte: {self.faiss_index.dimension} != {self.embedding_service.embedding_dimension}")
+                
+                logger.info(f"Index chargé avec succès: {self.faiss_index.index.ntotal} vecteurs et {len(self.faiss_index.document_map)} documents")
                 
             finally:
                 # Nettoyage
