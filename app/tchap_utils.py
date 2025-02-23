@@ -158,3 +158,17 @@ def get_salon_moderators(
         for user_name, power_level in user_to_power_level.items()
         if power_level >= minimum_power_level
     ]
+
+
+def room_is_direct_message(room: MatrixRoom) -> bool:
+    """
+    Détermine si un salon est un message direct (conversation privée).
+    
+    Args:
+        room: L'objet MatrixRoom à vérifier
+        
+    Returns:
+        bool: True si c'est un message direct, False sinon
+    """
+    # Un salon est considéré comme direct s'il n'a que 2 membres
+    return len(room.users) == 2

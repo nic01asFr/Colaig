@@ -92,6 +92,14 @@ class Config(BaseConfig):
     last_classified_file: Optional[Any] = None
     waiting_for_custom_path: bool = False
 
+    # Context Management
+    context_cache_size: int = Field(1000, description="Taille maximale du cache de contexte")
+    context_cache_ttl: int = Field(3600, description="Durée de vie du cache en secondes")
+    context_save_interval: int = Field(300, description="Intervalle de sauvegarde des contextes en secondes")
+    context_cleanup_interval: int = Field(3600, description="Intervalle de nettoyage des contextes en secondes")
+    context_max_age_days: int = Field(30, description="Âge maximum des contextes en jours")
+    context_auto_cleanup: bool = Field(True, description="Nettoyage automatique des vieux contextes")
+
     @property
     def is_conversation_obsolete(self) -> bool:
         return int(time.time()) - self.last_activity > self.conversation_obsolescence

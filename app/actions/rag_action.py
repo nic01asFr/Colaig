@@ -96,7 +96,7 @@ class AskAlbertRagAction:
                 chunks=self.chunks
             )
             
-            # Génération de la réponse
+            # Générer la réponse
             messages = [
                 {
                     "role": "system",
@@ -110,7 +110,7 @@ class AskAlbertRagAction:
                 }
             ]
             
-            response = albert_client.generate(
+            response = await albert_client.generate(
                 model=self.config.albert_model,
                 messages=messages
             )

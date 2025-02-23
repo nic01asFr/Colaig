@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Set
 from dataclasses import dataclass
 import json
 from datetime import datetime
@@ -170,114 +170,105 @@ class FAISSIndex:
         # Vérifier si on doit convertir en IVF
         self._maybe_convert_to_ivf()
         
-    def search(self, query_embedding: np.ndarray, k: int = 5) -> List[DocumentChunk]:
-        """Recherche les k plus proches voisins
-        
-        Args:
-            query_embedding: Vecteur de requête
-            k: Nombre de résultats à retourner
+    def _safe_float(self, value: Any) -> float:
+        """Convertit une valeur en float de manière sécurisée"""
+        if value is None:
+            return 0.0
             
-        Returns:
-            Liste des chunks les plus pertinents
-        """
+        try:
+            # Conversion directe si possible
+            if isinstance(value, (int, float)):
+                # Vérifier les valeurs spéciales
+                if isinstance(value, float):
+                    if value != value or value in (float('inf'), float('-inf')):
+                        return 0.0
+                return float(value)
+                
+            # Traitement des chaînes
+            if isinstance(value, str):
+                value = value.lower().strip()
+                # Valeurs spéciales
+                if value in ('undefined', 'nan', 'inf', '-inf', ''):
+                    return 0.0
+                # Nettoyer et convertir
+                value = value.replace(',', '.')
+                try:
+                    return float(value)
+                except ValueError:
+                    return 0.0
+                    
+            # Autres types
+            try:
+                return float(str(value))
+            except (ValueError, TypeError):
+                return 0.0
+                
+        except Exception as e:
+            logger.debug(f"Erreur conversion float pour {value}: {str(e)}")
+            return 0.0
+
+    def _process_similarity_scores(self, similarities: np.ndarray) -> List[float]:
+        """Traite les scores de similarité de manière sécurisée"""
+        processed_scores = []
+        for sim in similarities:
+            try:
+                # Conversion et nettoyage
+                score = self._safe_float(sim)
+                # Normalisation entre 0 et 1
+                score = max(0.0, min(1.0, score))
+                # Arrondir à 4 décimales
+                score = round(float(score), 4)
+                processed_scores.append(score)
+            except Exception as e:
+                logger.warning(f"Erreur traitement score {sim}: {str(e)}")
+                processed_scores.append(0.0)
+        return processed_scores
+
+    def search(self, query_embedding: np.ndarray, k: int = 5) -> List[DocumentChunk]:
+        """Recherche les k plus proches voisins"""
         if self.index.ntotal == 0:
             return []
             
         if len(query_embedding) != self.dimension:
-            raise ValueError(
-                f"Dimension de la requête ({len(query_embedding)}) "
-                f"!= dimension de l'index ({self.dimension})"
-            )
+            raise ValueError(f"Dimension incorrecte: {len(query_embedding)} != {self.dimension}")
             
-        # Normaliser le vecteur de requête
-        query_embedding = query_embedding / np.linalg.norm(query_embedding)
-        
-        # Rechercher plus de voisins pour avoir plus de contexte
-        k_search = min(k * 4, self.index.ntotal)
-        
-        # Si c'est un index IVF, configurer le nombre de probes
-        if self._is_ivf:
-            # Augmenter nprobe pour plus de précision
-            self._index.nprobe = min(32, int(np.sqrt(self.index.ntotal)))
+        try:
+            # Normaliser le vecteur de requête
+            query_norm = np.linalg.norm(query_embedding)
+            if query_norm == 0:
+                logger.warning("Vecteur de requête nul")
+                return []
+            query_embedding = query_embedding / query_norm
             
-        D, I = self.index.search(query_embedding.reshape(1, -1), k_search)
-        
-        # Convertir les distances L2 en scores de similarité cosinus
-        # Pour des vecteurs normalisés, la relation exacte est : cos_sim = 1 - (L2_dist ** 2) / 2
-        similarities = 1 - (D[0] ** 2) / 2  # Conversion L2 en similarité cosinus exacte
-        
-        # Récupérer les chunks candidats
-        candidate_chunks = []
-        candidate_scores = []
-        
-        for idx, sim in zip(I[0], similarities):
-            try:
-                chunk = self.document_map[idx]
-                candidate_chunks.append(chunk)
-                candidate_scores.append(float(sim))
-            except Exception as e:
-                logger.warning(f"Erreur récupération chunk {idx}: {str(e)}")
-                continue
-        
-        # Utiliser le sélecteur de chunks pour choisir les meilleurs
-        selected_chunks_with_scores = self.chunk_selector.select_best_chunks(
-            chunks=candidate_chunks,
-            similarity_scores=candidate_scores,
-            limit=k
-        )
-        
-        # Préparer les chunks pour le scoring final
-        chunks_to_score = []
-        for chunk, sim in selected_chunks_with_scores:
-            try:
-                chunk_dict = {
-                    "id": chunk.id,
-                    "content": chunk.content,
-                    "metadata": {
-                        "document_name": os.path.basename(chunk.document_path),
-                        "document_path": chunk.document_path,
-                        "chunk_number": chunk.chunk_number,
-                        "page_number": chunk.page_number,
-                        "similarity_score": self.score_manager._safe_float(sim),
-                        **(chunk.metadata or {})
-                    }
-                }
-                chunks_to_score.append(chunk_dict)
-            except Exception as e:
-                logger.warning(f"Erreur préparation chunk {chunk.id}: {str(e)}")
-                continue
-        
-        # Utiliser le score manager pour ajuster les scores finaux
-        scoring_results = self.score_manager.adjust_scores(
-            chunks=chunks_to_score,
-            query="",  # La requête sera utilisée dans une version future
-            base_similarities=np.array([s for _, s in selected_chunks_with_scores])
-        )
-        
-        # Préparer les résultats finaux
-        final_results = []
-        for result in scoring_results:
-            try:
-                chunk_dict = next(c for c in chunks_to_score if c["id"] == result.chunk_id)
-                chunk = next(c for c in candidate_chunks if c.id == result.chunk_id)
+            # Recherche
+            k_search = min(k * 4, self.index.ntotal)
+            if self._is_ivf:
+                self._index.nprobe = min(32, int(np.sqrt(self.index.ntotal)))
                 
-                if chunk.metadata is None:
-                    chunk.metadata = {}
+            D, I = self.index.search(query_embedding.reshape(1, -1), k_search)
+            
+            # Conversion et traitement des scores
+            similarities = 1 - (D[0] ** 2) / 2
+            processed_scores = self._process_similarity_scores(similarities)
+            
+            # Récupération des chunks
+            results = []
+            for idx, score in zip(I[0], processed_scores):
+                try:
+                    chunk = self.document_map[idx]
+                    if chunk.metadata is None:
+                        chunk.metadata = {}
+                    chunk.metadata['similarity_score'] = score
+                    results.append(chunk)
+                except Exception as e:
+                    logger.warning(f"Erreur récupération chunk {idx}: {str(e)}")
+                    continue
                     
-                # Mettre à jour les scores
-                chunk.metadata['similarity_score'] = self.score_manager._safe_float(result.adjusted_score)
-                chunk.metadata['context_boost'] = self.score_manager._safe_float(result.context_boost)
-                chunk.metadata['metadata_boost'] = self.score_manager._safe_float(result.metadata_boost)
-                final_results.append(chunk)
-                
-            except Exception as e:
-                logger.warning(f"Erreur traitement résultat {result.chunk_id}: {str(e)}")
-                continue
+            return results[:k]
             
-            if len(final_results) >= k:
-                break
-        
-        return final_results
+        except Exception as e:
+            logger.error(f"Erreur recherche: {str(e)}")
+            return []
         
     def save(self, index_path: str, map_path: str):
         """Sauvegarde l'index et la map

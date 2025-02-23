@@ -135,7 +135,7 @@ async def generate(
 
     try:
         # Génération de la réponse
-        response = aclient.generate(model, messages, **sampling_params)
+        response = await aclient.generate(model, messages, **sampling_params)
         config.last_rag_chunks = rag_chunks
         return response
     except Exception as e:
@@ -249,7 +249,7 @@ class AlbertApiClient:
     def last_chunks(self) -> list[dict]:
         return self._last_chunks
 
-    def generate(self, model: str, messages: list[dict], **sampling_params) -> str:
+    async def generate(self, model: str, messages: list[dict], **sampling_params) -> str:
         """Génère une réponse via l'API Albert"""
         try:
             result = self.openai_client.chat.completions.create(

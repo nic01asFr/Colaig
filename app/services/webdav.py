@@ -1,5 +1,5 @@
 import os
-from typing import List, Optional, Dict, Tuple, Union
+from typing import List, Optional, Dict, Tuple, Union, Any
 from dataclasses import dataclass
 import requests
 from urllib.parse import urljoin
@@ -21,6 +21,7 @@ import httpx
 
 from config import Config
 from matrix_bot.config import logger
+from .context.models import get_synchronized_time
 
 @dataclass
 class WebDAVDocument:
@@ -51,14 +52,25 @@ class WebDAVService:
         'text/markdown': 'text'     # Autre variante du type MIME Markdown
     }
     
-    # Dossier pour les fichiers système
-    SYSTEM_DIR = ".albert"
-    VERSIONS_FILE = f"{SYSTEM_DIR}/.versions.json"
+    # Dossiers système (chemins relatifs)
+    SYSTEM_ROOT = ".albert"
+    CONTEXTS_DIR = f"{SYSTEM_ROOT}/contexts"
+    VERSIONS_DIR = f"{SYSTEM_ROOT}/versions"
+    INDEX_DIR = f"{SYSTEM_ROOT}/index"
+    CONFIG_DIR = f"{SYSTEM_ROOT}/config"
     
     def __init__(self, config: Config):
         self.config = config
         self.base_url = config.webdav_url
         self.versions: Dict[str, List[DocumentVersion]] = {}
+        
+        # Construire les chemins complets
+        self.root_path = config.webdav_root_path
+        self.system_root = os.path.join(self.root_path, self.SYSTEM_ROOT)
+        self.contexts_path = os.path.join(self.root_path, self.CONTEXTS_DIR)
+        self.versions_path = os.path.join(self.root_path, self.VERSIONS_DIR)
+        self.index_path = os.path.join(self.root_path, self.INDEX_DIR)
+        self.config_path = os.path.join(self.root_path, self.CONFIG_DIR)
         
         # Configuration du client HTTP
         self.http_client = httpx.AsyncClient(
@@ -73,7 +85,35 @@ class WebDAVService:
             verify=True  # Vérification SSL
         )
         logger.info("Client WebDAV initialisé")
-        asyncio.create_task(self._load_versions())
+        # Ne pas lancer la tâche ici, elle sera lancée dans initialize()
+
+    async def initialize(self) -> None:
+        """Initialise le service WebDAV"""
+        try:
+            # Créer les dossiers système s'ils n'existent pas
+            system_paths = [
+                self.system_root,
+                self.contexts_path,
+                self.versions_path,
+                self.index_path,
+                self.config_path
+            ]
+            
+            for path in system_paths:
+                if not await self.exists(path):
+                    success = await self.create_directory(path)
+                    if not success:
+                        raise RuntimeError(f"Impossible de créer le dossier {path}")
+                        
+            # Charger les versions
+            await self._load_versions()
+            logger.info("Service WebDAV initialisé avec succès")
+            
+        except Exception as e:
+            logger.error(f"Erreur initialisation WebDAV: {str(e)}")
+            if self.http_client:
+                await self.http_client.aclose()
+            raise
 
     async def close(self):
         """Ferme proprement le client HTTP"""
@@ -85,18 +125,52 @@ class WebDAVService:
             logger.error(f"Erreur lors de la fermeture du client HTTP: {str(e)}")
             raise
 
+    def _normalize_path(self, path: str) -> str:
+        """Normalise un chemin WebDAV"""
+        # Nettoyer le chemin
+        path = path.strip('/')
+        
+        # Ajouter le chemin racine si nécessaire
+        if self.root_path and not path.startswith(self.root_path.strip('/')):
+            path = f"{self.root_path.strip('/')}/{path}"
+        
+        return path
+
     def _get_url(self, path: str) -> str:
         """Construit l'URL WebDAV pour un chemin donné"""
-        logger.info(f"Construction URL pour le chemin: {path}")
-        
-        # Normaliser le chemin
-        normalized_path = path.lstrip('/')
-        logger.info(f"Chemin normalisé: {normalized_path}")
-        
-        # Construire l'URL finale
-        url = f"{self.base_url.rstrip('/')}/{normalized_path}"
-        logger.info(f"URL WebDAV finale: {url}")
-        return url
+        try:
+            # Normaliser le chemin
+            path = self._normalize_path(path)
+            
+            # Encoder les caractères spéciaux
+            path_parts = path.split('/')
+            encoded_parts = [
+                part.replace('@', '%40')
+                    .replace(':', '%3A')
+                    .replace('!', '%21')
+                    .replace('#', '%23')
+                    .replace('$', '%24')
+                    .replace('&', '%26')
+                    .replace("'", '%27')
+                    .replace('(', '%28')
+                    .replace(')', '%29')
+                    .replace('*', '%2A')
+                    .replace('+', '%2B')
+                    .replace(',', '%2C')
+                    .replace(';', '%3B')
+                    .replace('=', '%3D')
+                    .replace('?', '%3F')
+                for part in path_parts
+            ]
+            normalized_path = '/'.join(encoded_parts)
+            
+            # Construire l'URL finale
+            url = f"{self.base_url.rstrip('/')}/{normalized_path}"
+            return url
+            
+        except Exception as e:
+            logger.error(f"Erreur construction URL WebDAV: {str(e)}")
+            raise
 
     async def write_file(self, path: str, content: Union[str, bytes]) -> None:
         """Écrit le contenu dans un fichier WebDAV"""
@@ -206,10 +280,10 @@ class WebDAVService:
                     logger.error(f"Échec définitif de lecture du document {path} après {max_retries} tentatives: {str(e)}")
                     raise
 
-    async def list_documents(self) -> List[str]:
+    async def list_documents(self, path: str = None) -> List[str]:
         """Liste tous les documents dans le répertoire WebDAV"""
         try:
-            url = self._get_url(self.config.webdav_root_path)
+            url = self._get_url(path or self.root_path)
             response = await self.http_client.request(
                 "PROPFIND",
                 url,
@@ -226,6 +300,8 @@ class WebDAVService:
                 href = response_elem.find('.//{DAV:}href').text
                 if href and not href.endswith('/'):  # Ignorer les répertoires
                     path = href.split('remote.php/dav/files/')[-1].split('/', 1)[-1]
+                    if path.startswith(self.root_path):
+                        path = path[len(self.root_path):].lstrip('/')
                     documents.append(path)
             
             return documents
@@ -234,64 +310,83 @@ class WebDAVService:
             logger.error(f"Erreur lors de la liste des documents: {str(e)}")
             raise
 
-    async def _load_versions(self):
-        """Charge l'historique des versions"""
+    async def _load_versions(self) -> None:
+        """Charge l'historique des versions depuis le fichier versions.json"""
         try:
-            logger.info("Chargement de l'historique des versions")
-            versions_path = os.path.join(self.config.webdav_root_path, self.VERSIONS_FILE)
-            try:
-                # Créer le dossier système s'il n'existe pas
-                system_dir = os.path.join(self.config.webdav_root_path, self.SYSTEM_DIR)
-                await self.create_directory(system_dir)
-                
-                content = await self.read_document(versions_path)
-                versions_data = json.loads(content)
-                
+            versions_path = os.path.join(self.versions_path, "versions.json")
+            if not await self.exists(versions_path):
                 self.versions = {
-                    doc_path: [
-                        DocumentVersion(
-                            version=v['version'],
-                            path=v['path'],
-                            created_at=datetime.fromisoformat(v['created_at']),
-                            metadata=v.get('metadata', {})
-                        )
-                        for v in versions
-                    ]
-                    for doc_path, versions in versions_data.items()
+                    "last_update": get_synchronized_time().isoformat(),
+                    "documents": {}
                 }
-                logger.info(f"Historique des versions chargé: {len(self.versions)} documents")
-            except Exception as e:
-                if "404" in str(e):
-                    logger.info("Fichier versions.json non trouvé, création d'un nouveau fichier")
-                    self.versions = {}
-                    # Créer le fichier avec un dictionnaire vide
-                    await self.write_file(versions_path, "{}")
-                else:
-                    raise
-        except Exception as e:
-            logger.warning(f"Impossible de charger l'historique des versions: {str(e)}")
-            self.versions = {}
+                await self._save_versions()
+                logger.info("Nouveau fichier de versions créé")
+                return
+
+            content = await self.read_document(versions_path)
+            if not content.strip():
+                self.versions = {
+                    "last_update": get_synchronized_time().isoformat(),
+                    "documents": {}
+                }
+                await self._save_versions()
+                logger.info("Fichier de versions vide, initialisation effectuée")
+                return
+
+            data = json.loads(content)
+            if not isinstance(data, dict) or "documents" not in data:
+                raise ValueError("Format de fichier de versions invalide")
+
+            self.versions = data
+            logger.debug("Historique des versions chargé avec succès")
+
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.warning(f"Erreur lors du chargement de l'historique des versions: {str(e)}")
+            self.versions = {
+                "last_update": get_synchronized_time().isoformat(),
+                "documents": {}
+            }
+            await self._save_versions()
 
     async def _save_versions(self):
         """Sauvegarde l'historique des versions"""
         try:
+            # Convertir les versions en format sérialisable
             versions_data = {
-                doc_path: [
-                    {
-                        'version': v.version,
-                        'path': v.path,
-                        'created_at': v.created_at.isoformat(),
-                        'metadata': v.metadata or {}
-                    }
-                    for v in versions
-                ]
-                for doc_path, versions in self.versions.items()
+                "last_update": get_synchronized_time().isoformat(),
+                "documents": {}
             }
             
-            versions_path = os.path.join(self.config.webdav_root_path, self.VERSIONS_FILE)
+            # Convertir chaque version en dictionnaire
+            for doc_path, doc_versions in self.versions.get("documents", {}).items():
+                if isinstance(doc_versions, list):
+                    versions_data["documents"][doc_path] = []
+                    for version in doc_versions:
+                        if isinstance(version, DocumentVersion):
+                            version_dict = {
+                                'version': version.version,
+                                'path': version.path,
+                                'created_at': version.created_at.isoformat(),
+                                'metadata': version.metadata or {}
+                            }
+                        else:
+                            # Si c'est déjà un dictionnaire
+                            version_dict = {
+                                'version': version.get('version', 1),
+                                'path': version.get('path', ''),
+                                'created_at': version.get('created_at', get_synchronized_time().isoformat()),
+                                'metadata': version.get('metadata', {})
+                            }
+                        versions_data["documents"][doc_path].append(version_dict)
+            
+            # Sauvegarder dans le fichier versions.json
+            versions_path = os.path.join(self.versions_path, "versions.json")
             await self.write_file(versions_path, json.dumps(versions_data, indent=2))
+            logger.debug("Versions sauvegardées avec succès")
+            
         except Exception as e:
             logger.error(f"Erreur lors de la sauvegarde des versions: {str(e)}")
+            raise
 
     def _get_version_path(self, original_path: str, version: int) -> str:
         """Génère le chemin pour une version spécifique"""
@@ -462,6 +557,38 @@ class WebDAVService:
         except Exception as e:
             logger.error(f"Erreur téléchargement fichier {path}: {str(e)}")
             raise
+
+    async def get_context_safely(self, context_id: str) -> Optional[Dict[str, Any]]:
+        """Récupère un contexte de manière sécurisée avec gestion des erreurs"""
+        try:
+            # Construire le chemin du contexte
+            context_path = f"{self.CONTEXTS_DIR}/{context_id}.json"
+            
+            # Vérifier si le fichier existe
+            if not await self.exists(context_path):
+                logger.debug(f"Contexte {context_id} non trouvé")
+                return None
+            
+            # Lire le contenu
+            content = await self.read_document(context_path)
+            if not content.strip():
+                logger.warning(f"Contexte {context_id} vide")
+                return None
+            
+            # Parser le JSON
+            try:
+                data = json.loads(content)
+                if not isinstance(data, dict):
+                    logger.error(f"Format invalide pour le contexte {context_id}")
+                    return None
+                return data
+            except json.JSONDecodeError as e:
+                logger.error(f"Erreur décodage JSON pour {context_id}: {str(e)}")
+                return None
+            
+        except Exception as e:
+            logger.error(f"Erreur lecture contexte {context_id}: {str(e)}")
+            return None
 
     async def __aenter__(self):
         return self

@@ -1,3 +1,5 @@
+from typing import List, Dict, Any, Optional, Set
+
 # SPDX-FileCopyrightText: 2023 Pôle d'Expertise de la Régulation Numérique <contact.peren@finances.gouv.fr>
 # SPDX-FileCopyrightText: 2024 Etalab <etalab@modernisation.gouv.fr>
 #
@@ -6,10 +8,11 @@
 import asyncio
 import traceback
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import wraps
 import os
-from typing import List
+from datetime import datetime
+from enum import Enum
 
 from matrix_bot.client import MatrixClient
 from matrix_bot.config import logger
@@ -36,13 +39,18 @@ from tchap_utils import (
     get_decrypted_file,
     get_previous_messages, 
     get_thread_messages, 
-    isa_reply_to
+    isa_reply_to,
+    room_is_direct_message
 )
 from actions.rag_action import AskAlbertRagAction
+from actions.standard_rag_action import StandardMessageRagAction
 from services.webdav import WebDAVService
 from services.document_index import DocumentIndex
 from services.index_service import IndexService
 from services.bnum_service import BnumService
+from services.context import ContextManager, ContextType
+from services.context.models import BaseContext, UserContext  # Import des classes de contexte
+from services.context.instance import context_manager  # Import du gestionnaire global
 
 @dataclass
 class CommandRegistry:
@@ -254,20 +262,42 @@ async def albert_reset(ep: EventParser, matrix_client: MatrixClient):
     if config.albert_with_history:
         config.update_last_activity()
         config.albert_history_lookup = 0
-        reset_message = AlbertMsg.reset
-        # reset_message += command_registry.show_commands(config)
-        await matrix_client.send_markdown_message(
-            ep.room.room_id, reset_message, msgtype="m.notice"
+        
+        # Suppression du contexte existant
+        context_id = f"{ep.room.room_id}_{ep.sender}"
+        await context_manager.delete_context(context_id)
+        
+        # Création d'un nouveau contexte
+        await context_manager.create_context(
+            ep.room.room_id,
+            ep.sender,
+            config=config.dict()
         )
-
+        
+        reset_message = AlbertMsg.reset
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            reset_message,
+            msgtype="m.notice"
+        )
+        
         message = AlbertMsg.flush_start
-        await matrix_client.send_markdown_message(ep.room.room_id, message, msgtype="m.notice")  
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            message,
+            msgtype="m.notice"
+        )
+        
         await matrix_client.room_typing(ep.room.room_id)
         flush_collections_with_name(config, ep.room.room_id)
         config.albert_collections_by_id = {}
+        
         message = AlbertMsg.flush_end
-        await matrix_client.send_markdown_message(ep.room.room_id, message, msgtype="m.notice")  
-
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            message,
+            msgtype="m.notice"
+        )
     else:
         await matrix_client.send_markdown_message(
             ep.room.room_id,
@@ -286,15 +316,34 @@ async def albert_reset(ep: EventParser, matrix_client: MatrixClient):
 @only_allowed_user
 async def albert_conversation(ep: EventParser, matrix_client: MatrixClient):
     config = user_configs[ep.sender]
-    config.albert_history_lookup = 0
+    context_id = f"{ep.room.room_id}_{ep.sender}"
+    
     if config.albert_with_history:
         config.albert_with_history = False
+        config.albert_history_lookup = 0
+        
+        # Suppression du contexte existant
+        await context_manager.delete_context(context_id)
+        
         message = "Le mode conversation est désactivé."
     else:
         config.update_last_activity()
         config.albert_with_history = True
+        
+        # Création d'un nouveau contexte
+        await context_manager.create_context(
+            ep.room.room_id,
+            ep.sender,
+            config=config.dict()
+        )
+        
         message = "Le mode conversation est activé."
-    await matrix_client.send_markdown_message(ep.room.room_id, message, msgtype="m.notice")
+        
+    await matrix_client.send_markdown_message(
+        ep.room.room_id,
+        message,
+        msgtype="m.notice"
+    )
 
 
 @register_feature(
@@ -555,47 +604,64 @@ async def albert_document(ep: EventParser, matrix_client: MatrixClient):
 @register_feature(
     group="albert",
     onEvent=RoomMessageText,
-    help=None,
+    help="Traite une requête utilisateur"
 )
-@only_allowed_user
-async def albert_answer(ep: EventParser, matrix_client: MatrixClient):
-    """
-    Receive a message event which is not a command, send the prompt to Albert API and return the response to the user
-    """
+async def process_request(ep: EventParser, matrix_client: MatrixClient):
+    """Traite une requête utilisateur standard (non-commande)"""
+    # Ignorer les commandes et les messages du bot
+    if ep.is_command(COMMAND_PREFIX) or ep.sender == matrix_client.user_id:
+        return
+        
     config = user_configs[ep.sender]
-
-    initial_history_lookup = config.albert_history_lookup
-
-    user_query = ep.event.body.strip()
-    if ep.is_command(COMMAND_PREFIX):
-        raise EventNotConcerned
-
-    if config.albert_with_history and config.is_conversation_obsolete:
-        config.albert_history_lookup = 0
-        obsolescence_in_minutes = str(config.conversation_obsolescence // 60)
-        reset_message = AlbertMsg.reset_notif(obsolescence_in_minutes)
-        await matrix_client.send_markdown_message(
-            ep.room.room_id, reset_message, msgtype="m.notice"
-        )
-        flush_collections_with_name(config, ep.room.room_id)
-        config.albert_collections_by_id = {}
-
-    config.update_last_activity()
-    await matrix_client.room_typing(ep.room.room_id)
+    
     try:
-        # Build the messages  history
-        # --
+        # Récupérer ou créer le contexte du salon
+        room_context = await context_manager.get_or_create_room_context(
+            room_id=ep.room.room_id,
+            room_name=ep.room.name,
+            is_direct=room_is_direct_message(ep.room)
+        )
+        
+        # Ajouter/mettre à jour le participant
+        await context_manager.add_room_participant(ep.room.room_id, ep.sender)
+        await context_manager.update_room_activity(ep.room.room_id, ep.sender)
+        
+        # Création ou récupération du contexte de session
+        session_id = f"{ep.room.room_id}_{ep.sender}_{datetime.now().strftime('%Y%m%d')}"
+        session_context = await context_manager.get_context(session_id, ContextType.SESSION)
+        
+        if not session_context:
+            # Créer le contexte de session
+            session_context = await context_manager.create_context(
+                session_id,
+                ContextType.SESSION,
+                {
+                    "session_id": session_id,
+                    "room_id": ep.room.room_id,
+                    "user_id": ep.sender,
+                    "conversation_state": {},
+                    "history": []
+                }
+            )
+            
+        # Mise à jour du contexte de requête
+        request_context = await context_manager.create_context(
+            f"{session_id}_req_{datetime.now().timestamp()}",
+            ContextType.REQUEST,
+            {
+                "query": ep.event.body,
+                "raw_input": ep.event.source,
+                "event_timestamp": datetime.now()
+            }
+        )
+        
+        # Build the messages history
         is_reply_to = isa_reply_to(ep.event)
         if is_reply_to:
-            # Use the targeted thread history
-            # --
             message_events = await get_thread_messages(
                 config, ep, max_rewind=config.albert_max_rewind
             )
         else:
-            # Use normal history
-            # --
-            # Add the current user query in the history count
             config.albert_history_lookup += 1
             message_events = await get_previous_messages(
                 config,
@@ -603,96 +669,88 @@ async def albert_answer(ep: EventParser, matrix_client: MatrixClient):
                 history_lookup=config.albert_history_lookup,
                 max_rewind=config.albert_max_rewind,
             )
-
-        # Map event to list of message {role, content} and cleanup message body
-        # @TODO: If bot should answer in multi-user canal, we could catch is own name here.
-        messages = [
-            {"role": "user", "content": get_cleanup_body(event)}
-            if event.source["sender"] == ep.sender
-            else {"role": "assistant", "content": get_cleanup_body(event)}
-            for event in message_events
-        ]
-
-        # Empty chunk (i.e at startup)
-        if not messages:
-            messages = [{"role": "user", "content": user_query}]
-
-        answer = await generate(config, messages)
-
-    except Exception as albert_err:
-        logger.error(f"{albert_err}")
-        traceback.print_exc()
-        # Send an error message to the user
-        await matrix_client.send_markdown_message(
-            ep.room.room_id, AlbertMsg.failed, msgtype="m.notice"
+            
+        # Mise à jour de l'historique dans le contexte de session
+        for event in message_events:
+            event_timestamp = datetime.fromtimestamp(event.server_timestamp / 1000)
+            session_context.add_message(
+                role="user" if event.source["sender"] == ep.sender else "assistant",
+                content=get_cleanup_body(event),
+                timestamp=event_timestamp
+            )
+            
+        await context_manager.update_context(
+            session_id,
+            ContextType.SESSION,
+            session_context.to_dict(),
+            immediate_save=True
         )
-        # Redirect the error message to the errors room if it exists
-        if config.errors_room_id:
-            try:
-                await matrix_client.send_markdown_message(config.errors_room_id, AlbertMsg.error_debug(albert_err, config))  # fmt: off
-            except:
-                print("Failed to find error room ?!")
 
-        config.albert_history_lookup = initial_history_lookup
-        return
+        # Créer et initialiser l'action RAG standard
+        rag_action = StandardMessageRagAction(config)
+        await rag_action.initialize()
 
-    logger.debug(f"{user_query=}")
-    logger.debug(f"{answer=}")
+        # Récupérer les chunks avec contexte
+        chunks = await rag_action.retrieve_relevant_chunks(
+            query=ep.event.body,
+            session_context=session_context,
+            room_context=room_context
+        )
 
-    reply_to = None
-    if is_reply_to:
-        # "content" ->  "m.mentions": {"user_ids": [ep.sender]},
-        # "content" -> "m.relates_to": {"m.in_reply_to": {"event_id": ep.event.event_id}},
-        reply_to = ep.event.event_id
+        if chunks:
+            # Générer la réponse avec contexte
+            response = await rag_action.generate_response(
+                query=ep.event.body,
+                chunks=chunks,
+                session_context=session_context
+            )
+        else:
+            # Fallback en mode norag
+            messages = [
+                {
+                    "role": "system",
+                    "content": "Vous êtes Colaig, l'assistant de l'État français."
+                },
+                {
+                    "role": "user",
+                    "content": ep.event.body
+                }
+            ]
+            response = await generate(config, messages)
 
-    try:  # sometimes the async code fail (when input is big) with random asyncio errors
-        await matrix_client.send_markdown_message(ep.room.room_id, answer, reply_to=reply_to)
-        await tiam.increment_user_question(ep.sender)
-    except Exception as llm_exception:  # it seems to work when we retry
-        logger.error(f"asyncio error when sending message {llm_exception=}. retrying")
-        await asyncio.sleep(1)
-        try:
-            # Try once more
-            await matrix_client.send_markdown_message(ep.room.room_id, answer, reply_to=reply_to)
-            await tiam.increment_user_question(ep.sender)
-        except:
-            config.albert_history_lookup = initial_history_lookup
-            return
+        # Mettre à jour l'historique de session
+        session_context.add_message("user", ep.event.body)
+        session_context.add_message("assistant", response)
+        await context_manager.update_context(
+            session_id,
+            ContextType.SESSION,
+            session_context.to_dict()
+        )
 
-    # Add agent answer in the history count
-    if not is_reply_to:
-        config.albert_history_lookup += 1
+        # Envoyer la réponse
+        reply_to = ep.event.event_id if is_reply_to else None
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            response,
+            reply_to=reply_to
+        )
 
-
-@register_feature(
-    group="albert",
-    onEvent=RoomMessageText,
-    help=None,
-)
-async def albert_wrong_command(ep: EventParser, matrix_client: MatrixClient):
-    """Special handler to catch invalid command"""
-    config = user_configs[ep.sender]
-
-    ep.do_not_accept_own_message()  # avoid infinite loop
-    ep.only_on_direct_message()  # Only in direct room for now (need a spec for "saloon" conversation)
-
-    command = ep.event.body.strip().lstrip(COMMAND_PREFIX).split()
-    if not ep.is_command(COMMAND_PREFIX):
-        # Not a command
-        raise EventNotConcerned
-    elif command_registry.is_valid_command(command[0]):
-        # Valid command
-        raise EventNotConcerned
-
-    is_allowed, msg = await tiam.is_user_allowed(config, ep.sender, refresh=True)
-    if not is_allowed:
-        await log_not_allowed(msg, ep, matrix_client)
-        return
-
-    cmds_msg = command_registry.show_commands(config)
-    await matrix_client.send_markdown_message(
-        ep.room.room_id, AlbertMsg.unknown_command(cmds_msg), msgtype="m.notice"
-    )
+        # Mise à jour de l'activité de session
+        session_context.last_activity = datetime.now()
+        await context_manager.update_context(
+            session_id,
+            ContextType.SESSION,
+            session_context.to_dict(),
+            immediate_save=True
+        )
+        
+    except Exception as e:
+        logger.error(f"Erreur traitement requête: {str(e)}")
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            AlbertMsg.failed,
+            msgtype="m.notice"
+        )
 
 @register_feature(
     group="albert",
@@ -1319,3 +1377,55 @@ async def bnum_command(ep: EventParser, matrix_client: MatrixClient):
                 f"❌ Erreur: {str(e)}",
                 msgtype="m.notice"
             )
+
+async def _save_context(
+    self,
+    context_id: str,
+    context_type: ContextType,
+    context: Any
+) -> None:
+    """Sauvegarde un contexte"""
+    try:
+        # Convertir le contexte en dictionnaire
+        context_data = context.to_dict() if hasattr(context, 'to_dict') else context.__dict__
+        
+        # Ajouter les métadonnées de type
+        context_data['_type'] = context_type.value
+        
+        # Sauvegarder dans le cache
+        self._context_cache[context_id] = context
+        
+        # Sauvegarder sur WebDAV
+        await self._save_to_webdav(context_id, context_data)
+        
+    except Exception as e:
+        logger.error(f"Erreur sauvegarde contexte {context_id}: {str(e)}")
+        raise
+
+async def get_context(
+    self,
+    context_id: str,
+    context_type: ContextType
+) -> Optional[Any]:
+    """Récupère un contexte"""
+    try:
+        # Vérifier le cache
+        if context_id in self._context_cache:
+            return self._context_cache[context_id]
+            
+        # Charger depuis WebDAV
+        context_data = await self._load_from_webdav(context_id)
+        if not context_data:
+            return None
+            
+        # Vérifier le type
+        stored_type = context_data.get('_type')
+        if stored_type != context_type.value:
+            return None
+            
+        # Créer une nouvelle instance
+        return await self.create_context(context_id, context_type, context_data)
+        
+    except Exception as e:
+        logger.error(f"Erreur récupération contexte {context_id}: {str(e)}")
+        return None
