@@ -1,6 +1,6 @@
-from typing import List, Dict, Any, Optional, Set
+from typing import List, Dict, Any, Optional, Set, Tuple
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import time
 
@@ -23,6 +23,89 @@ COMMON_WORDS = {
     "plus", "moins", "très", "trop", "peu", "beaucoup"
 }
 
+@dataclass
+class ConversationHistoryIndex:
+    """Gère l'indexation et l'analyse de l'historique des conversations"""
+    
+    max_history_length: int = 10
+    topic_memory_duration: int = 3600  # 1 heure
+    
+    def __init__(self):
+        self.conversation_topics = {}  # room_id -> {topic: last_seen_timestamp}
+        self.active_contexts = {}      # room_id -> List[str]
+        self.topic_transitions = {}    # topic -> {next_topic: count}
+    
+    def update_history(
+        self,
+        room_id: str,
+        message: Dict[str, Any],
+        session_context: Optional[SessionContext]
+    ) -> None:
+        """Met à jour l'historique de conversation pour une salle"""
+        current_time = time.time()
+        
+        # Extraire les topics du message
+        message_topics = self._extract_topics([message["content"]])
+        
+        # Mettre à jour les topics actifs
+        if room_id not in self.conversation_topics:
+            self.conversation_topics[room_id] = {}
+            
+        # Nettoyer les vieux topics
+        self._cleanup_old_topics(room_id, current_time)
+        
+        # Mettre à jour les timestamps des topics
+        for topic in message_topics:
+            self.conversation_topics[room_id][topic] = current_time
+            
+        # Mettre à jour les transitions de topics
+        if session_context and session_context.history:
+            previous_message = session_context.history[-1] if session_context.history else None
+            if previous_message:
+                prev_topics = self._extract_topics([previous_message["content"]])
+                for prev_topic in prev_topics:
+                    for curr_topic in message_topics:
+                        if prev_topic not in self.topic_transitions:
+                            self.topic_transitions[prev_topic] = {}
+                        if curr_topic not in self.topic_transitions[prev_topic]:
+                            self.topic_transitions[prev_topic][curr_topic] = 0
+                        self.topic_transitions[prev_topic][curr_topic] += 1
+    
+    def get_active_topics(self, room_id: str) -> Set[str]:
+        """Récupère les topics actifs pour une salle"""
+        current_time = time.time()
+        if room_id not in self.conversation_topics:
+            return set()
+            
+        return {
+            topic
+            for topic, timestamp in self.conversation_topics[room_id].items()
+            if current_time - timestamp < self.topic_memory_duration
+        }
+    
+    def get_likely_next_topics(self, current_topics: Set[str]) -> Set[str]:
+        """Prédit les topics probables suivants basés sur l'historique"""
+        likely_topics = set()
+        for topic in current_topics:
+            if topic in self.topic_transitions:
+                # Prendre les 3 transitions les plus fréquentes
+                sorted_transitions = sorted(
+                    self.topic_transitions[topic].items(),
+                    key=lambda x: x[1],
+                    reverse=True
+                )
+                likely_topics.update(topic for topic, _ in sorted_transitions[:3])
+        return likely_topics
+    
+    def _cleanup_old_topics(self, room_id: str, current_time: float) -> None:
+        """Nettoie les topics expirés"""
+        if room_id in self.conversation_topics:
+            self.conversation_topics[room_id] = {
+                topic: timestamp
+                for topic, timestamp in self.conversation_topics[room_id].items()
+                if current_time - timestamp < self.topic_memory_duration
+            }
+
 class StandardMessageRagAction:
     """Action RAG optimisée pour les messages standards"""
 
@@ -30,6 +113,7 @@ class StandardMessageRagAction:
         self.config = config
         self.index_service = None
         self.webdav_service = None
+        self.conversation_history = ConversationHistoryIndex()
         self._initialized = False
 
     async def initialize(self) -> None:
@@ -76,19 +160,20 @@ class StandardMessageRagAction:
             # Enrichir la requête avec le contexte
             enhanced_query = self._enhance_query(query, session_context, room_context)
             
-            # Paramètres de recherche optimisés
+            # Paramètres de recherche optimisés pour la conversation standard
             search_params = {
-                "limit": 10  # Plus de résultats pour un meilleur filtrage
+                "query": enhanced_query,
+                "behavior_type": "conversation",  # Type de comportement en premier
+                "include_behavior": True,
+                "include_documents": False,
+                "limit": 10
             }
             
-            # Recherche initiale
-            chunks = await self.index_service.search(
-                query=enhanced_query,
-                **search_params
-            )
+            # Recherche initiale optimisée
+            chunks = await self.index_service.search(**search_params)
             
             if not chunks:
-                logger.info("Aucun chunk pertinent trouvé dans l'index existant")
+                logger.info("Aucun chunk pertinent trouvé dans les index de conversation")
                 return []
             
             # Post-traitement avancé des chunks
@@ -236,11 +321,12 @@ class StandardMessageRagAction:
         if not chunks:
             return []
 
-        # Extraire les thèmes de la conversation récente
-        conversation_topics = set()
-        if session_context and session_context.history:
-            recent_messages = [msg["content"] for msg in session_context.history[-3:]]
-            conversation_topics = self._extract_topics(recent_messages)
+        # Extraire les thèmes actifs de la conversation
+        active_topics = set()
+        likely_next_topics = set()
+        if session_context and room_context:
+            active_topics = self.conversation_history.get_active_topics(room_context.room_id)
+            likely_next_topics = self.conversation_history.get_likely_next_topics(active_topics)
 
         # Traiter chaque chunk
         for chunk in chunks:
@@ -255,29 +341,27 @@ class StandardMessageRagAction:
             
             # 1. Boost basé sur la continuité thématique
             chunk_topics = self._extract_topics([content])
-            topic_overlap = len(chunk_topics & conversation_topics)
+            topic_overlap = len(chunk_topics & active_topics)
             if topic_overlap > 0:
-                context_boost += 0.2 * (topic_overlap / len(conversation_topics))
+                context_boost += 0.2 * (topic_overlap / len(active_topics))
             
-            # 2. Boost basé sur la récence (si disponible)
+            # 2. Boost basé sur les topics probables suivants
+            next_topic_overlap = len(chunk_topics & likely_next_topics)
+            if next_topic_overlap > 0:
+                context_boost += 0.1 * (next_topic_overlap / len(likely_next_topics))
+            
+            # 3. Boost basé sur la récence
             if "timestamp" in metadata:
                 time_diff = time.time() - metadata["timestamp"]
-                recency_boost = max(0, 0.1 * (1 - (time_diff / (24 * 3600))))  # Décroissance sur 24h
+                recency_boost = max(0, 0.1 * (1 - (time_diff / (24 * 3600))))
                 context_boost += recency_boost
             
-            # 3. Boost basé sur la pertinence pour le salon
+            # 4. Boost basé sur la pertinence pour le salon
             if room_context and room_context.shared_context:
                 room_topics = self._extract_topics(room_context.shared_context.values())
                 room_overlap = len(chunk_topics & room_topics)
                 if room_overlap > 0:
                     context_boost += 0.1 * (room_overlap / len(room_topics))
-            
-            # 4. Pénalité pour les chunks trop longs ou trop courts
-            content_length = len(content.split())
-            if content_length < 20:  # Trop court
-                context_boost -= 0.1
-            elif content_length > 200:  # Trop long
-                context_boost -= 0.15
             
             # Mettre à jour les scores
             metadata["context_boost"] = context_boost
@@ -353,56 +437,44 @@ class StandardMessageRagAction:
         chunks: List[Dict],
         session_context: Optional[SessionContext]
     ) -> str:
-        """Formate le prompt pour une réponse conversationnelle"""
+        """Formate le prompt pour une réponse directe"""
         prompt_parts = []
 
-        # Ajouter le contexte de la conversation si disponible
+        # Ajouter uniquement le contexte essentiel
         if session_context and session_context.history:
-            recent_history = session_context.history[-3:]
-            prompt_parts.append("Contexte de la conversation:")
+            recent_history = session_context.history[-2:]  # Limiter à 2 messages
             for msg in recent_history:
-                role = "👤" if msg["role"] == "user" else "🤖"
-                prompt_parts.append(f"{role} {msg['content']}")
+                role = "User" if msg["role"] == "user" else "Assistant"
+                prompt_parts.append(f"{role}: {msg['content']}")
             prompt_parts.append("")
 
-        # Ajouter la question actuelle
-        prompt_parts.extend([
-            f"Question actuelle: {query}",
-            ""
-        ])
+        # Ajouter la question
+        prompt_parts.append(f"User: {query}")
+        prompt_parts.append("")
 
-        # Ajouter les documents pertinents
-        prompt_parts.append("Documents pertinents:")
+        # Ajouter les documents de manière plus concise
+        prompt_parts.append("Context:")
         for chunk in chunks:
-            metadata = chunk.get("metadata", {})
-            chunk_parts = [
-                f"[Document: {metadata.get('document_name', 'Inconnu')}]",
-                f"[Score: {metadata.get('final_score', 0):.3f}]",
-                f"[Boost contextuel: {metadata.get('context_boost', 0):.3f}]",
-                "",
-                chunk.get('content', ''),
-                "---"
-            ]
-            prompt_parts.extend(chunk_parts)
+            prompt_parts.append(chunk.get('content', ''))
 
-        return chr(10).join(prompt_parts)
+        prompt_parts.append("")
+        prompt_parts.append("Assistant: ")
 
-    def _get_system_prompt(
-        self,
-        session_context: Optional[SessionContext]
-    ) -> str:
+        return "\n".join(prompt_parts)
+
+    def _get_system_prompt(self, session_context: Optional[SessionContext]) -> str:
         """Génère un prompt système adapté au contexte"""
         prompt_parts = [
             "Vous êtes Colaig, l'assistant de l'État français. ",
-            "Répondez aux questions en vous basant sur les documents fournis ",
-            "et le contexte de la conversation."
+            "Répondez de manière directe et concise aux questions, ",
+            "en vous basant sur les documents fournis. ",
+            "Ne mentionnez pas les documents ou le processus de recherche dans votre réponse."
         ]
-
+        
         if session_context and session_context.history:
-            # Adapter le ton en fonction de l'historique
             conversation_style = self._analyze_conversation_style(session_context.history)
-            prompt_parts.append(f"Adaptez votre ton pour être {conversation_style}.")
-
+            prompt_parts.append(f"Adoptez un ton {conversation_style}.")
+        
         return " ".join(prompt_parts)
 
     def _analyze_conversation_style(self, history: List[Dict]) -> str:
@@ -428,28 +500,46 @@ class StandardMessageRagAction:
         response: str,
         chunks: List[Dict]
     ) -> str:
-        """Formate la réponse pour inclure les sources de manière conversationnelle"""
-        # Formater les sources de manière plus naturelle
-        sources = []
-        for chunk in chunks:
-            metadata = chunk.get("metadata", {})
-            source_parts = [f"📄 {metadata.get('document_name', 'Document inconnu')}"]
-            
-            if metadata.get("section_title"):
-                source_parts.append(f"   Section: {metadata['section_title']}")
-            if metadata.get("final_score"):
-                source_parts.append(f"   Pertinence: {metadata['final_score']:.2f}")
-                
-            sources.append(chr(10).join(source_parts))
-
-        response_parts = [
-            f"🤖 {response}",
-            "",
-            "💡 Je me suis basé sur ces sources :",
-            chr(10).join(sources)
-        ]
+        """Formate la réponse de manière concise"""
+        # Nettoyer la réponse des mentions de documents ou de processus
+        clean_response = response.replace("Basé sur les documents fournis, ", "")
+        clean_response = clean_response.replace("D'après les documents, ", "")
+        clean_response = clean_response.replace("Selon les sources, ", "")
         
-        return chr(10).join(response_parts)
+        # Supprimer les mentions de réflexion ou de processus
+        clean_response = clean_response.split("En regardant les documents")[0]
+        clean_response = clean_response.split("En analysant les sources")[0]
+        clean_response = clean_response.split("Je vais essayer de")[0]
+        
+        # Garder uniquement la partie pertinente de la réponse
+        relevant_parts = []
+        for line in clean_response.split("\n"):
+            if not any(marker in line.lower() for marker in [
+                "je me base", "je me suis basé", "sources consultées",
+                "documents pertinents", "selon l'index", "d'après l'historique"
+            ]):
+                relevant_parts.append(line)
+        
+        # Reconstruire la réponse nettoyée
+        clean_response = "\n".join(line for line in relevant_parts if line.strip())
+        
+        # Ajouter les sources uniquement si configuré
+        if self.config.colaig_show_sources:
+            sources = []
+            for chunk in chunks:
+                metadata = chunk.get("metadata", {})
+                source_parts = [f"📄 {metadata.get('document_name', 'Document inconnu')}"]
+                
+                if metadata.get("section_title"):
+                    source_parts.append(f"   Section: {metadata['section_title']}")
+                    
+                sources.append(chr(10).join(source_parts))
+            
+            if sources:
+                clean_response += "\n\n💡 Sources :\n" + chr(10).join(sources)
+        
+        # Ajouter uniquement l'emoji au début
+        return f"🤖 {clean_response.strip()}"
 
     async def __aenter__(self):
         await self.initialize()

@@ -87,6 +87,24 @@ class Config(BaseConfig):
     index_dir: str = Field(".index", description="Répertoire de l'index")
     chunk_size: int = Field(1000, description="Taille des chunks en caractères")
 
+    # Configuration de Colaig
+    colaig_behavior_path: str = Field(
+        ".colaig/behavior",
+        description="Chemin vers le dossier de configuration comportementale"
+    )
+    colaig_indexes_path: str = Field(
+        ".colaig/indexes",
+        description="Chemin vers les index FAISS"
+    )
+    colaig_response_format: str = Field(
+        "concise",
+        description="Format de réponse (concise, detailed)"
+    )
+    colaig_show_sources: bool = Field(
+        False,
+        description="Afficher les sources dans la réponse"
+    )
+
     # Champs pour la gestion des pièces jointes
     last_classification_result: Optional[Any] = None
     last_classified_file: Optional[Any] = None
@@ -109,7 +127,12 @@ class Config(BaseConfig):
 
 
 # Default config
-env_config = Config()
+env_config = Config(
+    colaig_behavior_path=".colaig/behavior",
+    colaig_indexes_path=".colaig/indexes",
+    colaig_response_format="concise",
+    colaig_show_sources=False
+)
 
 
 def use_systemd_config():
