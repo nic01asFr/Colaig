@@ -95,6 +95,7 @@ Colaig✨ est conçu selon le principe de "sécurité par défaut" :
 
 - [x] **T1 2025**: Preuve de concept Colaig✨ RAG
 - [x] **T2 2025**: Version bêta avec premières capacités workflow
+- [ ] **En cours**: Refonte de l'app pour compatibilité avec le modelcontextprotocol d'Anthropic
 - [ ] **T4 2025**: Version 1.0 avec interfaces de personnalisation
 - [ ] **T2 2026**: Déploiement du réseau d'assistants interconnectés
 - [ ] **T4 2026**: Introduction des mécanismes d'intelligence collective
