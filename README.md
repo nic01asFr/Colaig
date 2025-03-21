@@ -115,4 +115,4 @@ Pour toute information complémentaire, démonstration ou projet pilote, contact
 
 ---
 
-Construit avec ❤️ pour un avenir numérique intelligent et souverain.
+Construit avec ❤️ pour un avenir numérique intelligent et autonome.
