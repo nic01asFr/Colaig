@@ -117,80 +117,98 @@ class StandardMessageRagAction:
         self._initialized = False
 
     async def initialize(self) -> None:
-        """Initialise les services nécessaires"""
+        """Initialise le service d'index en mode lecture seule"""
         if self._initialized:
             return
             
         try:
+            # Réutiliser le service WebDAV existant si possible
             if not self.webdav_service:
                 self.webdav_service = WebDAVService(self.config)
+                await self.webdav_service.initialize()
+            elif not self.webdav_service._initialized:
+                await self.webdav_service.initialize()
                 
             if not self.index_service:
                 self.index_service = IndexService(
                     config=self.config,
                     webdav_service=self.webdav_service
                 )
-                # Initialisation sans reconstruction
                 try:
-                    await self.index_service.initialize(allow_rebuild=False)
+                    # Initialisation sans index documentaire
+                    await self.index_service.initialize(
+                        init_document_index=False, 
+                        init_behavior_manager=True
+                    )
                 except Exception as e:
-                    logger.error(f"Impossible d'initialiser l'index: {str(e)}")
-                    # Ne pas lever l'erreur, laisser l'action continuer avec un index vide
-                    pass
+                    logger.error(f"Erreur initialisation index: {str(e)}")
+                    # Nettoyer les ressources en cas d'échec
+                    if self.webdav_service:
+                        await self.webdav_service.close()
+                    self._initialized = False
+                    raise
                 
             self._initialized = True
                 
         except Exception as e:
             logger.error(f"Erreur lors de l'initialisation du RAG: {str(e)}")
-            # Ne pas lever l'erreur, laisser l'action continuer
-            pass
+            # Nettoyer les ressources en cas d'échec
+            if self.webdav_service:
+                await self.webdav_service.close()
+            self._initialized = False
+            raise
 
     async def retrieve_relevant_chunks(
         self,
         query: str,
         session_context: Optional[SessionContext] = None,
-        room_context: Optional[RoomContext] = None
+        room_context: Optional[RoomContext] = None,
+        search_mode: str = "default"
     ) -> List[Dict[str, Any]]:
-        """Récupère les chunks pertinents avec optimisation contextuelle"""
+        """Récupère les chunks pertinents pour une requête
+        
+        Args:
+            query: Requête utilisateur
+            session_context: Contexte de session optionnel
+            room_context: Contexte de salle optionnel
+            search_mode: Mode de recherche ("default", "precise", "fast")
+            
+        Returns:
+            Liste des chunks pertinents
+        """
         try:
             if not self.index_service:
-                logger.warning("Service d'index non disponible")
+                logger.error("Service d'index non disponible")
                 return []
                 
-            # Enrichir la requête avec le contexte
+            # Améliorer la requête avec le contexte
             enhanced_query = self._enhance_query(query, session_context, room_context)
             
-            # Paramètres de recherche optimisés pour la conversation standard
-            search_params = {
-                "query": enhanced_query,
-                "behavior_type": "conversation",  # Type de comportement en premier
-                "include_behavior": True,
-                "include_documents": False,
-                "limit": 10
-            }
-            
-            # Recherche initiale optimisée
-            chunks = await self.index_service.search(**search_params)
+            # Effectuer la recherche avec le mode approprié
+            chunks = await self.index_service.search(
+                query=enhanced_query,
+                limit=10,
+                index_type="behavior",
+                search_mode=search_mode
+            )
             
             if not chunks:
-                logger.info("Aucun chunk pertinent trouvé dans les index de conversation")
                 return []
+                
+            # Filtrer pour la diversité
+            diverse_chunks = self._filter_diverse_chunks(chunks)
             
-            # Post-traitement avancé des chunks
+            # Traiter les chunks pour la conversation
             processed_chunks = await self._process_chunks_for_conversation(
-                chunks,
+                diverse_chunks,
                 session_context,
                 room_context
             )
             
-            # Filtrage final basé sur la diversité et la pertinence
-            final_chunks = self._filter_diverse_chunks(processed_chunks)
-            
-            # Limiter le nombre final de chunks
-            return final_chunks[:5]  # Garder les 5 meilleurs chunks
+            return processed_chunks[:5]  # Limiter aux 5 plus pertinents
             
         except Exception as e:
-            logger.error(f"Erreur lors de la recherche des chunks: {str(e)}")
+            logger.error(f"Erreur lors de la récupération des chunks: {str(e)}")
             return []
 
     def _filter_diverse_chunks(self, chunks: List[Dict]) -> List[Dict]:

@@ -4,557 +4,159 @@ from datetime import datetime
 from pathlib import Path
 import os
 import json
+import numpy as np
+import faiss
 
 from matrix_bot.config import logger
 from config import Config
 from services.webdav import WebDAVService
-from services.document_index import DocumentIndex, DocumentChunk, FAISSIndex
+
+class BehaviorPriority:
+    """Constantes de priorité pour les comportements"""
+    LOW = 0.2
+    MEDIUM = 0.5
+    HIGH = 0.8
+    CRITICAL = 1.0
+    
+    @staticmethod
+    def validate(priority: float) -> float:
+        """Valide et normalise une priorité"""
+        if not isinstance(priority, (int, float)):
+            raise ValueError("La priorité doit être un nombre")
+        priority = float(priority)
+        return max(0.0, min(1.0, priority))
 
 @dataclass
-class BehaviorChunk(DocumentChunk):
-    """Représente un morceau de configuration comportementale"""
-    behavior_type: str  # actions, tools, prompts, rules
-    priority: float = 1.0  # Priorité du comportement
-
-class BehaviorIndex(DocumentIndex):
-    """Gère l'indexation et la recherche dans les fichiers de comportement"""
+class BehaviorChunk:
+    """Représente un comportement indexé"""
+    id: str
+    content: str
+    behavior_type: str
+    priority: float = BehaviorPriority.MEDIUM
+    metadata: Dict[str, Any] = None
+    embedding: Optional[List[float]] = None
+    last_updated: Optional[datetime] = None
     
-    SYSTEM_DIR = ".colaig"
+    def __post_init__(self):
+        """Validation après initialisation"""
+        self.priority = BehaviorPriority.validate(self.priority)
+        if self.behavior_type not in ["actions", "tools", "prompts", "rules"]:
+            raise ValueError(f"Type de comportement invalide: {self.behavior_type}")
+        if self.metadata is None:
+            self.metadata = {}
+
+class BehaviorFAISSIndex:
+    """Gère l'index FAISS spécifique aux behaviors"""
+    
+    def __init__(self, dimension: int = 384):
+        self.dimension = dimension
+        self._index = faiss.IndexFlatL2(dimension)
+        self.behavior_map: Dict[int, BehaviorChunk] = {}
+        
+    def add_behavior(self, chunk: BehaviorChunk, embedding: np.ndarray) -> None:
+        """Ajoute un behavior à l'index"""
+        if embedding is None or len(embedding) != self.dimension:
+            raise ValueError(f"Dimension de l'embedding invalide: {len(embedding) if embedding is not None else None}")
+            
+        # Normaliser et ajouter à l'index
+        normalized = embedding / np.linalg.norm(embedding)
+        index_id = self._index.ntotal
+        self._index.add(normalized.reshape(1, -1))
+        
+        # Stocker le behavior
+        self.behavior_map[index_id] = chunk
+        
+    def search(self, query_embedding: np.ndarray, k: int = 5) -> List[BehaviorChunk]:
+        """Recherche les behaviors les plus similaires"""
+        if self._index.ntotal == 0:
+            return []
+            
+        # Normaliser la requête
+        query_norm = np.linalg.norm(query_embedding)
+        if query_norm == 0:
+            return []
+        query_embedding = query_embedding / query_norm
+        
+        # Recherche
+        D, I = self._index.search(query_embedding.reshape(1, -1), k)
+        
+        # Traiter les résultats
+        results = []
+        similarities = 1 - (D[0] ** 2) / 2
+        
+        for idx, score in zip(I[0], similarities):
+            try:
+                chunk = self.behavior_map[idx]
+                chunk.metadata['similarity_score'] = float(score)
+                results.append(chunk)
+            except Exception as e:
+                logger.warning(f"Erreur récupération behavior {idx}: {str(e)}")
+                continue
+                
+        return results
+
+class BehaviorIndex:
+    """Gère l'indexation et la recherche des behaviors"""
     
     def __init__(self, config: Config, webdav_service: WebDAVService):
-        super().__init__(config, webdav_service)
-        self.index_dir = Path(config.colaig_behavior_path)
+        self.config = config
+        self.webdav = webdav_service
+        self.index_dir = Path(self.webdav.BEHAVIOR_DIR)
         self.faiss_index_path = str(self.index_dir / "behavior.faiss")
         self.map_path = str(self.index_dir / "behavior_map.json")
+        self._topic_cache = {}
+        self._index = BehaviorFAISSIndex(dimension=config.embedding_dimension)
         
     async def initialize(self) -> None:
-        """Initialise l'index comportemental"""
+        """Initialise l'index des behaviors"""
         try:
-            # Créer les dossiers nécessaires
-            os.makedirs(self.index_dir, exist_ok=True)
-            os.makedirs(self.index_dir / "actions", exist_ok=True)
-            os.makedirs(self.index_dir / "tools", exist_ok=True)
-            os.makedirs(self.index_dir / "prompts", exist_ok=True)
-            os.makedirs(self.index_dir / "rules", exist_ok=True)
-            
-            # Vérifier et créer les fichiers de configuration par défaut
-            await self._ensure_default_behaviors()
-            
-            # Initialiser l'index FAISS
-            await super().initialize()
+            # Vérifier/créer le dossier système
+            if not await self.webdav.exists(str(self.index_dir)):
+                await self.webdav.create_directory(str(self.index_dir))
+                
+            # Charger l'index existant ou en créer un nouveau
+            if await self.webdav.exists(self.faiss_index_path):
+                await self._load_index()
+            else:
+                await self._build_index()
+                
+            logger.info("Index comportemental initialisé")
             
         except Exception as e:
             logger.error(f"Erreur initialisation index comportemental: {str(e)}")
             raise
             
-    async def _ensure_default_behaviors(self) -> None:
-        """Assure la présence des comportements par défaut"""
-        default_behaviors = {
-            "actions/config_assistant.json": {
-                "type": "action",
-                "description": "Assistant de configuration pour Colaig",
-                "priority": 0.95,  # Priorité élevée mais inférieure au RAG standard
-                "configuration": {
-                    "capabilities": {
-                        "webdav_integration": True,
-                        "api_integration": True,
-                        "custom_actions": True,
-                        "custom_tools": True,
-                        "custom_prompts": True
-                    },
-                    "default_tools": [
-                        "webdav_crud",
-                        "tchap_messaging",
-                        "context_handler"
-                    ],
-                    "configuration_steps": {
-                        "analyze_request": {
-                            "description": "Analyse la demande de configuration",
-                            "parameters": ["query", "context"]
-                        },
-                        "identify_components": {
-                            "description": "Identifie les composants nécessaires",
-                            "parameters": ["request_type", "requirements"]
-                        },
-                        "generate_config": {
-                            "description": "Génère la configuration appropriée",
-                            "parameters": ["components", "format"]
-                        }
-                    }
-                },
-                "example_extension": {
-                    "comment": "Pour étendre l'assistant de configuration, ajoutez de nouvelles capacités ou étapes",
-                    "new_capability": {
-                        "name": "ma_capacite",
-                        "description": "Description de la capacité",
-                        "required_components": []
-                    }
-                }
-            },
-            "actions/standard_rag.json": {
-                "type": "action",
-                "description": "Action RAG standard pour la recherche et la génération de réponses",
-                "priority": 1.0,
-                "configuration": {
-                    "search_params": {
-                        "include_behavior": True,
-                        "include_documents": False,
-                        "behavior_type": "conversation",
-                        "limit": 10
-                    },
-                    "response_generation": {
-                        "model": "meta-llama/Llama-3.1-8B-Instruct",
-                        "embedding_model": "BAAI/bge-m3",
-                        "max_history": 2
-                    }
-                },
-                "example_extension": {
-                    "comment": "Pour ajouter une nouvelle action, dupliquez ce fichier et adaptez les paramètres",
-                    "custom_params": {
-                        "votre_param": "valeur"
-                    }
-                }
-            },
-            "tools/context_handler.json": {
-                "type": "tool",
-                "description": "Gestionnaire de contexte pour le suivi des conversations",
-                "priority": 0.9,
-                "configuration": {
-                    "history_management": {
-                        "max_length": 10,
-                        "memory_duration": 3600,
-                        "cleanup_interval": 300
-                    },
-                    "topic_tracking": {
-                        "relevance_threshold": 0.3,
-                        "max_topics": 5
-                    }
-                },
-                "example_extension": {
-                    "comment": "Pour ajouter un nouvel outil, créez un fichier similaire avec vos fonctionnalités",
-                    "required_methods": ["initialize", "process", "cleanup"]
-                }
-            },
-            "prompts/rag_system.json": {
-                "type": "prompt",
-                "description": "Prompts système pour le RAG conversationnel",
-                "priority": 0.8,
-                "configuration": {
-                    "base_prompt": "Vous êtes Colaig, l'assistant de l'État français.",
-                    "style_variations": {
-                        "formal": {
-                            "description": "Style formel pour les échanges professionnels",
-                            "indicators": ["pourriez-vous", "s'il vous plaît", "merci"],
-                            "prompt_suffix": "Adoptez un ton formel et professionnel."
-                        },
-                        "casual": {
-                            "description": "Style décontracté pour les échanges informels",
-                            "indicators": ["salut", "hey", "ok"],
-                            "prompt_suffix": "Adoptez un ton cordial tout en restant professionnel."
-                        }
-                    }
-                },
-                "example_extension": {
-                    "comment": "Pour ajouter un nouveau style, ajoutez une entrée dans style_variations"
-                }
-            },
-            "rules/response_handling.json": {
-                "type": "rule",
-                "description": "Règles de traitement et formatage des réponses",
-                "priority": 0.7,
-                "configuration": {
-                    "cleaning_rules": {
-                        "remove_patterns": [
-                            "Basé sur les documents fournis,",
-                            "D'après les documents,",
-                            "Selon les sources,"
-                        ],
-                        "split_markers": [
-                            "En regardant les documents",
-                            "En analysant les sources",
-                            "Je vais essayer de"
-                        ]
-                    },
-                    "formatting": {
-                        "standard": {
-                            "template": "🤖 {response}",
-                            "conditions": {"show_sources": False}
-                        },
-                        "detailed": {
-                            "template": "🤖 {response}\n\n💡 Sources :\n{sources}",
-                            "conditions": {"show_sources": True}
-                        }
-                    }
-                },
-                "example_extension": {
-                    "comment": "Pour ajouter de nouvelles règles, suivez la structure ci-dessus"
-                }
-            },
-            "tools/webdav_crud.json": {
-                "type": "tool",
-                "description": "Outil pour les opérations CRUD sur WebDAV",
-                "priority": 0.8,
-                "configuration": {
-                    "operations": {
-                        "create": {
-                            "method": "PUT",
-                            "required_params": ["path", "content"]
-                        },
-                        "read": {
-                            "method": "GET",
-                            "required_params": ["path"]
-                        },
-                        "update": {
-                            "method": "PUT",
-                            "required_params": ["path", "content"]
-                        },
-                        "delete": {
-                            "method": "DELETE",
-                            "required_params": ["path"]
-                        }
-                    },
-                    "security": {
-                        "check_permissions": True,
-                        "validate_paths": True
-                    }
-                }
-            },
-            "tools/tchap_messaging.json": {
-                "type": "tool",
-                "description": "Outil pour l'envoi de messages via Tchap",
-                "priority": 0.8,
-                "configuration": {
-                    "message_types": {
-                        "notice": {
-                            "format": "markdown",
-                            "emoji_prefix": "ℹ️"
-                        },
-                        "error": {
-                            "format": "markdown",
-                            "emoji_prefix": "❌"
-                        },
-                        "success": {
-                            "format": "markdown",
-                            "emoji_prefix": "✅"
-                        }
-                    },
-                    "formatting": {
-                        "use_markdown": True,
-                        "allow_html": False
-                    }
-                }
-            },
-            "tools/config_manager.json": {
-                "type": "tool",
-                "description": "Outil de gestion des configurations Colaig",
-                "priority": 0.85,
-                "configuration": {
-                    "operations": {
-                        "analyze_api": {
-                            "description": "Analyse une documentation API pour générer des tools et actions",
-                            "required_params": ["api_doc", "target_features"]
-                        },
-                        "generate_behavior": {
-                            "description": "Génère un nouveau fichier de comportement",
-                            "required_params": ["behavior_type", "config_data"]
-                        },
-                        "validate_config": {
-                            "description": "Valide une configuration avant application",
-                            "required_params": ["config_data", "behavior_type"]
-                        }
-                    },
-                    "templates": {
-                        "action": {
-                            "base_structure": {
-                                "type": "action",
-                                "description": "",
-                                "priority": 0.5,
-                                "configuration": {},
-                                "example_extension": {}
-                            }
-                        },
-                        "tool": {
-                            "base_structure": {
-                                "type": "tool",
-                                "description": "",
-                                "priority": 0.5,
-                                "configuration": {},
-                                "example_extension": {}
-                            }
-                        }
-                    },
-                    "validation_rules": {
-                        "required_fields": ["type", "description", "configuration"],
-                        "allowed_types": ["action", "tool", "prompt", "rule"],
-                        "priority_range": [0.0, 1.0]
-                    }
-                }
-            },
-            "actions/api_integration.json": {
-                "type": "action",
-                "description": "Action pour intégrer une API externe",
-                "priority": 0.9,
-                "configuration": {
-                    "steps": {
-                        "analyze_doc": {
-                            "description": "Analyse de la documentation API",
-                            "tool": "config_manager",
-                            "operation": "analyze_api"
-                        },
-                        "generate_tools": {
-                            "description": "Génération des outils d'API",
-                            "tool": "config_manager",
-                            "operation": "generate_behavior"
-                        },
-                        "generate_actions": {
-                            "description": "Génération des actions utilisant l'API",
-                            "tool": "config_manager",
-                            "operation": "generate_behavior"
-                        }
-                    },
-                    "validation": {
-                        "required_fields": ["api_doc", "target_features"],
-                        "security_checks": ["api_key_handling", "url_validation"]
-                    }
-                }
-            },
-            "actions/behavior_manager.json": {
-                "type": "action",
-                "description": "Action pour gérer les comportements personnalisés",
-                "priority": 0.9,
-                "configuration": {
-                    "operations": {
-                        "create": {
-                            "description": "Créer un nouveau comportement",
-                            "tools": ["config_manager", "webdav_crud"],
-                            "required_params": ["behavior_type", "config_data"]
-                        },
-                        "update": {
-                            "description": "Mettre à jour un comportement existant",
-                            "tools": ["config_manager", "webdav_crud"],
-                            "required_params": ["behavior_path", "config_data"]
-                        },
-                        "delete": {
-                            "description": "Supprimer un comportement",
-                            "tools": ["config_manager", "webdav_crud"],
-                            "required_params": ["behavior_path"]
-                        },
-                        "list": {
-                            "description": "Lister les comportements disponibles",
-                            "tools": ["webdav_crud"],
-                            "required_params": ["behavior_type"]
-                        }
-                    }
-                }
-            },
-            "prompts/config_assistant.json": {
-                "type": "prompt",
-                "description": "Prompts pour l'assistant de configuration",
-                "priority": 0.9,
-                "configuration": {
-                    "base_prompt": "Je suis l'assistant de configuration de Colaig. Je peux vous aider à configurer et personnaliser le système selon vos besoins.",
-                    "conversation_flows": {
-                        "api_integration": {
-                            "initial": "Pour intégrer une nouvelle API, j'aurai besoin de sa documentation. Pouvez-vous me la fournir ou m'indiquer où la trouver ?",
-                            "doc_received": "J'ai bien reçu la documentation. Quelles fonctionnalités spécifiques souhaitez-vous intégrer ?",
-                            "features_selected": "D'accord. Je vais créer les outils et actions nécessaires. Souhaitez-vous des configurations particulières pour ces fonctionnalités ?"
-                        },
-                        "behavior_creation": {
-                            "initial": "Pour créer un nouveau comportement, j'ai besoin de savoir quel type vous souhaitez (action, tool, prompt, rule).",
-                            "type_selected": "Très bien. Maintenant, décrivez-moi le comportement souhaité en langage naturel.",
-                            "description_received": "Je vais traduire votre description en configuration technique. Voici ma proposition, souhaitez-vous des ajustements ?"
-                        }
-                    },
-                    "error_handling": {
-                        "invalid_input": "Je ne peux pas traiter cette entrée. {error_details}",
-                        "missing_info": "Il me manque des informations importantes : {missing_fields}",
-                        "validation_failed": "La validation a échoué : {validation_errors}"
-                    }
-                }
-            },
-            "prompts/api_integration.json": {
-                "type": "prompt",
-                "description": "Prompts pour l'intégration d'API",
-                "priority": 0.85,
-                "configuration": {
-                    "base_prompt": "Je vais vous aider à intégrer une nouvelle API dans Colaig.",
-                    "analysis_prompts": {
-                        "doc_analysis": "Analysons la documentation de l'API {api_name}. Je vais identifier les endpoints pertinents et les structures de données nécessaires.",
-                        "feature_selection": "Voici les fonctionnalités disponibles dans l'API : {features}. Lesquelles souhaitez-vous intégrer ?",
-                        "security_config": "Comment souhaitez-vous gérer l'authentification pour cette API ? (clé API, OAuth, etc.)"
-                    },
-                    "generation_prompts": {
-                        "tool_creation": "Je génère les outils pour interagir avec l'API. Voici la structure proposée : {tool_structure}",
-                        "action_creation": "Je crée maintenant les actions qui utiliseront ces outils. Voici les actions proposées : {action_list}"
-                    }
-                }
-            },
-            "prompts/behavior_management.json": {
-                "type": "prompt",
-                "description": "Prompts pour la gestion des comportements",
-                "priority": 0.85,
-                "configuration": {
-                    "base_prompt": "Je vais vous aider à gérer les comportements personnalisés de Colaig.",
-                    "operation_prompts": {
-                        "create": {
-                            "type_selection": "Quel type de comportement souhaitez-vous créer ? (action/tool/prompt/rule)",
-                            "name_input": "Quel nom souhaitez-vous donner à ce comportement ?",
-                            "description_input": "Décrivez le comportement souhaité en quelques phrases.",
-                            "config_review": "Voici la configuration générée. Souhaitez-vous des modifications ?"
-                        },
-                        "update": {
-                            "selection": "Quel comportement souhaitez-vous modifier ?",
-                            "field_selection": "Quels aspects souhaitez-vous modifier ?",
-                            "changes_review": "Voici les modifications proposées. Sont-elles correctes ?"
-                        },
-                        "delete": {
-                            "confirmation": "Êtes-vous sûr de vouloir supprimer {behavior_name} ? Cette action est irréversible."
-                        },
-                        "list": {
-                            "filter_prompt": "Souhaitez-vous filtrer les comportements par type ou priorité ?"
-                        }
-                    }
-                }
-            },
-            "rules/config_mode.json": {
-                "type": "rule",
-                "description": "Règles pour le mode configuration",
-                "priority": 0.9,
-                "configuration": {
-                    "mode_detection": {
-                        "keywords": ["configurer", "paramétrer", "personnaliser", "adapter"],
-                        "context_indicators": ["configuration", "paramétrage", "setup"]
-                    },
-                    "conversation_rules": {
-                        "max_steps": 10,
-                        "confirmation_required": true,
-                        "allow_backtrack": true,
-                        "timeout": 3600
-                    },
-                    "validation_steps": {
-                        "syntax_check": {
-                            "enabled": true,
-                            "strict": true
-                        },
-                        "security_check": {
-                            "enabled": true,
-                            "checks": ["api_keys", "paths", "permissions"]
-                        },
-                        "compatibility_check": {
-                            "enabled": true,
-                            "verify_dependencies": true
-                        }
-                    },
-                    "limits": {
-                        "core_features": [
-                            "rag_search",
-                            "webdav_operations",
-                            "tchap_messaging",
-                            "context_handling"
-                        ],
-                        "extensible_features": [
-                            "api_integration",
-                            "custom_actions",
-                            "custom_tools",
-                            "custom_prompts"
-                        ],
-                        "restricted_operations": [
-                            "system_files_access",
-                            "direct_db_access",
-                            "network_operations"
-                        ]
-                    }
-                }
-            },
-            "prompts/config_mode.json": {
-                "type": "prompt",
-                "description": "Prompts pour le mode configuration",
-                "priority": 0.95,
-                "configuration": {
-                    "base_prompt": "Je suis en mode configuration. Je vais vous guider pas à pas dans la personnalisation de Colaig selon vos besoins.",
-                    "conversation_steps": {
-                        "initial_assessment": {
-                            "message": "Pour commencer, pouvez-vous me décrire en quelques mots ce que vous souhaitez configurer ?",
-                            "follow_up": {
-                                "unclear": "Je ne suis pas sûr de bien comprendre votre besoin. Pouvez-vous me donner plus de détails ?",
-                                "not_possible": "Je suis désolé, mais cette configuration n'est pas possible car : {reason}. Voici ce que je peux vous proposer à la place : {alternatives}",
-                                "needs_clarification": "Pour mieux vous aider, j'aurais besoin de précisions sur : {points}"
-                            }
-                        },
-                        "feature_exploration": {
-                            "core_features": "Voici les fonctionnalités de base que je peux configurer : {features}. Lesquelles vous intéressent ?",
-                            "custom_features": "Je peux également créer des fonctionnalités personnalisées. Voici ce qui est possible : {possibilities}",
-                            "limitations": "Important : voici les limitations à prendre en compte : {limits}"
-                        },
-                        "configuration_process": {
-                            "step_intro": "Nous allons configurer {feature}. Voici les étapes à suivre :",
-                            "parameter_request": "Pour {param}, quelle valeur souhaitez-vous utiliser ? {explanation}",
-                            "validation_error": "Il y a un problème avec {param} : {error}. Voici comment le corriger : {solution}",
-                            "confirmation": "Voici la configuration proposée : {config}. Est-elle conforme à vos attentes ?"
-                        },
-                        "documentation_request": {
-                            "api_doc": "Pour intégrer cette API, j'ai besoin de sa documentation. Pouvez-vous me la fournir ?",
-                            "format_example": "Voici un exemple du format attendu : {example}",
-                            "missing_info": "Il manque les informations suivantes dans la documentation : {missing}"
-                        },
-                        "completion": {
-                            "success": "La configuration est terminée et validée. Elle sera active dès la prochaine utilisation.",
-                            "partial_success": "La configuration est terminée mais avec quelques compromis : {compromises}",
-                            "save_confirmation": "Souhaitez-vous que j'applique cette configuration maintenant ?"
-                        }
-                    },
-                    "error_handling": {
-                        "invalid_request": "Je ne peux pas traiter cette demande car : {reason}",
-                        "missing_prerequisites": "Il manque les éléments suivants : {missing}",
-                        "security_warning": "Attention : {warning}",
-                        "suggestion": "Suggestion : {alternative}"
-                    }
-                }
-            }
-        }
-        
-        for path, content in default_behaviors.items():
-            full_path = self.index_dir / path
-            if not os.path.exists(full_path):
-                os.makedirs(os.path.dirname(full_path), exist_ok=True)
-                with open(full_path, 'w', encoding='utf-8') as f:
-                    json.dump(content, f, ensure_ascii=False, indent=2)
-                logger.info(f"Créé fichier de comportement par défaut: {path}")
-
     async def search(
         self,
         query: str,
         behavior_type: Optional[str] = None,
         limit: int = 5
     ) -> List[BehaviorChunk]:
-        """Recherche dans l'index comportemental avec filtrage par type"""
+        """Recherche dans l'index comportemental"""
         try:
+            # Obtenir l'embedding de la requête
+            query_embedding = await self._get_embedding(query)
+            if query_embedding is None:
+                return []
+                
             # Recherche de base
-            chunks = await super().search(query, limit=limit * 2)  # Doubler pour le filtrage
+            chunks = self._index.search(query_embedding, limit * 2)
             
-            # Convertir en BehaviorChunk
-            behavior_chunks = []
-            for chunk in chunks:
-                if isinstance(chunk, dict):
-                    chunk = BehaviorChunk(**chunk)
-                    
-                # Filtrer par type si spécifié
-                if behavior_type and chunk.behavior_type != behavior_type:
-                    continue
-                    
-                behavior_chunks.append(chunk)
-            
+            # Filtrer par type si nécessaire
+            if behavior_type:
+                chunks = [c for c in chunks if c.behavior_type == behavior_type]
+                
             # Trier par priorité et score
-            behavior_chunks.sort(
-                key=lambda x: (x.metadata.get("priority", 0.0), x.metadata.get("score", 0.0)),
+            chunks.sort(
+                key=lambda x: (x.priority, x.metadata.get("similarity_score", 0.0)),
                 reverse=True
             )
             
-            return behavior_chunks[:limit]
+            return chunks[:limit]
             
         except Exception as e:
             logger.error(f"Erreur recherche comportementale: {str(e)}")
-            return [] 
+            return []
 
     async def analyze_intent(
         self,
@@ -572,8 +174,19 @@ class BehaviorIndex(DocumentIndex):
         }
 
         try:
+            # Vérifier si le mode paramétrage est actif
+            if room_context and room_context.get("config_mode_active"):
+                config_context = room_context.get("config_mode_context")
+                if config_context:
+                    return {
+                        "detected_intent": "config_assistant",
+                        "confidence": 1.0,
+                        "action_config": config_context,
+                        "context_info": {"conversation_style": "formal"}
+                    }
+
             # Vérifier si des configurations personnalisées existent
-            if not os.path.exists(self.index_dir) or not any(os.listdir(self.index_dir)):
+            if not await self.webdav.exists(str(self.index_dir)):
                 logger.info("Aucune configuration personnalisée trouvée, utilisation du RAG standard")
                 return default_response
 
@@ -612,7 +225,70 @@ class BehaviorIndex(DocumentIndex):
             logger.error(f"Erreur analyse d'intention: {str(e)}")
             logger.info("Fallback sur le comportement RAG standard")
             return default_response
-    
+
+    def _get_default_config(self) -> Dict[str, Any]:
+        """Retourne la configuration RAG par défaut"""
+        return {
+            "base": {
+                "search_params": {
+                    "include_behavior": True,
+                    "include_documents": False,
+                    "behavior_type": "conversation",
+                    "limit": 10
+                },
+                "response_generation": {
+                    "model": self.config.albert_model,
+                    "embedding_model": self.config.albert_model_embedding,
+                    "max_history": 2
+                }
+            }
+        }
+
+    def _extract_topics(self, messages: List[str]) -> set:
+        """Extrait les topics des messages"""
+        topics = set()
+        try:
+            for message in messages:
+                # Utiliser le cache si disponible
+                if message in self._topic_cache:
+                    topics.update(self._topic_cache[message])
+                    continue
+                    
+                # Extraire les topics du message
+                message_topics = set()
+                
+                # 1. Mots clés spécifiques
+                keywords = {
+                    "configuration": {"config", "configurer", "paramétrer", "setup"},
+                    "api": {"api", "intégration", "endpoint", "service"},
+                    "documentation": {"doc", "documentation", "guide", "exemple"},
+                    "sécurité": {"sécurité", "permission", "accès", "authentification"}
+                }
+                
+                for topic, words in keywords.items():
+                    if any(word in message.lower() for word in words):
+                        message_topics.add(topic)
+                        
+                # 2. Analyse des entités nommées (simplifié)
+                entities = {
+                    "webdav": {"webdav", "fichier", "dossier", "stockage"},
+                    "conversation": {"conversation", "dialogue", "discussion", "chat"},
+                    "comportement": {"comportement", "action", "réponse", "réaction"}
+                }
+                
+                for entity, words in entities.items():
+                    if any(word in message.lower() for word in words):
+                        message_topics.add(entity)
+                        
+                # Mettre en cache
+                self._topic_cache[message] = message_topics
+                topics.update(message_topics)
+                
+        except Exception as e:
+            logger.warning(f"Erreur extraction topics: {str(e)}")
+            
+        return topics
+
     async def _analyze_context(
         self,
         query: str,
@@ -632,11 +308,21 @@ class BehaviorIndex(DocumentIndex):
             if session_context and "history" in session_context:
                 recent_messages = [msg["content"] for msg in session_context["history"][-3:]]
                 context_info["active_topics"].update(self._extract_topics(recent_messages))
+                
+            # Ajouter les topics de la requête actuelle
+            context_info["active_topics"].update(self._extract_topics([query]))
             
             # 2. Détecter le style de conversation
-            if session_context:
-                style_config = await self._load_style_config()
-                context_info["conversation_style"] = self._detect_style(query, style_config)
+            style_indicators = {
+                "formal": {"pourriez-vous", "s'il vous plaît", "merci", "cordialement"},
+                "casual": {"salut", "hey", "ok", "cool"}
+            }
+            
+            query_lower = query.lower()
+            for style, indicators in style_indicators.items():
+                if any(indicator in query_lower for indicator in indicators):
+                    context_info["conversation_style"] = style
+                    break
             
             # 3. Récupérer les règles pertinentes
             rules = await self.search(query, behavior_type="rule", limit=2)
@@ -716,36 +402,54 @@ class BehaviorIndex(DocumentIndex):
         
         for config in intent_configs:
             try:
+                # 1. Score de base (priorité)
                 base_score = config["priority"]
                 
-                # 1. Score basé sur les topics
-                topic_overlap = len(
-                    set(self._extract_topics([query])) & 
-                    context_info["active_topics"]
-                )
-                topic_score = topic_overlap * 0.2
+                # 2. Score basé sur les topics
+                query_topics = self._extract_topics([query])
+                topic_overlap = len(query_topics & context_info["active_topics"])
+                topic_score = min(topic_overlap * 0.2, 0.6)  # Plafonné à 0.6
                 
-                # 2. Score basé sur le style
+                # 3. Score basé sur le style
                 style_match = (
                     config["config"]["prompt"].get("style", "") == 
                     context_info["conversation_style"]
                 )
                 style_score = 0.1 if style_match else 0
                 
-                # 3. Score basé sur les règles
+                # 4. Score basé sur les règles
                 rule_match = any(
                     rule["type"] == config["intent"]
                     for rule in context_info["relevant_rules"]
                 )
                 rule_score = 0.15 if rule_match else 0
                 
-                # Score final
-                final_score = base_score + topic_score + style_score + rule_score
+                # 5. Score basé sur les paramètres personnalisés
+                custom_score = 0.0
+                if context_info["custom_params"]:
+                    custom_match = any(
+                        param in config["config"]["base"].get("capabilities", {})
+                        for param in context_info["custom_params"]
+                    )
+                    custom_score = 0.15 if custom_match else 0
+                
+                # Score final normalisé
+                final_score = min(
+                    base_score + topic_score + style_score + rule_score + custom_score,
+                    1.0
+                )
                 
                 scored_intents.append({
                     "intent": config["intent"],
                     "score": final_score,
-                    "config": config["config"]
+                    "config": config["config"],
+                    "details": {
+                        "base_score": base_score,
+                        "topic_score": topic_score,
+                        "style_score": style_score,
+                        "rule_score": rule_score,
+                        "custom_score": custom_score
+                    }
                 })
                 
             except Exception as e:
@@ -776,22 +480,149 @@ class BehaviorIndex(DocumentIndex):
                 "config": self._get_default_config()
             }
             
-        return best_intent
-    
-    def _get_default_config(self) -> Dict[str, Any]:
-        """Retourne la configuration RAG par défaut"""
-        return {
-            "base": {
-                "search_params": {
-                    "include_behavior": True,
-                    "include_documents": False,
-                    "behavior_type": "conversation",
-                    "limit": 10
-                },
-                "response_generation": {
-                    "model": self.config.albert_model,
-                    "embedding_model": self.config.albert_model_embedding,
-                    "max_history": 2
+        return best_intent 
+
+    async def _get_embedding(self, text: str) -> Optional[np.ndarray]:
+        """Obtient l'embedding d'un texte"""
+        try:
+            from services.embedding_service import EmbeddingService
+            embedding_service = EmbeddingService(self.config)
+            embedding = await embedding_service.get_embedding(text)
+            return np.array(embedding) if embedding else None
+        except Exception as e:
+            logger.error(f"Erreur génération embedding: {str(e)}")
+            return None
+            
+    async def _load_index(self) -> None:
+        """Charge l'index depuis WebDAV"""
+        try:
+            # Télécharger l'index FAISS
+            index_data = await self.webdav.download_file(self.faiss_index_path)
+            temp_index = "temp_behavior.faiss"
+            with open(temp_index, "wb") as f:
+                f.write(index_data)
+                
+            # Télécharger la map des behaviors
+            map_data = await self.webdav.download_file(self.map_path)
+            temp_map = "temp_behavior_map.json"
+            with open(temp_map, "w") as f:
+                f.write(map_data.decode())
+                
+            # Charger l'index
+            self._index = BehaviorFAISSIndex(dimension=self.config.embedding_dimension)
+            self._index._index = faiss.read_index(temp_index)
+            
+            # Charger la map
+            with open(temp_map, 'r') as f:
+                map_data = json.load(f)
+                
+            # Restaurer les behaviors
+            for idx, data in map_data.items():
+                try:
+                    chunk = BehaviorChunk(
+                        id=data["id"],
+                        content=data["content"],
+                        behavior_type=data["behavior_type"],
+                        priority=data["priority"],
+                        metadata=data["metadata"],
+                        embedding=data["embedding"],
+                        last_updated=datetime.fromisoformat(data["last_updated"]) if data["last_updated"] else None
+                    )
+                    self._index.behavior_map[int(idx)] = chunk
+                except Exception as e:
+                    logger.warning(f"Erreur chargement behavior {idx}: {str(e)}")
+                    continue
+                    
+            # Nettoyage
+            os.remove(temp_index)
+            os.remove(temp_map)
+            
+            logger.info(f"Index comportemental chargé avec {self._index._index.ntotal} behaviors")
+            
+        except Exception as e:
+            logger.error(f"Erreur chargement index: {str(e)}")
+            raise
+            
+    async def _build_index(self) -> None:
+        """Construit l'index à partir des fichiers de configuration"""
+        try:
+            # Réinitialiser l'index
+            self._index = BehaviorFAISSIndex(dimension=self.config.embedding_dimension)
+            
+            # Parcourir les dossiers de behavior
+            for behavior_type in ["actions", "tools", "prompts", "rules"]:
+                type_dir = os.path.join(str(self.index_dir), behavior_type)
+                if not await self.webdav.exists(type_dir):
+                    continue
+                    
+                # Lister les fichiers de configuration
+                files = await self.webdav.list_documents(type_dir)
+                for file_path in files:
+                    if not file_path.endswith('.json'):
+                        continue
+                        
+                    try:
+                        # Charger la configuration
+                        content = await self.webdav.read_document(file_path)
+                        config_data = json.loads(content)
+                        
+                        # Créer le chunk
+                        chunk = BehaviorChunk(
+                            id=os.path.splitext(os.path.basename(file_path))[0],
+                            content=content,
+                            behavior_type=behavior_type,
+                            priority=config_data.get("priority", BehaviorPriority.MEDIUM),
+                            metadata=config_data.get("metadata", {}),
+                            last_updated=datetime.now()
+                        )
+                        
+                        # Obtenir l'embedding
+                        embedding = await self._get_embedding(content)
+                        if embedding is not None:
+                            self._index.add_behavior(chunk, embedding)
+                            
+                    except Exception as e:
+                        logger.warning(f"Erreur indexation {file_path}: {str(e)}")
+                        continue
+                        
+            # Sauvegarder l'index
+            await self._save_index()
+            logger.info(f"Index comportemental construit avec {self._index._index.ntotal} behaviors")
+            
+        except Exception as e:
+            logger.error(f"Erreur construction index: {str(e)}")
+            raise
+            
+    async def _save_index(self) -> None:
+        """Sauvegarde l'index sur WebDAV"""
+        try:
+            # Sauvegarder l'index FAISS
+            temp_index = "temp_behavior.faiss"
+            faiss.write_index(self._index._index, temp_index)
+            with open(temp_index, "rb") as f:
+                await self.webdav.write_file(self.faiss_index_path, f.read())
+                
+            # Sauvegarder la map
+            map_data = {}
+            for idx, chunk in self._index.behavior_map.items():
+                map_data[str(idx)] = {
+                    "id": chunk.id,
+                    "content": chunk.content,
+                    "behavior_type": chunk.behavior_type,
+                    "priority": chunk.priority,
+                    "metadata": chunk.metadata,
+                    "embedding": chunk.embedding,
+                    "last_updated": chunk.last_updated.isoformat() if chunk.last_updated else None
                 }
-            }
-        } 
+                
+            await self.webdav.write_file(
+                self.map_path,
+                json.dumps(map_data, indent=2)
+            )
+            
+            # Nettoyage
+            os.remove(temp_index)
+            
+        except Exception as e:
+            logger.error(f"Erreur sauvegarde index: {str(e)}")
+            raise 

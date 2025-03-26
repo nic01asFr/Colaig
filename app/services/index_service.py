@@ -9,6 +9,7 @@ from config import Config
 from services.webdav import WebDAVService
 from services.document_index import DocumentIndex, DocumentChunk, FAISSIndex
 from services.behavior_index import BehaviorIndex, BehaviorChunk
+from services.behavior_manager import BehaviorManager
 
 @dataclass
 class IndexService:
@@ -18,11 +19,14 @@ class IndexService:
         self.config = config
         self.webdav_service = webdav_service
         self.document_index = None
-        self.behavior_index = None
+        self.behavior_manager = None
         self._initialized = False
         self._current_dimension = None
         self._index_cache = {}
         self._cache_lock = asyncio.Lock()
+        self._cache_cleanup_task = None
+        self._last_cache_cleanup = datetime.now()
+        self._cache_ttl = timedelta(hours=1)  # TTL par défaut de 1 heure
         
     async def _handle_dimension_mismatch(self, current_dim: int, target_dim: int) -> None:
         """Gère une différence de dimension entre l'index et le modèle d'embedding
@@ -66,47 +70,111 @@ class IndexService:
             logger.error(f"Erreur lors du redimensionnement: {str(e)}")
             raise
             
-    async def initialize(self, allow_rebuild: bool = False) -> None:
+    async def _cleanup_cache(self) -> None:
+        """Nettoie les entrées expirées du cache"""
+        async with self._cache_lock:
+            now = datetime.now()
+            expired_keys = [
+                key for key, (timestamp, _) in self._index_cache.items()
+                if now - timestamp > self._cache_ttl
+            ]
+            for key in expired_keys:
+                del self._index_cache[key]
+            self._last_cache_cleanup = now
+            
+    async def _start_cache_cleanup(self) -> None:
+        """Démarre la tâche de nettoyage périodique du cache"""
+        async def cleanup_loop():
+            while True:
+                try:
+                    await asyncio.sleep(3600)  # Nettoyage toutes les heures
+                    await self._cleanup_cache()
+                except asyncio.CancelledError:
+                    break
+                except Exception as e:
+                    logger.error(f"Erreur nettoyage cache: {str(e)}")
+                    
+        if not self._cache_cleanup_task:
+            self._cache_cleanup_task = asyncio.create_task(cleanup_loop())
+            
+    async def initialize(self, init_document_index: bool = False, init_behavior_manager: bool = True) -> None:
         """Initialise les services nécessaires"""
         if self._initialized:
             return
             
         try:
+            # Initialiser le service WebDAV si nécessaire
             if not self.webdav_service:
                 self.webdav_service = WebDAVService(self.config)
                 
-            # Initialiser l'index de documents
-            if not self.document_index:
+            # S'assurer que le WebDAV est initialisé
+            if not hasattr(self.webdav_service, '_initialized') or not self.webdav_service._initialized:
+                await self.webdav_service.initialize()
+                
+            # Démarrer le nettoyage périodique du cache
+            await self._start_cache_cleanup()
+                
+            # Initialiser l'index de documents si demandé
+            if init_document_index and not self.document_index:
                 self.document_index = DocumentIndex(
                     config=self.config,
                     webdav_service=self.webdav_service
                 )
                 try:
-                    await self.document_index.initialize(allow_rebuild=allow_rebuild)
+                    await self.document_index.initialize()
+                    logger.info("Index de documents initialisé avec succès")
                 except Exception as e:
                     logger.error(f"Erreur initialisation index documents: {str(e)}")
+                    raise
                     
-            # Initialiser l'index comportemental
-            if not self.behavior_index:
-                self.behavior_index = BehaviorIndex(
-                    config=self.config,
-                    webdav_service=self.webdav_service
-                )
+            # Initialiser le gestionnaire de comportements si demandé
+            if init_behavior_manager and not self.behavior_manager:
+                self.behavior_manager = BehaviorManager(self.config)
+                self.behavior_manager._webdav = self.webdav_service  # Assigner explicitement le service WebDAV
                 try:
-                    await self.behavior_index.initialize()
+                    await self.behavior_manager.initialize()
+                    logger.info("Gestionnaire de comportements initialisé avec succès")
                 except Exception as e:
-                    logger.error(f"Erreur initialisation index comportemental: {str(e)}")
+                    logger.error(f"Erreur initialisation gestionnaire comportements: {str(e)}")
+                    raise
                     
             self._initialized = True
+            logger.info("Service d'index initialisé avec succès")
                 
         except Exception as e:
             logger.error(f"Erreur lors de l'initialisation des index: {str(e)}")
-            raise
+            # Nettoyer les ressources en cas d'échec
+            if self.webdav_service:
+                await self.webdav_service.close()
+            if self._cache_cleanup_task:
+                self._cache_cleanup_task.cancel()
+            self._initialized = False
+            raise RuntimeError(f"Échec de l'initialisation des services: {str(e)}")
             
-    async def _ensure_initialized(self, allow_rebuild: bool = False) -> None:
+    async def _ensure_initialized(self, init_document_index: bool = False, init_behavior_manager: bool = True) -> None:
         """S'assure que le service est initialisé"""
         if not self._initialized:
-            await self.initialize(allow_rebuild)
+            try:
+                # Vérifier et initialiser le WebDAV service si nécessaire
+                if not self.webdav_service:
+                    self.webdav_service = WebDAVService(self.config)
+                    await self.webdav_service.initialize()
+                elif not hasattr(self.webdav_service, '_initialized') or not self.webdav_service._initialized:
+                    await self.webdav_service.initialize()
+                
+                # Initialiser les services demandés
+                await self.initialize(init_document_index, init_behavior_manager)
+                
+            except Exception as e:
+                logger.error(f"Erreur lors de l'initialisation des services: {str(e)}")
+                raise RuntimeError(f"Échec de l'initialisation des services: {str(e)}")
+                
+        # Vérifier l'état des services requis
+        if init_behavior_manager and (not self.behavior_manager or not self.behavior_manager._initialized):
+            await self.initialize(init_document_index=False, init_behavior_manager=True)
+            
+        if init_document_index and (not self.document_index or not hasattr(self.document_index, '_initialized')):
+            await self.initialize(init_document_index=True, init_behavior_manager=False)
     
     async def get_status(self) -> Dict[str, Any]:
         """Retourne l'état actuel de l'index"""
@@ -139,14 +207,20 @@ class IndexService:
     async def rebuild(self) -> None:
         """Reconstruit l'index complètement"""
         try:
+            logger.info("Début de la reconstruction de l'index...")
+            
             # Forcer la réinitialisation
             self._initialized = False
             self.document_index = None
             
             # Initialiser les services
             if not self.webdav_service:
+                logger.info("Initialisation du service WebDAV...")
                 self.webdav_service = WebDAVService(self.config)
+                await self.webdav_service.initialize()
+                
             if not self.document_index:
+                logger.info("Initialisation de DocumentIndex...")
                 self.document_index = DocumentIndex(
                     config=self.config,
                     webdav_service=self.webdav_service
@@ -154,25 +228,32 @@ class IndexService:
             
             # Nettoyer le cache des embeddings
             if self.document_index.embedding_service:
+                logger.info("Nettoyage du cache des embeddings...")
                 await self.document_index.embedding_service.cache.clear_old_entries(
                     timedelta(hours=0)  # Tout nettoyer
                 )
             
             # Forcer la dimension correcte pour le nouvel index
+            logger.info("Création d'un nouvel index FAISS...")
             self.document_index.faiss_index = FAISSIndex(
                 dimension=self.document_index.embedding_service.embedding_dimension
             )
             
             # Construire et sauvegarder l'index
+            logger.info("Construction de l'index...")
             await self.document_index.build_index()
+            
+            logger.info("Sauvegarde de l'index...")
             await self.document_index.save_index()
+            
             self._initialized = True
             self._current_dimension = self.document_index.embedding_service.embedding_dimension
             logger.info("Index reconstruit avec succès")
             
         except Exception as e:
             logger.error(f"Erreur lors de la reconstruction de l'index: {str(e)}")
-            raise
+            self._initialized = False
+            raise IndexError(f"Échec de la reconstruction de l'index: {str(e)}")
     
     async def verify(self) -> bool:
         """Vérifie la fraîcheur de l'index"""
@@ -228,7 +309,7 @@ class IndexService:
                 logger.info(f"Chargement de l'index {index_type} en cache")
                 if index_type == "behavior":
                     self._index_cache[index_type] = {
-                        "data": await self.behavior_index.load_index(),
+                        "data": await self.behavior_manager.index.load_index(),
                         "last_access": datetime.now(),
                         "access_count": 0
                     }
@@ -250,20 +331,6 @@ class IndexService:
                 return cache_entry["data"]
             return None
             
-    async def _cleanup_cache(self) -> None:
-        """Nettoie les entrées du cache selon les règles définies"""
-        async with self._cache_lock:
-            now = datetime.now()
-            to_remove = []
-            
-            for index_type, cache_entry in self._index_cache.items():
-                # Supprimer les entrées non utilisées depuis plus d'une heure
-                if (now - cache_entry["last_access"]) > timedelta(hours=1):
-                    to_remove.append(index_type)
-                    
-            for index_type in to_remove:
-                del self._index_cache[index_type]
-                
     @lru_cache(maxsize=100)
     async def _get_optimized_search_results(
         self,
@@ -273,7 +340,7 @@ class IndexService:
     ) -> List[Dict[str, Any]]:
         """Cache les résultats de recherche fréquents"""
         if index_type == "behavior":
-            return await self.behavior_index.search(query, limit=limit)
+            return await self.behavior_manager.index.search(query, limit=limit)
         elif index_type == "document":
             return await self.document_index.search(query, limit=limit)
         return []
@@ -281,84 +348,85 @@ class IndexService:
     async def search(
         self,
         query: str,
+        limit: int = 10,
+        index_type: str = "behavior",
         behavior_type: Optional[str] = None,
-        include_behavior: bool = True,
-        include_documents: bool = True,
-        limit: int = 5
+        search_mode: str = "default"
     ) -> List[Dict[str, Any]]:
-        """Recherche optimisée dans les index avec cache"""
+        """Effectue une recherche dans l'index
+        
+        Args:
+            query: Requête de recherche
+            limit: Nombre maximum de résultats
+            index_type: Type d'index à utiliser ("behavior" ou "document")
+            behavior_type: Type de comportement spécifique à rechercher (optionnel)
+            search_mode: Mode de recherche ("default", "precise", "fast")
+            
+        Returns:
+            Liste des résultats de recherche
+        """
+        # Initialiser uniquement les services nécessaires
+        if index_type == "behavior":
+            await self._ensure_initialized(init_document_index=False, init_behavior_manager=True)
+        else:
+            await self._ensure_initialized(init_document_index=True, init_behavior_manager=False)
+        
         try:
+            # Générer une clé de cache unique
+            cache_key = f"{index_type}_{query}_{limit}_{search_mode}"
+            if behavior_type:
+                cache_key += f"_{behavior_type}"
+            
+            # Vérifier le cache avec LRU
+            if search_mode != "precise":  # Ne pas utiliser le cache en mode précis
+                cached_results = await self._get_optimized_search_results(query, index_type, limit)
+                if cached_results is not None:
+                    return cached_results
+            
             results = []
             
-            # Recherche dans l'index comportemental si demandé
-            if include_behavior and self.behavior_index:
-                # Vérifier le cache
-                cached_index = await self._get_cached_index("behavior")
-                if not cached_index:
-                    await self._load_index_to_cache("behavior")
-                
-                # Recherche avec cache des résultats
-                behavior_chunks = await self._get_optimized_search_results(
-                    query,
-                    "behavior",
-                    limit
-                )
-                
-                for chunk in behavior_chunks:
-                    if isinstance(chunk, dict):
-                        chunk["source_type"] = "behavior"
-                        results.append(chunk)
+            if index_type == "behavior":
+                if self.behavior_manager and self.behavior_manager.index:
+                    # Optimiser pour la réactivité
+                    if search_mode == "fast":
+                        results = await self.behavior_manager.index.search(
+                            query=query,
+                            behavior_type=behavior_type,
+                            limit=limit,
+                            threshold=0.3  # Seuil de similarité plus bas pour plus de rapidité
+                        )
                     else:
-                        results.append({
-                            "content": chunk.content,
-                            "metadata": chunk.metadata,
-                            "behavior_type": chunk.behavior_type,
-                            "priority": chunk.priority,
-                            "source_type": "behavior"
-                        })
-            
-            # Recherche dans l'index de documents si demandé
-            if include_documents and self.document_index:
-                # Vérifier le cache
-                cached_index = await self._get_cached_index("document")
-                if not cached_index:
-                    await self._load_index_to_cache("document")
+                        results = await self.behavior_manager.index.search(
+                            query=query,
+                            behavior_type=behavior_type,
+                            limit=limit
+                        )
                 
-                # Recherche avec cache des résultats
-                doc_chunks = await self._get_optimized_search_results(
-                    query,
-                    "document",
-                    limit
-                )
-                
-                for chunk in doc_chunks:
-                    if isinstance(chunk, dict):
-                        chunk["source_type"] = "document"
-                        results.append(chunk)
+            elif index_type == "document":
+                if self.document_index:
+                    # Optimiser pour la précision en mode docquery
+                    if search_mode == "precise":
+                        results = await self.document_index.search(
+                            query=query,
+                            limit=limit,
+                            threshold=0.7,  # Seuil de similarité plus élevé
+                            rerank=True     # Activer le reranking
+                        )
                     else:
-                        results.append({
-                            "content": chunk.content,
-                            "metadata": chunk.metadata,
-                            "source_type": "document"
-                        })
+                        results = await self.document_index.search(
+                            query=query,
+                            limit=limit
+                        )
             
-            # Trier les résultats combinés
-            results.sort(
-                key=lambda x: (
-                    x.get("priority", 0.0) if x.get("source_type") == "behavior" else 0.0,
-                    x.get("metadata", {}).get("score", 0.0)
-                ),
-                reverse=True
-            )
+            # Mettre en cache sauf en mode précis
+            if search_mode != "precise":
+                await self.set_cached_index(cache_key, results)
             
-            # Nettoyer le cache périodiquement
-            asyncio.create_task(self._cleanup_cache())
-            
-            return results[:limit]
+            return results
             
         except Exception as e:
             logger.error(f"Erreur lors de la recherche: {str(e)}")
-            return []
+            raise
     
     async def __aenter__(self):
         await self.initialize()
@@ -367,7 +435,39 @@ class IndexService:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         try:
             if self.webdav_service:
-                await self.webdav_service.__aexit__(None, None, None)
+                await self.webdav_service.close()
+            if self.behavior_manager:
+                await self.behavior_manager.close()
         except Exception as e:
             logger.error(f"Erreur lors de la fermeture des services: {str(e)}")
-            raise 
+            raise
+
+    async def close(self) -> None:
+        """Ferme proprement le service"""
+        if self._cache_cleanup_task:
+            self._cache_cleanup_task.cancel()
+            try:
+                await self._cache_cleanup_task
+            except asyncio.CancelledError:
+                pass
+            
+        if self.webdav_service:
+            await self.webdav_service.close()
+            
+    async def get_cached_index(self, key: str) -> Optional[Any]:
+        """Récupère un index depuis le cache"""
+        async with self._cache_lock:
+            if key in self._index_cache:
+                timestamp, value = self._index_cache[key]
+                if datetime.now() - timestamp <= self._cache_ttl:
+                    return value
+                del self._index_cache[key]
+        return None
+        
+    async def set_cached_index(self, key: str, value: Any) -> None:
+        """Stocke un index dans le cache"""
+        async with self._cache_lock:
+            self._index_cache[key] = (datetime.now(), value)
+            # Déclencher un nettoyage si nécessaire
+            if datetime.now() - self._last_cache_cleanup > timedelta(hours=1):
+                await self._cleanup_cache() 

@@ -690,11 +690,12 @@ async def process_request(ep: EventParser, matrix_client: MatrixClient):
         rag_action = StandardMessageRagAction(config)
         await rag_action.initialize()
 
-        # Récupérer les chunks avec contexte
+        # Récupérer les chunks avec contexte en mode rapide
         chunks = await rag_action.retrieve_relevant_chunks(
             query=ep.event.body,
             session_context=session_context,
-            room_context=room_context
+            room_context=room_context,
+            search_mode="fast"  # Utiliser le mode rapide
         )
 
         if chunks:
@@ -760,62 +761,132 @@ async def process_request(ep: EventParser, matrix_client: MatrixClient):
 )
 @only_allowed_user
 async def doc_query_command(ep: EventParser, matrix_client: MatrixClient):
-    """Recherche dans les documents indexés"""
-    config = user_configs[ep.sender]
-    
-    # Récupérer la commande et ses arguments
-    command = ep.get_command()
-    if len(command) <= 1:
-        await matrix_client.send_markdown_message(
-            ep.room.room_id,
-            "❌ Veuillez spécifier une requête de recherche",
-            msgtype="m.notice"
-        )
-        return
-
-    # Joindre tous les arguments après la commande pour former la requête
-    query = " ".join(command[1:])
-    logger.info(f"Traitement de la requête docquery: {query}")
-    
+    """Gère la commande !docquery"""
     try:
-        # Initialiser le service d'index
-        async with IndexService(config) as index_service:
-            # Créer une instance de AskAlbertRagAction
-            rag_action = AskAlbertRagAction(
-                config=config,
-                query=query,
-                index_service=index_service
-            )
-            
-            # Récupérer les chunks pertinents
-            chunks = await rag_action.retrieve_relevant_chunks()
-            
-            if not chunks:
-                await matrix_client.send_markdown_message(
-                    ep.room.room_id,
-                    "ℹ️ Aucun résultat trouvé dans les documents indexés. "
-                    "Si vous n'avez pas encore indexé vos documents, utilisez la commande !index",
-                    msgtype="m.notice"
-                )
-                return
-            
-            # Générer la réponse formatée
-            response = await rag_action.generate_response()
-            
+        # Extraire la requête du message
+        query = ep.event.body.split("!docquery", 1)[1].strip()
+        if not query:
             await matrix_client.send_markdown_message(
                 ep.room.room_id,
-                response,
+                "❌ Veuillez spécifier une requête après !docquery",
                 msgtype="m.notice"
             )
+            return
+
+        # Utiliser la configuration de l'utilisateur
+        config = user_configs[ep.sender]
+        webdav_service = WebDAVService(config)
+        await webdav_service.initialize()
+
+        index_service = IndexService(
+            config=config,
+            webdav_service=webdav_service
+        )
+
+        try:
+            # Initialiser uniquement l'index documentaire
+            await index_service.initialize(
+                init_document_index=True,
+                init_behavior_manager=False
+            )
+        except Exception as e:
+            if "Index obsolète" in str(e) or "Dimension de l'index incompatible" in str(e):
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    "❌ L'index est corrompu ou obsolète. Veuillez utiliser la commande `!index rebuild` pour le reconstruire.",
+                    msgtype="m.notice"
+                )
+            else:
+                await matrix_client.send_markdown_message(
+                    ep.room.room_id,
+                    f"❌ Erreur lors de l'initialisation de l'index: {str(e)}",
+                    msgtype="m.notice"
+                )
+            return
+
+        # Effectuer la recherche en mode précis
+        chunks = await index_service.search(
+            query=query,
+            index_type="document",
+            limit=5,
+            search_mode="precise"  # Utiliser le mode précis
+        )
+
+        if not chunks:
+            await matrix_client.send_markdown_message(
+                ep.room.room_id,
+                "❌ Aucun document pertinent trouvé pour votre requête.",
+                msgtype="m.notice"
+            )
+            return
+
+        # Préparer le prompt pour la génération
+        prompt = f"""En tant qu'assistant, répondez à la question suivante en vous basant uniquement sur les documents fournis.
+Question: {query}
+
+Documents pertinents:
+{chr(10).join(chunk.get('content', '') for chunk in chunks)}
+
+Réponse:"""
+
+        # Générer la réponse avec le client Albert
+        albert_client = AlbertApiClient(
+            base_url=config.albert_api_url,
+            api_key=config.albert_api_token
+        )
+
+        messages = [
+            {
+                "role": "system",
+                "content": "Vous êtes un assistant expert qui répond aux questions en se basant uniquement sur les documents fournis. Répondez de manière directe et concise."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ]
+
+        response = await albert_client.generate(
+            model=config.albert_model,
+            messages=messages
+        )
+
+        # Formater la réponse
+        formatted_response = f"🤖 {response.strip()}"
+
+        # Ajouter les sources si configuré
+        if config.colaig_show_sources:
+            sources = []
+            for chunk in chunks:
+                metadata = chunk.get("metadata", {})
+                source_parts = [f"📄 {metadata.get('document_name', 'Document inconnu')}"]
+                if metadata.get("section_title"):
+                    source_parts.append(f"   Section: {metadata['section_title']}")
+                sources.append(chr(10).join(source_parts))
             
+            if sources:
+                formatted_response += "\n\n💡 Sources :\n" + chr(10).join(sources)
+
+        # Envoyer la réponse
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            formatted_response,
+            msgtype="m.text"
+        )
+
     except Exception as e:
         logger.error(f"Erreur lors de l'exécution de docquery: {str(e)}")
         await matrix_client.send_markdown_message(
             ep.room.room_id,
-            "❌ Une erreur est survenue lors de la recherche. "
-            "Veuillez réessayer plus tard ou contacter un administrateur.",
+            f"❌ Une erreur est survenue lors de la recherche: {str(e)}",
             msgtype="m.notice"
         )
+    finally:
+        # Fermer proprement les services
+        if 'webdav_service' in locals():
+            await webdav_service.close()
+        if 'index_service' in locals():
+            await index_service.__aexit__(None, None, None)
 
 @register_feature(
     group="albert",
@@ -826,38 +897,38 @@ async def doc_query_command(ep: EventParser, matrix_client: MatrixClient):
 @only_allowed_user
 async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
     """Commande pour gérer l'index FAISS"""
-    config = user_configs[ep.sender]
-    
+    # Récupérer l'action demandée
     command = ep.get_command()
-    if len(command) <= 1:
-        message = (
-            "Usage: !index <action>\n\n"
-            "Actions disponibles:\n"
-            "- status : affiche l'état de l'index\n"
-            "- verify : vérifie la fraîcheur de l'index\n"
-            "- update : met à jour l'index (documents manquants uniquement)\n"
-            "- rebuild : reconstruit l'index complètement\n"
-            "- clean : nettoie l'index"
+    action = command[1] if len(command) > 1 else "status"
+    
+    if action not in ["status", "verify", "rebuild", "clean"]:
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            "❌ Action invalide. Actions disponibles: status, verify, rebuild, clean",
+            msgtype="m.notice"
         )
-        await matrix_client.send_markdown_message(ep.room.room_id, message, msgtype="m.notice")
         return
-        
-    action = command[1]
     
     try:
-        # Initialiser le service d'indexation
-        index_service = IndexService(config)
+        # Utiliser la configuration de l'utilisateur
+        config = user_configs[ep.sender]
+        webdav_service = WebDAVService(config)
+        await webdav_service.initialize()
+
+        # Initialiser le service d'indexation avec l'index documentaire
+        index_service = IndexService(
+            config=config,
+            webdav_service=webdav_service
+        )
+        await index_service.initialize(init_document_index=True, init_behavior_manager=False)
         
         if action == "rebuild":
             # Message initial
             await matrix_client.send_markdown_message(
                 ep.room.room_id,
-                "Reconstruction de l'index...",
+                "🔄 Reconstruction de l'index...",
                 msgtype="m.notice"
             )
-            
-            # Marquer que nous sommes en mode rebuild
-            index_service._is_rebuilding = True
             
             # Reconstruire l'index
             await index_service.rebuild()
@@ -868,92 +939,56 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
             )
             return
             
-        # Pour les autres actions, utiliser le contexte normal
-        async with index_service as service:
-            if action == "status":
-                # Message initial
-                await matrix_client.send_markdown_message(
-                    ep.room.room_id,
-                    "Chargement de l'état de l'index...",
-                    msgtype="m.notice"
-                )
-                
-                # Obtenir et afficher le statut
-                status = await service.get_status()
-                
-                message = (
-                    f"État de l'index FAISS:\n\n"
-                    f"Documents indexés : {status['total_documents']}\n"
-                    f"Chunks total : {status['total_chunks']}\n"
-                    f"Dimension des embeddings : {status['embedding_dimension']}\n"
-                    f"Index à jour : {'Oui' if status['is_fresh'] else 'Non'}\n"
-                    f"Dernière mise à jour : {status['last_update'].strftime('%Y-%m-%d %H:%M:%S') if status['last_update'] else 'Jamais'}"
-                )
-                
-                if not status['is_fresh']:
-                    message += "\n\n⚠️ L'index n'est pas à jour. Utilisez !index update pour le mettre à jour ou !index rebuild pour le reconstruire."
-                
-                await matrix_client.send_markdown_message(ep.room.room_id, message, msgtype="m.notice")
-                
-            elif action == "verify":
-                # Message initial
-                await matrix_client.send_markdown_message(
-                    ep.room.room_id,
-                    "Vérification de l'index...",
-                    msgtype="m.notice"
-                )
-                
-                # Vérifier l'index
-                is_fresh = await service.verify()
-                message = "✅ L'index est à jour." if is_fresh else "⚠️ L'index n'est pas à jour. Utilisez !index update pour le mettre à jour ou !index rebuild pour le reconstruire."
-                await matrix_client.send_markdown_message(ep.room.room_id, message, msgtype="m.notice")
-                
-            elif action == "update":
-                # Message initial
-                await matrix_client.send_markdown_message(
-                    ep.room.room_id,
-                    "Mise à jour de l'index...",
-                    msgtype="m.notice"
-                )
-                
-                # Mettre à jour l'index
-                await service.update()
-                await matrix_client.send_markdown_message(
-                    ep.room.room_id,
-                    "✅ Index mis à jour avec succès.",
-                    msgtype="m.notice"
-                )
-                
-            elif action == "clean":
-                # Message initial
-                await matrix_client.send_markdown_message(
-                    ep.room.room_id,
-                    "Nettoyage de l'index...",
-                    msgtype="m.notice"
-                )
-                
-                # Nettoyer l'index
-                await service.clean()
-                await matrix_client.send_markdown_message(
-                    ep.room.room_id,
-                    "✅ Index nettoyé avec succès.",
-                    msgtype="m.notice"
-                )
-                
-            else:
-                await matrix_client.send_markdown_message(
-                    ep.room.room_id,
-                    f"❌ Action inconnue: {action}",
-                    msgtype="m.notice"
-                )
+        elif action == "verify":
+            is_fresh = await index_service.verify()
+            status = "✅ à jour" if is_fresh else "⚠️ mise à jour nécessaire"
+            await matrix_client.send_markdown_message(
+                ep.room.room_id,
+                f"État de l'index: {status}",
+                msgtype="m.notice"
+            )
+            return
+            
+        elif action == "clean":
+            await index_service.clean()
+            await matrix_client.send_markdown_message(
+                ep.room.room_id,
+                "✅ Index nettoyé avec succès.",
+                msgtype="m.notice"
+            )
+            return
+            
+        else:  # status
+            status = await index_service.get_status()
+            status_text = (
+                f"📊 État de l'index:\n"
+                f"- Documents: {status['total_documents']}\n"
+                f"- Chunks: {status['total_chunks']}\n"
+                f"- Dimension: {status['embedding_dimension']}\n"
+                f"- Modèle: {status['embedding_model']}\n"
+                f"- Cache: {status['embedding_cache']['size']}/{status['embedding_cache']['max_size']}\n"
+                f"- Fraîcheur: {'✅ à jour' if status['is_fresh'] else '⚠️ mise à jour nécessaire'}\n"
+                f"- Dernière mise à jour: {status['last_update']}"
+            )
+            await matrix_client.send_markdown_message(
+                ep.room.room_id,
+                status_text,
+                msgtype="m.notice"
+            )
             
     except Exception as e:
-        logger.error(f"Erreur lors de la gestion de l'index: {str(e)}")
+        logger.error(f"Erreur lors de l'exécution de la commande index: {str(e)}")
         await matrix_client.send_markdown_message(
             ep.room.room_id,
-            f"❌ Erreur lors de la gestion de l'index: {str(e)}",
+            f"❌ Une erreur est survenue lors de l'opération: {str(e)}. "
+            "Veuillez réessayer plus tard ou contacter un administrateur.",
             msgtype="m.notice"
         )
+    finally:
+        if 'webdav_service' in locals():
+            await webdav_service.close()
+        if 'index_service' in locals():
+            await index_service.__aexit__(None, None, None)
 
 @register_feature(
     group="albert",

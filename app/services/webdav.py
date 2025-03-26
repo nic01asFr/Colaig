@@ -58,11 +58,13 @@ class WebDAVService:
     VERSIONS_DIR = f"{SYSTEM_ROOT}/versions"
     INDEX_DIR = f"{SYSTEM_ROOT}/index"
     CONFIG_DIR = f"{SYSTEM_ROOT}/config"
+    BEHAVIOR_DIR = f"{SYSTEM_ROOT}/behavior"  # Ajout du dossier behavior
     
     def __init__(self, config: Config):
         self.config = config
         self.base_url = config.webdav_url
         self.versions: Dict[str, List[DocumentVersion]] = {}
+        self._initialized = False  # Ajout de l'attribut d'initialisation
         
         # Construire les chemins complets
         self.root_path = config.webdav_root_path
@@ -90,6 +92,10 @@ class WebDAVService:
     async def initialize(self) -> None:
         """Initialise le service WebDAV"""
         try:
+            # Vérifier la configuration
+            if not hasattr(self.config, 'webdav_url') or not self.config.webdav_url:
+                raise ValueError("Configuration WebDAV manquante ou invalide")
+                
             # Créer les dossiers système s'ils n'existent pas
             system_paths = [
                 self.system_root,
@@ -107,6 +113,7 @@ class WebDAVService:
                         
             # Charger les versions
             await self._load_versions()
+            self._initialized = True
             logger.info("Service WebDAV initialisé avec succès")
             
         except Exception as e:

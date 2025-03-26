@@ -392,39 +392,17 @@ class DocumentIndex:
         self.faiss_index = FAISSIndex(dimension=self.embedding_service.embedding_dimension)
         
     async def initialize(self) -> None:
-        """Initialise l'index, le charge s'il existe ou le crée si nécessaire"""
+        """Initialise l'index, le charge s'il existe ou lève une erreur"""
         try:
             # Vérification de la dimension des embeddings
             current_dimension = self.embedding_service.embedding_dimension
             if current_dimension != self.faiss_index.dimension:
-                logger.warning(
+                logger.error(
                     f"Différence de dimension détectée - Index: {self.faiss_index.dimension}, "
                     f"Service: {current_dimension}"
                 )
+                raise ValueError("Dimension de l'index incompatible. Utilisez !index rebuild pour reconstruire l'index.")
                 
-                try:
-                    # Récupérer les documents existants
-                    old_documents = self.faiss_index.resize_index(current_dimension)
-                    
-                    # Recalculer les embeddings avec la nouvelle dimension
-                    for chunk in old_documents:
-                        try:
-                            embedding = await self.embedding_service.get_embedding(chunk.content)
-                            if embedding is not None:
-                                self.faiss_index.add_document(chunk, embedding)
-                            else:
-                                logger.warning(f"Impossible de recalculer l'embedding pour {chunk.id}")
-                        except Exception as e:
-                            logger.error(f"Erreur lors du recalcul de l'embedding pour {chunk.id}: {str(e)}")
-                            continue
-                            
-                    await self.save_index()
-                    logger.info(f"Index redimensionné avec succès: {current_dimension}")
-                    
-                except Exception as e:
-                    logger.error(f"Erreur lors du redimensionnement de l'index: {str(e)}")
-                    raise
-                    
             # Tentative de chargement de l'index existant
             await self.load_index()
             logger.info("Index chargé avec succès")
@@ -432,19 +410,12 @@ class DocumentIndex:
             # Vérification de la fraîcheur
             is_fresh, missing_docs, extra_docs = await self.verify_index_freshness()
             if not is_fresh:
-                logger.info("Index partiellement obsolète, mise à jour nécessaire")
-                await self.update_index(missing_docs, extra_docs)
-                await self.save_index()
+                logger.error("Index obsolète. Utilisez !index rebuild pour reconstruire l'index.")
+                raise ValueError("Index obsolète. Utilisez !index rebuild pour reconstruire l'index.")
                 
         except Exception as e:
-            logger.warning(f"Erreur de chargement: {str(e)}, reconstruction...")
-            try:
-                await self.build_index()
-                await self.save_index()
-                logger.info("Index reconstruit avec succès")
-            except Exception as rebuild_error:
-                logger.error(f"Échec de la reconstruction: {str(rebuild_error)}")
-                raise
+            logger.error(f"Erreur lors de l'initialisation de l'index: {str(e)}")
+            raise RuntimeError(f"Impossible d'initialiser l'index: {str(e)}. Utilisez !index rebuild pour reconstruire l'index.")
     
     def _is_system_file(self, path: str) -> bool:
         """Détermine si un fichier est un fichier système"""
@@ -1017,12 +988,14 @@ class DocumentIndex:
         logger.info(f"Document découpé en {len(chunks)} chunks: {doc_path}")
         return chunks
     
-    async def search(self, query: str, limit: int = 5) -> List[Dict[str, Any]]:
+    async def search(self, query: str, limit: int = 5, threshold: float = 0.0, rerank: bool = False) -> List[Dict[str, Any]]:
         """Recherche les chunks les plus pertinents pour une requête
         
         Args:
             query: Requête de recherche
             limit: Nombre maximum de résultats
+            threshold: Seuil minimal de similarité (entre 0 et 1)
+            rerank: Si True, active le reranking des résultats
             
         Returns:
             Liste des chunks au format attendu par l'API Albert
@@ -1053,6 +1026,11 @@ class DocumentIndex:
             # Formater les résultats au format attendu par l'API Albert
             formatted_chunks = []
             for chunk in chunks:
+                # Vérifier le seuil de similarité
+                similarity_score = chunk.metadata.get('similarity_score', 0)
+                if similarity_score < threshold:
+                    continue
+                    
                 formatted_chunk = {
                     "id": chunk.id,
                     "content": chunk.content,
@@ -1061,10 +1039,10 @@ class DocumentIndex:
                         "document_path": chunk.document_path,
                         "chunk_number": chunk.chunk_number,
                         "page_number": chunk.page_number,
-                        "similarity_score": chunk.metadata.get('similarity_score', 0),
+                        "similarity_score": similarity_score,
                         "context_boost": chunk.metadata.get('context_boost', 0),
                         "metadata_boost": chunk.metadata.get('metadata_boost', 0),
-                        "adjusted_score": chunk.metadata.get('similarity_score', 0),  # Le score ajusté est déjà dans similarity_score
+                        "adjusted_score": similarity_score,  # Le score ajusté est déjà dans similarity_score
                         **(chunk.metadata or {})
                     }
                 }
@@ -1073,6 +1051,17 @@ class DocumentIndex:
                 # Limiter au nombre demandé
                 if len(formatted_chunks) >= limit:
                     break
+                    
+            # Reranking si activé
+            if rerank and formatted_chunks:
+                formatted_chunks.sort(
+                    key=lambda x: (
+                        x["metadata"]["similarity_score"],
+                        x["metadata"].get("context_boost", 0),
+                        x["metadata"].get("metadata_boost", 0)
+                    ),
+                    reverse=True
+                )
             
             return formatted_chunks
             

@@ -5,6 +5,7 @@
 
 import logging
 import time
+import os
 from pathlib import Path
 from typing import Optional, Any
 
@@ -87,14 +88,14 @@ class Config(BaseConfig):
     index_dir: str = Field(".index", description="Répertoire de l'index")
     chunk_size: int = Field(1000, description="Taille des chunks en caractères")
 
-    # Configuration de Colaig
-    colaig_behavior_path: str = Field(
-        ".colaig/behavior",
-        description="Chemin vers le dossier de configuration comportementale"
+    # Configuration de Albert
+    behavior_path: str = Field(
+        ".albert/behavior",
+        description="Chemin vers le dossier des comportements"
     )
-    colaig_indexes_path: str = Field(
-        ".colaig/indexes",
-        description="Chemin vers les index FAISS"
+    indexes_path: str = Field(
+        ".albert/indexes",
+        description="Chemin vers le dossier des index"
     )
     colaig_response_format: str = Field(
         "concise",
@@ -103,6 +104,14 @@ class Config(BaseConfig):
     colaig_show_sources: bool = Field(
         False,
         description="Afficher les sources dans la réponse"
+    )
+    colaig_config_command: str = Field(
+        "!config",
+        description="Commande pour activer le mode paramétrage"
+    )
+    colaig_config_timeout: int = Field(
+        3600,
+        description="Délai d'expiration du mode paramétrage en secondes"
     )
 
     # Champs pour la gestion des pièces jointes
@@ -128,10 +137,15 @@ class Config(BaseConfig):
 
 # Default config
 env_config = Config(
-    colaig_behavior_path=".colaig/behavior",
-    colaig_indexes_path=".colaig/indexes",
+    behavior_path=".albert/behavior",
+    indexes_path=".albert/indexes",
     colaig_response_format="concise",
-    colaig_show_sources=False
+    colaig_show_sources=False,
+    webdav_url=os.getenv("WEBDAV_URL", ""),
+    webdav_username=os.getenv("WEBDAV_USERNAME", ""),
+    webdav_password=os.getenv("WEBDAV_PASSWORD", ""),
+    webdav_root_path=os.getenv("WEBDAV_ROOT_PATH", "/documents"),
+    webdav_index_name=os.getenv("WEBDAV_INDEX_NAME", "index.json")
 )
 
 
