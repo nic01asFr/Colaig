@@ -77,38 +77,61 @@ class BehaviorManager:
         
     async def initialize(self) -> None:
         """Initialise le gestionnaire de comportements"""
+        if self._initialized:
+            logger.warning("BehaviorManager déjà initialisé")
+            return
+            
         try:
-            if self._initialized:
-                logger.warning("BehaviorManager déjà initialisé")
-                return
-                
-            # Vérification du service WebDAV
+            # 1. Vérifier les prérequis
             if not hasattr(self, '_webdav') or not self._webdav:
                 raise RuntimeError("Service WebDAV non défini")
-            
-            # S'assurer que le service WebDAV est initialisé
+                
             if not self._webdav._initialized:
-                await self._webdav.initialize()
+                try:
+                    await self._webdav.initialize()
+                except Exception as e:
+                    raise RuntimeError(f"Échec initialisation WebDAV: {str(e)}")
             
-            # Création structure
-            await self._ensure_webdav_directories()
+            # 2. Créer la structure de base
+            try:
+                await self._ensure_webdav_directories()
+            except Exception as e:
+                raise RuntimeError(f"Échec création structure: {str(e)}")
             
-            # Vérification configurations par défaut
-            await self._ensure_default_configurations()
+            # 3. Vérifier les configurations par défaut
+            try:
+                await self._ensure_default_configurations()
+            except Exception as e:
+                raise RuntimeError(f"Échec vérification configurations: {str(e)}")
             
-            # Initialisation index
+            # 4. Initialiser l'index comportemental
             if not self._index:
                 self._index = BehaviorIndex(self.config, self._webdav)
-                await self._index.initialize()
-                
-            # Marquer comme initialisé seulement après que tout est fait avec succès
+                try:
+                    await self._index.initialize()
+                except Exception as e:
+                    raise RuntimeError(f"Échec initialisation index: {str(e)}")
+            
+            # 5. Marquer comme initialisé
             self._initialized = True
             logger.info("BehaviorManager initialisé avec succès")
-                
+            
         except Exception as e:
             self._initialized = False
             logger.error(f"Erreur initialisation BehaviorManager: {str(e)}")
+            # Nettoyer les ressources en cas d'échec
+            await self._cleanup_resources()
             raise RuntimeError(f"Échec initialisation BehaviorManager: {str(e)}")
+            
+    async def _cleanup_resources(self) -> None:
+        """Nettoie les ressources en cas d'erreur"""
+        try:
+            if hasattr(self, '_index') and self._index:
+                await self._index._save_index()  # Sauvegarder l'état actuel
+            if hasattr(self, '_webdav') and self._webdav:
+                await self._webdav.close()
+        except Exception as e:
+            logger.error(f"Erreur nettoyage ressources: {str(e)}")
             
     async def close(self) -> None:
         """Ferme proprement le gestionnaire"""
@@ -116,14 +139,11 @@ class BehaviorManager:
             return
             
         try:
-            if self._webdav:
-                await self._webdav.close()
-                
+            await self._cleanup_resources()
             self._initialized = False
-            logger.info("Gestionnaire de comportements fermé")
-            
+            logger.info("BehaviorManager fermé avec succès")
         except Exception as e:
-            logger.error(f"Erreur fermeture gestionnaire de comportements: {str(e)}")
+            logger.error(f"Erreur fermeture BehaviorManager: {str(e)}")
             raise
             
     async def _ensure_webdav_directories(self) -> None:

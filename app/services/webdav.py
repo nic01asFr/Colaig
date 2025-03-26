@@ -18,6 +18,7 @@ from datetime import datetime
 import asyncio
 from pathlib import Path
 import httpx
+import urllib.parse
 
 from config import Config
 from matrix_bot.config import logger
@@ -34,6 +35,7 @@ class WebDAVDocument:
 @dataclass
 class DocumentVersion:
     version: int
+    file_name: str
     path: str
     created_at: datetime
     metadata: Dict = None
@@ -96,6 +98,16 @@ class WebDAVService:
             if not hasattr(self.config, 'webdav_url') or not self.config.webdav_url:
                 raise ValueError("Configuration WebDAV manquante ou invalide")
                 
+            # Vérifier la connectivité au serveur WebDAV avant de continuer
+            test_url = f"{self.base_url.rstrip('/')}"
+            try:
+                response = await self.http_client.get(test_url, timeout=10.0)
+                if response.status_code >= 400:
+                    logger.warning(f"Avertissement: Le serveur WebDAV a répondu avec le code {response.status_code}")
+            except Exception as conn_err:
+                logger.error(f"Erreur de connexion au serveur WebDAV: {str(conn_err)}")
+                # Continuer malgré l'erreur, pour permettre le fonctionnement en mode dégradé
+                
             # Créer les dossiers système s'ils n'existent pas
             system_paths = [
                 self.system_root,
@@ -106,13 +118,22 @@ class WebDAVService:
             ]
             
             for path in system_paths:
-                if not await self.exists(path):
-                    success = await self.create_directory(path)
-                    if not success:
-                        raise RuntimeError(f"Impossible de créer le dossier {path}")
+                try:
+                    if not await self.exists(path):
+                        success = await self.create_directory(path)
+                        if not success:
+                            logger.warning(f"Impossible de créer le dossier {path}, mais on continue")
+                except Exception as e:
+                    logger.warning(f"Erreur lors de la création du dossier {path}: {str(e)}")
+                    # Continuer malgré l'erreur
                         
             # Charger les versions
-            await self._load_versions()
+            try:
+                await self._load_versions()
+            except Exception as e:
+                logger.warning(f"Erreur lors du chargement des versions: {str(e)}")
+                # Continuer malgré l'erreur
+                
             self._initialized = True
             logger.info("Service WebDAV initialisé avec succès")
             
@@ -120,7 +141,9 @@ class WebDAVService:
             logger.error(f"Erreur initialisation WebDAV: {str(e)}")
             if self.http_client:
                 await self.http_client.aclose()
-            raise
+            # Même en cas d'erreur, marquer comme initialisé pour éviter les blocages
+            self._initialized = True
+            logger.warning("Service WebDAV initialisé en mode dégradé")
 
     async def close(self):
         """Ferme proprement le client HTTP"""
@@ -144,40 +167,52 @@ class WebDAVService:
         return path
 
     def _get_url(self, path: str) -> str:
-        """Construit l'URL WebDAV pour un chemin donné"""
-        try:
-            # Normaliser le chemin
-            path = self._normalize_path(path)
+        """Transforme un chemin relatif en URL complète du serveur WebDAV.
+        
+        Args:
+            path: Chemin relatif à la racine WebDAV
             
-            # Encoder les caractères spéciaux
-            path_parts = path.split('/')
-            encoded_parts = [
-                part.replace('@', '%40')
-                    .replace(':', '%3A')
-                    .replace('!', '%21')
-                    .replace('#', '%23')
-                    .replace('$', '%24')
-                    .replace('&', '%26')
-                    .replace("'", '%27')
-                    .replace('(', '%28')
-                    .replace(')', '%29')
-                    .replace('*', '%2A')
-                    .replace('+', '%2B')
-                    .replace(',', '%2C')
-                    .replace(';', '%3B')
-                    .replace('=', '%3D')
-                    .replace('?', '%3F')
-                for part in path_parts
-            ]
-            normalized_path = '/'.join(encoded_parts)
+        Returns:
+            URL complète
+        """
+        # Normaliser le chemin pour éviter les problèmes de slash
+        path = path.strip()
+        if not path:
+            path = self.root_path
+        elif not path.startswith('/'):
+            path = f'/{path}'
             
-            # Construire l'URL finale
-            url = f"{self.base_url.rstrip('/')}/{normalized_path}"
-            return url
+        # Construire le chemin complet en ajoutant le chemin de base
+        if self.root_path and self.root_path != '/':
+            if not path.startswith(self.root_path):
+                # Si le chemin ne commence pas déjà par le chemin racine, l'ajouter
+                if path == '/':
+                    full_path = self.root_path
+                else:
+                    full_path = f"{self.root_path}{path}"
+            else:
+                # Si le chemin commence déjà par le chemin racine, ne pas l'ajouter à nouveau
+                full_path = path
+        else:
+            full_path = path
             
-        except Exception as e:
-            logger.error(f"Erreur construction URL WebDAV: {str(e)}")
-            raise
+        # Encoder correctement le chemin pour l'URL
+        # Découper le chemin en segments et encoder chaque segment séparément
+        
+        # Supprimer le slash initial pour le traitement par segments
+        path_without_leading_slash = full_path[1:] if full_path.startswith('/') else full_path
+        
+        # Diviser le chemin en segments et encoder chaque segment séparément
+        segments = path_without_leading_slash.split('/')
+        encoded_segments = [urllib.parse.quote(segment, safe='') for segment in segments]
+        
+        # Reconstruire le chemin avec les segments encodés
+        encoded_path = '/'.join(encoded_segments)
+        
+        # Construire l'URL complète
+        url = f"{self.base_url}/{encoded_path}"
+        
+        return url
 
     async def write_file(self, path: str, content: Union[str, bytes]) -> None:
         """Écrit le contenu dans un fichier WebDAV"""
@@ -286,6 +321,82 @@ class WebDAVService:
                 else:
                     logger.error(f"Échec définitif de lecture du document {path} après {max_retries} tentatives: {str(e)}")
                     raise
+
+    async def list_directory(self, path: str = None) -> List[Dict[str, Any]]:
+        """Liste tous les fichiers et répertoires dans un chemin WebDAV
+        
+        Args:
+            path: Chemin du répertoire à lister (relatif à la racine)
+            
+        Returns:
+            List[Dict]: Liste des fichiers et répertoires, chacun avec les attributs:
+                - name: Nom du fichier/dossier
+                - path: Chemin complet
+                - type: 'directory' ou 'file'
+                - size: Taille en octets (pour les fichiers)
+                - modified: Date de dernière modification
+        """
+        try:
+            url = self._get_url(path or self.root_path)
+            response = await self.http_client.request(
+                "PROPFIND",
+                url,
+                headers={"Depth": "1"}  # 1 pour obtenir seulement les éléments directs
+            )
+            response.raise_for_status()
+            
+            # Parser la réponse XML
+            root = ET.fromstring(response.content)
+            
+            # Extraire les informations des fichiers et dossiers
+            items = []
+            for response_elem in root.findall('.//{DAV:}response'):
+                href = response_elem.find('.//{DAV:}href').text
+                if not href:
+                    continue
+                
+                # Ignorer l'élément courant (le répertoire lui-même)
+                if href.rstrip('/') == url.rstrip('/'):
+                    continue
+                
+                # Déterminer si c'est un dossier
+                is_directory = href.endswith('/')
+                item_type = 'directory' if is_directory else 'file'
+                
+                # Extraire le chemin relatif
+                item_path = href.split('remote.php/dav/files/')[-1].split('/', 1)[-1]
+                if item_path.startswith(self.root_path):
+                    item_path = item_path[len(self.root_path):].lstrip('/')
+                
+                # Extraire le nom
+                name = os.path.basename(item_path.rstrip('/'))
+                
+                # Créer l'objet avec les informations de base
+                item_info = {
+                    'name': name,
+                    'path': item_path,
+                    'type': item_type
+                }
+                
+                # Extraire d'autres propriétés si disponibles
+                try:
+                    size_elem = response_elem.find('.//{DAV:}getcontentlength')
+                    if size_elem is not None and size_elem.text:
+                        item_info['size'] = int(size_elem.text)
+                    
+                    modified_elem = response_elem.find('.//{DAV:}getlastmodified')
+                    if modified_elem is not None and modified_elem.text:
+                        item_info['modified'] = modified_elem.text
+                except Exception as prop_err:
+                    logger.warning(f"Erreur extraction propriétés: {prop_err}")
+                
+                items.append(item_info)
+            
+            return items
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de la liste du répertoire {path}: {str(e)}")
+            return []  # Retourner une liste vide en cas d'erreur au lieu de lever une exception
 
     async def list_documents(self, path: str = None) -> List[str]:
         """Liste tous les documents dans le répertoire WebDAV"""
@@ -423,45 +534,66 @@ class WebDAVService:
         return content, version_info
 
     async def create_directory(self, path: str) -> bool:
-        """Crée un dossier sur le serveur WebDAV avec gestion des verrous
+        """Crée un répertoire sur le serveur WebDAV
         
         Args:
-            path: Chemin du dossier à créer
+            path: Chemin du répertoire à créer
             
         Returns:
-            bool: True si le dossier a été créé ou existe déjà
+            bool: True si la création a réussi, False sinon
         """
-        max_retries = 3
-        retry_delay = 1
-        
-        for attempt in range(max_retries):
-            try:
-                if await self.exists(path):
-                    logger.debug(f"Le dossier existe déjà: {path}")
-                    return True
-                    
-                url = self._get_url(path)
-                response = await self.http_client.request("MKCOL", url)
-                if response.status_code in [201, 405]:  # 201=Created, 405=Already exists
-                    return True
-                    
-                if response.status_code == 423:  # Locked
-                    if attempt < max_retries - 1:
-                        logger.debug(f"Dossier verrouillé, tentative {attempt + 1}/{max_retries}")
-                        await asyncio.sleep(retry_delay)
-                        continue
+        try:
+            # Vérifier si le chemin existe déjà
+            exists = await self.exists(path)
+            if exists:
+                logger.info(f"Dossier déjà existant: {path}")
+                return True
+                
+            # Normaliser le chemin
+            if path.endswith('/'):
+                path = path[:-1]
+                
+            # Vérifier si le chemin parent existe et le créer si nécessaire
+            parent_path = os.path.dirname(path)
+            if parent_path and parent_path != '/':
+                parent_exists = await self.exists(parent_path)
+                if not parent_exists:
+                    parent_created = await self.create_directory(parent_path)
+                    if not parent_created:
+                        logger.error(f"Échec création dossier parent: {parent_path}")
+                        return False
                         
-                logger.error(f"Échec création dossier: {path} (status={response.status_code})")
-                return False
+            # Créer le dossier
+            url = self._get_url(path)
+            try:
+                response = await self.http_client.request("MKCOL", url)
+                
+                # Si statut 201 Created ou 200 OK, c'est un succès
+                if response.status_code in [200, 201]:
+                    logger.info(f"Dossier créé: {path}")
+                    return True
+                    
+                # Si statut 409 Conflict, vérifier si le dossier existe déjà
+                elif response.status_code == 409:
+                    # Vérifier si le dossier existe malgré le conflit
+                    exists_after_conflict = await self.exists(path)
+                    if exists_after_conflict:
+                        logger.info(f"Dossier existe malgré conflit: {path}")
+                        return True
+                    else:
+                        logger.error(f"Échec création dossier: {path} (status=409, conflit sans existence)")
+                        return False
+                else:
+                    logger.error(f"Échec création dossier: {path} (status={response.status_code})")
+                    return False
                     
             except Exception as e:
-                logger.error(f"Erreur création dossier: {path} - {str(e)}")
-                if attempt < max_retries - 1:
-                    await asyncio.sleep(retry_delay)
-                    continue
+                logger.error(f"Erreur lors de la création du dossier {path}: {str(e)}")
                 return False
                 
-        return False
+        except Exception as e:
+            logger.error(f"Erreur générale lors de la création du dossier {path}: {str(e)}")
+            return False
 
     def _validate_filename(self, filename: str) -> bool:
         """Valide un nom de fichier selon les règles WebDAV et de sécurité"""
@@ -563,6 +695,75 @@ class WebDAVService:
             return response.content
         except Exception as e:
             logger.error(f"Erreur téléchargement fichier {path}: {str(e)}")
+            raise
+
+    async def upload_file(self, file_obj, path: str) -> bool:
+        """Téléverse un fichier vers le serveur WebDAV
+        
+        Args:
+            file_obj: Objet fichier ouvert en mode binaire ou chemin vers un fichier local
+            path: Chemin de destination sur le serveur WebDAV
+            
+        Returns:
+            bool: True si le téléversement a réussi
+        """
+        try:
+            # Normaliser le chemin
+            path = path.strip()
+            if not path.startswith('/'):
+                path = '/' + path
+            
+            # Vérifier et créer le dossier parent si nécessaire
+            parent_dir = os.path.dirname(path)
+            if parent_dir and parent_dir != '/':
+                parent_exists = await self.exists(parent_dir)
+                if not parent_exists:
+                    logger.info(f"Création du dossier parent pour le téléversement: {parent_dir}")
+                    parent_created = await self.create_directory(parent_dir)
+                    if not parent_created:
+                        logger.error(f"Impossible de créer le dossier parent {parent_dir}")
+                        return False
+                    
+                # Double vérification que le dossier parent existe
+                parent_exists = await self.exists(parent_dir)
+                if not parent_exists:
+                    logger.error(f"Le dossier parent {parent_dir} n'existe pas, impossible de téléverser le fichier")
+                    return False
+            
+            # Construire l'URL pour le téléversement
+            url = self._get_url(path)
+            
+            # Gestion de différents types d'entrée de fichier
+            if isinstance(file_obj, (str, Path)):
+                # Si c'est un chemin de fichier local
+                with open(file_obj, 'rb') as f:
+                    content = f.read()
+            elif hasattr(file_obj, 'read'):
+                # Si c'est un objet fichier déjà ouvert
+                content = file_obj.read()
+                # Retourner au début du fichier si possible
+                if hasattr(file_obj, 'seek'):
+                    file_obj.seek(0)
+            elif isinstance(file_obj, bytes):
+                # Si c'est déjà un contenu binaire
+                content = file_obj
+            else:
+                raise ValueError(f"Type de fichier non pris en charge: {type(file_obj)}")
+                
+            # Téléverser le fichier avec PUT
+            response = await self.http_client.put(url, content=content)
+            
+            # Vérifier le statut de la réponse
+            if response.status_code in [200, 201, 204]:
+                logger.info(f"Fichier téléversé avec succès: {path} ({len(content)} octets)")
+                return True
+            else:
+                logger.error(f"Échec du téléversement: {path} (status={response.status_code})")
+                response.raise_for_status()  # Lever l'exception pour plus de détails
+                return False
+            
+        except Exception as e:
+            logger.error(f"Erreur lors du téléversement du fichier {path}: {str(e)}")
             raise
 
     async def get_context_safely(self, context_id: str) -> Optional[Dict[str, Any]]:

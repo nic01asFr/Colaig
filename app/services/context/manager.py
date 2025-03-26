@@ -153,10 +153,26 @@ class ContextManager:
 
     async def update_room_activity(self, room_id: str, user_id: str) -> None:
         """Met à jour l'activité dans un salon"""
-        room_context = await self.get_context(room_id, ContextType.ROOM)
-        if room_context:
-            room_context.update_participant_activity(user_id)
-            await self.update_context(room_id, ContextType.ROOM, room_context.to_dict(), immediate_save=True)
+        try:
+            room_context = await self.get_context(room_id, ContextType.ROOM)
+            if room_context:
+                # Vérifier que l'utilisateur est dans la liste des participants
+                if user_id not in room_context.participants:
+                    # Ajouter l'utilisateur s'il n'est pas déjà présent
+                    room_context.add_participant(user_id)
+                    
+                # Mettre à jour l'activité
+                room_context.update_participant_activity(user_id)
+                
+                # Sauvegarder les modifications
+                try:
+                    await self.update_context(room_id, ContextType.ROOM, room_context.to_dict(), immediate_save=True)
+                except Exception as e:
+                    logger.error(f"Erreur lors de la sauvegarde immédiate du contexte {room_id}: {str(e)}")
+            else:
+                logger.warning(f"Impossible de mettre à jour l'activité: contexte de salon {room_id} non trouvé")
+        except Exception as e:
+            logger.warning(f"Erreur lors de la mise à jour de l'activité dans le salon {room_id}: {str(e)}")
 
     async def update_shared_context(self, room_id: str, key: str, value: Any) -> None:
         """Met à jour le contexte partagé d'un salon"""
@@ -197,52 +213,81 @@ class ContextManager:
         context_id: str,
         context_type: ContextType
     ) -> Optional[BaseContext]:
-        """Récupère un contexte existant"""
+        """Récupère un contexte par son ID et son type
+        
+        Args:
+            context_id: ID du contexte
+            context_type: Type de contexte
+            
+        Returns:
+            Le contexte demandé ou None s'il n'existe pas
+        """
         if not self._initialized:
-            raise RuntimeError("Le gestionnaire de contexte n'est pas initialisé")
-            
-        try:
-            # Vérifier le cache
-            cached_context = await self._cache.get(context_id)
-            if cached_context:
-                if isinstance(cached_context, self.CONTEXT_CLASSES[context_type]):
-                    return cached_context
-                else:
-                    logger.warning(f"Type de contexte incorrect dans le cache pour {context_id}")
-                    await self._cache.delete(context_id)
-            
-            # Charger depuis WebDAV
-            context_path = self._get_context_path(context_id)
             try:
-                content = await self._webdav.read_document(context_path)
-                data = json.loads(content)
+                await self.initialize()
+            except Exception as e:
+                logger.warning(f"Problème d'initialisation lors de get_context: {str(e)}")
+                # Continue pour permettre de récupérer du cache malgré l'erreur
+        
+        if not context_id:
+            return None
+        
+        # Vérifier le cache d'abord
+        cache_key = f"{context_type.value}:{context_id}"
+        cached_context = await self._cache.get(cache_key)
+        if cached_context:
+            return cached_context
+        
+        # Si c'est un contexte de salon, vérifier le dictionnaire local
+        if context_type == ContextType.ROOM and context_id in self._room_contexts:
+            # Mettre en cache pour les prochains accès
+            await self._cache.set(cache_key, self._room_contexts[context_id])
+            return self._room_contexts[context_id]
+        
+        try:
+            # Vérifier si le WebDAV est disponible
+            if not self._webdav or not hasattr(self._webdav, '_initialized') or not self._webdav._initialized:
+                logger.warning("WebDAV non disponible lors de get_context")
+                return None
+            
+            # Construire le chemin WebDAV
+            context_path = self._get_context_path(context_id)
+            
+            # Récupérer le contexte de manière sécurisée
+            context_data = await self._webdav.get_context_safely(context_id)
+            
+            if not context_data:
+                return None
+            
+            # Vérifier si le type corresponds
+            if context_data.get("context_type", "") != context_type.value:
+                logger.warning(f"Type de contexte incorrect: {context_data.get('context_type')} != {context_type.value}")
+                return None
+            
+            # Créer l'instance avec la classe appropriée
+            context_class = self.CONTEXT_CLASSES.get(context_type)
+            if not context_class:
+                logger.error(f"Classe de contexte non trouvée pour {context_type}")
+                return None
+            
+            try:
+                # Utiliser la méthode from_dict spécifique si elle existe
+                if hasattr(context_class, 'from_dict'):
+                    context = context_class.from_dict(context_data)
+                else:
+                    # Sinon, utiliser l'initialisation standard
+                    context = context_class(**context_data)
                 
-                # Vérifier le type
-                stored_type = data.get('_type')
-                if not stored_type or ContextType(stored_type) != context_type:
-                    logger.warning(f"Type de contexte incorrect pour {context_id}")
-                    return None
-                
-                # Supprimer le type avant la création de l'instance
-                data.pop('_type', None)
-                
-                # Créer l'instance
-                context_class = self.CONTEXT_CLASSES[context_type]
-                context = context_class.from_dict(data)
-                
-                # Mettre en cache
-                await self._cache.set(context_id, context)
+                # Mettre en cache pour les prochains accès
+                await self._cache.set(cache_key, context)
                 
                 return context
-                
             except Exception as e:
-                if "404" in str(e):
-                    logger.debug(f"Contexte {context_id} non trouvé")
-                    return None
-                raise
-                
+                logger.error(f"Erreur lors de la création du contexte: {str(e)}")
+                return None
+            
         except Exception as e:
-            logger.error(f"Erreur récupération contexte {context_id}: {str(e)}")
+            logger.error(f"Erreur lors de la récupération du contexte {context_id}: {str(e)}")
             return None
 
     async def create_context(
@@ -290,35 +335,86 @@ class ContextManager:
         data: Dict[str, Any],
         immediate_save: bool = False
     ) -> None:
-        """Met à jour un contexte existant"""
+        """Met à jour un contexte existant
+        
+        Args:
+            context_id: ID du contexte
+            context_type: Type de contexte
+            data: Données à mettre à jour
+            immediate_save: Si True, sauvegarde immédiatement, sinon ajoute à la file d'attente
+        """
         if not self._initialized:
-            raise RuntimeError("Le gestionnaire de contexte n'est pas initialisé")
+            try:
+                await self.initialize()
+            except Exception as e:
+                logger.warning(f"Problème d'initialisation lors de update_context: {str(e)}")
+                # Continue pour essayer malgré l'erreur
             
+        if not context_id:
+            logger.warning("Tentative de mise à jour d'un contexte avec ID vide")
+            return
+        
         try:
-            context = await self.get_context(context_id, context_type)
+            # Récupérer le contexte existant ou en créer un nouveau
+            cache_key = f"{context_type.value}:{context_id}"
+            context = await self._cache.get(cache_key)
+            
             if not context:
-                context = await self.create_context(context_id, context_type, data)
-            else:
-                # Mettre à jour les champs
-                for key, value in data.items():
-                    if hasattr(context, key) and key not in ["created_at", "_creation_time", "_meta"]:
-                        setattr(context, key, value)
+                # Tenter de récupérer depuis WebDAV
+                context = await self.get_context(context_id, context_type)
                 
-                # Mettre à jour le timestamp
-                context.last_activity = get_synchronized_time()
-                
-                # Mettre à jour le cache
-                await self._cache.set(context_id, context)
-                
-                # Marquer pour sauvegarde
-                self._pending_saves[context_id] = context
-                
-                if immediate_save:
-                    await self._save_context(context_id, context)
+            if not context:
+                # Créer un nouveau contexte
+                logger.warning(f"Contexte {context_id} non trouvé, création d'un nouveau")
+                context_class = self.CONTEXT_CLASSES.get(context_type)
+                if context_class:
+                    # Créer une copie des données sans le champ context_type
+                    clean_data = {k: v for k, v in data.items() if k != 'context_type'}
                     
+                    try:
+                        if hasattr(context_class, 'from_dict'):
+                            context = context_class.from_dict(clean_data)
+                        else:
+                            context = context_class(**clean_data)
+                    except Exception as create_err:
+                        logger.error(f"Erreur lors de la création du contexte: {str(create_err)}")
+                        return
+                else:
+                    logger.error(f"Classe de contexte non trouvée pour {context_type}")
+                    return
+            
+            # Mettre à jour le contexte avec les nouvelles données
+            for key, value in data.items():
+                if key != 'context_type' and hasattr(context, key):
+                    setattr(context, key, value)
+                
+            # Si c'est un contexte de salon, mettre à jour le dictionnaire local
+            if context_type == ContextType.ROOM:
+                self._room_contexts[context_id] = context
+            
+            # Mettre à jour le cache
+            await self._cache.set(cache_key, context)
+            
+            # Sauvegarder immédiatement si demandé
+            if immediate_save:
+                try:
+                    await self._save_context(context_id, context)
+                except Exception as save_err:
+                    logger.error(f"Erreur lors de la sauvegarde immédiate du contexte {context_id}: {str(save_err)}")
+                    # Ajouter à la file d'attente malgré l'erreur
+                    async with self._save_lock:
+                        self._pending_saves[context_id] = context
+            else:
+                # Ajouter à la file d'attente de sauvegarde
+                async with self._save_lock:
+                    self._pending_saves[context_id] = context
+                
         except Exception as e:
-            logger.error(f"Erreur mise à jour contexte {context_id}: {str(e)}")
-            raise
+            logger.error(f"Erreur lors de la mise à jour du contexte {context_id}: {str(e)}")
+            # Essayer d'enregistrer malgré l'erreur
+            if context:
+                async with self._save_lock:
+                    self._pending_saves[context_id] = context
 
     async def delete_context(self, context_id: str) -> None:
         """Supprime un contexte"""
@@ -363,6 +459,21 @@ class ContextManager:
                     raise ValueError(f"Type de contexte inconnu pour {context.__class__.__name__}")
                     
                 data['_type'] = context_type.value
+                
+                # S'assurer que les dates sont des objets datetime
+                if 'updated_at' in data and isinstance(data['updated_at'], str):
+                    try:
+                        data['updated_at'] = datetime.fromisoformat(data['updated_at'])
+                    except ValueError:
+                        logger.warning(f"Format de date invalide pour updated_at: {data['updated_at']}")
+                        data['updated_at'] = datetime.now()
+                        
+                if 'created_at' in data and isinstance(data['created_at'], str):
+                    try:
+                        data['created_at'] = datetime.fromisoformat(data['created_at'])
+                    except ValueError:
+                        logger.warning(f"Format de date invalide pour created_at: {data['created_at']}")
+                        data['created_at'] = datetime.now()
                 
                 # Sauvegarder sur WebDAV
                 context_path = self._get_context_path(context_id)

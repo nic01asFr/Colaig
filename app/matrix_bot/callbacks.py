@@ -72,15 +72,52 @@ class Callbacks:
         @properly_fail(self.matrix_client)
         @ignore_when_not_concerned
         async def wrapped_func(room, event):
+            # Log détaillé pour le débogage des types d'événements
+            logger.debug(f"Processing event for feature {feature.get('name', 'unknown')}: {type(event).__name__}, OnEvent type: {onEvent.__name__}")
+            
+            # Ignorer les messages envoyés par le bot lui-même
+            if hasattr(event, 'sender') and event.sender == self.matrix_client.user_id:
+                logger.debug(f"Ignoring own message from {event.sender}")
+                return
+
             if not isinstance(event, onEvent):
+                logger.debug(f"Event type mismatch for {feature.get('name', 'unknown')}: {type(event).__name__} != {onEvent.__name__}")
                 raise EventNotConcerned
 
             if onEvent == RoomMessageText:
                 ep = MessageEventParser(
                     room=room, event=event, matrix_client=self.matrix_client, log_usage=True
                 )
+                
+                # Vérifier si cette fonction devrait traiter cette commande
                 if feature.get("commands"):
-                    ep.parse_command(feature["commands"], prefix=feature["prefix"])
+                    try:
+                        # Vérifier strictement que la commande correspond avant de l'appeler
+                        body = event.body.strip()
+                        user_command = body.split()[0] if body else ""
+                        
+                        # Vérifie si cette fonction devrait traiter cette commande
+                        found_match = False
+                        prefix = feature["prefix"]
+                        
+                        # Chercher une correspondance exacte avec les commandes de cette fonction
+                        for cmd in feature["commands"]:
+                            cmd_with_prefix = f"{prefix}{cmd}"
+                            if user_command == cmd_with_prefix:
+                                found_match = True
+                                logger.info(f"Commande correspondante trouvée: {user_command} -> fonction {feature['name']}")
+                                break
+                                
+                        if not found_match:
+                            # Ce n'est pas la commande correcte pour cette fonction
+                            logger.debug(f"Commande non correspondante pour {feature['name']}: {user_command}")
+                            raise EventNotConcerned
+                            
+                        # Si on arrive ici, c'est bien la bonne commande pour cette fonction spécifique
+                        ep.parse_command(feature["commands"], prefix=feature["prefix"])
+                    except (IndexError, EventNotConcerned):
+                        # Pas la bonne commande ou format incorrect
+                        raise EventNotConcerned
             else:
                 ep = EventParser(
                     room=room, event=event, matrix_client=self.matrix_client, log_usage=True

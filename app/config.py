@@ -23,7 +23,8 @@ class BaseConfig(BaseSettings):
     # allows us to clean up the imports into multiple parts
     # https://stackoverflow.com/questions/77328900/nested-settings-with-pydantic-settings
     model_config = SettingsConfigDict(
-        env_file=Path(__file__).resolve().parent / ".env", extra="ignore"
+        env_file=Path(__file__).resolve().parent / ".env", 
+        extra="ignore"
     )  # allows nested configs
 
 
@@ -35,12 +36,12 @@ class Config(BaseConfig):
     matrix_home_server: str = Field("", description="Tchap home server URL")
     matrix_bot_username: str = Field("", description="Username of our matrix bot")
     matrix_bot_password: str = Field("", description="Password of our matrix bot")
-    errors_room_id: str | None = Field(None, description="Room ID to send errors to")
+    errors_room_id: Optional[str] = Field(None, description="Room ID for error and notification messages")
     user_allowed_domains: list[str] = Field(
         ["*"],
         description="List of allowed Tchap users email domains allowed to use Albert Tchap",
     )
-    groups_used: list[str] = Field(["basic"], description="List of commands groups to use")
+    groups_used: str = Field("basic", description="List of commands groups to use (comma-separated)")
     last_activity: int = Field(int(time.time()), description="Last activity timestamp")
 
     # Grist Api Key

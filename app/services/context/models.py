@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,11 +19,24 @@ class BaseContext:
 
     @property
     def last_activity(self) -> datetime:
+        """Getter pour la dernière activité"""
+        if isinstance(self._last_activity, str):
+            try:
+                return datetime.fromisoformat(self._last_activity)
+            except ValueError:
+                return get_synchronized_time()
         return self._last_activity
 
     @last_activity.setter
-    def last_activity(self, value: datetime):
-        self._last_activity = value
+    def last_activity(self, value: Union[datetime, str]) -> None:
+        """Setter pour la dernière activité"""
+        if isinstance(value, str):
+            try:
+                self._last_activity = datetime.fromisoformat(value)
+            except ValueError:
+                self._last_activity = get_synchronized_time()
+        else:
+            self._last_activity = value
 
     def add_context_ref(self, context_type: str, context_id: str) -> None:
         """Ajoute une référence vers un autre contexte"""
@@ -47,7 +60,16 @@ class BaseContext:
         data.pop('_last_activity', None)
         data.pop('_context_refs', None)
         data.pop('_lock_token', None)
-        data['last_activity'] = self._last_activity.isoformat()
+        
+        # Gérer le cas où _last_activity est déjà une chaîne
+        if isinstance(self._last_activity, str):
+            data['last_activity'] = self._last_activity
+        elif isinstance(self._last_activity, datetime):
+            data['last_activity'] = self._last_activity.isoformat()
+        else:
+            # Si c'est ni une chaîne ni un datetime, utiliser l'heure actuelle
+            data['last_activity'] = get_synchronized_time().isoformat()
+            
         if self._context_refs:
             data['context_refs'] = self._context_refs
         return data
@@ -90,6 +112,27 @@ class UserContext(BaseContext):
         super().__init__()
         self.last_activity = self._last_activity
 
+    @property
+    def last_activity(self) -> datetime:
+        """Getter pour la dernière activité"""
+        if isinstance(self._last_activity, str):
+            try:
+                return datetime.fromisoformat(self._last_activity)
+            except ValueError:
+                return get_synchronized_time()
+        return self._last_activity
+        
+    @last_activity.setter
+    def last_activity(self, value: Union[datetime, str]) -> None:
+        """Setter pour la dernière activité"""
+        if isinstance(value, str):
+            try:
+                self._last_activity = datetime.fromisoformat(value)
+            except ValueError:
+                self._last_activity = get_synchronized_time()
+        else:
+            self._last_activity = value
+
 @dataclass(kw_only=True)
 class SessionContext(BaseContext):
     """Contexte de session"""
@@ -103,6 +146,27 @@ class SessionContext(BaseContext):
         """Initialisation post-construction"""
         super().__init__()
         self.last_activity = self._last_activity
+        
+    @property
+    def last_activity(self) -> datetime:
+        """Getter pour la dernière activité"""
+        if isinstance(self._last_activity, str):
+            try:
+                return datetime.fromisoformat(self._last_activity)
+            except ValueError:
+                return get_synchronized_time()
+        return self._last_activity
+        
+    @last_activity.setter
+    def last_activity(self, value: Union[datetime, str]) -> None:
+        """Setter pour la dernière activité"""
+        if isinstance(value, str):
+            try:
+                self._last_activity = datetime.fromisoformat(value)
+            except ValueError:
+                self._last_activity = get_synchronized_time()
+        else:
+            self._last_activity = value
 
     def add_message(self, role: str, content: str, timestamp: Optional[datetime] = None) -> None:
         """Ajoute un message à l'historique"""
@@ -140,6 +204,27 @@ class RoomContext(BaseContext):
         """Initialisation post-construction"""
         super().__init__()
         self.last_activity = self._last_activity
+        
+    @property
+    def last_activity(self) -> datetime:
+        """Getter pour la dernière activité"""
+        if isinstance(self._last_activity, str):
+            try:
+                return datetime.fromisoformat(self._last_activity)
+            except ValueError:
+                return get_synchronized_time()
+        return self._last_activity
+        
+    @last_activity.setter
+    def last_activity(self, value: Union[datetime, str]) -> None:
+        """Setter pour la dernière activité"""
+        if isinstance(value, str):
+            try:
+                self._last_activity = datetime.fromisoformat(value)
+            except ValueError:
+                self._last_activity = get_synchronized_time()
+        else:
+            self._last_activity = value
 
     def add_participant(self, user_id: str, role: str = "member") -> None:
         """Ajoute un participant au salon"""
@@ -233,6 +318,27 @@ class ResponseContext(BaseContext):
             self.response_type = self.format
         if hasattr(self, 'response_id'):
             self.response_type = self.response_id
+            
+    @property
+    def last_activity(self) -> datetime:
+        """Getter pour la dernière activité"""
+        if isinstance(self._last_activity, str):
+            try:
+                return datetime.fromisoformat(self._last_activity)
+            except ValueError:
+                return get_synchronized_time()
+        return self._last_activity
+        
+    @last_activity.setter
+    def last_activity(self, value: Union[datetime, str]) -> None:
+        """Setter pour la dernière activité"""
+        if isinstance(value, str):
+            try:
+                self._last_activity = datetime.fromisoformat(value)
+            except ValueError:
+                self._last_activity = get_synchronized_time()
+        else:
+            self._last_activity = value
 
     def to_dict(self) -> Dict[str, Any]:
         """Convertit le contexte en dictionnaire"""
@@ -270,6 +376,27 @@ class IntentContext(BaseContext):
     def __post_init__(self):
         super().__init__()
         self.last_activity = self._last_activity
+        
+    @property
+    def last_activity(self) -> datetime:
+        """Getter pour la dernière activité"""
+        if isinstance(self._last_activity, str):
+            try:
+                return datetime.fromisoformat(self._last_activity)
+            except ValueError:
+                return get_synchronized_time()
+        return self._last_activity
+        
+    @last_activity.setter
+    def last_activity(self, value: Union[datetime, str]) -> None:
+        """Setter pour la dernière activité"""
+        if isinstance(value, str):
+            try:
+                self._last_activity = datetime.fromisoformat(value)
+            except ValueError:
+                self._last_activity = get_synchronized_time()
+        else:
+            self._last_activity = value
 
 @dataclass(kw_only=True)
 class WorkflowContext(BaseContext):
@@ -281,6 +408,27 @@ class WorkflowContext(BaseContext):
     def __post_init__(self):
         super().__init__()
         self.last_activity = self._last_activity
+        
+    @property
+    def last_activity(self) -> datetime:
+        """Getter pour la dernière activité"""
+        if isinstance(self._last_activity, str):
+            try:
+                return datetime.fromisoformat(self._last_activity)
+            except ValueError:
+                return get_synchronized_time()
+        return self._last_activity
+        
+    @last_activity.setter
+    def last_activity(self, value: Union[datetime, str]) -> None:
+        """Setter pour la dernière activité"""
+        if isinstance(value, str):
+            try:
+                self._last_activity = datetime.fromisoformat(value)
+            except ValueError:
+                self._last_activity = get_synchronized_time()
+        else:
+            self._last_activity = value
 
 @dataclass(kw_only=True)
 class ExecutionContext(BaseContext):
@@ -294,6 +442,27 @@ class ExecutionContext(BaseContext):
     def __post_init__(self):
         super().__init__()
         self.last_activity = self._last_activity
+        
+    @property
+    def last_activity(self) -> datetime:
+        """Getter pour la dernière activité"""
+        if isinstance(self._last_activity, str):
+            try:
+                return datetime.fromisoformat(self._last_activity)
+            except ValueError:
+                return get_synchronized_time()
+        return self._last_activity
+        
+    @last_activity.setter
+    def last_activity(self, value: Union[datetime, str]) -> None:
+        """Setter pour la dernière activité"""
+        if isinstance(value, str):
+            try:
+                self._last_activity = datetime.fromisoformat(value)
+            except ValueError:
+                self._last_activity = get_synchronized_time()
+        else:
+            self._last_activity = value
 
     def to_dict(self) -> Dict[str, Any]:
         """Convertit le contexte en dictionnaire"""

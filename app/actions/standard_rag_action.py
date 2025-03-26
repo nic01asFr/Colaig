@@ -163,53 +163,103 @@ class StandardMessageRagAction:
         query: str,
         session_context: Optional[SessionContext] = None,
         room_context: Optional[RoomContext] = None,
-        search_mode: str = "default"
+        search_mode: str = "hybrid",
     ) -> List[Dict[str, Any]]:
-        """Récupère les chunks pertinents pour une requête
+        """
+        Récupère les chunks pertinents pour la requête utilisateur.
         
         Args:
-            query: Requête utilisateur
-            session_context: Contexte de session optionnel
-            room_context: Contexte de salle optionnel
-            search_mode: Mode de recherche ("default", "precise", "fast")
-            
+            query: La requête de l'utilisateur.
+            session_context: Le contexte de session de l'utilisateur (optionnel).
+            room_context: Le contexte du salon (optionnel).
+            search_mode: Mode de recherche à utiliser ('hybrid', 'semantic', 'fast')
+        
         Returns:
-            Liste des chunks pertinents
+            Une liste de DocumentChunk pertinents pour la requête.
         """
+        logger.info(f"Récupération de chunks pertinents pour la requête: {query}")
+        
+        # Valider les paramètres
+        if not query or not query.strip():
+            logger.warning("Requête vide, aucun chunk ne sera récupéré")
+            return []
+            
+        # En cas de réponse vide initiale, prévoir un conteneur
+        relevant_chunks = []
+        
         try:
+            # Si l'index de documents n'est pas initialisé, essayer de l'initialiser
             if not self.index_service:
-                logger.error("Service d'index non disponible")
-                return []
+                try:
+                    logger.info("Initialisation tardive de l'index de documents")
+                    await self.index_service.initialize(
+                        init_document_index=False, 
+                        init_behavior_manager=True
+                    )
+                except Exception as init_err:
+                    logger.error(f"Échec de l'initialisation tardive de l'index: {str(init_err)}")
+                    return []
+            
+            # Effectuer la recherche selon le mode choisi
+            if search_mode == "hybrid":
+                # Recherche hybride : sémantique + mots-clés
+                try:
+                    # Recherche sémantique d'abord
+                    semantic_chunks = await self.index_service.semantic_search(query, top_k=self.config.rag_top_k)
+                    
+                    # Si la recherche sémantique échoue, essayer la recherche par mots-clés
+                    if not semantic_chunks:
+                        logger.info("Recherche sémantique sans résultat, passage à la recherche par mots-clés")
+                        relevant_chunks = await self.index_service.keyword_search(query, top_k=self.config.rag_top_k)
+                    else:
+                        relevant_chunks = semantic_chunks
+                except Exception as hybrid_err:
+                    logger.warning(f"Erreur lors de la recherche hybride: {str(hybrid_err)}")
+                    # Fallback sur la recherche par mots-clés en cas d'erreur
+                    try:
+                        relevant_chunks = await self.index_service.keyword_search(query, top_k=self.config.rag_top_k)
+                    except Exception as fallback_err:
+                        logger.error(f"Échec du fallback sur la recherche par mots-clés: {str(fallback_err)}")
+            
+            elif search_mode == "semantic":
+                # Recherche sémantique uniquement
+                try:
+                    relevant_chunks = await self.index_service.semantic_search(query, top_k=self.config.rag_top_k)
+                except Exception as semantic_err:
+                    logger.error(f"Échec de la recherche sémantique: {str(semantic_err)}")
+            
+            elif search_mode == "fast":
+                # Recherche rapide par mots-clés uniquement
+                try:
+                    relevant_chunks = await self.index_service.keyword_search(query, top_k=self.config.rag_top_k)
+                except Exception as keyword_err:
+                    logger.error(f"Échec de la recherche par mots-clés: {str(keyword_err)}")
+            
+            else:
+                # Mode inconnu, utiliser le mode hybride par défaut
+                logger.warning(f"Mode de recherche inconnu '{search_mode}', utilisation du mode hybride par défaut")
+                try:
+                    relevant_chunks = await self.index_service.semantic_search(query, top_k=self.config.rag_top_k)
+                    if not relevant_chunks:
+                        relevant_chunks = await self.index_service.keyword_search(query, top_k=self.config.rag_top_k)
+                except Exception as default_err:
+                    logger.error(f"Échec de la recherche en mode par défaut: {str(default_err)}")
+            
+            # Journaliser les résultats
+            if relevant_chunks:
+                logger.info(f"Récupération de {len(relevant_chunks)} chunks pertinents")
+                # Limiter la taille totale si nécessaire
+                if len(relevant_chunks) > self.config.rag_max_chunks:
+                    logger.info(f"Limitation à {self.config.rag_max_chunks} chunks (sur {len(relevant_chunks)})")
+                    relevant_chunks = relevant_chunks[:self.config.rag_max_chunks]
+            else:
+                logger.warning("Aucun chunk pertinent trouvé pour cette requête")
                 
-            # Améliorer la requête avec le contexte
-            enhanced_query = self._enhance_query(query, session_context, room_context)
-            
-            # Effectuer la recherche avec le mode approprié
-            chunks = await self.index_service.search(
-                query=enhanced_query,
-                limit=10,
-                index_type="behavior",
-                search_mode=search_mode
-            )
-            
-            if not chunks:
-                return []
-                
-            # Filtrer pour la diversité
-            diverse_chunks = self._filter_diverse_chunks(chunks)
-            
-            # Traiter les chunks pour la conversation
-            processed_chunks = await self._process_chunks_for_conversation(
-                diverse_chunks,
-                session_context,
-                room_context
-            )
-            
-            return processed_chunks[:5]  # Limiter aux 5 plus pertinents
-            
         except Exception as e:
             logger.error(f"Erreur lors de la récupération des chunks: {str(e)}")
-            return []
+            # Ne pas propager l'exception, retourner une liste vide
+        
+        return relevant_chunks
 
     def _filter_diverse_chunks(self, chunks: List[Dict]) -> List[Dict]:
         """Filtre les chunks pour assurer la diversité et éviter la redondance"""
@@ -412,42 +462,95 @@ class StandardMessageRagAction:
         chunks: List[Dict],
         session_context: Optional[SessionContext] = None
     ) -> str:
-        """Génère une réponse conversationnelle basée sur les chunks"""
+        """
+        Génère une réponse basée sur la requête et les chunks pertinents.
+        
+        Args:
+            query: La requête de l'utilisateur
+            chunks: Les chunks de documents pertinents
+            session_context: Le contexte de session optionnel
+            
+        Returns:
+            La réponse générée
+        """
+        if not query or not query.strip():
+            logger.warning("Requête vide, impossible de générer une réponse appropriée")
+            return "Je ne peux pas répondre à une requête vide. Pourriez-vous reformuler votre question ?"
+        
         try:
-            # Formater le prompt avec contexte conversationnel
-            prompt = self._format_conversational_prompt(query, chunks, session_context)
-
-            # Client Albert pour la génération
-            albert_client = AlbertApiClient(
-                base_url=self.config.albert_api_url,
-                api_key=self.config.albert_api_token
-            )
-
-            # Système prompt adapté au contexte conversationnel
-            system_prompt = self._get_system_prompt(session_context)
-
+            # Préparation du système prompt
+            system_prompt = self._build_system_prompt(chunks)
+            
+            # Préparation des messages
+            messages = []
+            
+            # Ajout du message système
+            messages.append({
+                "role": "system",
+                "content": system_prompt
+            })
+            
+            # Ajout de l'historique de conversation si disponible
+            if session_context and hasattr(session_context, "history") and session_context.history:
+                # Limiter l'historique aux derniers échanges pour éviter de dépasser les limites de tokens
+                limited_history = session_context.history[-8:]
+                
+                for msg in limited_history:
+                    if msg.get("content") and msg.get("role") in ["user", "assistant"]:
+                        messages.append({
+                            "role": msg["role"],
+                            "content": msg["content"]
+                        })
+            
+            # Ajout de la requête actuelle
+            messages.append({
+                "role": "user",
+                "content": query
+            })
+            
             # Générer la réponse
-            messages = [
-                {
-                    "role": "system",
-                    "content": system_prompt
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
-
-            response = await albert_client.generate(
-                model=self.config.albert_model,
-                messages=messages
-            )
-
-            return self._format_conversational_response(response, chunks)
-
+            logger.info("Génération de la réponse avec Albert...")
+            
+            try:
+                # Tentative avec l'historique complet
+                response = await generate(self.config, messages)
+            except Exception as full_err:
+                logger.warning(f"Échec de génération avec l'historique complet: {str(full_err)}")
+                
+                try:
+                    # Réessayer sans l'historique en cas d'erreur
+                    simplified_messages = [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": query}
+                    ]
+                    logger.info("Tentative de génération sans historique...")
+                    response = await generate(self.config, simplified_messages)
+                except Exception as simple_err:
+                    logger.error(f"Échec de génération même sans historique: {str(simple_err)}")
+                    
+                    # Dernière tentative sans chunks
+                    try:
+                        minimal_messages = [
+                            {"role": "system", "content": "Vous êtes Colaig, l'assistant de l'État français."},
+                            {"role": "user", "content": query}
+                        ]
+                        logger.info("Tentative de génération minimale...")
+                        response = await generate(self.config, minimal_messages)
+                    except Exception as minimal_err:
+                        logger.error(f"Échec de génération minimale: {str(minimal_err)}")
+                        # Réponse de secours
+                        response = "Je suis désolé, mais je ne peux pas traiter votre demande pour le moment. Le service est temporairement indisponible ou surchargé. Veuillez réessayer ultérieurement."
+            
+            # Traitement post-génération
+            if not response or len(response.strip()) < 5:
+                logger.warning("Réponse vide ou trop courte reçue de l'API")
+                response = "Je suis désolé, mais je n'ai pas pu générer une réponse adéquate à votre question. Pourriez-vous reformuler ou préciser votre demande ?"
+            
+            return response
+            
         except Exception as e:
-            logger.error(f"Erreur génération réponse: {str(e)}")
-            return "Une erreur est survenue lors de la génération de la réponse."
+            logger.error(f"Erreur lors de la génération de la réponse: {str(e)}")
+            return "Je suis désolé, une erreur est survenue lors du traitement de votre demande. Veuillez réessayer ou contacter l'administrateur si le problème persiste."
 
     def _format_conversational_prompt(
         self,
@@ -551,10 +654,10 @@ class StandardMessageRagAction:
                 if metadata.get("section_title"):
                     source_parts.append(f"   Section: {metadata['section_title']}")
                     
-                sources.append(chr(10).join(source_parts))
+                sources.append("\n".join(source_parts))
             
             if sources:
-                clean_response += "\n\n💡 Sources :\n" + chr(10).join(sources)
+                clean_response += "\n\n💡 Sources :\n" + "\n".join(sources)
         
         # Ajouter uniquement l'emoji au début
         return f"🤖 {clean_response.strip()}"

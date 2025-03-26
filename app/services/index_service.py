@@ -103,53 +103,71 @@ class IndexService:
             return
             
         try:
-            # Initialiser le service WebDAV si nécessaire
+            # 1. Initialiser le service WebDAV en premier
             if not self.webdav_service:
                 self.webdav_service = WebDAVService(self.config)
-                
-            # S'assurer que le WebDAV est initialisé
+            
             if not hasattr(self.webdav_service, '_initialized') or not self.webdav_service._initialized:
-                await self.webdav_service.initialize()
-                
-            # Démarrer le nettoyage périodique du cache
+                try:
+                    await self.webdav_service.initialize()
+                except Exception as webdav_err:
+                    logger.warning(f"Erreur d'initialisation WebDAV, mais on continue: {str(webdav_err)}")
+            
+            # 2. Démarrer le nettoyage du cache
             await self._start_cache_cleanup()
                 
-            # Initialiser l'index de documents si demandé
-            if init_document_index and not self.document_index:
-                self.document_index = DocumentIndex(
-                    config=self.config,
-                    webdav_service=self.webdav_service
-                )
-                try:
-                    await self.document_index.initialize()
-                    logger.info("Index de documents initialisé avec succès")
-                except Exception as e:
-                    logger.error(f"Erreur initialisation index documents: {str(e)}")
-                    raise
-                    
-            # Initialiser le gestionnaire de comportements si demandé
-            if init_behavior_manager and not self.behavior_manager:
-                self.behavior_manager = BehaviorManager(self.config)
-                self.behavior_manager._webdav = self.webdav_service  # Assigner explicitement le service WebDAV
+            # 3. Initialiser le gestionnaire de comportements si demandé
+            if init_behavior_manager:
+                if not self.behavior_manager:
+                    self.behavior_manager = BehaviorManager(self.config)
+                    self.behavior_manager._webdav = self.webdav_service
+                
                 try:
                     await self.behavior_manager.initialize()
-                    logger.info("Gestionnaire de comportements initialisé avec succès")
+                    logger.info("Gestionnaire de comportements initialisé")
                 except Exception as e:
-                    logger.error(f"Erreur initialisation gestionnaire comportements: {str(e)}")
-                    raise
+                    logger.warning(f"Erreur initialisation comportements, mais on continue: {str(e)}")
+                    
+            # 4. Initialiser l'index de documents si demandé
+            if init_document_index:
+                if not self.document_index:
+                    self.document_index = DocumentIndex(
+                        config=self.config,
+                        webdav_service=self.webdav_service
+                    )
+                
+                try:
+                    await self.document_index.initialize()
+                    logger.info("Index de documents initialisé")
+                except Exception as e:
+                    logger.warning(f"Erreur initialisation documents, mais on continue: {str(e)}")
                     
             self._initialized = True
             logger.info("Service d'index initialisé avec succès")
                 
         except Exception as e:
-            logger.error(f"Erreur lors de l'initialisation des index: {str(e)}")
-            # Nettoyer les ressources en cas d'échec
-            if self.webdav_service:
-                await self.webdav_service.close()
+            logger.error(f"Erreur initialisation services: {str(e)}")
+            await self._cleanup_resources()
+            # Marquer comme initialisé quand même pour permettre l'exécution partielle
+            self._initialized = True
+            logger.warning("Service d'index initialisé en mode dégradé")
+            
+    async def _cleanup_resources(self) -> None:
+        """Nettoie les ressources en cas d'erreur"""
+        try:
             if self._cache_cleanup_task:
                 self._cache_cleanup_task.cancel()
+                
+            if self.webdav_service:
+                await self.webdav_service.close()
+                
+            if self.behavior_manager:
+                await self.behavior_manager.close()
+                
             self._initialized = False
-            raise RuntimeError(f"Échec de l'initialisation des services: {str(e)}")
+            
+        except Exception as e:
+            logger.error(f"Erreur nettoyage ressources: {str(e)}")
             
     async def _ensure_initialized(self, init_document_index: bool = False, init_behavior_manager: bool = True) -> None:
         """S'assure que le service est initialisé"""
@@ -366,67 +384,123 @@ class IndexService:
             Liste des résultats de recherche
         """
         # Initialiser uniquement les services nécessaires
-        if index_type == "behavior":
-            await self._ensure_initialized(init_document_index=False, init_behavior_manager=True)
-        else:
-            await self._ensure_initialized(init_document_index=True, init_behavior_manager=False)
+        try:
+            if index_type == "behavior":
+                await self._ensure_initialized(init_document_index=False, init_behavior_manager=True)
+            else:
+                await self._ensure_initialized(init_document_index=True, init_behavior_manager=False)
+        except Exception as init_err:
+            logger.warning(f"Erreur d'initialisation pour la recherche: {str(init_err)}")
+            # Continuer malgré l'erreur
         
         try:
-            # Générer une clé de cache unique
+            # Ne pas utiliser le cache pour les recherches précises
+            if search_mode == "precise":
+                if index_type == "document" and self.document_index:
+                    try:
+                        # Récupérer plus de résultats pour avoir un meilleur reclassement
+                        results = await self.document_index.search(
+                            query=query,
+                            limit=limit * 3,  # Augmenter pour avoir plus de contexte
+                            threshold=0.2,     # Seuil plus permissif
+                            rerank=True
+                        )
+                        
+                        # Reclassement personnalisé avec boost de contexte
+                        if results:
+                            for chunk in results:
+                                # Score de base (similarité)
+                                base_score = chunk["metadata"].get("similarity_score", 0.5)
+                                
+                                # Boost contextuel basé sur la position du chunk
+                                position = chunk["metadata"].get("chunk_position", 0)
+                                total_chunks = chunk["metadata"].get("total_chunks", 1)
+                                if total_chunks > 0:  # Éviter division par zéro
+                                    context_boost = 1.0 - (abs(position - (total_chunks / 2)) / total_chunks)
+                                else:
+                                    context_boost = 0.5
+                                
+                                # Boost métadonnées basé sur la fraîcheur du document
+                                last_updated = chunk["metadata"].get("last_updated")
+                                if last_updated:
+                                    age_days = (datetime.now() - last_updated).days
+                                    recency_boost = 1.0 / (1.0 + (age_days / 30))  # Décroissance sur 30 jours
+                                else:
+                                    recency_boost = 0.5
+                                    
+                                # Score combiné avec pondération
+                                adjusted_score = (
+                                    base_score * 0.6 +      # Similarité sémantique
+                                    context_boost * 0.25 +   # Contexte du document
+                                    recency_boost * 0.15     # Fraîcheur du document
+                                )
+                                
+                                chunk["metadata"]["adjusted_score"] = adjusted_score
+                                
+                            # Trier par score ajusté et limiter aux meilleurs résultats
+                            results.sort(
+                                key=lambda x: x["metadata"].get("adjusted_score", 0),
+                                reverse=True
+                            )
+                            results = results[:limit]
+                        
+                        return results
+                    except Exception as search_err:
+                        logger.error(f"Erreur lors de la recherche précise: {str(search_err)}")
+                        return []
+                    
+            # Pour les autres modes, utiliser le cache si disponible
             cache_key = f"{index_type}_{query}_{limit}_{search_mode}"
             if behavior_type:
                 cache_key += f"_{behavior_type}"
             
-            # Vérifier le cache avec LRU
-            if search_mode != "precise":  # Ne pas utiliser le cache en mode précis
+            try:
                 cached_results = await self._get_optimized_search_results(query, index_type, limit)
                 if cached_results is not None:
                     return cached_results
+            except Exception as cache_err:
+                logger.warning(f"Erreur lors de l'accès au cache: {str(cache_err)}")
             
             results = []
-            
             if index_type == "behavior":
                 if self.behavior_manager and self.behavior_manager.index:
-                    # Optimiser pour la réactivité
-                    if search_mode == "fast":
-                        results = await self.behavior_manager.index.search(
-                            query=query,
-                            behavior_type=behavior_type,
-                            limit=limit,
-                            threshold=0.3  # Seuil de similarité plus bas pour plus de rapidité
-                        )
-                    else:
-                        results = await self.behavior_manager.index.search(
-                            query=query,
-                            behavior_type=behavior_type,
-                            limit=limit
-                        )
-                
+                    try:
+                        if search_mode == "fast":
+                            results = await self.behavior_manager.index.search(
+                                query=query,
+                                behavior_type=behavior_type,
+                                limit=limit,
+                                threshold=0.3
+                            )
+                        else:
+                            results = await self.behavior_manager.index.search(
+                                query=query,
+                                behavior_type=behavior_type,
+                                limit=limit
+                            )
+                    except Exception as behavior_err:
+                        logger.error(f"Erreur lors de la recherche de comportements: {str(behavior_err)}")
             elif index_type == "document":
                 if self.document_index:
-                    # Optimiser pour la précision en mode docquery
-                    if search_mode == "precise":
-                        results = await self.document_index.search(
-                            query=query,
-                            limit=limit,
-                            threshold=0.7,  # Seuil de similarité plus élevé
-                            rerank=True     # Activer le reranking
-                        )
-                    else:
+                    try:
                         results = await self.document_index.search(
                             query=query,
                             limit=limit
                         )
+                    except Exception as doc_err:
+                        logger.error(f"Erreur lors de la recherche de documents: {str(doc_err)}")
             
-            # Mettre en cache sauf en mode précis
-            if search_mode != "precise":
-                await self.set_cached_index(cache_key, results)
-            
+            # Mettre en cache uniquement pour les modes non-précis
+            if search_mode != "precise" and results:
+                try:
+                    await self.set_cached_index(cache_key, results)
+                except Exception as set_cache_err:
+                    logger.warning(f"Erreur lors de la mise en cache: {str(set_cache_err)}")
             return results
             
         except Exception as e:
             logger.error(f"Erreur lors de la recherche: {str(e)}")
-            raise
+            return []  # Retourner une liste vide au lieu de lever une exception
     
     async def __aenter__(self):
         await self.initialize()

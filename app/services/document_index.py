@@ -147,25 +147,30 @@ class FAISSIndex:
         vector_key = str(hash(chunk.content))
         self._embedding_cache[vector_key] = embedding
         
-        # Normaliser et ajouter à l'index
-        normalized = embedding / np.linalg.norm(embedding)
-        if normalized is not None:
-            index_id = self.index.ntotal
-            self.index.add(normalized.reshape(1, -1))
+        # Vérifier si l'embedding contient des valeurs nulles ou est un vecteur nul
+        norm = np.linalg.norm(embedding)
+        if norm == 0 or np.isnan(norm) or np.isinf(norm):
+            logger.warning(f"Vecteur nul ou invalide détecté pour le chunk {chunk.id}, impossible de normaliser")
+            return
             
-            # Stocker le chunk avec son embedding
-            chunk.embedding = embedding.tolist()  # Convertir en liste pour la sérialisation
-            chunk_copy = DocumentChunk(
-                id=chunk.id,
-                content=chunk.content,
-                document_path=chunk.document_path,
-                chunk_number=chunk.chunk_number,
-                page_number=chunk.page_number,
-                metadata=chunk.metadata,
-                embedding=chunk.embedding,  # Sauvegarder l'embedding
-                last_updated=chunk.last_updated
-            )
-            self.document_map[index_id] = chunk_copy
+        # Normaliser et ajouter à l'index
+        normalized = embedding / norm
+        index_id = self.index.ntotal
+        self.index.add(normalized.reshape(1, -1))
+        
+        # Stocker le chunk avec son embedding
+        chunk.embedding = embedding.tolist()  # Convertir en liste pour la sérialisation
+        chunk_copy = DocumentChunk(
+            id=chunk.id,
+            content=chunk.content,
+            document_path=chunk.document_path,
+            chunk_number=chunk.chunk_number,
+            page_number=chunk.page_number,
+            metadata=chunk.metadata,
+            embedding=chunk.embedding,  # Sauvegarder l'embedding
+            last_updated=chunk.last_updated
+        )
+        self.document_map[index_id] = chunk_copy
         
         # Vérifier si on doit convertir en IVF
         self._maybe_convert_to_ivf()
@@ -394,28 +399,57 @@ class DocumentIndex:
     async def initialize(self) -> None:
         """Initialise l'index, le charge s'il existe ou lève une erreur"""
         try:
-            # Vérification de la dimension des embeddings
+            # 1. Vérifier la dimension des embeddings
             current_dimension = self.embedding_service.embedding_dimension
-            if current_dimension != self.faiss_index.dimension:
-                logger.error(
+            if not hasattr(self.faiss_index, 'dimension'):
+                self.faiss_index = FAISSIndex(dimension=current_dimension)
+            elif current_dimension != self.faiss_index.dimension:
+                logger.warning(
                     f"Différence de dimension détectée - Index: {self.faiss_index.dimension}, "
                     f"Service: {current_dimension}"
                 )
-                raise ValueError("Dimension de l'index incompatible. Utilisez !index rebuild pour reconstruire l'index.")
+                # Tenter de redimensionner l'index
+                try:
+                    old_documents = self.faiss_index.resize_index(current_dimension)
+                    logger.info(f"Index redimensionné de {self.faiss_index.dimension} à {current_dimension}")
+                    
+                    # Recalculer les embeddings
+                    for chunk in old_documents:
+                        embedding = await self.embedding_service.get_embedding(chunk.content)
+                        if embedding is not None:
+                            self.faiss_index.add_document(chunk, np.array(embedding))
+                    
+                    await self.save_index()
+                    logger.info("Index reconstruit avec la nouvelle dimension")
+                except Exception as e:
+                    logger.error(f"Échec du redimensionnement: {str(e)}")
+                    raise ValueError("Dimension de l'index incompatible. Utilisez !index rebuild")
                 
-            # Tentative de chargement de l'index existant
-            await self.load_index()
-            logger.info("Index chargé avec succès")
+            # 2. Charger ou créer l'index
+            try:
+                await self.load_index()
+                logger.info("Index chargé avec succès")
+            except Exception as e:
+                logger.warning(f"Impossible de charger l'index: {str(e)}")
+                logger.info("Création d'un nouvel index...")
+                await self.build_index()
+                await self.save_index()
+                logger.info("Nouvel index créé avec succès")
             
-            # Vérification de la fraîcheur
+            # 3. Vérifier la fraîcheur
             is_fresh, missing_docs, extra_docs = await self.verify_index_freshness()
             if not is_fresh:
-                logger.error("Index obsolète. Utilisez !index rebuild pour reconstruire l'index.")
-                raise ValueError("Index obsolète. Utilisez !index rebuild pour reconstruire l'index.")
+                if len(missing_docs) + len(extra_docs) < 10:  # Mise à jour incrémentale si peu de changements
+                    logger.info("Mise à jour incrémentale de l'index...")
+                    await self.update_index(missing_docs, extra_docs)
+                    await self.save_index()
+                else:
+                    logger.warning("Index obsolète avec trop de changements")
+                    raise ValueError("Index obsolète. Utilisez !index rebuild")
                 
         except Exception as e:
-            logger.error(f"Erreur lors de l'initialisation de l'index: {str(e)}")
-            raise RuntimeError(f"Impossible d'initialiser l'index: {str(e)}. Utilisez !index rebuild pour reconstruire l'index.")
+            logger.error(f"Erreur initialisation index: {str(e)}")
+            raise RuntimeError(f"Impossible d'initialiser l'index: {str(e)}")
     
     def _is_system_file(self, path: str) -> bool:
         """Détermine si un fichier est un fichier système"""
@@ -1021,7 +1055,7 @@ class DocumentIndex:
                 return []
 
             # Effectuer la recherche avec plus de résultats pour avoir plus de contexte
-            chunks = self.faiss_index.search(query_embedding, limit * 2)
+            chunks = self.faiss_index.search(query_embedding, limit * 3)
             
             # Formater les résultats au format attendu par l'API Albert
             formatted_chunks = []
@@ -1031,6 +1065,40 @@ class DocumentIndex:
                 if similarity_score < threshold:
                     continue
                     
+                # Calculer les boosts
+                context_boost = 0.0
+                metadata_boost = 0.0
+                
+                # Boost basé sur la position du chunk dans le document
+                if chunk.chunk_number is not None:
+                    if chunk.chunk_number == 0:  # Premier chunk
+                        context_boost += 0.1
+                    elif chunk.chunk_number == 1:  # Second chunk
+                        context_boost += 0.05
+                        
+                # Boost basé sur les métadonnées
+                if chunk.metadata:
+                    # Boost pour les documents récents
+                    if chunk.last_updated:
+                        age_days = (datetime.now() - chunk.last_updated).days
+                        if age_days < 30:
+                            metadata_boost += 0.1 * (1 - (age_days / 30))
+                            
+                    # Boost pour les documents avec titre/description
+                    if chunk.metadata.get('title'):
+                        metadata_boost += 0.05
+                    if chunk.metadata.get('description'):
+                        metadata_boost += 0.05
+                        
+                # Score combiné
+                adjusted_score = similarity_score
+                if rerank:
+                    adjusted_score = (
+                        similarity_score * 0.7 +  # Score de similarité
+                        context_boost * 0.2 +     # Boost contextuel
+                        metadata_boost * 0.1      # Boost métadonnées
+                    )
+                
                 formatted_chunk = {
                     "id": chunk.id,
                     "content": chunk.content,
@@ -1040,30 +1108,28 @@ class DocumentIndex:
                         "chunk_number": chunk.chunk_number,
                         "page_number": chunk.page_number,
                         "similarity_score": similarity_score,
-                        "context_boost": chunk.metadata.get('context_boost', 0),
-                        "metadata_boost": chunk.metadata.get('metadata_boost', 0),
-                        "adjusted_score": similarity_score,  # Le score ajusté est déjà dans similarity_score
+                        "context_boost": context_boost,
+                        "metadata_boost": metadata_boost,
+                        "adjusted_score": adjusted_score,
                         **(chunk.metadata or {})
                     }
                 }
                 formatted_chunks.append(formatted_chunk)
                 
-                # Limiter au nombre demandé
-                if len(formatted_chunks) >= limit:
-                    break
-                    
-            # Reranking si activé
-            if rerank and formatted_chunks:
+            # Trier les résultats
+            if rerank:
                 formatted_chunks.sort(
-                    key=lambda x: (
-                        x["metadata"]["similarity_score"],
-                        x["metadata"].get("context_boost", 0),
-                        x["metadata"].get("metadata_boost", 0)
-                    ),
+                    key=lambda x: x["metadata"]["adjusted_score"],
                     reverse=True
                 )
-            
-            return formatted_chunks
+            else:
+                formatted_chunks.sort(
+                    key=lambda x: x["metadata"]["similarity_score"],
+                    reverse=True
+                )
+                
+            # Limiter au nombre demandé
+            return formatted_chunks[:limit]
             
         except Exception as e:
             logger.error(f"Erreur lors de la recherche: {str(e)}")

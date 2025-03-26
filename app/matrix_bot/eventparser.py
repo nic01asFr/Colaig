@@ -97,14 +97,31 @@ class MessageEventParser(EventParser):
         commands = [commands] if isinstance(commands, str) else commands
         body = self.event.body.strip()
         user_command = body.split()
-        command = [commands[0]] + user_command[1:]
-
-        if not any([f"{prefix}{c}" == user_command[0] for c in commands]):
+        
+        if not user_command:
             raise EventNotConcerned
+            
+        # Vérification stricte de la commande
+        command_found = False
+        matching_command = None
+        
+        for c in commands:
+            cmd_with_prefix = f"{prefix}{c}"
+            if cmd_with_prefix == user_command[0]:
+                command_found = True
+                matching_command = c
+                break
+                
+        if not command_found:
+            logger.debug(f"Commande non reconnue dans parse_command: {user_command[0]}")
+            raise EventNotConcerned
+
+        # Construire la liste de commande avec la commande exacte qui a été trouvée
+        command = [matching_command] + user_command[1:]
 
         if self.log_usage:
             logger.info(
-                "Handling command", command=command_name or command[0], command_payload=command[1:]
+                f"Handling command: {command_name or matching_command}, payload: {command[1:] if len(command) > 1 else 'none'}"
             )
 
         self.command = command

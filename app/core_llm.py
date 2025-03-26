@@ -249,9 +249,23 @@ class AlbertApiClient:
     def last_chunks(self) -> list[dict]:
         return self._last_chunks
 
-    async def generate(self, model: str, messages: list[dict], **sampling_params) -> str:
+    async def generate(self, model: str, **sampling_params) -> str:
         """Génère une réponse via l'API Albert"""
         try:
+            # Vérifier si nous recevons un prompt ou des messages
+            messages = sampling_params.pop('messages', None)
+            prompt = sampling_params.pop('prompt', None)
+            
+            # Convertir le prompt en messages si nécessaire
+            if prompt and not messages:
+                messages = [
+                    {"role": "user", "content": prompt}
+                ]
+            
+            if not messages:
+                raise ValueError("Il faut fournir soit 'messages' soit 'prompt' pour générer une réponse")
+            
+            # Appeler l'API avec les messages
             result = self.openai_client.chat.completions.create(
                 model=model,
                 messages=messages,

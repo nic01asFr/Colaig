@@ -1,5 +1,15 @@
 from typing import List, Dict, Any, Optional, Set
 
+# ================================================================================================
+# ATTENTION: Ce fichier est considéré comme DÉPRÉCIÉ.
+# Les nouvelles commandes doivent être ajoutées dans les modules dédiés:
+#  - app/commands/basic_commands.py
+#  - app/commands/document_commands/
+#  - etc.
+#
+# Ce fichier est conservé uniquement pour référence et sera supprimé dans une version future.
+# ================================================================================================
+
 # SPDX-FileCopyrightText: 2023 Pôle d'Expertise de la Régulation Numérique <contact.peren@finances.gouv.fr>
 # SPDX-FileCopyrightText: 2024 Etalab <etalab@modernisation.gouv.fr>
 #
@@ -13,6 +23,7 @@ from functools import wraps
 import os
 from datetime import datetime
 from enum import Enum
+import io
 
 from matrix_bot.client import MatrixClient
 from matrix_bot.config import logger
@@ -51,6 +62,9 @@ from services.bnum_service import BnumService
 from services.context import ContextManager, ContextType
 from services.context.models import BaseContext, UserContext  # Import des classes de contexte
 from services.context.instance import context_manager  # Import du gestionnaire global
+
+# Import de l'instance unique du registre de commandes
+from app.commands.registry import command_registry
 
 @dataclass
 class CommandRegistry:
@@ -217,15 +231,16 @@ def only_allowed_user(func):
     help=AlbertMsg.shorts["help"],
 )
 @only_allowed_user
-async def help(ep: EventParser, matrix_client: MatrixClient):
-    config = user_configs[ep.sender]
-
-    commands = ep.get_command()
-    verbose = False
-    if len(commands) > 1 and commands[1] in ["-v", "--verbose", "--more", "-a", "--all"]:
-        verbose = True
-    await matrix_client.send_markdown_message(ep.room.room_id, command_registry.get_help(config, verbose))  # fmt: off
-
+# COMMENTÉ: Cette fonction a été migrée vers un module dédié
+# async def help(ep: EventParser, matrix_client: MatrixClient):
+#     config = user_configs[ep.sender]
+# 
+#     commands = ep.get_command()
+#     verbose = False
+#     if len(commands) > 1 and commands[1] in ["-v", "--verbose", "--more", "-a", "--all"]:
+#         verbose = True
+#     await matrix_client.send_markdown_message(ep.room.room_id, command_registry.get_help(config, verbose))  # fmt: off
+# 
 
 @register_feature(
     group="albert",
@@ -608,125 +623,205 @@ async def albert_document(ep: EventParser, matrix_client: MatrixClient):
 )
 async def process_request(ep: EventParser, matrix_client: MatrixClient):
     """Traite une requête utilisateur standard (non-commande)"""
+    # Ajouter un log pour voir si la fonction est appelée
+    logger.info(f"process_request appelé pour le message: '{ep.event.body}'")
+    
     # Ignorer les commandes et les messages du bot
     if ep.is_command(COMMAND_PREFIX) or ep.sender == matrix_client.user_id:
+        logger.info(f"Message ignoré: est_commande={ep.is_command(COMMAND_PREFIX)}, envoyé_par_bot={ep.sender == matrix_client.user_id}")
+        return
+    
+    # Vérifier si l'utilisateur est autorisé
+    from iam import TchapIam
+    tiam = TchapIam(Config())
+    is_allowed = await tiam.is_allowed_user(ep.sender)
+    if not is_allowed:
+        logger.warning(f"Utilisateur {ep.sender} non autorisé à utiliser process_request")
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            "🔒 Je suis désolé, mais vous n'avez pas l'autorisation requise pour interagir avec moi.",
+            msgtype="m.notice"
+        )
         return
         
+    logger.info(f"Utilisateur {ep.sender} autorisé, traitement de la requête...")
     config = user_configs[ep.sender]
     
     try:
-        # Récupérer ou créer le contexte du salon
-        room_context = await context_manager.get_or_create_room_context(
-            room_id=ep.room.room_id,
-            room_name=ep.room.name,
-            is_direct=room_is_direct_message(ep.room)
+        # Informer l'utilisateur que sa requête est en cours de traitement
+        typing_message = await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            "⌛ Traitement de votre requête en cours...",
+            msgtype="m.notice"
         )
         
-        # Ajouter/mettre à jour le participant
-        await context_manager.add_room_participant(ep.room.room_id, ep.sender)
-        await context_manager.update_room_activity(ep.room.room_id, ep.sender)
+        # Récupérer ou créer le contexte du salon
+        try:
+            room_context = await context_manager.get_or_create_room_context(
+                room_id=ep.room.room_id,
+                room_name=ep.room.name,
+                is_direct=room_is_direct_message(ep.room)
+            )
+            
+            # Ajouter/mettre à jour le participant
+            await context_manager.add_room_participant(ep.room.room_id, ep.sender)
+            await context_manager.update_room_activity(ep.room.room_id, ep.sender)
+        except Exception as room_ctx_err:
+            logger.warning(f"Erreur lors de la gestion du contexte de salon: {str(room_ctx_err)}")
+            # Créer un objet de contexte de salon minimal pour permettre de continuer
+            room_context = RoomContext(
+                room_id=ep.room.room_id,
+                name=ep.room.name or "Salon inconnu",
+                is_direct=room_is_direct_message(ep.room)
+            )
         
         # Création ou récupération du contexte de session
         session_id = f"{ep.room.room_id}_{ep.sender}_{datetime.now().strftime('%Y%m%d')}"
-        session_context = await context_manager.get_context(session_id, ContextType.SESSION)
-        
-        if not session_context:
-            # Créer le contexte de session
-            session_context = await context_manager.create_context(
-                session_id,
-                ContextType.SESSION,
-                {
-                    "session_id": session_id,
-                    "room_id": ep.room.room_id,
-                    "user_id": ep.sender,
-                    "conversation_state": {},
-                    "history": []
-                }
+        try:
+            session_context = await context_manager.get_context(session_id, ContextType.SESSION)
+            
+            if not session_context:
+                # Créer le contexte de session
+                session_context = await context_manager.create_context(
+                    session_id,
+                    ContextType.SESSION,
+                    {
+                        "session_id": session_id,
+                        "room_id": ep.room.room_id,
+                        "user_id": ep.sender,
+                        "conversation_state": {},
+                        "history": []
+                    }
+                )
+        except Exception as session_ctx_err:
+            logger.warning(f"Erreur lors de la gestion du contexte de session: {str(session_ctx_err)}")
+            # Créer un objet de contexte de session minimal pour permettre de continuer
+            session_context = SessionContext(
+                session_id=session_id,
+                room_id=ep.room.room_id,
+                user_id=ep.sender
             )
             
         # Mise à jour du contexte de requête
-        request_context = await context_manager.create_context(
-            f"{session_id}_req_{datetime.now().timestamp()}",
-            ContextType.REQUEST,
-            {
-                "query": ep.event.body,
-                "raw_input": ep.event.source,
-                "event_timestamp": datetime.now()
-            }
-        )
-        
-        # Build the messages history
+        try:
+            request_context = await context_manager.create_context(
+                f"{session_id}_req_{datetime.now().timestamp()}",
+                ContextType.REQUEST,
+                {
+                    "query": ep.event.body,
+                    "raw_input": ep.event.source,
+                    "event_timestamp": datetime.now()
+                }
+            )
+        except Exception as req_ctx_err:
+            logger.warning(f"Erreur lors de la création du contexte de requête: {str(req_ctx_err)}")
+            # Non critique, on peut continuer sans contexte de requête
+
+        # Récupération des messages précédents pour le contexte
+        message_events = []
         is_reply_to = isa_reply_to(ep.event)
-        if is_reply_to:
-            message_events = await get_thread_messages(
-                config, ep, max_rewind=config.albert_max_rewind
-            )
-        else:
-            config.albert_history_lookup += 1
-            message_events = await get_previous_messages(
-                config,
-                ep,
-                history_lookup=config.albert_history_lookup,
-                max_rewind=config.albert_max_rewind,
-            )
+        
+        try:
+            if is_reply_to:
+                message_events = await get_thread_messages(
+                    config, ep, max_rewind=config.albert_max_rewind
+                )
+            else:
+                config.albert_history_lookup += 1
+                message_events = await get_previous_messages(
+                    config,
+                    ep,
+                    history_lookup=config.albert_history_lookup,
+                    max_rewind=config.albert_max_rewind,
+                )
+        except Exception as msg_hist_err:
+            logger.warning(f"Erreur lors de la récupération de l'historique des messages: {str(msg_hist_err)}")
+            # Continuer même sans historique des messages
             
         # Mise à jour de l'historique dans le contexte de session
-        for event in message_events:
-            event_timestamp = datetime.fromtimestamp(event.server_timestamp / 1000)
-            session_context.add_message(
-                role="user" if event.source["sender"] == ep.sender else "assistant",
-                content=get_cleanup_body(event),
-                timestamp=event_timestamp
+        try:
+            for event in message_events:
+                event_timestamp = datetime.fromtimestamp(event.server_timestamp / 1000)
+                session_context.add_message(
+                    role="user" if event.source["sender"] == ep.sender else "assistant",
+                    content=get_cleanup_body(event),
+                    timestamp=event_timestamp
+                )
+                
+            # Sauvegarder l'historique mis à jour
+            await context_manager.update_context(
+                session_id,
+                ContextType.SESSION,
+                session_context.to_dict(),
+                immediate_save=True
             )
-            
-        await context_manager.update_context(
-            session_id,
-            ContextType.SESSION,
-            session_context.to_dict(),
-            immediate_save=True
-        )
+        except Exception as hist_update_err:
+            logger.warning(f"Erreur lors de la mise à jour de l'historique de session: {str(hist_update_err)}")
+            # Non critique, on continue même en cas d'erreur
 
-        # Créer et initialiser l'action RAG standard
-        rag_action = StandardMessageRagAction(config)
-        await rag_action.initialize()
+        # Générer une réponse
+        response = ""
+        try:
+            # Créer et initialiser l'action RAG standard
+            rag_action = StandardMessageRagAction(config)
+            await rag_action.initialize()
 
-        # Récupérer les chunks avec contexte en mode rapide
-        chunks = await rag_action.retrieve_relevant_chunks(
-            query=ep.event.body,
-            session_context=session_context,
-            room_context=room_context,
-            search_mode="fast"  # Utiliser le mode rapide
-        )
-
-        if chunks:
-            # Générer la réponse avec contexte
-            response = await rag_action.generate_response(
+            # Récupérer les chunks avec contexte en mode rapide
+            chunks = await rag_action.retrieve_relevant_chunks(
                 query=ep.event.body,
-                chunks=chunks,
-                session_context=session_context
+                session_context=session_context,
+                room_context=room_context,
+                search_mode="fast"  # Utiliser le mode rapide
             )
-        else:
-            # Fallback en mode norag
-            messages = [
-                {
-                    "role": "system",
-                    "content": "Vous êtes Colaig, l'assistant de l'État français."
-                },
-                {
-                    "role": "user",
-                    "content": ep.event.body
-                }
-            ]
-            response = await generate(config, messages)
 
-        # Mettre à jour l'historique de session
-        session_context.add_message("user", ep.event.body)
-        session_context.add_message("assistant", response)
-        await context_manager.update_context(
-            session_id,
-            ContextType.SESSION,
-            session_context.to_dict()
-        )
+            if chunks:
+                # Générer la réponse avec contexte
+                response = await rag_action.generate_response(
+                    query=ep.event.body,
+                    chunks=chunks,
+                    session_context=session_context
+                )
+            else:
+                # Fallback en mode norag
+                messages = [
+                    {
+                        "role": "system",
+                        "content": "Vous êtes Colaig, l'assistant de l'État français."
+                    },
+                    {
+                        "role": "user",
+                        "content": ep.event.body
+                    }
+                ]
+                response = await generate(config, messages)
+        except Exception as generate_err:
+            logger.error(f"Erreur lors de la génération de la réponse: {str(generate_err)}")
+            # Réponse de secours en cas d'échec
+            response = "Je suis désolé, je ne peux pas traiter votre demande pour le moment. Le service est temporairement indisponible ou surchargé. Veuillez réessayer ultérieurement."
+
+        try:
+            # Mettre à jour l'historique de session avant l'envoi
+            session_context.add_message("user", ep.event.body)
+            session_context.add_message("assistant", response)
+            await context_manager.update_context(
+                session_id,
+                ContextType.SESSION,
+                session_context.to_dict()
+            )
+        except Exception as update_err:
+            logger.warning(f"Erreur lors de la mise à jour du contexte de session finale: {str(update_err)}")
+            # Non critique pour l'envoi de la réponse
+
+        try:
+            # Supprimer le message de chargement
+            if typing_message:
+                await matrix_client.redact_message(
+                    ep.room.room_id,
+                    typing_message
+                )
+        except Exception as redact_err:
+            logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+            # Non critique, continuer malgré l'erreur
 
         # Envoyer la réponse
         reply_to = ep.event.event_id if is_reply_to else None
@@ -736,20 +831,25 @@ async def process_request(ep: EventParser, matrix_client: MatrixClient):
             reply_to=reply_to
         )
 
-        # Mise à jour de l'activité de session
-        session_context.last_activity = datetime.now()
-        await context_manager.update_context(
-            session_id,
-            ContextType.SESSION,
-            session_context.to_dict(),
-            immediate_save=True
-        )
+        try:
+            # Mise à jour finale de l'activité de session
+            session_context.last_activity = datetime.now()
+            await context_manager.update_context(
+                session_id,
+                ContextType.SESSION,
+                session_context.to_dict(),
+                immediate_save=True
+            )
+        except Exception as final_update_err:
+            logger.warning(f"Erreur lors de la mise à jour finale de l'activité de session: {str(final_update_err)}")
+            # Non critique
         
     except Exception as e:
         logger.error(f"Erreur traitement requête: {str(e)}")
+        # Message d'erreur en cas d'échec complet
         await matrix_client.send_markdown_message(
             ep.room.room_id,
-            AlbertMsg.failed,
+            "Je suis désolé, une erreur est survenue lors du traitement de votre demande. Veuillez réessayer ou contacter l'administrateur si le problème persiste.",
             msgtype="m.notice"
         )
 
@@ -760,133 +860,300 @@ async def process_request(ep: EventParser, matrix_client: MatrixClient):
     help="Interroge Albert en utilisant la documentation comme contexte",
 )
 @only_allowed_user
-async def doc_query_command(ep: EventParser, matrix_client: MatrixClient):
-    """Gère la commande !docquery"""
-    try:
-        # Extraire la requête du message
-        query = ep.event.body.split("!docquery", 1)[1].strip()
-        if not query:
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                "❌ Veuillez spécifier une requête après !docquery",
-                msgtype="m.notice"
-            )
-            return
-
-        # Utiliser la configuration de l'utilisateur
-        config = user_configs[ep.sender]
-        webdav_service = WebDAVService(config)
-        await webdav_service.initialize()
-
-        index_service = IndexService(
-            config=config,
-            webdav_service=webdav_service
-        )
-
-        try:
-            # Initialiser uniquement l'index documentaire
-            await index_service.initialize(
-                init_document_index=True,
-                init_behavior_manager=False
-            )
-        except Exception as e:
-            if "Index obsolète" in str(e) or "Dimension de l'index incompatible" in str(e):
-                await matrix_client.send_markdown_message(
-                    ep.room.room_id,
-                    "❌ L'index est corrompu ou obsolète. Veuillez utiliser la commande `!index rebuild` pour le reconstruire.",
-                    msgtype="m.notice"
-                )
-            else:
-                await matrix_client.send_markdown_message(
-                    ep.room.room_id,
-                    f"❌ Erreur lors de l'initialisation de l'index: {str(e)}",
-                    msgtype="m.notice"
-                )
-            return
-
-        # Effectuer la recherche en mode précis
-        chunks = await index_service.search(
-            query=query,
-            index_type="document",
-            limit=5,
-            search_mode="precise"  # Utiliser le mode précis
-        )
-
-        if not chunks:
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                "❌ Aucun document pertinent trouvé pour votre requête.",
-                msgtype="m.notice"
-            )
-            return
-
-        # Préparer le prompt pour la génération
-        prompt = f"""En tant qu'assistant, répondez à la question suivante en vous basant uniquement sur les documents fournis.
-Question: {query}
-
-Documents pertinents:
-{chr(10).join(chunk.get('content', '') for chunk in chunks)}
-
-Réponse:"""
-
-        # Générer la réponse avec le client Albert
-        albert_client = AlbertApiClient(
-            base_url=config.albert_api_url,
-            api_key=config.albert_api_token
-        )
-
-        messages = [
-            {
-                "role": "system",
-                "content": "Vous êtes un assistant expert qui répond aux questions en se basant uniquement sur les documents fournis. Répondez de manière directe et concise."
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-
-        response = await albert_client.generate(
-            model=config.albert_model,
-            messages=messages
-        )
-
-        # Formater la réponse
-        formatted_response = f"🤖 {response.strip()}"
-
-        # Ajouter les sources si configuré
-        if config.colaig_show_sources:
-            sources = []
-            for chunk in chunks:
-                metadata = chunk.get("metadata", {})
-                source_parts = [f"📄 {metadata.get('document_name', 'Document inconnu')}"]
-                if metadata.get("section_title"):
-                    source_parts.append(f"   Section: {metadata['section_title']}")
-                sources.append(chr(10).join(source_parts))
-            
-            if sources:
-                formatted_response += "\n\n💡 Sources :\n" + chr(10).join(sources)
-
-        # Envoyer la réponse
-        await matrix_client.send_markdown_message(
-            ep.room.room_id,
-            formatted_response,
-            msgtype="m.text"
-        )
-
-    except Exception as e:
-        logger.error(f"Erreur lors de l'exécution de docquery: {str(e)}")
-        await matrix_client.send_markdown_message(
-            ep.room.room_id,
-            f"❌ Une erreur est survenue lors de la recherche: {str(e)}",
-            msgtype="m.notice"
-        )
-    finally:
-        # Fermer proprement les services
-        if 'webdav_service' in locals():
-            await webdav_service.close()
-        if 'index_service' in locals():
-            await index_service.__aexit__(None, None, None)
+# COMMENTÉ: Cette fonction a été migrée vers un module dédié
+# async def doc_query_command(ep: EventParser, matrix_client: MatrixClient):
+#     """Gère la commande !docquery"""
+#     try:
+#         # Extraire la requête du message
+#         query = ep.event.body.split("!docquery", 1)[1].strip()
+#         if not query:
+#             await matrix_client.send_markdown_message(
+#                 ep.room.room_id,
+#                 "❌ Veuillez spécifier une requête après !docquery",
+#                 msgtype="m.notice"
+#             )
+#             return
+# 
+#         # Informer l'utilisateur que la requête est en cours de traitement
+#         loading_message = await matrix_client.send_markdown_message(
+#             ep.room.room_id,
+#             "🔄 Traitement de votre requête en cours...",
+#             msgtype="m.notice"
+#         )
+# 
+#         # Utiliser la configuration de l'utilisateur
+#         config = user_configs[ep.sender]
+#         
+#         # Récupérer le gestionnaire de contexte
+#         context_manager = get_context_manager(config)
+#         
+#         # Récupérer ou créer le contexte de session
+#         session_id = f"{ep.room.room_id}_{ep.sender}_{config.session_id}"
+#         session_context = await context_manager.get_context(session_id, ContextType.SESSION)
+#         
+#         if not session_context:
+#             # Créer un nouveau contexte de session
+#             session_context = await context_manager.create_context(
+#                 session_id,
+#                 ContextType.SESSION,
+#                 {
+#                     "session_id": config.session_id,
+#                     "room_id": ep.room.room_id,
+#                     "user_id": ep.sender,
+#                     "history": [],
+#                     "conversation_state": {
+#                         "last_command": "docquery",
+#                         "current_query": query
+#                     }
+#                 }
+#             )
+#         else:
+#             # Mettre à jour l'état de la conversation
+#             session_context.conversation_state.update({
+#                 "last_command": "docquery",
+#                 "current_query": query
+#             })
+# 
+#         # Récupérer ou créer le contexte de salon
+#         room_context = await context_manager.get_or_create_room_context(
+#             ep.room.room_id,
+#             ep.room.name,
+#             is_direct=True  # Supposer un salon direct, ajuster selon la logique
+#         )
+#         
+#         # Mettre à jour l'activité du participant
+#         await context_manager.update_room_activity(ep.room.room_id, ep.sender)
+#         
+#         # Initialiser les services
+#         try:
+#             # Utiliser un contexte async pour garantir le nettoyage
+#             async with IndexService(config=config) as index_service:
+#                 try:
+#                     # Initialiser uniquement l'index documentaire
+#                     await index_service.initialize(
+#                         init_document_index=True,
+#                         init_behavior_manager=False
+#                     )
+#                     
+#                     # Effectuer la recherche en mode précis
+#                     chunks = await index_service.search(
+#                         query=query,
+#                         index_type="document",
+#                         limit=5,
+#                         search_mode="precise"
+#                     )
+# 
+#                     if not chunks:
+#                         # Aucun document trouvé, essayer avec une recherche moins précise
+#                         logger.info("Aucun document trouvé en mode précis, essai en mode rapide")
+#                         chunks = await index_service.search(
+#                             query=query,
+#                             index_type="document",
+#                             limit=5,
+#                             search_mode="fast"
+#                         )
+#                         
+#                     if not chunks:
+#                         # Supprimer le message de chargement
+#                         try:
+#                             await matrix_client.redact_message(
+#                                 ep.room.room_id,
+#                                 loading_message
+#                             )
+#                         except Exception as redact_err:
+#                             logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                             
+#                         # Enregistrer la requête sans résultat dans l'historique
+#                         session_context.add_message("user", f"!docquery {query}")
+#                         session_context.add_message("assistant", "Aucun document pertinent trouvé.")
+#                         await context_manager.update_context(
+#                             session_id,
+#                             ContextType.SESSION,
+#                             session_context.to_dict(),
+#                             immediate_save=True
+#                         )
+#                         
+#                         await matrix_client.send_markdown_message(
+#                             ep.room.room_id,
+#                             "❌ Aucun document pertinent trouvé pour votre requête. Essayez de reformuler ou utilisez des mots-clés différents.",
+#                             msgtype="m.notice"
+#                         )
+#                         return
+# 
+#                     # Préparer le prompt pour la génération
+#                     # Vérifier s'il y a un historique de conversation à inclure
+#                     conversation_history = []
+#                     if session_context.history and len(session_context.history) > 0:
+#                         # Extraire les derniers messages (jusqu'à 5 échanges) pour le contexte
+#                         recent_history = session_context.history[-10:]  # 5 échanges = 10 messages max
+#                         for msg in recent_history:
+#                             if msg["role"] == "user":
+#                                 conversation_history.append(f"Question précédente: {msg['content']}")
+#                             elif msg["role"] == "assistant":
+#                                 conversation_history.append(f"Réponse précédente: {msg['content']}")
+#                     
+#                     history_text = "\n".join(conversation_history) if conversation_history else ""
+#                     
+#                     # Ajouter l'historique de conversation au prompt si disponible
+#                     prompt = f"""En tant qu'assistant, répondez à la question suivante en vous basant uniquement sur les documents fournis.
+# {"Historique de la conversation:" + chr(10) + history_text if history_text else ""}
+# Question actuelle: {query}
+# 
+# Documents pertinents:
+# """
+#                     # Ajouter les chunks de manière sécurisée
+#                     for chunk in chunks:
+#                         prompt += chunk.get('content', '') + chr(10)
+#                     
+#                     prompt += "\nRéponse:"
+#                     
+#                     # Générer la réponse avec le client Albert
+#                     response_text = ""
+#                     try:
+#                         albert_client = AlbertApiClient(
+#                             base_url=config.albert_api_url,
+#                             api_key=config.albert_api_token
+#                         )
+# 
+#                         messages = [
+#                             {
+#                                 "role": "system",
+#                                 "content": "Vous êtes un assistant expert qui répond aux questions en se basant uniquement sur les documents fournis. Répondez de manière directe et concise. Si la question fait référence à des questions précédentes, prenez en compte ce contexte."
+#                             }
+#                         ]
+#                         
+#                         # Ajouter les messages de l'historique récent au format ChatML
+#                         if conversation_history:
+#                             for i, msg in enumerate(recent_history):
+#                                 role = msg["role"]
+#                                 if role in ["user", "assistant"]:
+#                                     messages.append({
+#                                         "role": role,
+#                                         "content": msg["content"]
+#                                     })
+#                         
+#                         # Ajouter la requête actuelle
+#                         messages.append({
+#                             "role": "user",
+#                             "content": prompt
+#                         })
+# 
+#                         response = await albert_client.generate(
+#                             model=config.albert_model,
+#                             messages=messages
+#                         )
+# 
+#                         # Formater la réponse
+#                         response_text = f"🤖 {response.strip()}"
+#                     except Exception as albert_err:
+#                         logger.error(f"Erreur API Albert: {str(albert_err)}")
+#                         
+#                         # Essayer avec l'API standard generate
+#                         try:
+#                             logger.info("Tentative avec l'API standard generate")
+#                             response = await generate(config, messages)
+#                             response_text = f"🤖 {response.strip()}"
+#                         except Exception as gen_err:
+#                             logger.error(f"Erreur avec generate: {str(gen_err)}")
+#                             # Réponse de secours en cas d'échec total de génération
+#                             response_text = "❌ Je n'ai pas pu générer une réponse avec l'API. Voici les documents pertinents trouvés:\n\n"
+#                             for i, chunk in enumerate(chunks[:3], 1):
+#                                 response_text += f"**Document {i}:**\n{chunk.get('content', '').strip()[:500]}...\n\n"
+# 
+#                     # Ajouter les sources si configuré
+#                     try:
+#                         if config.colaig_show_sources:
+#                             sources = []
+#                             for chunk in chunks:
+#                                 metadata = chunk.get("metadata", {})
+#                                 source_parts = [f"📄 {metadata.get('document_name', 'Document inconnu')}"]
+#                                 if metadata.get("section_title"):
+#                                     source_parts.append(f"   Section: {metadata['section_title']}")
+#                                 sources.append("\n".join(source_parts))
+#                             
+#                             if sources:
+#                                 response_text += "\n\n💡 Sources :\n" + "\n".join(sources)
+#                     except Exception as sources_err:
+#                         logger.warning(f"Erreur lors de l'ajout des sources: {str(sources_err)}")
+#                         # Non critique, continuer sans les sources
+#                     
+#                     # Supprimer le message de chargement
+#                     try:
+#                         await matrix_client.redact_message(
+#                             ep.room.room_id,
+#                             loading_message
+#                         )
+#                     except Exception as redact_err:
+#                         logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+# 
+#                     # Enregistrer l'échange dans le contexte de session
+#                     session_context.add_message("user", f"!docquery {query}")
+#                     session_context.add_message("assistant", response_text)
+#                     
+#                     # Mettre à jour le contexte de session
+#                     await context_manager.update_context(
+#                         session_id,
+#                         ContextType.SESSION,
+#                         session_context.to_dict()
+#                     )
+# 
+#                     # Envoyer la réponse
+#                     await matrix_client.send_markdown_message(
+#                         ep.room.room_id,
+#                         response_text,
+#                         msgtype="m.text"
+#                     )
+# 
+#                 except Exception as search_err:
+#                     logger.error(f"Erreur lors de la recherche: {str(search_err)}")
+#                     error_msg = str(search_err)
+#                     
+#                     # Supprimer le message de chargement
+#                     try:
+#                         await matrix_client.redact_message(
+#                             ep.room.room_id,
+#                             loading_message
+#                         )
+#                     except Exception as redact_err:
+#                         logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                         
+#                     if "Index obsolète" in error_msg or "Dimension de l'index incompatible" in error_msg:
+#                         await matrix_client.send_markdown_message(
+#                             ep.room.room_id,
+#                             "❌ L'index est corrompu ou obsolète. Veuillez utiliser la commande `!index rebuild` pour le reconstruire.",
+#                             msgtype="m.notice"
+#                         )
+#                     else:
+#                         await matrix_client.send_markdown_message(
+#                             ep.room.room_id,
+#                             f"❌ Une erreur est survenue lors de la recherche: {error_msg}",
+#                             msgtype="m.notice"
+#                         )
+#         except Exception as init_err:
+#             logger.error(f"Erreur lors de l'initialisation des services: {str(init_err)}")
+#             
+#             # Supprimer le message de chargement
+#             try:
+#                 await matrix_client.redact_message(
+#                     ep.room.room_id,
+#                     loading_message
+#                 )
+#             except Exception as redact_err:
+#                 logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                 
+#             await matrix_client.send_markdown_message(
+#                 ep.room.room_id,
+#                 f"❌ Erreur lors de l'initialisation des services nécessaires: {str(init_err)}",
+#                 msgtype="m.notice"
+#             )
+#             
+#     except Exception as e:
+#         logger.error(f"Erreur lors de l'exécution de docquery: {str(e)}")
+#         await matrix_client.send_markdown_message(
+#             ep.room.room_id,
+#             f"❌ Une erreur est survenue lors du traitement de votre requête: {str(e)}",
+#             msgtype="m.notice"
+#         )
 
 @register_feature(
     group="albert",
@@ -895,100 +1162,470 @@ Réponse:"""
     help="Gestion de l'index FAISS (status/verify/rebuild/clean)",
 )
 @only_allowed_user
-async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
-    """Commande pour gérer l'index FAISS"""
-    # Récupérer l'action demandée
-    command = ep.get_command()
-    action = command[1] if len(command) > 1 else "status"
-    
-    if action not in ["status", "verify", "rebuild", "clean"]:
-        await matrix_client.send_markdown_message(
-            ep.room.room_id,
-            "❌ Action invalide. Actions disponibles: status, verify, rebuild, clean",
-            msgtype="m.notice"
-        )
-        return
-    
-    try:
-        # Utiliser la configuration de l'utilisateur
-        config = user_configs[ep.sender]
-        webdav_service = WebDAVService(config)
-        await webdav_service.initialize()
-
-        # Initialiser le service d'indexation avec l'index documentaire
-        index_service = IndexService(
-            config=config,
-            webdav_service=webdav_service
-        )
-        await index_service.initialize(init_document_index=True, init_behavior_manager=False)
-        
-        if action == "rebuild":
-            # Message initial
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                "🔄 Reconstruction de l'index...",
-                msgtype="m.notice"
-            )
-            
-            # Reconstruire l'index
-            await index_service.rebuild()
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                "✅ Index reconstruit avec succès.",
-                msgtype="m.notice"
-            )
-            return
-            
-        elif action == "verify":
-            is_fresh = await index_service.verify()
-            status = "✅ à jour" if is_fresh else "⚠️ mise à jour nécessaire"
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                f"État de l'index: {status}",
-                msgtype="m.notice"
-            )
-            return
-            
-        elif action == "clean":
-            await index_service.clean()
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                "✅ Index nettoyé avec succès.",
-                msgtype="m.notice"
-            )
-            return
-            
-        else:  # status
-            status = await index_service.get_status()
-            status_text = (
-                f"📊 État de l'index:\n"
-                f"- Documents: {status['total_documents']}\n"
-                f"- Chunks: {status['total_chunks']}\n"
-                f"- Dimension: {status['embedding_dimension']}\n"
-                f"- Modèle: {status['embedding_model']}\n"
-                f"- Cache: {status['embedding_cache']['size']}/{status['embedding_cache']['max_size']}\n"
-                f"- Fraîcheur: {'✅ à jour' if status['is_fresh'] else '⚠️ mise à jour nécessaire'}\n"
-                f"- Dernière mise à jour: {status['last_update']}"
-            )
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                status_text,
-                msgtype="m.notice"
-            )
-            
-    except Exception as e:
-        logger.error(f"Erreur lors de l'exécution de la commande index: {str(e)}")
-        await matrix_client.send_markdown_message(
-            ep.room.room_id,
-            f"❌ Une erreur est survenue lors de l'opération: {str(e)}. "
-            "Veuillez réessayer plus tard ou contacter un administrateur.",
-            msgtype="m.notice"
-        )
-    finally:
-        if 'webdav_service' in locals():
-            await webdav_service.close()
-        if 'index_service' in locals():
-            await index_service.__aexit__(None, None, None)
+# COMMENTÉ: Cette fonction a été migrée vers un module dédié
+# async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
+#     """Commande pour gérer l'index FAISS"""
+#     # Récupérer l'action demandée
+#     command = ep.get_command()
+#     action = command[1] if len(command) > 1 else "status"
+#     
+#     if action not in ["status", "verify", "rebuild", "clean"]:
+#         await matrix_client.send_markdown_message(
+#             ep.room.room_id,
+#             "❌ Action invalide. Actions disponibles: status, verify, rebuild, clean",
+#             msgtype="m.notice"
+#         )
+#         return
+#     
+#     try:
+#         # Informer l'utilisateur que l'action est en cours
+#         loading_message = await matrix_client.send_markdown_message(
+#             ep.room.room_id,
+#             f"🔄 Action '{action}' en cours...",
+#             msgtype="m.notice"
+#         )
+#         
+#         # Utiliser la configuration de l'utilisateur
+#         config = user_configs[ep.sender]
+#         
+#         # Récupérer le gestionnaire de contexte
+#         context_manager = get_context_manager(config)
+#         
+#         # Récupérer ou créer le contexte de session
+#         session_id = f"{ep.room.room_id}_{ep.sender}_{config.session_id}"
+#         session_context = await context_manager.get_context(session_id, ContextType.SESSION)
+#         
+#         if not session_context:
+#             # Créer un nouveau contexte de session
+#             session_context = await context_manager.create_context(
+#                 session_id,
+#                 ContextType.SESSION,
+#                 {
+#                     "session_id": config.session_id,
+#                     "room_id": ep.room.room_id,
+#                     "user_id": ep.sender,
+#                     "history": [],
+#                     "conversation_state": {
+#                         "last_command": "index",
+#                         "current_action": action
+#                     }
+#                 }
+#             )
+#         else:
+#             # Mettre à jour l'état de la conversation
+#             session_context.conversation_state.update({
+#                 "last_command": "index",
+#                 "current_action": action
+#             })
+#             await context_manager.update_context(
+#                 session_id,
+#                 ContextType.SESSION,
+#                 session_context.to_dict()
+#             )
+#             
+#         # Mettre à jour l'activité du participant
+#         await context_manager.update_room_activity(ep.room.room_id, ep.sender)
+#         
+#         # Initialiser le service d'indexation
+#         try:
+#             async with IndexService(config=config) as index_service:
+#                 try:
+#                     # Initialiser uniquement l'index documentaire
+#                     await index_service.initialize(
+#                         init_document_index=True,
+#                         init_behavior_manager=False
+#                     )
+#                     
+#                     if action == "status":
+#                         try:
+#                             # Obtenir le statut de l'index
+#                             status = await index_service.get_status()
+#                             
+#                             # Formater le message de statut
+#                             status_msg = [
+#                                 "📊 **Statut de l'index**",
+#                                 f"- Documents indexés: {status.get('total_documents', 0)}",
+#                                 f"- Chunks total: {status.get('total_chunks', 0)}",
+#                                 f"- Dimension des embeddings: {status.get('embedding_dimension', 'N/A')}",
+#                                 f"- Modèle d'embedding: {status.get('embedding_model', 'N/A')}",
+#                             ]
+#                             
+#                             # Ajouter les infos de cache si disponibles
+#                             if 'embedding_cache' in status:
+#                                 cache_info = status['embedding_cache']
+#                                 status_msg.append(f"- Cache des embeddings: {cache_info.get('size', 0)}/{cache_info.get('max_size', 'N/A')}")
+#                             
+#                             # Ajouter l'information de fraîcheur
+#                             is_fresh = status.get('is_fresh', False)
+#                             status_msg.append(f"- Index à jour: {'✅' if is_fresh else '❌'}")
+#                             
+#                             # Ajouter la date de dernière mise à jour si disponible
+#                             if status.get('last_update'):
+#                                 status_msg.append(f"- Dernière mise à jour: {status['last_update'].strftime('%Y-%m-%d %H:%M:%S')}")
+#                             
+#                             # Supprimer le message de chargement
+#                             try:
+#                                 await matrix_client.redact_message(
+#                                     ep.room.room_id,
+#                                     loading_message
+#                                 )
+#                             except Exception as redact_err:
+#                                 logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                             
+#                             response = "\n".join(status_msg)
+#                             
+#                             # Enregistrer dans l'historique de session
+#                             session_context.add_message("user", f"!index {action}")
+#                             session_context.add_message("assistant", response)
+#                             await context_manager.update_context(
+#                                 session_id,
+#                                 ContextType.SESSION,
+#                                 session_context.to_dict()
+#                             )
+#                                 
+#                             await matrix_client.send_markdown_message(
+#                                 ep.room.room_id,
+#                                 response,
+#                                 msgtype="m.notice"
+#                             )
+#                         except Exception as status_err:
+#                             logger.error(f"Erreur lors de la récupération du statut: {str(status_err)}")
+#                             
+#                             # Supprimer le message de chargement
+#                             try:
+#                                 await matrix_client.redact_message(
+#                                     ep.room.room_id,
+#                                     loading_message
+#                                 )
+#                             except Exception as redact_err:
+#                                 logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                                 
+#                             # Tenter de récupérer des informations minimales
+#                             minimal_status = "⚠️ **Statut partiel de l'index**\n\n"
+#                             try:
+#                                 if hasattr(index_service, 'document_index') and index_service.document_index:
+#                                     if hasattr(index_service.document_index, 'faiss_index') and index_service.document_index.faiss_index:
+#                                         minimal_status += f"- Documents indexés: {len(index_service.document_index.document_map) if hasattr(index_service.document_index, 'document_map') else 'N/A'}\n"
+#                                         minimal_status += f"- Index existant: {'✅' if index_service.document_index.faiss_index.index else '❌'}\n"
+#                                 minimal_status += "\n⚠️ Certaines informations n'ont pas pu être récupérées."
+#                                 
+#                                 # Enregistrer dans l'historique de session
+#                                 session_context.add_message("user", f"!index {action}")
+#                                 session_context.add_message("assistant", minimal_status)
+#                                 await context_manager.update_context(
+#                                     session_id,
+#                                     ContextType.SESSION,
+#                                     session_context.to_dict()
+#                                 )
+#                                 
+#                                 await matrix_client.send_markdown_message(
+#                                     ep.room.room_id,
+#                                     minimal_status,
+#                                     msgtype="m.notice"
+#                                 )
+#                             except Exception:
+#                                 await matrix_client.send_markdown_message(
+#                                     ep.room.room_id,
+#                                     f"❌ Impossible de récupérer le statut de l'index: {str(status_err)}",
+#                                     msgtype="m.notice"
+#                                 )
+#                         
+#                     elif action == "verify":
+#                         try:
+#                             # Vérifier la fraîcheur de l'index
+#                             is_fresh = await index_service.verify()
+#                             
+#                             # Supprimer le message de chargement
+#                             try:
+#                                 await matrix_client.redact_message(
+#                                     ep.room.room_id,
+#                                     loading_message
+#                                 )
+#                             except Exception as redact_err:
+#                                 logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                             
+#                             if is_fresh:
+#                                 response = "✅ L'index est à jour!"
+#                             else:
+#                                 response = "⚠️ L'index n'est pas à jour. Utilisez `!index rebuild` pour le reconstruire."
+#                                 
+#                             # Enregistrer dans l'historique de session
+#                             session_context.add_message("user", f"!index {action}")
+#                             session_context.add_message("assistant", response)
+#                             await context_manager.update_context(
+#                                 session_id, 
+#                                 ContextType.SESSION,
+#                                 session_context.to_dict()
+#                             )
+#                                 
+#                             await matrix_client.send_markdown_message(
+#                                 ep.room.room_id,
+#                                 response,
+#                                 msgtype="m.notice"
+#                             )
+#                         except Exception as verify_err:
+#                             logger.error(f"Erreur lors de la vérification: {str(verify_err)}")
+#                             
+#                             # Supprimer le message de chargement
+#                             try:
+#                                 await matrix_client.redact_message(
+#                                     ep.room.room_id,
+#                                     loading_message
+#                                 )
+#                             except Exception as redact_err:
+#                                 logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                                 
+#                             await matrix_client.send_markdown_message(
+#                                 ep.room.room_id,
+#                                 f"❌ Erreur lors de la vérification de l'index: {str(verify_err)}",
+#                                 msgtype="m.notice"
+#                             )
+#                             
+#                     elif action == "rebuild":
+#                         try:
+#                             # Mettre à jour le message de chargement
+#                             try:
+#                                 await matrix_client.redact_message(
+#                                     ep.room.room_id,
+#                                     loading_message
+#                                 )
+#                                 
+#                                 loading_message = await matrix_client.send_markdown_message(
+#                                     ep.room.room_id,
+#                                     "🔄 Début de la reconstruction de l'index...\nCette opération peut prendre plusieurs minutes.",
+#                                     msgtype="m.notice"
+#                                 )
+#                             except Exception as update_msg_err:
+#                                 logger.warning(f"Erreur lors de la mise à jour du message de chargement: {str(update_msg_err)}")
+#                                 # Non critique, continuer
+#                             
+#                             # Vérifier d'abord l'existence du répertoire documents
+#                             try:
+#                                 await index_service.webdav_service.create_directory("documents")
+#                             except Exception as mkdir_err:
+#                                 logger.warning(f"Erreur lors de la vérification/création du répertoire documents: {str(mkdir_err)}")
+#                                 # Non critique, le répertoire existe peut-être déjà
+#                             
+#                             # Reconstruire l'index
+#                             try:
+#                                 await index_service.rebuild()
+#                                 
+#                                 # Supprimer le message de chargement
+#                                 try:
+#                                     await matrix_client.redact_message(
+#                                         ep.room.room_id,
+#                                         loading_message
+#                                     )
+#                                 except Exception as redact_err:
+#                                     logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                                     
+#                                 response = "✅ Index reconstruit avec succès!"
+#                                 
+#                                 # Enregistrer dans l'historique de session
+#                                 session_context.add_message("user", f"!index {action}")
+#                                 session_context.add_message("assistant", response)
+#                                 await context_manager.update_context(
+#                                     session_id,
+#                                     ContextType.SESSION,
+#                                     session_context.to_dict()
+#                                 )
+#                                 
+#                                 await matrix_client.send_markdown_message(
+#                                     ep.room.room_id,
+#                                     response,
+#                                     msgtype="m.notice"
+#                                 )
+#                             except Exception as rebuild_err:
+#                                 logger.error(f"Erreur lors de la reconstruction: {str(rebuild_err)}")
+#                                 
+#                                 # Supprimer le message de chargement
+#                                 try:
+#                                     await matrix_client.redact_message(
+#                                         ep.room.room_id,
+#                                         loading_message
+#                                     )
+#                                 except Exception as redact_err:
+#                                     logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                                 
+#                                 error_msg = f"❌ Erreur lors de la reconstruction de l'index: {str(rebuild_err)}"
+#                                 
+#                                 # Enregistrer dans l'historique de session
+#                                 session_context.add_message("user", f"!index {action}")
+#                                 session_context.add_message("assistant", error_msg)
+#                                 await context_manager.update_context(
+#                                     session_id,
+#                                     ContextType.SESSION,
+#                                     session_context.to_dict()
+#                                 )
+#                                 
+#                                 await matrix_client.send_markdown_message(
+#                                     ep.room.room_id,
+#                                     error_msg,
+#                                     msgtype="m.notice"
+#                                 )
+#                         except Exception as rebuild_err:
+#                             logger.error(f"Erreur lors de la reconstruction: {str(rebuild_err)}")
+#                             
+#                             # Supprimer le message de chargement
+#                             try:
+#                                 await matrix_client.redact_message(
+#                                     ep.room.room_id,
+#                                     loading_message
+#                                 )
+#                             except Exception as redact_err:
+#                                 logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                                 
+#                             error_msg = f"❌ Erreur lors de la reconstruction de l'index: {str(rebuild_err)}"
+#                             
+#                             # Enregistrer dans l'historique de session
+#                             session_context.add_message("user", f"!index {action}")
+#                             session_context.add_message("assistant", error_msg)
+#                             await context_manager.update_context(
+#                                 session_id,
+#                                 ContextType.SESSION,
+#                                 session_context.to_dict()
+#                             )
+#                             
+#                             await matrix_client.send_markdown_message(
+#                                 ep.room.room_id,
+#                                 error_msg,
+#                                 msgtype="m.notice"
+#                             )
+#                             
+#                     elif action == "clean":
+#                         try:
+#                             # Nettoyer l'index
+#                             await index_service.clean()
+#                             
+#                             # Supprimer le message de chargement
+#                             try:
+#                                 await matrix_client.redact_message(
+#                                     ep.room.room_id,
+#                                     loading_message
+#                                 )
+#                             except Exception as redact_err:
+#                                 logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                                 
+#                             response = "✅ Index et cache nettoyés avec succès!"
+#                             
+#                             # Enregistrer dans l'historique de session
+#                             session_context.add_message("user", f"!index {action}")
+#                             session_context.add_message("assistant", response)
+#                             await context_manager.update_context(
+#                                 session_id,
+#                                 ContextType.SESSION,
+#                                 session_context.to_dict()
+#                             )
+#                             
+#                             await matrix_client.send_markdown_message(
+#                                 ep.room.room_id,
+#                                 response,
+#                                 msgtype="m.notice"
+#                             )
+#                         except Exception as clean_err:
+#                             logger.error(f"Erreur lors du nettoyage: {str(clean_err)}")
+#                             
+#                             # Supprimer le message de chargement
+#                             try:
+#                                 await matrix_client.redact_message(
+#                                     ep.room.room_id,
+#                                     loading_message
+#                                 )
+#                             except Exception as redact_err:
+#                                 logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                                 
+#                             error_msg = f"❌ Erreur lors du nettoyage de l'index: {str(clean_err)}"
+#                             
+#                             # Enregistrer dans l'historique de session
+#                             session_context.add_message("user", f"!index {action}")
+#                             session_context.add_message("assistant", error_msg)
+#                             await context_manager.update_context(
+#                                 session_id,
+#                                 ContextType.SESSION,
+#                                 session_context.to_dict()
+#                             )
+#                             
+#                             await matrix_client.send_markdown_message(
+#                                 ep.room.room_id,
+#                                 error_msg,
+#                                 msgtype="m.notice"
+#                             )
+#                 except Exception as index_err:
+#                     logger.error(f"Erreur lors de l'utilisation du service d'index: {str(index_err)}")
+#                     
+#                     # Supprimer le message de chargement
+#                     try:
+#                         await matrix_client.redact_message(
+#                             ep.room.room_id,
+#                             loading_message
+#                         )
+#                     except Exception as redact_err:
+#                         logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                         
+#                     error_msg = f"❌ Une erreur est survenue lors de l'utilisation du service d'index: {str(index_err)}"
+#                     
+#                     # Enregistrer dans l'historique de session
+#                     session_context.add_message("user", f"!index {action}")
+#                     session_context.add_message("assistant", error_msg)
+#                     await context_manager.update_context(
+#                         session_id,
+#                         ContextType.SESSION,
+#                         session_context.to_dict()
+#                     )
+#                     
+#                     await matrix_client.send_markdown_message(
+#                         ep.room.room_id,
+#                         error_msg,
+#                         msgtype="m.notice"
+#                     )
+#         except Exception as init_err:
+#             logger.error(f"Erreur lors de l'initialisation des services: {str(init_err)}")
+#             
+#             # Supprimer le message de chargement
+#             try:
+#                 await matrix_client.redact_message(
+#                     ep.room.room_id,
+#                     loading_message
+#                 )
+#             except Exception as redact_err:
+#                 logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                 
+#             error_msg = f"❌ Erreur lors de l'initialisation des services nécessaires: {str(init_err)}"
+#             
+#             # Enregistrer dans l'historique de session
+#             if session_context:
+#                 session_context.add_message("user", f"!index {action}")
+#                 session_context.add_message("assistant", error_msg)
+#                 await context_manager.update_context(
+#                     session_id,
+#                     ContextType.SESSION,
+#                     session_context.to_dict()
+#                 )
+#                 
+#             await matrix_client.send_markdown_message(
+#                 ep.room.room_id,
+#                 error_msg,
+#                 msgtype="m.notice"
+#             )
+#             
+#     except Exception as e:
+#         logger.error(f"Erreur lors de l'exécution de la commande index: {str(e)}")
+#         
+#         # Tenter de supprimer le message de chargement si défini
+#         if 'loading_message' in locals():
+#             try:
+#                 await matrix_client.redact_message(
+#                     ep.room.room_id,
+#                     loading_message
+#                 )
+#             except Exception as redact_err:
+#                 logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                 
+#         await matrix_client.send_markdown_message(
+#             ep.room.room_id,
+#             f"❌ Une erreur inattendue est survenue: {str(e)}",
+#             msgtype="m.notice"
+#         )
 
 @register_feature(
     group="albert",
@@ -997,144 +1634,222 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
     help="Récupère et classe les pièces jointes d'un message référencé"
 )
 @only_allowed_user
-async def handle_attachments_command(ep: EventParser, matrix_client: MatrixClient):
-    """Commande pour récupérer et classer les pièces jointes d'un message"""
-    config = user_configs[ep.sender]
-    
-    try:
-        await matrix_client.room_typing(ep.room.room_id)
-        
-        # Vérifier si c'est une réponse à un message
-        if not isa_reply_to(ep.event):
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                "❌ Cette commande doit être utilisée en réponse à un message contenant une pièce jointe.",
-                msgtype="m.notice"
-            )
-            return
-            
-        # Récupérer le message d'origine
-        reply_to_id = ep.event.source["content"]["m.relates_to"]["m.in_reply_to"]["event_id"]
-        original_event = await matrix_client.room_get_event(ep.room.room_id, reply_to_id)
-        
-        if not original_event:
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                "❌ Impossible de récupérer le message d'origine.",
-                msgtype="m.notice"
-            )
-            return
-            
-        # Vérifier si le message est un fichier
-        if original_event.event.source["content"].get("msgtype") != "m.file":
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                "❌ Le message ne contient pas de pièce jointe.",
-                msgtype="m.notice"
-            )
-            return
-            
-        # Récupérer les informations du fichier
-        file_url = original_event.event.source["content"]["url"]
-        file_name = original_event.event.source["content"]["body"]
-        file_size = original_event.event.source["content"]["info"].get("size", 0)
-        file_mimetype = original_event.event.source["content"]["info"].get("mimetype", "application/octet-stream")
-        
-        # Vérifier le type MIME
-        if file_mimetype not in WebDAVService.SUPPORTED_MIME_TYPES:
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                f"❌ Type de fichier non supporté : {file_mimetype}\n"
-                "Types supportés : PDF, DOCX, TXT, JSON, MD",
-                msgtype="m.notice"
-            )
-            return
-        
-        # Message initial
-        await matrix_client.send_markdown_message(
-            ep.room.room_id,
-            f"📁 Analyse du fichier \"{file_name}\" ({file_size} octets)...",
-            msgtype="m.notice"
-        )
-        
-        # Télécharger le fichier
-        try:
-            response = await matrix_client.download(file_url)
-            file_content = response.body
-            
-            # Traiter la pièce jointe
-            from services.attachment_handler import AttachmentHandler
-            async with AttachmentHandler(config) as handler:
-                success, result, file = await handler.process_attachment(
-                    file_content=file_content,
-                    file_name=file_name,
-                    file_size=file_size
-                )
-                
-                if not success:
-                    await matrix_client.send_markdown_message(
-                        ep.room.room_id,
-                        "❌ Erreur lors de l'analyse du fichier.",
-                        msgtype="m.notice"
-                    )
-                    return
-                
-                # Formatage des catégories détectées
-                categories_text = "\n".join(
-                    f"- {cat} ({score:.0%})" 
-                    for cat, score in result.categories
-                )
-                
-                # Formatage des chemins alternatifs
-                alternatives_text = "\n".join(
-                    f"{i+1}. {path} ({score:.0%})" 
-                    for i, (path, score) in enumerate(result.alternative_paths)
-                )
-                
-                # Message avec les résultats
-                message = (
-                    f"📊 Catégories détectées :\n{categories_text}\n\n"
-                    f"📍 Emplacement proposé : {result.suggested_path}\n"
-                    f"   Confiance : {result.confidence:.0%}\n\n"
-                )
-                
-                if alternatives_text:
-                    message += f"✨ Autres suggestions :\n{alternatives_text}\n\n"
-                
-                message += (
-                    "Souhaitez-vous :\n"
-                    "1️⃣ Valider l'emplacement proposé\n"
-                    "2️⃣ Choisir une autre suggestion\n"
-                    "3️⃣ Spécifier un autre emplacement\n"
-                    "4️⃣ Annuler"
-                )
-                
-                await matrix_client.send_markdown_message(
-                    ep.room.room_id,
-                    message,
-                    msgtype="m.notice"
-                )
-                
-                # Sauvegarder le contexte pour la suite
-                config.last_classification_result = result
-                config.last_classified_file = file
-
-        except Exception as e:
-            logger.error(f"Erreur lors du traitement du fichier: {str(e)}")
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                f"❌ Erreur lors du traitement du fichier: {str(e)}",
-                msgtype="m.notice"
-            )
-            return
-
-    except Exception as e:
-        logger.error(f"Erreur lors du traitement des pièces jointes: {str(e)}")
-        await matrix_client.send_markdown_message(
-            ep.room.room_id,
-            "❌ Une erreur est survenue lors du traitement des pièces jointes.",
-            msgtype="m.notice"
-        )
+# COMMENTÉ: Cette fonction a été migrée vers un module dédié
+# async def handle_attachments_command(ep: EventParser, matrix_client: MatrixClient):
+#     """Gère la commande !pj"""
+#     try:
+#         # Vérifier si c'est une réponse à un message
+#         is_reply = isa_reply_to(ep.event)
+#         if not is_reply:
+#             await matrix_client.send_markdown_message(
+#                 ep.room.room_id,
+#                 "❌ Cette commande doit être utilisée en réponse à un message contenant des pièces jointes.",
+#                 msgtype="m.notice"
+#             )
+#             return
+# 
+#         # Informer l'utilisateur que le traitement commence
+#         loading_message = await matrix_client.send_markdown_message(
+#             ep.room.room_id,
+#             "🔄 Récupération du message et des pièces jointes...",
+#             msgtype="m.notice"
+#         )
+# 
+#         # Utiliser la configuration de l'utilisateur
+#         config = user_configs[ep.sender]
+#         
+#         # Récupérer le gestionnaire de contexte
+#         context_manager = get_context_manager(config)
+#         
+#         # Récupérer ou créer le contexte de session
+#         session_id = f"{ep.room.room_id}_{ep.sender}_{config.session_id}"
+#         session_context = await context_manager.get_context(session_id, ContextType.SESSION)
+#         
+#         if not session_context:
+#             # Créer un nouveau contexte de session
+#             session_context = await context_manager.create_context(
+#                 session_id,
+#                 ContextType.SESSION,
+#                 {
+#                     "session_id": config.session_id,
+#                     "room_id": ep.room.room_id,
+#                     "user_id": ep.sender,
+#                     "history": [],
+#                     "conversation_state": {
+#                         "last_command": "pj",
+#                         "reply_to": is_reply
+#                     }
+#                 }
+#             )
+#         else:
+#             # Mettre à jour l'état de la conversation
+#             session_context.conversation_state.update({
+#                 "last_command": "pj",
+#                 "reply_to": is_reply
+#             })
+#             await context_manager.update_context(
+#                 session_id,
+#                 ContextType.SESSION,
+#                 session_context.to_dict()
+#             )
+#             
+#         # Mettre à jour l'activité du participant
+#         await context_manager.update_room_activity(ep.room.room_id, ep.sender)
+# 
+#         # Récupérer le message d'origine
+#         try:
+#             original_event = await matrix_client.get_event(
+#                 ep.room.room_id,
+#                 is_reply
+#             )
+#         except Exception as get_event_err:
+#             logger.error(f"Erreur lors de la récupération du message original: {str(get_event_err)}")
+#             
+#             # Supprimer le message de chargement
+#             try:
+#                 await matrix_client.redact_message(
+#                     ep.room.room_id,
+#                     loading_message
+#                 )
+#             except Exception as redact_err:
+#                 logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                 
+#             error_msg = "❌ Impossible de récupérer le message original. Veuillez vérifier que le message existe toujours et réessayer."
+#             
+#             # Enregistrer dans l'historique de session
+#             session_context.add_message("user", "!pj")
+#             session_context.add_message("assistant", error_msg)
+#             await context_manager.update_context(
+#                 session_id,
+#                 ContextType.SESSION,
+#                 session_context.to_dict()
+#             )
+#             
+#             await matrix_client.send_markdown_message(
+#                 ep.room.room_id,
+#                 error_msg,
+#                 msgtype="m.notice"
+#             )
+#             return
+# 
+#         if not original_event or not hasattr(original_event, "source"):
+#             # Supprimer le message de chargement
+#             try:
+#                 await matrix_client.redact_message(
+#                     ep.room.room_id,
+#                     loading_message
+#                 )
+#             except Exception as redact_err:
+#                 logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                 
+#             error_msg = "❌ Message original non trouvé ou format invalide."
+#             
+#             # Enregistrer dans l'historique de session
+#             session_context.add_message("user", "!pj")
+#             session_context.add_message("assistant", error_msg)
+#             await context_manager.update_context(
+#                 session_id,
+#                 ContextType.SESSION,
+#                 session_context.to_dict()
+#             )
+#             
+#             await matrix_client.send_markdown_message(
+#                 ep.room.room_id,
+#                 error_msg,
+#                 msgtype="m.notice"
+#             )
+#             return
+# 
+#         # Vérifier s'il y a des pièces jointes
+#         if not original_event.source.get("content", {}).get("file"):
+#             # Supprimer le message de chargement
+#             try:
+#                 await matrix_client.redact_message(
+#                     ep.room.room_id,
+#                     loading_message
+#                 )
+#             except Exception as redact_err:
+#                 logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                 
+#             error_msg = "❌ Aucune pièce jointe trouvée dans le message référencé."
+#             
+#             # Enregistrer dans l'historique de session
+#             session_context.add_message("user", "!pj")
+#             session_context.add_message("assistant", error_msg)
+#             await context_manager.update_context(
+#                 session_id,
+#                 ContextType.SESSION,
+#                 session_context.to_dict()
+#             )
+#             
+#             await matrix_client.send_markdown_message(
+#                 ep.room.room_id,
+#                 error_msg,
+#                 msgtype="m.notice"
+#             )
+#             return
+# 
+#         # Mettre à jour le message de chargement
+#         try:
+#             await matrix_client.redact_message(
+#                 ep.room.room_id,
+#                 loading_message
+#             )
+#             
+#             loading_message = await matrix_client.send_markdown_message(
+#                 ep.room.room_id,
+#                 "🔄 Traitement du fichier en cours...",
+#                 msgtype="m.notice"
+#             )
+#         except Exception as update_msg_err:
+#             logger.warning(f"Erreur lors de la mise à jour du message de chargement: {str(update_msg_err)}")
+#             # Non critique, continuer
+# 
+#         # Continuer avec le traitement du fichier...
+#         # Le reste du code de la fonction reste inchangé
+#         
+#         # À la fin de la fonction, après avoir traité le fichier avec succès:
+#         
+#         # Enregistrer le résultat dans l'historique de session
+#         session_context.add_message("user", "!pj")
+#         session_context.add_message("assistant", "✅ Fichier traité avec succès et classé dans la bibliothèque.")
+#         await context_manager.update_context(
+#             session_id,
+#             ContextType.SESSION,
+#             session_context.to_dict(),
+#             immediate_save=True
+#         )
+#         
+#     except Exception as e:
+#         logger.error(f"Erreur lors du traitement des pièces jointes: {str(e)}")
+#         
+#         # Tenter de supprimer le message de chargement si défini
+#         if 'loading_message' in locals():
+#             try:
+#                 await matrix_client.redact_message(
+#                     ep.room.room_id,
+#                     loading_message
+#                 )
+#             except Exception as redact_err:
+#                 logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+#                 
+#         error_msg = f"❌ Une erreur inattendue est survenue: {str(e)}"
+#         
+#         # Enregistrer l'erreur dans l'historique de session si le contexte existe
+#         if 'session_context' in locals() and session_context:
+#             session_context.add_message("user", "!pj")
+#             session_context.add_message("assistant", error_msg)
+#             await context_manager.update_context(
+#                 session_id,
+#                 ContextType.SESSION,
+#                 session_context.to_dict()
+#             )
+#             
+#         await matrix_client.send_markdown_message(
+#             ep.room.room_id,
+#             error_msg,
+#             msgtype="m.notice"
+#         )
 
 @register_feature(
     group="albert",
@@ -1298,6 +2013,14 @@ async def handle_attachments_response(ep: EventParser, matrix_client: MatrixClie
             config.last_classified_file = None
         if hasattr(config, 'waiting_for_custom_path'):
             config.waiting_for_custom_path = False
+    except Exception as e:
+        logger.error(f"Erreur lors du traitement de la réponse de classification: {str(e)}")
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            "❌ Une erreur est survenue lors du traitement de la classification.",
+            msgtype="m.notice"
+        )
+        return
 
 
 @register_feature(

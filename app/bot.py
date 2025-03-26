@@ -5,6 +5,7 @@
 
 import time
 import asyncio
+import traceback
 
 from matrix_bot.client import MatrixClient
 from matrix_bot.config import logger
@@ -12,9 +13,12 @@ from matrix_bot.auth import AuthLogin, Credentials
 from matrix_bot.callbacks import Callbacks
 from matrix_bot.config import bot_lib_config
 
-from commands import command_registry
-from config import env_config
-from services.context.instance import context_manager
+# Référence au registre de commandes unique
+from app.commands.registry import command_registry
+
+# Configuration Albert
+from app.config import env_config
+from app.services.context.instance import context_manager
 
 # TODO/IMPROVE:
 # - if albert-bot is invited in a salon, make it answer only when if it is tagged.
@@ -24,9 +28,14 @@ from services.context.instance import context_manager
 
 class MatrixBot:
     def __init__(self, homeserver: str, username: str, password: str):
+        # Préparer les configurations avant de créer le client Matrix
+        # Ajouter le registre de commandes en tant qu'attribut direct
+        self.command_registry = command_registry
+        
         self.matrix_client = MatrixClient(
             AuthLogin(Credentials(homeserver=homeserver, username=username, password=password))
         )
+        
         self.callbacks = Callbacks(self.matrix_client)
         self._maintenance_task = None
         self._context_cleanup_task = None
@@ -85,27 +94,96 @@ class MatrixBot:
             await context_manager.close()
 
 async def main():
+    # Initialiser le bot avec la configuration d'environnement
     tchap_bot = MatrixBot(
         env_config.matrix_home_server,
         env_config.matrix_bot_username,
         env_config.matrix_bot_password,
     )
+    
+    # Attacher la configuration d'Albert directement à l'objet MatrixClient
+    # pour qu'elle soit accessible dans les commandes
+    tchap_bot.matrix_client.albert_config = env_config
+    
+    # Afficher les infos de configuration
+    logger.info(f"Albert config assigned: {hasattr(tchap_bot.matrix_client, 'albert_config')}")
+    if hasattr(tchap_bot.matrix_client, 'albert_config'):
+        logger.info(f"Albert model in config: {tchap_bot.matrix_client.albert_config.albert_model}")
+    
+    # ===================================================================
+    # CHARGEMENT DES COMMANDES MODULARISÉES
+    # ===================================================================
+    logger.info("INITIALISATION DU SYSTÈME DE COMMANDES")
+    
+    # 1. Vider complètement les registres existants pour éviter les doublons
+    tchap_bot.command_registry.function_register.clear()
+    tchap_bot.command_registry.activated_functions.clear()
+    
+    # 2. Importation sélective des modules avec enregistrement automatique des commandes
+    #    Les décorateurs @register_feature de chaque commande s'exécuteront
+    #    lors de l'importation, enregistrant les commandes dans le registre.
+    logger.info("Chargement des commandes de base")
+    from app.commands.basic_commands import help
+    
+    logger.info("Chargement des commandes documentaires")
+    from app.commands.document_commands.docquery import doc_query_command
+    from app.commands.document_commands.index import faiss_index_command
+    from app.commands.document_commands.attachment import handle_attachments_command
+    
+    # 3. Afficher les commandes enregistrées pour diagnostic
+    logger.info("=== COMMANDES ENREGISTRÉES ===")
+    for name, feature in tchap_bot.command_registry.function_register.items():
+        logger.info(f"Command registered: {name}, Group: {feature['group']}")
+    logger.info("=== FIN COMMANDES ENREGISTRÉES ===")
+    
+    # 4. Message au démarrage pour informer sur le mode de fonctionnement
+    async def startup_message(room_id):
+        await tchap_bot.matrix_client.send_markdown_message(
+            room_id,
+            """🤖 **Albert Tchap - Mode Optimisé**
+            
+Je suis en ligne avec les fonctionnalités suivantes activées:
+- Commande `!aide` (affiche l'aide)
+- Commande `!docquery` (interroge les documents)
+- Commande `!index` (gère l'index FAISS)
+- Commande `!pj` (traite les pièces jointes)
 
-    for feature in [
-        feature
-        for feature_group in env_config.groups_used
-        for feature in command_registry.activate_and_retrieve_group(feature_group)
-    ]:
-        callback = feature["func"]
-        onEvent = feature["onEvent"]
-        tchap_bot.callbacks.register_on_custom_event(callback, onEvent, feature)
-        logger.info("loaded feature", feature=feature["name"])
+Pour obtenir plus d'informations, utilisez la commande `!aide`.""",
+            msgtype="m.notice"
+        )
+    
+    # Enregistrer l'action de démarrage
+    tchap_bot.callbacks.register_on_startup(startup_message)
+    # ===================================================================
+    
+    # Charger les groupes configurés dans l'environnement
+    groups_to_activate = []
+    if env_config.groups_used:
+        groups_to_activate = [g.strip() for g in env_config.groups_used.split(",")]
+    
+    logger.info(f"Groups to activate: {groups_to_activate}")
+    
+    # Activer les groupes de commandes sans duplication
+    activated_features = set()  # Ensemble pour suivre les fonctions déjà activées
+    
+    for group_name in groups_to_activate:
+        for feature in tchap_bot.command_registry.activate_and_retrieve_group(group_name):
+            feature_name = feature["name"]
+            
+            # Vérification que la fonction n'a pas déjà été activée
+            if feature_name not in activated_features:
+                activated_features.add(feature_name)
+                callback = feature["func"]
+                onEvent = feature["onEvent"]
+                tchap_bot.callbacks.register_on_custom_event(callback, onEvent, feature)
+                logger.info(f"Loaded feature: {feature_name} from group {feature['group']}")
+    
+    # Afficher les métriques d'activation
+    logger.info(f"Total registered commands: {len(tchap_bot.command_registry.function_register)}")
+    logger.info(f"Total activated commands: {len(tchap_bot.command_registry.activated_functions)}")
+    logger.info(f"Activated command list: {sorted(list(tchap_bot.command_registry.activated_functions))}")
 
-    # To send message if Albert is updated for example...
-    # async def startup_action(room_id):
-    #    await tchap_bot.matrix_client.send_markdown_message(room_id, command_registry.get_help())
-    # tchap_bot.callbacks.register_on_startup(startup_action)
-
+    # Démarrer le bot avec gestion d'erreur et retry
     n_tries = 4
     err = None
     for i in range(n_tries):
