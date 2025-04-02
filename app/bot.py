@@ -147,8 +147,11 @@ Je suis en ligne avec les fonctionnalités suivantes activées:
 - Commande `!docquery` (interroge les documents)
 - Commande `!index` (gère l'index FAISS)
 - Commande `!pj` (traite les pièces jointes)
+- Conversation générale (réponse à tous les messages)
 
-Pour obtenir plus d'informations, utilisez la commande `!aide`.""",
+Je peux désormais répondre à tous vos messages, même s'ils ne commencent pas par une commande. N'hésitez pas à me poser des questions directement !
+
+Pour obtenir plus d'informations sur les commandes spécifiques, utilisez `!aide`.""",
             msgtype="m.notice"
         )
     
@@ -156,10 +159,34 @@ Pour obtenir plus d'informations, utilisez la commande `!aide`.""",
     tchap_bot.callbacks.register_on_startup(startup_message)
     # ===================================================================
     
+    # Importer les modules de commandes
+    def import_command_modules():
+        """Importe tous les modules de commandes nécessaires."""
+        # Modules de base
+        import app.commands.basic_commands
+        
+        # Modules document
+        import app.commands.document_commands.attachment
+        import app.commands.document_commands.docquery
+        import app.commands.document_commands.index
+        
+        # Module de conversation générale
+        import app.commands.conversation
+        
+        logger.info("Command modules imported successfully")
+    
+    # Importer les modules avant d'activer les groupes
+    import_command_modules()
+    
     # Charger les groupes configurés dans l'environnement
     groups_to_activate = []
     if env_config.groups_used:
         groups_to_activate = [g.strip() for g in env_config.groups_used.split(",")]
+    
+    # S'assurer que le groupe 'conversation' est toujours activé pour permettre
+    # au bot de répondre aux messages qui ne sont pas des commandes
+    if 'conversation' not in groups_to_activate:
+        groups_to_activate.append('conversation')
     
     logger.info(f"Groups to activate: {groups_to_activate}")
     

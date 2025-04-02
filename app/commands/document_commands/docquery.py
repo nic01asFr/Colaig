@@ -25,52 +25,35 @@ from app.services.context.manager import ContextManager
 from app.services.context.types import ContextType
 from app.services.context.models import SessionContext
 
-from app.commands.registry import register_feature, only_allowed_user
-from app.commands import get_context_manager
+from app.commands.registry import register_feature, only_allowed_user, mark_command_thread_end
+from app.commands import get_context_manager, get_unified_session_context
 
 async def get_session_context(
     config: Config,
     room_id: str, 
     sender: str
 ) -> SessionContext:
-    """Récupère ou crée un contexte de session pour un salon et un utilisateur"""
-    # Créer un gestionnaire de contexte
-    ctx_manager = ContextManager(config)
-    await ctx_manager.initialize()
+    """
+    Récupère ou crée un contexte de session pour un salon et un utilisateur.
+    Assure la continuité contextuelle avec les conversations générales.
+    """
+    # Utiliser la fonction unifiée pour récupérer ou créer le contexte
+    session_context = await get_unified_session_context(config, room_id, sender)
     
-    # Générer un ID de session unique pour cette conversation
+    # Mettre à jour uniquement l'état de la conversation pour docquery
+    # sans toucher à l'historique
+    session_context.conversation_state.update({
+        "last_command": "docquery",
+        "current_action": "question",
+        "command_context": "document"  # Marquer clairement le contexte documentaire
+    })
+    
+    # Mettre à jour le contexte
     session_id = f"{room_id}_{sender}"
+    from app.services.context.instance import context_manager
+    await context_manager.update_context(session_id, ContextType.SESSION, session_context.to_dict())
     
-    # Récupérer le contexte de session existant, ou en créer un nouveau
-    session_context = await ctx_manager.get_context(session_id, ContextType.SESSION)
-    
-    if not session_context:
-        # Créer un nouveau contexte de session
-        session_context = await ctx_manager.create_context(
-            session_id, 
-            ContextType.SESSION,
-            {
-                "session_id": session_id,
-                "room_id": room_id,
-                "user_id": sender,
-                "conversation_state": {
-                    "last_command": "docquery",
-                    "current_action": "question"
-                }
-            }
-        )
-    else:
-        # Mettre à jour l'état de la conversation
-        session_context.conversation_state = {
-            "last_command": "docquery",
-            "current_action": "question"
-        }
-        # Mettre à jour le contexte
-        await ctx_manager.update_context(
-            session_id, 
-            ContextType.SESSION, 
-            session_context.to_dict()
-        )
+    logger.debug(f"Contexte de session docquery mis à jour, historique: {len(session_context.history)} messages")
     
     return session_context
 
@@ -101,6 +84,16 @@ async def doc_query_command(ep: EventParser, matrix_client: MatrixClient):
             "Cette commande vous permet d'interroger vos documents.\n"
             "```\n!docquery Votre question sur les documents\n```",
             msgtype="m.notice"
+        )
+        
+        # Marquer la fin du thread car la commande est terminée (cas d'usage sans argument)
+        await mark_command_thread_end(
+            room_id, 
+            sender, 
+            "docquery", 
+            config, 
+            action="aide affichée", 
+            result="help_message"
         )
         return
     
@@ -204,6 +197,17 @@ async def doc_query_command(ep: EventParser, matrix_client: MatrixClient):
                     "❌ Je n'ai pas trouvé de documents pertinents pour répondre à votre question.",
                     msgtype="m.notice"
                 )
+                
+            # Marquer la fin du thread car la commande est terminée (cas où aucun document n'est trouvé)
+            await mark_command_thread_end(
+                room_id, 
+                sender, 
+                "docquery", 
+                config, 
+                action="recherche terminée", 
+                result="no_documents_found",
+                query=query
+            )
             return
             
         # Construire le prompt avec les documents et l'historique
@@ -264,6 +268,18 @@ Réponse:"""
                     f"❌ Erreur lors de la génération de la réponse: {str(e)}",
                     msgtype="m.notice"
                 )
+                
+            # Marquer la fin du thread car la commande est terminée avec erreur
+            await mark_command_thread_end(
+                room_id, 
+                sender, 
+                "docquery", 
+                config, 
+                action="recherche terminée avec erreur", 
+                result="generation_error",
+                query=query,
+                error=str(e)
+            )
             return
             
         # Ajouter les informations sur les sources
@@ -315,6 +331,18 @@ Réponse:"""
                 f"🤖 {response_with_sources}",
                 msgtype="m.notice"
             )
+            
+        # Marquer la fin du thread car la commande est terminée avec succès
+        await mark_command_thread_end(
+            room_id, 
+            sender, 
+            "docquery", 
+            config, 
+            action="recherche terminée avec succès", 
+            result="response_generated",
+            query=query,
+            sources_count=len(sources)
+        )
         
     except Exception as e:
         logger.error(f"Erreur dans docquery: {str(e)}\n{traceback.format_exc()}")
@@ -331,3 +359,17 @@ Réponse:"""
                 f"❌ Une erreur est survenue: {str(e)}",
                 msgtype="m.notice"
             )
+            
+        # Marquer la fin du thread même en cas d'erreur générale
+        try:
+            await mark_command_thread_end(
+                room_id, 
+                sender, 
+                "docquery", 
+                config, 
+                action="recherche terminée avec erreur critique", 
+                result="critical_error",
+                error=str(e)
+            )
+        except Exception as mark_error:
+            logger.error(f"Erreur lors du marquage de fin de thread: {str(mark_error)}")

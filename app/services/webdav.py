@@ -195,16 +195,29 @@ class WebDAVService:
                 full_path = path
         else:
             full_path = path
-            
-        # Encoder correctement le chemin pour l'URL
-        # Découper le chemin en segments et encoder chaque segment séparément
+
+        # Encoder l'URL en deux étapes pour éviter le double-encodage
+        # 1. Si le chemin contient des caractères déjà URL-encodés (comme %21), les décoder d'abord
+        decoded_path = urllib.parse.unquote(full_path)
         
+        # 2. Ensuite, encoder correctement le chemin en préservant la structure
         # Supprimer le slash initial pour le traitement par segments
-        path_without_leading_slash = full_path[1:] if full_path.startswith('/') else full_path
+        path_without_leading_slash = decoded_path[1:] if decoded_path.startswith('/') else decoded_path
         
-        # Diviser le chemin en segments et encoder chaque segment séparément
+        # Diviser le chemin en segments
         segments = path_without_leading_slash.split('/')
-        encoded_segments = [urllib.parse.quote(segment, safe='') for segment in segments]
+        
+        # Encoder chaque segment, mais préserver les caractères spéciaux comme !, @ et :
+        # Le paramètre safe indique les caractères à ne pas encoder
+        encoded_segments = []
+        for segment in segments:
+            # Pour les fichiers de contexte (dans le dossier contexts), préserver les caractères spéciaux
+            if '.albert/contexts' in full_path:
+                # Garder les caractères spéciaux tels quels pour les fichiers de contexte
+                encoded_segments.append(urllib.parse.quote(segment, safe='!@:'))
+            else:
+                # Encoder normalement pour les autres fichiers
+                encoded_segments.append(urllib.parse.quote(segment, safe=''))
         
         # Reconstruire le chemin avec les segments encodés
         encoded_path = '/'.join(encoded_segments)
@@ -238,6 +251,12 @@ class WebDAVService:
         for attempt in range(max_retries):
             try:
                 response = await self.http_client.get(url)
+                
+                # Vérifier spécifiquement les erreurs 404 avant de lever une exception
+                if response.status_code == 404:
+                    logger.warning(f"Fichier non trouvé: {path}")
+                    raise FileNotFoundError(f"Fichier non trouvé: {path}")
+                
                 response.raise_for_status()
                 
                 # Détecter le type de contenu
@@ -314,7 +333,21 @@ class WebDAVService:
                     # Pour les autres types, retourner le contenu comme texte
                     return response.text
                     
+            except httpx.HTTPStatusError as e:
+                # Traiter spécifiquement les erreurs 404
+                if e.response.status_code == 404:
+                    # Propager immédiatement les erreurs 404 sans retry
+                    logger.warning(f"Fichier non trouvé: {path}")
+                    raise FileNotFoundError(f"Fichier non trouvé: {path}") from e
+                
+                if attempt < max_retries - 1:
+                    logger.warning(f"Tentative {attempt + 1}/{max_retries} échouée pour {path}: {str(e)}")
+                    await asyncio.sleep(2 ** attempt)  # Backoff exponentiel
+                else:
+                    logger.error(f"Échec définitif de lecture du document {path} après {max_retries} tentatives: {str(e)}")
+                    raise
             except Exception as e:
+                # Autres erreurs
                 if attempt < max_retries - 1:
                     logger.warning(f"Tentative {attempt + 1}/{max_retries} échouée pour {path}: {str(e)}")
                     await asyncio.sleep(2 ** attempt)  # Backoff exponentiel
@@ -769,33 +802,38 @@ class WebDAVService:
     async def get_context_safely(self, context_id: str) -> Optional[Dict[str, Any]]:
         """Récupère un contexte de manière sécurisée avec gestion des erreurs"""
         try:
-            # Construire le chemin du contexte
-            context_path = f"{self.CONTEXTS_DIR}/{context_id}.json"
+            # Utiliser directement le chemin complet fourni
+            context_path = context_id  # Le chemin complet est maintenant passé directement
             
-            # Vérifier si le fichier existe
-            if not await self.exists(context_path):
-                logger.debug(f"Contexte {context_id} non trouvé")
-                return None
-            
-            # Lire le contenu
-            content = await self.read_document(context_path)
-            if not content.strip():
-                logger.warning(f"Contexte {context_id} vide")
-                return None
-            
-            # Parser le JSON
             try:
-                data = json.loads(content)
-                if not isinstance(data, dict):
-                    logger.error(f"Format invalide pour le contexte {context_id}")
+                # Lire le document
+                content = await self.read_document(context_path)
+                
+                if not content.strip():
+                    logger.warning(f"Contexte {context_path} vide")
                     return None
-                return data
-            except json.JSONDecodeError as e:
-                logger.error(f"Erreur décodage JSON pour {context_id}: {str(e)}")
+                
+                # Parser le JSON
+                try:
+                    data = json.loads(content)
+                    if not isinstance(data, dict):
+                        logger.error(f"Format invalide pour le contexte {context_path}")
+                        return None
+                    return data
+                except json.JSONDecodeError as e:
+                    logger.error(f"Erreur décodage JSON pour {context_path}: {str(e)}")
+                    return None
+                    
+            except FileNotFoundError:
+                logger.debug(f"Contexte {context_path} non trouvé")
+                return None
+            except Exception as e:
+                # Autres erreurs
+                logger.error(f"Erreur lecture contenu contexte {context_path}: {str(e)}")
                 return None
             
         except Exception as e:
-            logger.error(f"Erreur lecture contexte {context_id}: {str(e)}")
+            logger.error(f"Erreur lecture contexte {context_path}: {str(e)}")
             return None
 
     async def __aenter__(self):
@@ -809,3 +847,29 @@ class WebDAVService:
                 logger.info("Session HTTP fermée avec succès")
         except Exception as e:
             logger.error(f"Erreur lors de la fermeture de la session HTTP: {str(e)}")
+
+    async def delete_file(self, path: str) -> bool:
+        """Supprime un fichier sur le serveur WebDAV
+        
+        Args:
+            path: Chemin du fichier à supprimer (relatif à la racine)
+            
+        Returns:
+            bool: True si la suppression a réussi, False sinon
+        """
+        try:
+            logger.info(f"Suppression du fichier WebDAV: {path}")
+            url = self._get_url(path)
+            
+            response = await self.http_client.request("DELETE", url)
+            
+            if response.status_code in [200, 204]:
+                logger.info(f"Fichier supprimé avec succès: {path}")
+                return True
+            else:
+                logger.warning(f"Échec de la suppression du fichier: {path} (status={response.status_code})")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Erreur lors de la suppression du fichier WebDAV {path}: {str(e)}")
+            return False

@@ -17,6 +17,7 @@ import tempfile
 import mimetypes
 from pathlib import Path
 import shutil
+import urllib.parse
 
 from matrix_bot.client import MatrixClient
 from matrix_bot.config import logger
@@ -28,14 +29,32 @@ from app.config import Config
 from app.services.webdav import WebDAVService
 from app.services.document_index import DocumentIndex
 from app.services.index_service import IndexService
-from app.services.context import ContextManager, ContextType
+from app.services.context.manager import ContextManager
+from app.services.context.types import ContextType
 from app.tchap_utils import (
     get_decrypted_file,
     isa_reply_to
 )
-from app.commands.registry import register_feature, only_allowed_user
-from app.commands import get_context_manager
+from app.commands.registry import register_feature, only_allowed_user, mark_command_thread_end
+from app.commands import get_context_manager, get_unified_session_context, update_conversation_history
 from app.core_llm import generate, AlbertApiClient
+from app.services.context.models import SessionContext
+
+def decode_path_for_display(path: str) -> str:
+    """Décode les caractères URL-encodés dans un chemin pour l'affichage à l'utilisateur.
+    
+    Args:
+        path: Chemin avec caractères potentiellement encodés
+        
+    Returns:
+        Chemin décodé pour affichage
+    """
+    if not path:
+        return path
+    
+    # Décode les séquences comme %c3%a9 en é
+    decoded_path = urllib.parse.unquote(path)
+    return decoded_path
 
 @register_feature(
     group="document",
@@ -201,7 +220,7 @@ async def handle_attachments_command(ep: EventParser, matrix_client: MatrixClien
                 msgtype="m.notice"
             )
             return
-            
+
         # Log le type de l'événement original
         logger.debug(f"Type de l'événement original: {type(original_event).__name__}")
         if hasattr(original_event, 'source'):
@@ -249,7 +268,7 @@ async def handle_attachments_command(ep: EventParser, matrix_client: MatrixClien
                 msgtype="m.notice"
             )
             return
-        
+
         # Mettre à jour le message de progression
         await matrix_client.send_markdown_message(
             ep.room.room_id,
@@ -298,7 +317,7 @@ async def handle_attachments_command(ep: EventParser, matrix_client: MatrixClien
                 msgtype="m.notice"
             )
             return
-        
+
         # Télécharger le fichier
         file_content = None
         temp_file_path = None
@@ -356,58 +375,37 @@ async def handle_attachments_command(ep: EventParser, matrix_client: MatrixClien
                 os.unlink(temp_file_path)
             return
         
-        # Le reste du code pour l'analyse et la classification reste similaire
-        # Continuer avec le code existant pour le WebDAV, les suggestions, etc.
-        
         # Informer l'utilisateur que l'analyse commence
         await matrix_client.send_markdown_message(
             ep.room.room_id,
             "🔄 Analyse du contenu et suggestion de classement...",
             msgtype="m.notice"
         )
-        
+
         # Récupérer la configuration pour les services
         config = getattr(matrix_client, "albert_config", matrix_client.config)
         
-        # Initialiser le gestionnaire de contexte
+        # Récupérer ou créer le contexte de session avec notre fonction unifiée
+        session_context = await get_unified_session_context(config, ep.room.room_id, ep.sender)
+        session_id = f"{ep.room.room_id}_{ep.sender}"
+        
+        # Mettre à jour l'état de conversation pour la commande pj
+        session_context.conversation_state = {
+            "command_type": "pj",
+            "last_command": "pj",
+            "current_action": "classify"
+        }
+        
+        # Récupérer le gestionnaire de contexte global
         context_manager = get_context_manager(config)
         
-        # Créer ou récupérer le contexte de session
-        session_id = f"{ep.room.room_id}_{ep.sender}"
-        session_context = await context_manager.get_context(session_id, ContextType.SESSION)
-        
-        # Si le contexte n'existe pas, le créer
-        if not session_context:
-            session_data = {
-                "session_id": session_id,
-                "room_id": ep.room.room_id,
-                "user_id": ep.sender,
-                "history": [],
-                "conversation_state": {
-                    "command_type": "pj",  # Préfixe unique pour identifier le type de commande
-                    "last_command": "pj",
-                    "current_action": "classify"
-                }
-            }
-            session_context = await context_manager.create_context(
-                session_id,
-                ContextType.SESSION,
-                session_data
-            )
-        else:
-            # Mettre à jour l'état de conversation si le contexte existe déjà
-            session_context.conversation_state = {
-                "command_type": "pj",
-                "last_command": "pj",
-                "current_action": "classify"
-            }
-            # Mettre à jour le contexte
-            await context_manager.update_context(
-                session_id,
-                ContextType.SESSION,
-                session_context.to_dict()
-            )
-        
+        # Mettre à jour le contexte
+        await context_manager.update_context(
+            session_id,
+            ContextType.SESSION,
+            session_context.to_dict()
+        )
+            
         # Initialiser le service WebDAV
         webdav = WebDAVService(config)
         await webdav.initialize()
@@ -498,14 +496,21 @@ Dossiers disponibles:
 
 Analyse le nom du fichier, son type et son contenu (si disponible) pour suggérer le dossier le plus approprié.
 Propose également 2-3 autres dossiers alternatifs qui pourraient être pertinents, avec un niveau de confiance pour chaque suggestion.
-Explique brièvement pourquoi chaque dossier est approprié.
+
+IMPORTANT: Propose les dossiers en utilisant des noms relatifs, sans inclure le dossier racine dans le chemin. 
+Par exemple, si le dossier disponible est "dossiers-espace-demonstration-2/Marchés", propose simplement "Marchés".
 
 Format de réponse:
-1. Classification principale : [nom du dossier] (niveau de confiance %)
-2. Alternatives : 
+1. **Classification principale** : [nom du dossier] (niveau de confiance %)
+
+2. **Alternatives** : 
    - [nom du dossier alternatif 1] (niveau de confiance %)
    - [nom du dossier alternatif 2] (niveau de confiance %)
-3. Explication : [justification de la classification]
+
+### Explication : 
+[justification détaillée de la classification principale]
+
+IMPORTANT: L'explication doit être dans une section séparée, pas numérotée comme une alternative.
 """
             
             # Générer les suggestions avec l'API
@@ -525,7 +530,24 @@ Format de réponse:
                 explanation = ""
                 
                 # Analyse de la réponse LLM
+                in_explanation_section = False  # Marque si nous sommes dans la section d'explication
+                
                 for line in analysis_response.split('\n'):
+                    # Détecter la section d'explication
+                    if "Explication" in line or "### Explication" in line:
+                        in_explanation_section = True
+                        # Récupérer le texte après "Explication :"
+                        explanation_match = re.search(r'Explication\s*:\s*(.+)', line)
+                        if explanation_match:
+                            explanation = explanation_match.group(1).strip()
+                        continue  # Passer à la ligne suivante
+                    
+                    # Si nous sommes dans la section d'explication, continuer à collecter l'explication
+                    if in_explanation_section:
+                        explanation += " " + line.strip()
+                        continue  # Passer aux alternatives une fois que nous avons commencé à collecter l'explication
+                    
+                    # Traiter la classification principale
                     if "Classification principale" in line or "dossier principal" in line:
                         # Extraire le nom du dossier et la confiance
                         folder_match = re.search(r':\s*(?:\[)?([^(\]]+)(?:\])?', line)
@@ -535,9 +557,11 @@ Format de réponse:
                             suggested_folder = folder_match.group(1).strip()
                             confidence = float(confidence_match.group(1))/100 if confidence_match else 0.7
                     
+                    # Ignorer les titres de sections
                     elif "Alternatives" in line or "Alternative" in line:
                         continue  # Juste un titre
                     
+                    # Traiter les alternatives (lignes commençant par - ou *)
                     elif line.strip().startswith("-") or line.strip().startswith("*"):
                         # Extraire le dossier alternatif et la confiance
                         alt_folder_match = re.search(r'(?:\[)?([^(\]]+)(?:\])?', line)
@@ -545,29 +569,64 @@ Format de réponse:
                         
                         if alt_folder_match:
                             alt_folder = alt_folder_match.group(1).strip()
-                            alt_confidence = float(alt_confidence_match.group(1))/100 if alt_confidence_match else 0.5
-                            alternatives.append((alt_folder, alt_confidence))
-                    
-                    elif "Explication" in line:
-                        # Récupérer le texte après "Explication :"
-                        explanation_match = re.search(r'Explication\s*:\s*(.+)', line)
-                        if explanation_match:
-                            explanation = explanation_match.group(1).strip()
-                    
-                    elif explanation and not line.startswith("Classification") and not line.startswith("Alternative"):
-                        # Continuer l'explication sur les lignes suivantes
-                        explanation += " " + line.strip()
+                            
+                            # Vérifier que c'est un chemin de dossier valide (pas une explication)
+                            if "explication" not in alt_folder.lower() and "justification" not in alt_folder.lower():
+                                alt_confidence = float(alt_confidence_match.group(1))/100 if alt_confidence_match else 0.5
+                                alternatives.append((alt_folder, alt_confidence))
                 
                 # Si aucun dossier n'est suggéré, utiliser un dossier par défaut
                 if not suggested_folder and available_folders:
                     suggested_folder = available_folders[0]['name']
                     explanation = "Aucune suggestion spécifique n'a été trouvée. Utilisation du dossier par défaut."
                 
-                # Formater le chemin complet
-                target_path = suggested_folder
-                if not target_path.startswith('/'):
-                    target_path = '/' + target_path
+                # Nettoyer les suggestions pour éviter la redondance avec le dossier racine
+                # Déterminer le dossier racine à partir des dossiers disponibles
+                root_folder = None
+                if available_folders and len(available_folders) > 0:
+                    # Prendre le préfixe commun le plus fréquent comme dossier racine
+                    folder_paths = [f.get('name', '') for f in available_folders]
+                    common_prefixes = {}
+                    for path in folder_paths:
+                        parts = path.split('/')
+                        if parts and parts[0]:
+                            if parts[0] not in common_prefixes:
+                                common_prefixes[parts[0]] = 0
+                            common_prefixes[parts[0]] += 1
+                    
+                    # Trouver le préfixe le plus fréquent
+                    if common_prefixes:
+                        root_folder = max(common_prefixes.items(), key=lambda x: x[1])[0]
+                        logger.info(f"Dossier racine détecté: {root_folder}")
                 
+                # Nettoyer la suggestion principale
+                if root_folder and suggested_folder and suggested_folder.startswith(f"{root_folder}/"):
+                    # Retirer le préfixe du dossier racine
+                    suggested_folder = suggested_folder[len(root_folder)+1:]
+                    logger.info(f"Suggestion nettoyée: {suggested_folder}")
+                
+                # Nettoyer également les alternatives
+                cleaned_alternatives = []
+                for alt_folder, confidence in alternatives:
+                    if root_folder and alt_folder.startswith(f"{root_folder}/"):
+                        # Retirer le préfixe du dossier racine
+                        alt_folder = alt_folder[len(root_folder)+1:]
+                    cleaned_alternatives.append((alt_folder, confidence))
+                alternatives = cleaned_alternatives
+                
+                # Formater le chemin complet
+                if root_folder:
+                    # Ajouter le dossier racine si la suggestion n'en contient pas
+                    if suggested_folder.startswith('/'):
+                        target_path = suggested_folder  # Déjà un chemin absolu
+                    else:
+                        target_path = f"/{root_folder}/{suggested_folder}"
+                else:
+                    # Pas de dossier racine détecté, utiliser le chemin tel quel
+                    target_path = suggested_folder
+                    if not target_path.startswith('/'):
+                        target_path = '/' + target_path
+
                 if not target_path.endswith('/'):
                     target_path += '/'
                     
@@ -622,6 +681,9 @@ Format de réponse:
                     "temp_file_path": temp_file_path
                 }
                 
+                # Récupérer le gestionnaire de contexte global
+                context_manager = get_context_manager(config)
+                
                 await context_manager.update_context(
                     session_id,
                     ContextType.SESSION,
@@ -633,13 +695,14 @@ Format de réponse:
                 if alternatives:
                     alternatives_text = "Autres suggestions :\n"
                     for i, (folder, confidence) in enumerate(alternatives[:3]):
-                        alternatives_text += f"{i+1}. {folder} ({confidence:.0%})\n"
+                        # Décoder les caractères URL-encodés dans le nom du dossier
+                        display_folder = decode_path_for_display(folder)
+                        alternatives_text += f"{i+1}. {display_folder} ({confidence:.0%})\n"
                 
                 # Créer le message de réponse
                 response_message = f"""📋 **Analyse du fichier** : {file_info["filename"]}
 
-📁 **Classification suggérée** : {suggested_folder} ({session_context.conversation_state.get('confidence', 0.7):.0%})
-{explanation}
+📁 **Classification suggérée** : {decode_path_for_display(suggested_folder)} ({session_context.conversation_state.get('confidence', 0.7):.0%})
 
 {alternatives_text}
 🔄 **Actions possibles** :
@@ -648,6 +711,9 @@ Format de réponse:
 3. Spécifier un autre emplacement
 
 Répondez avec le numéro de votre choix (1, 2 ou 3).
+
+### Explication :
+{explanation}
 """
                 
                 # Envoyer le message final
@@ -655,6 +721,20 @@ Répondez avec le numéro de votre choix (1, 2 ou 3).
                     ep.room.room_id,
                     response_message,
                     msgtype="m.notice"
+                )
+                
+                # Indiquer explicitement que cette interaction est terminée et peut être suivie d'un dialogue
+                logger.info(f"Commande !pj terminée pour le fichier {file_info.get('filename')}. Prêt pour le dialogue.")
+                
+                # Marquer la fin du thread
+                await mark_command_thread_end(
+                    ep.room.room_id, 
+                    ep.sender, 
+                    "pj", 
+                    config, 
+                    action="fichier classé",
+                    file_name=file_info.get('filename', ''),
+                    target_path=target_path
                 )
                 
             except Exception as analysis_err:
@@ -682,6 +762,9 @@ Répondez avec le numéro de votre choix (1, 2 ou 3).
                     "temp_file_path": temp_file_path,
                     "error_mode": True
                 }
+                
+                # Récupérer le gestionnaire de contexte global
+                context_manager = get_context_manager(config)
                 
                 await context_manager.update_context(
                     session_id,
@@ -736,20 +819,31 @@ async def handle_attachments_response(ep: EventParser, matrix_client: MatrixClie
     Fonction auxiliaire pour traiter les réponses aux commandes de pièces jointes.
     Cette fonction gère les réponses après l'analyse d'une pièce jointe.
     """
-    # Récupérer le contexte de session
-    session_id = f"{ep.room.room_id}_{ep.sender}"
-    context_manager = get_context_manager(matrix_client.config)
+    # Ignorer les commandes directes !pj pour éviter les doubles traitements
+    message_text = ep.event.body.strip() if hasattr(ep.event, 'body') else ""
+    if message_text.startswith("!pj"):
+        logger.debug("Ignoré par handle_attachments_response car c'est une commande !pj directe")
+        return
+        
+    # Récupérer le contexte de session avec notre fonction unifiée
+    config = getattr(matrix_client, "albert_config", matrix_client.config)
+    session_context = await get_unified_session_context(config, ep.room.room_id, ep.sender)
     
-    # Récupérer le contexte de session
-    session_context = await context_manager.get_context(session_id, ContextType.SESSION)
-    
-    # Si pas de contexte ou pas d'état de conversation, ce n'est pas une réponse à !pj
+    # Si pas d'état de conversation, ce n'est pas une réponse à !pj
     if not session_context or not session_context.conversation_state:
         return
     
     # Vérifier si la dernière commande était !pj
     if session_context.conversation_state.get("command_type") != "pj":
         return
+    
+    # Ajouter le message utilisateur à l'historique
+    await update_conversation_history(
+        config, 
+        ep.room.room_id, 
+        ep.sender, 
+        user_message=message_text
+    )
     
     # Récupérer les données du contexte de session
     temp_file_path = session_context.conversation_state.get("temp_file_path")
@@ -763,15 +857,12 @@ async def handle_attachments_response(ep: EventParser, matrix_client: MatrixClie
         )
         return
     
-    # Récupérer les informations du fichier du contexte
+    # Récupérer les autres données du contexte
     file_info = session_context.conversation_state.get("file_info", {})
-    if not file_info:
-        await matrix_client.send_markdown_message(
-            ep.room.room_id,
-            "❌ Informations de fichier manquantes. Veuillez relancer la commande !pj.",
-            msgtype="m.notice"
-        )
-        return
+    
+    # Récupérer le gestionnaire de contexte global
+    context_manager = get_context_manager(config)
+    session_id = f"{ep.room.room_id}_{ep.sender}"
     
     # Récupérer le message de l'utilisateur
     user_message = ep.event.body if hasattr(ep.event, 'body') else ""
@@ -780,70 +871,43 @@ async def handle_attachments_response(ep: EventParser, matrix_client: MatrixClie
     # Configuration
     config = getattr(matrix_client, "albert_config", matrix_client.config)
     
-    # Si on attend un chemin personnalisé
-    if session_context.conversation_state.get("waiting_for_path"):
-        custom_path = user_message.strip()
-        if not custom_path:
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                "❌ Le chemin ne peut pas être vide.",
-                msgtype="m.notice"
-            )
-            return
+    # Traitement des réponses lorsqu'on attend un chemin personnalisé
+    if session_context.conversation_state.get("waiting_for_path", False):
+        # L'utilisateur a fourni un chemin personnalisé
+        custom_path = message_text.strip()
         
-        # Normaliser le chemin
-        custom_path = custom_path.replace('\\', '/')
-        if not custom_path.startswith('/'):
-            custom_path = '/' + custom_path
+        # Nettoyage et sécurisation du chemin utilisateur
+        path_parts = custom_path.split('/')
+        clean_parts = []
+        safe_filename = re.sub(r'[<>:"/\\|?*]', '_', file_info.get('filename', 'fichier.pdf'))
         
-        # Vérifier si le chemin contient le nom du fichier
-        if not custom_path.endswith('/'):
-            # Vérifier si le dernier segment contient une extension
-            last_segment = custom_path.split('/')[-1]
-            if '.' not in last_segment:
-                # Pas d'extension, donc c'est probablement un dossier
-                custom_path += '/'
-        
-        # Ajouter le nom du fichier si nécessaire
-        if custom_path.endswith('/'):
-            # Nettoyer le nom de fichier pour éviter les caractères problématiques
-            safe_filename = file_info.get("filename", "fichier.bin")
-            safe_filename = safe_filename.replace('\t', ' ').replace('\n', ' ').replace('\r', ' ')
-            
-            # Assainir le chemin pour éviter les problèmes d'encodage
-            custom_path = custom_path.strip()
-            
-            # Vérifier les caractères spéciaux problématiques en début de dossier
-            path_parts = custom_path.split('/')
-            clean_parts = []
-            
-            for part in path_parts:
-                # Nettoyer les parties du chemin
-                if part:
-                    # Supprimer les espaces en début et fin
-                    cleaned_part = part.strip()
+        for part in path_parts:
+            # Nettoyer les parties du chemin
+            if part:
+                # Supprimer les espaces en début et fin
+                cleaned_part = part.strip()
+                
+                # Si le dossier commence par un tiret suivi d'un espace, le supprimer
+                if cleaned_part.startswith('- '):
+                    cleaned_part = cleaned_part[2:].strip()
+                
+                # Éviter les noms vides
+                if not cleaned_part:
+                    cleaned_part = "dossier"
                     
-                    # Si le dossier commence par un tiret suivi d'un espace, le supprimer
-                    if cleaned_part.startswith('- '):
-                        cleaned_part = cleaned_part[2:].strip()
-                    
-                    # Éviter les noms vides
-                    if not cleaned_part:
-                        cleaned_part = "dossier"
-                        
-                    clean_parts.append(cleaned_part)
-            
-            # Reconstruire le chemin
-            clean_custom_path = '/' + '/'.join(filter(None, clean_parts))
-            
-            if not clean_custom_path.endswith('/'):
-                clean_custom_path += '/'
-            
-            # Ajouter le nom de fichier sécurisé
-            clean_custom_path += safe_filename
-            
-            # Mise à jour du chemin
-            custom_path = clean_custom_path
+                clean_parts.append(cleaned_part)
+        
+        # Reconstruire le chemin
+        clean_custom_path = '/' + '/'.join(filter(None, clean_parts))
+        
+        if not clean_custom_path.endswith('/'):
+            clean_custom_path += '/'
+        
+        # Ajouter le nom de fichier sécurisé
+        clean_custom_path += safe_filename
+        
+        # Mise à jour du chemin
+        custom_path = clean_custom_path
         
         # Initialiser le service WebDAV
         webdav = WebDAVService(config)
@@ -864,10 +928,19 @@ async def handle_attachments_response(ep: EventParser, matrix_client: MatrixClie
                 await webdav.upload_file(f, custom_path)
             
             # Informer l'utilisateur
+            success_message = f"✅ Le fichier '{file_info.get('filename')}' a été classé avec succès dans '{folder_path}'."
             await matrix_client.send_markdown_message(
                 ep.room.room_id,
-                f"✅ Le fichier '{file_info.get('filename')}' a été classé avec succès dans '{folder_path}'.",
+                success_message,
                 msgtype="m.notice"
+            )
+            
+            # Ajouter la réponse du bot à l'historique
+            await update_conversation_history(
+                config,
+                ep.room.room_id,
+                ep.sender,
+                bot_response=success_message
             )
             
             # Nettoyer le fichier temporaire
@@ -877,24 +950,65 @@ async def handle_attachments_response(ep: EventParser, matrix_client: MatrixClie
             except Exception as clean_err:
                 logger.warning(f"Erreur lors de la suppression du fichier temporaire: {str(clean_err)}")
             
-            # Réinitialiser le contexte de session
-            session_context.conversation_state = {}
+            # Au lieu de réinitialiser complètement le contexte, marquer la commande comme terminée
+            # tout en conservant les informations importantes pour le contexte
+            old_state = session_context.conversation_state.copy()
+            session_context.conversation_state = {
+                "last_command": "pj",
+                "command_completed": True,
+                "last_action": old_state.get("action", "classify"),
+                "last_file_processed": file_info.get("filename"),
+                "last_target_path": folder_path
+            }
+            
+            # Mettre à jour le contexte
             await context_manager.update_context(
                 session_id,
                 ContextType.SESSION,
                 session_context.to_dict()
             )
+            
+            # Indiquer explicitement que cette interaction est terminée et peut être suivie d'un dialogue
+            logger.info(f"Commande !pj terminée pour le fichier {file_info.get('filename')}. Prêt pour le dialogue.")
+            
+            # Marquer la fin du thread
+            await mark_command_thread_end(
+                ep.room.room_id, 
+                ep.sender, 
+                "pj", 
+                config, 
+                action="fichier classé",
+                file_name=file_info.get('filename', ''),
+                target_path=folder_path
+            )
+            
             return
             
         except Exception as upload_err:
             logger.error(f"Erreur lors du téléversement du fichier: {str(upload_err)}")
-            traceback.print_exc()
+            error_message = "❌ Une erreur est survenue lors du traitement du fichier. " 
+            error_message += f"Détails: {str(upload_err)}"
             
             await matrix_client.send_markdown_message(
                 ep.room.room_id,
-                f"❌ Erreur lors du classement du fichier: {str(upload_err)}",
+                error_message,
                 msgtype="m.notice"
             )
+            
+            # Marquer la fin du thread même en cas d'erreur
+            try:
+                await mark_command_thread_end(
+                    ep.room.room_id, 
+                    ep.sender, 
+                    "pj", 
+                    config, 
+                    action="erreur de traitement",
+                    file_name=file_info.get('filename', ''),
+                    error=str(upload_err)
+                )
+            except Exception as mark_error:
+                logger.error(f"Erreur lors du marquage de fin de thread: {str(mark_error)}")
+            
             return
     
     # Réponse à un choix d'alternative
@@ -972,6 +1086,10 @@ async def handle_attachments_response(ep: EventParser, matrix_client: MatrixClie
         # Mettre à jour le contexte
         session_context.conversation_state["waiting_for_alternative"] = False
         session_context.conversation_state["target_path"] = target_path
+        
+        # Récupérer le gestionnaire de contexte global
+        context_manager = get_context_manager(config)
+        
         await context_manager.update_context(
             session_id,
             ContextType.SESSION,
@@ -986,7 +1104,7 @@ async def handle_attachments_response(ep: EventParser, matrix_client: MatrixClie
             # Informer l'utilisateur
             await matrix_client.send_markdown_message(
                 ep.room.room_id,
-                f"🔄 Classement du fichier dans '{chosen_folder}'...",
+                f"🔄 Classement du fichier dans '{decode_path_for_display(chosen_folder)}'...",
                 msgtype="m.notice"
             )
             
@@ -1004,10 +1122,19 @@ async def handle_attachments_response(ep: EventParser, matrix_client: MatrixClie
                 await webdav.upload_file(f, target_path)
             
             # Informer l'utilisateur
+            success_message = f"✅ Le fichier '{file_info.get('filename')}' a été classé avec succès dans '{decode_path_for_display(folder_path)}'."
             await matrix_client.send_markdown_message(
                 ep.room.room_id,
-                f"✅ Le fichier '{file_info.get('filename')}' a été classé avec succès dans '{chosen_folder}'.",
+                success_message,
                 msgtype="m.notice"
+            )
+            
+            # Ajouter la réponse du bot à l'historique
+            await update_conversation_history(
+                config,
+                ep.room.room_id,
+                ep.sender,
+                bot_response=success_message
             )
             
             # Nettoyer le fichier temporaire
@@ -1017,23 +1144,64 @@ async def handle_attachments_response(ep: EventParser, matrix_client: MatrixClie
             except Exception as clean_err:
                 logger.warning(f"Erreur lors de la suppression du fichier temporaire: {str(clean_err)}")
             
-            # Réinitialiser le contexte de session
-            session_context.conversation_state = {}
+            # Au lieu de réinitialiser complètement le contexte, marquer la commande comme terminée
+            # tout en conservant les informations importantes pour le contexte
+            old_state = session_context.conversation_state.copy()
+            session_context.conversation_state = {
+                "last_command": "pj",
+                "command_completed": True,
+                "last_action": old_state.get("action", "classify"),
+                "last_file_processed": file_info.get("filename"),
+                "last_target_path": folder_path
+            }
+            
+            # Mettre à jour le contexte
             await context_manager.update_context(
                 session_id,
                 ContextType.SESSION,
                 session_context.to_dict()
             )
             
+            # Indiquer explicitement que cette interaction est terminée et peut être suivie d'un dialogue
+            logger.info(f"Commande !pj terminée pour le fichier {file_info.get('filename')}. Prêt pour le dialogue.")
+            
+            # Marquer la fin du thread
+            await mark_command_thread_end(
+                ep.room.room_id, 
+                ep.sender, 
+                "pj", 
+                config, 
+                action="fichier classé",
+                file_name=file_info.get('filename', ''),
+                target_path=folder_path
+            )
+            
         except Exception as upload_err:
             logger.error(f"Erreur lors du téléversement du fichier: {str(upload_err)}")
-            traceback.print_exc()
+            error_message = "❌ Une erreur est survenue lors du traitement du fichier. " 
+            error_message += f"Détails: {str(upload_err)}"
             
             await matrix_client.send_markdown_message(
                 ep.room.room_id,
-                f"❌ Erreur lors du classement du fichier: {str(upload_err)}",
+                error_message,
                 msgtype="m.notice"
             )
+            
+            # Marquer la fin du thread même en cas d'erreur
+            try:
+                await mark_command_thread_end(
+                    ep.room.room_id, 
+                    ep.sender, 
+                    "pj", 
+                    config, 
+                    action="erreur de traitement",
+                    file_name=file_info.get('filename', ''),
+                    error=str(upload_err)
+                )
+            except Exception as mark_error:
+                logger.error(f"Erreur lors du marquage de fin de thread: {str(mark_error)}")
+            
+            return
         
         return
     
@@ -1081,8 +1249,18 @@ async def handle_attachments_response(ep: EventParser, matrix_client: MatrixClie
             except Exception as clean_err:
                 logger.warning(f"Erreur lors de la suppression du fichier temporaire: {str(clean_err)}")
             
-            # Réinitialiser le contexte de session
-            session_context.conversation_state = {}
+            # Au lieu de réinitialiser complètement le contexte, marquer la commande comme terminée
+            # tout en conservant les informations importantes pour le contexte
+            old_state = session_context.conversation_state.copy()
+            session_context.conversation_state = {
+                "last_command": "pj",
+                "command_completed": True,
+                "last_action": old_state.get("action", "classify"),
+                "last_file_processed": file_info.get("filename"),
+                "last_target_path": f"/{file_info['filename']}"
+            }
+            
+            # Mettre à jour le contexte
             await context_manager.update_context(
                 session_id,
                 ContextType.SESSION,
@@ -1104,31 +1282,16 @@ async def handle_attachments_response(ep: EventParser, matrix_client: MatrixClie
             target_path = session_context.conversation_state.get("suggested_path")
         elif choice == 2:
             # Option 2: Choisir une alternative
-            alternatives = session_context.conversation_state.get("alternatives", [])
-            
-            if not alternatives:
-                await matrix_client.send_markdown_message(
-                    ep.room.room_id,
-                    "❌ Aucune alternative disponible. Veuillez choisir une autre option.",
-                    msgtype="m.notice"
-                )
-                return
-                
-            # Afficher les alternatives
-            alt_message = "📋 **Alternatives disponibles**:\n\n"
-            for i, (folder, confidence) in enumerate(alternatives):
-                alt_message += f"{i+1}. {folder} ({confidence:.0%})\n"
-            
-            alt_message += "\nRépondez avec le numéro de l'alternative choisie."
-            
             await matrix_client.send_markdown_message(
                 ep.room.room_id,
-                alt_message,
+                "Veuillez entrer le numéro de l'alternative (1, 2, 3):",
                 msgtype="m.notice"
             )
-            
-            # Mettre à jour le contexte pour attendre le choix d'une alternative
             session_context.conversation_state["waiting_for_alternative"] = True
+            
+            # Récupérer le gestionnaire de contexte global
+            context_manager = get_context_manager(config)
+            
             await context_manager.update_context(
                 session_id,
                 ContextType.SESSION,
@@ -1144,6 +1307,10 @@ async def handle_attachments_response(ep: EventParser, matrix_client: MatrixClie
                 msgtype="m.notice"
             )
             session_context.conversation_state["waiting_for_path"] = True
+            
+            # Récupérer le gestionnaire de contexte global
+            context_manager = get_context_manager(config)
+            
             await context_manager.update_context(
                 session_id,
                 ContextType.SESSION,
@@ -1159,7 +1326,7 @@ async def handle_attachments_response(ep: EventParser, matrix_client: MatrixClie
                 msgtype="m.notice"
             )
             return
-    
+
     # Si nous arrivons ici, nous avons un chemin cible
     if not target_path:
         await matrix_client.send_markdown_message(
@@ -1195,10 +1362,19 @@ async def handle_attachments_response(ep: EventParser, matrix_client: MatrixClie
             await webdav.upload_file(f, target_path)
         
         # Informer l'utilisateur
+        success_message = f"✅ Le fichier '{file_info.get('filename')}' a été classé avec succès dans '{decode_path_for_display(folder_path)}'."
         await matrix_client.send_markdown_message(
             ep.room.room_id,
-            f"✅ Le fichier '{file_info.get('filename')}' a été classé avec succès dans '{folder_path}'.",
+            success_message,
             msgtype="m.notice"
+        )
+        
+        # Ajouter la réponse du bot à l'historique
+        await update_conversation_history(
+            config,
+            ep.room.room_id,
+            ep.sender,
+            bot_response=success_message
         )
         
         # Nettoyer le fichier temporaire
@@ -1208,22 +1384,177 @@ async def handle_attachments_response(ep: EventParser, matrix_client: MatrixClie
         except Exception as clean_err:
             logger.warning(f"Erreur lors de la suppression du fichier temporaire: {str(clean_err)}")
         
-        # Réinitialiser le contexte de session
-        session_context.conversation_state = {}
+        # Au lieu de réinitialiser complètement le contexte, marquer la commande comme terminée
+        # tout en conservant les informations importantes pour le contexte
+        old_state = session_context.conversation_state.copy()
+        session_context.conversation_state = {
+            "last_command": "pj",
+            "command_completed": True,
+            "last_action": old_state.get("action", "classify"),
+            "last_file_processed": file_info.get("filename"),
+            "last_target_path": folder_path
+        }
+        
+        # Mettre à jour le contexte
         await context_manager.update_context(
             session_id,
             ContextType.SESSION,
             session_context.to_dict()
         )
         
+        # Indiquer explicitement que cette interaction est terminée et peut être suivie d'un dialogue
+        logger.info(f"Commande !pj terminée pour le fichier {file_info.get('filename')}. Prêt pour le dialogue.")
+        
+        # Marquer la fin du thread
+        await mark_command_thread_end(
+            ep.room.room_id, 
+            ep.sender, 
+            "pj", 
+            config, 
+            action="fichier classé",
+            file_name=file_info.get('filename', ''),
+            target_path=folder_path
+        )
+        
     except Exception as upload_err:
         logger.error(f"Erreur lors du téléversement du fichier: {str(upload_err)}")
-        traceback.print_exc()
+        error_message = "❌ Une erreur est survenue lors du traitement du fichier. " 
+        error_message += f"Détails: {str(upload_err)}"
         
         await matrix_client.send_markdown_message(
             ep.room.room_id,
-            f"❌ Erreur lors du classement du fichier: {str(upload_err)}",
+            error_message,
             msgtype="m.notice"
         )
         
-        # Ne pas nettoyer le fichier temporaire en cas d'erreur pour permettre une nouvelle tentative 
+        # Marquer la fin du thread même en cas d'erreur
+        try:
+            await mark_command_thread_end(
+                ep.room.room_id, 
+                ep.sender, 
+                "pj", 
+                config, 
+                action="erreur de traitement",
+                file_name=file_info.get('filename', ''),
+                error=str(upload_err)
+            )
+        except Exception as mark_error:
+            logger.error(f"Erreur lors du marquage de fin de thread: {str(mark_error)}")
+        
+        return
+
+    # Si nous arrivons ici, nous avons un chemin cible
+    if not target_path:
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            "❌ Erreur lors de la détermination du chemin cible.",
+            msgtype="m.notice"
+        )
+        return
+    
+    # Initialiser le service WebDAV et téléverser le fichier
+    webdav = WebDAVService(config)
+    await webdav.initialize()
+    
+    try:
+        # Informer l'utilisateur
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            f"🔄 Classement du fichier en cours...",
+            msgtype="m.notice"
+        )
+        
+        # Créer le dossier parent si nécessaire
+        folder_path = os.path.dirname(target_path)
+        if folder_path != '/':
+            try:
+                await webdav.create_directory(folder_path)
+                logger.info(f"Dossier créé: {folder_path}")
+            except Exception as folder_err:
+                logger.warning(f"Erreur lors de la création du dossier (peut-être existe-t-il déjà): {str(folder_err)}")
+        
+        # Téléverser le fichier
+        with open(temp_file_path, "rb") as f:
+            await webdav.upload_file(f, target_path)
+        
+        # Informer l'utilisateur
+        success_message = f"✅ Le fichier '{file_info.get('filename')}' a été classé avec succès dans '{decode_path_for_display(folder_path)}'."
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            success_message,
+            msgtype="m.notice"
+        )
+        
+        # Ajouter la réponse du bot à l'historique
+        await update_conversation_history(
+            config,
+            ep.room.room_id,
+            ep.sender,
+            bot_response=success_message
+        )
+        
+        # Nettoyer le fichier temporaire
+        try:
+            os.unlink(temp_file_path)
+            logger.debug(f"Fichier temporaire supprimé: {temp_file_path}")
+        except Exception as clean_err:
+            logger.warning(f"Erreur lors de la suppression du fichier temporaire: {str(clean_err)}")
+        
+        # Au lieu de réinitialiser complètement le contexte, marquer la commande comme terminée
+        # tout en conservant les informations importantes pour le contexte
+        old_state = session_context.conversation_state.copy()
+        session_context.conversation_state = {
+            "last_command": "pj",
+            "command_completed": True,
+            "last_action": old_state.get("action", "classify"),
+            "last_file_processed": file_info.get("filename"),
+            "last_target_path": folder_path
+        }
+        
+        # Mettre à jour le contexte
+        await context_manager.update_context(
+            session_id,
+            ContextType.SESSION,
+            session_context.to_dict()
+        )
+        
+        # Indiquer explicitement que cette interaction est terminée et peut être suivie d'un dialogue
+        logger.info(f"Commande !pj terminée pour le fichier {file_info.get('filename')}. Prêt pour le dialogue.")
+        
+        # Marquer la fin du thread
+        await mark_command_thread_end(
+            ep.room.room_id, 
+            ep.sender, 
+            "pj", 
+            config, 
+            action="fichier classé",
+            file_name=file_info.get('filename', ''),
+            target_path=folder_path
+        )
+        
+    except Exception as upload_err:
+        logger.error(f"Erreur lors du téléversement du fichier: {str(upload_err)}")
+        error_message = "❌ Une erreur est survenue lors du traitement du fichier. " 
+        error_message += f"Détails: {str(upload_err)}"
+        
+        await matrix_client.send_markdown_message(
+            ep.room.room_id,
+            error_message,
+            msgtype="m.notice"
+        )
+        
+        # Marquer la fin du thread même en cas d'erreur
+        try:
+            await mark_command_thread_end(
+                ep.room.room_id, 
+                ep.sender, 
+                "pj", 
+                config, 
+                action="erreur de traitement",
+                file_name=file_info.get('filename', ''),
+                error=str(upload_err)
+            )
+        except Exception as mark_error:
+            logger.error(f"Erreur lors du marquage de fin de thread: {str(mark_error)}")
+        
+        return 

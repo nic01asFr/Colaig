@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import asyncio
 import json
 import os
+import urllib.parse
 
 from matrix_bot.config import logger
 from config import Config
@@ -206,6 +207,13 @@ class ContextManager:
 
     def _get_context_path(self, context_id: str) -> str:
         """Génère le chemin WebDAV pour un contexte"""
+        # Utiliser directement les caractères spéciaux sans encodage
+        # C'est la même implémentation que _get_context_path_legacy
+        return f"{self._webdav.CONTEXTS_DIR}/{context_id}.json"
+
+    def _get_context_path_legacy(self, context_id: str) -> str:
+        """Génère le chemin WebDAV pour un contexte avec les caractères spéciaux préservés (format legacy)"""
+        # Utiliser directement l'ID sans encodage pour les anciens fichiers
         return f"{self._webdav.CONTEXTS_DIR}/{context_id}.json"
 
     async def get_context(
@@ -250,18 +258,25 @@ class ContextManager:
                 logger.warning("WebDAV non disponible lors de get_context")
                 return None
             
-            # Construire le chemin WebDAV
+            # Essayer d'abord avec le chemin encodé (nouveau format)
             context_path = self._get_context_path(context_id)
+            context_data = await self._webdav.get_context_safely(context_path)
             
-            # Récupérer le contexte de manière sécurisée
-            context_data = await self._webdav.get_context_safely(context_id)
+            # Si le contexte n'est pas trouvé, essayer avec le format legacy (caractères spéciaux préservés)
+            if not context_data:
+                # Générer le chemin avec caractères spéciaux préservés
+                legacy_path = self._get_context_path_legacy(context_id)
+                if legacy_path != context_path:
+                    logger.debug(f"Essai avec le format legacy (caractères spéciaux préservés): {legacy_path}")
+                    context_data = await self._webdav.get_context_safely(legacy_path)
             
             if not context_data:
                 return None
             
-            # Vérifier si le type corresponds
-            if context_data.get("context_type", "") != context_type.value:
-                logger.warning(f"Type de contexte incorrect: {context_data.get('context_type')} != {context_type.value}")
+            # Vérifier si le type correspond (accepter '_type' ou 'context_type')
+            stored_type = context_data.get("context_type") or context_data.get("_type")
+            if stored_type != context_type.value:
+                logger.warning(f"Type de contexte incorrect: {stored_type} != {context_type.value}")
                 return None
             
             # Créer l'instance avec la classe appropriée
@@ -271,6 +286,12 @@ class ContextManager:
                 return None
             
             try:
+                # Nettoyer les données avant création (les modèles le font déjà, mais par précaution)
+                if "_type" in context_data:
+                    context_data.pop("_type")
+                if "context_type" in context_data:
+                    context_data.pop("context_type")
+                
                 # Utiliser la méthode from_dict spécifique si elle existe
                 if hasattr(context_class, 'from_dict'):
                     context = context_class.from_dict(context_data)
@@ -459,6 +480,7 @@ class ContextManager:
                     raise ValueError(f"Type de contexte inconnu pour {context.__class__.__name__}")
                     
                 data['_type'] = context_type.value
+                data['context_type'] = context_type.value  # Ajouter aussi sous context_type pour compatibilité
                 
                 # S'assurer que les dates sont des objets datetime
                 if 'updated_at' in data and isinstance(data['updated_at'], str):
@@ -506,34 +528,47 @@ class ContextManager:
             # Calculer la date limite
             limit_date = datetime.now() - timedelta(days=max_age_days)
             
-            # Lister les contextes
+            # Lister les contextes avec list_directory pour avoir plus d'informations
             context_dir = f"{self._webdav.CONTEXTS_DIR}"
-            files = await self._webdav.list_documents(context_dir)
+            files_info = await self._webdav.list_directory(context_dir)
             
-            for file in files:
+            # Filtrer pour ne garder que les fichiers JSON
+            context_files = [item['path'] for item in files_info if item['type'] == 'file' and item['name'].endswith('.json')]
+            
+            for file_path in context_files:
                 try:
                     # Charger le contexte
-                    content = await self._webdav.read_document(file)
-                    data = json.loads(content)
+                    try:
+                        content = await self._webdav.read_document(file_path)
+                    except FileNotFoundError:
+                        logger.debug(f"Fichier non trouvé lors du nettoyage: {file_path}")
+                        continue
+                    
+                    # Parser le contenu JSON
+                    try:
+                        data = json.loads(content)
+                    except json.JSONDecodeError as json_err:
+                        logger.warning(f"Erreur décodage JSON pour {file_path}: {str(json_err)}")
+                        continue
                     
                     # Vérifier la date de dernière mise à jour
-                    updated_at_str = data.get('updated_at', '')
-                    if not updated_at_str:
-                        logger.debug(f"Date de mise à jour manquante pour {file}, ignoré")
+                    last_activity = data.get('last_activity', None)
+                    if not last_activity:
+                        logger.debug(f"Date de dernière activité manquante pour {file_path}, ignoré")
                         continue
                         
                     try:
-                        updated_at = datetime.fromisoformat(updated_at_str)
-                        if updated_at < limit_date:
+                        activity_date = datetime.fromisoformat(last_activity)
+                        if activity_date < limit_date:
                             # Supprimer le contexte
-                            await self._webdav.delete_file(file)
-                            logger.info(f"Contexte nettoyé: {file}")
+                            await self._webdav.delete_file(file_path)
+                            logger.info(f"Contexte nettoyé: {file_path}")
                     except ValueError:
-                        logger.debug(f"Format de date invalide pour {file}: {updated_at_str}, ignoré")
+                        logger.debug(f"Format de date invalide pour {file_path}: {last_activity}, ignoré")
                         continue
                         
                 except Exception as e:
-                    logger.warning(f"Erreur nettoyage contexte {file}: {str(e)}")
+                    logger.warning(f"Erreur nettoyage contexte {file_path}: {str(e)}")
                     continue
                     
         except Exception as e:

@@ -39,8 +39,7 @@ def properly_fail(matrix_client, error_msg=AlbertMsg.failed):
                 await matrix_client.send_text_message(room.room_id, error_msg, msgtype="m.notice")
                 logger.warning(f"command failed with exception: {unexpected_exception}")
                 traceback.print_exc()
-            finally:
-                await matrix_client.room_typing(room.room_id, typing_state=False)
+            # Ne pas désactiver room_typing ici car c'est géré dans register_on_custom_event
 
         return wrapper
 
@@ -123,7 +122,16 @@ class Callbacks:
                     room=room, event=event, matrix_client=self.matrix_client, log_usage=True
                 )
 
-            await func(ep=ep, matrix_client=self.matrix_client)
+            # Activer l'indicateur "en train d'écrire" avant de traiter la commande
+            await self.matrix_client.room_typing(room.room_id, typing_state=True)
+            
+            try:
+                # Exécuter la commande
+                await func(ep=ep, matrix_client=self.matrix_client)
+            finally:
+                # S'assurer que l'indicateur est désactivé, que la commande réussisse ou non
+                await self.matrix_client.room_typing(room.room_id, typing_state=False)
+                
         self.client_callback.append((wrapped_func, onEvent))
 
     def register_on_reaction_event(self, func):

@@ -21,7 +21,7 @@ services:
       - GROUPS_USED=basic,document
       - ALBERT_API_URL=${ALBERT_API_URL}
       - ALBERT_API_TOKEN=${ALBERT_API_TOKEN}
-      - ALBERT_MODEL=${ALBERT_MODEL:-meta-llama/Llama-3.1-8B-Instruct}
+      - ALBERT_MODEL=${ALBERT_MODEL:-mistralai/Mistral-Small-3.1-24B-Instruct-2503}
       - ALBERT_MODEL_EMBEDDING=${ALBERT_MODEL_EMBEDDING:-BAAI/bge-m3}
       - ALBERT_MODE=rag
       - ALBERT_WITH_HISTORY=true

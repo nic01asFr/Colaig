@@ -82,8 +82,10 @@ async def generate(
     mode = None if config.albert_mode == "norag" else config.albert_mode
     collections = list(config.albert_collections_by_id.keys())
     rag_chunks = []
-    if not config.albert_with_history:
-        messages = messages[-1:]
+    
+    # Utiliser toujours l'historique complet des messages
+    # La condition config.albert_with_history est supprimée car nous voulons
+    # systématiquement utiliser l'historique des conversations
 
     # Build prompt
     sampling_params: dict = {}
@@ -135,7 +137,7 @@ async def generate(
 
     try:
         # Génération de la réponse
-        response = await aclient.generate(model, messages, **sampling_params)
+        response = await aclient.generate(model, messages=messages, **sampling_params)
         config.last_rag_chunks = rag_chunks
         return response
     except Exception as e:

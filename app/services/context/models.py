@@ -83,6 +83,10 @@ class BaseContext:
         last_activity_str = data_copy.pop('last_activity', None)
         context_refs = data_copy.pop('context_refs', {})
         
+        # Retirer les champs de type qui ne sont pas des attributs
+        data_copy.pop('_type', None)
+        data_copy.pop('context_type', None)
+        
         # Créer l'instance
         instance = cls(**data_copy)
         
@@ -292,8 +296,13 @@ class RequestContext(BaseContext):
         except ValueError:
             logger.debug(f"Format de date invalide pour event_timestamp: {timestamp_str}, utilisation de la date actuelle")
             data['event_timestamp'] = get_synchronized_time()
+        
+        # Retirer les champs de type qui ne sont pas des attributs
+        data_copy = data.copy()
+        data_copy.pop('_type', None)
+        data_copy.pop('context_type', None)
             
-        return super().from_dict(data)
+        return super().from_dict(data_copy)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convertit le contexte en dictionnaire avec préservation des timestamps"""
@@ -363,6 +372,10 @@ class ResponseContext(BaseContext):
             "text"
         )
         data_copy['response_type'] = response_type
+        
+        # Retirer les champs de type qui ne sont pas des attributs
+        data_copy.pop('_type', None)
+        data_copy.pop('context_type', None)
         
         return super().from_dict(data_copy)
 
