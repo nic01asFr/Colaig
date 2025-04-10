@@ -1017,7 +1017,7 @@ Le document *{attachment_name}* a été classé dans le dossier:
 
 """
             if indexation_success:
-                final_message += "Le document a également été indexé et pourra être recherché avec `!docquery-new`."
+                final_message += "Le document a également été indexé et pourra être recherché avec `!chercher`."
             else:
                 final_message += "⚠️ L'indexation du document a échoué, mais le fichier a bien été classé."
             

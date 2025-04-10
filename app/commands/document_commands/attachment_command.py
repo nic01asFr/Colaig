@@ -192,7 +192,7 @@ Si vous souhaitez annuler, répondez "annuler".
                 "message": f"""✅ **Document classé avec succès**
 
 Le document a été classé dans le dossier choisi.
-Le document a également été indexé et pourra être recherché avec `!docquery-new`.
+Le document a également été indexé et pourra être recherché avec `!chercher`.
 """
             }
         

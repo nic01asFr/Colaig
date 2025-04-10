@@ -1,5 +1,5 @@
 """
-Version adaptée de la commande docquery utilisant le nouveau décorateur albert_command.
+Version adaptée de la commande chercher utilisant le nouveau décorateur albert_command.
 
 Cette version montre comment adapter une commande existante pour utiliser
 le nouveau système de décorateurs sans changer la logique métier.
@@ -32,17 +32,17 @@ logger = logging.getLogger(__name__)
 
 @albert_command(
     group="document",
-    command="docquery-new",
+    command="chercher",
     aliases=["docq-new"],
-    help_text="!docquery-new [question] - Interroger les documents indexés avec une question en langage naturel",
+    help_text="!chercher [question] - Interroger les documents indexés avec une question en langage naturel",
     preserve_context=True,
     timeout=90.0  # 90 secondes maximum
 )
 async def doc_query_adapted_command(ep: EventParser, matrix_client: MatrixClient):
     """Interroge les documents indexés avec une question en langage naturel."""
     # Logs de début
-    logger.info(f"[DOCQUERY-NEW] Démarrage de la commande docquery-new")
-    logger.info(f"[DOCQUERY-NEW] Sender: {ep.sender}, Room ID: {ep.room.room_id}")
+    logger.info(f"[CHERCHER] Démarrage de la commande chercher")
+    logger.info(f"[CHERCHER] Sender: {ep.sender}, Room ID: {ep.room.room_id}")
     
     # Configuration de base
     config = getattr(matrix_client, "albert_config", matrix_client.config)
@@ -65,7 +65,7 @@ async def doc_query_adapted_command(ep: EventParser, matrix_client: MatrixClient
         if not base_url or not doc_path:
             return ""
         
-        logger.info(f"[DOCQUERY-NEW] Construction URL pour: base={base_url}, user={username}, path={doc_path}")
+        logger.info(f"[CHERCHER] Construction URL pour: base={base_url}, user={username}, path={doc_path}")
         
         # Si nous avons un service WebDAV, tenter de créer un lien de partage
         if webdav_service:
@@ -85,12 +85,12 @@ async def doc_query_adapted_command(ep: EventParser, matrix_client: MatrixClient
                 share_link = await webdav_service.create_share_link(real_path, expiration_days=7)
                 
                 if share_link:
-                    logger.info(f"[DOCQUERY-NEW] Lien de partage créé avec succès: {share_link}")
+                    logger.info(f"[CHERCHER] Lien de partage créé avec succès: {share_link}")
                     return share_link
                 else:
-                    logger.warning(f"[DOCQUERY-NEW] Impossible de créer un lien de partage, fallback vers WebDAV standard")
+                    logger.warning(f"[CHERCHER] Impossible de créer un lien de partage, fallback vers WebDAV standard")
             except Exception as e:
-                logger.error(f"[DOCQUERY-NEW] Erreur lors de la création du lien de partage: {str(e)}")
+                logger.error(f"[CHERCHER] Erreur lors de la création du lien de partage: {str(e)}")
         
         # Fallback: construire une URL WebDAV standard (code existant)
         def build_webdav_url(base_url, username, doc_path):
@@ -111,7 +111,7 @@ async def doc_query_adapted_command(ep: EventParser, matrix_client: MatrixClient
                 if domain_part:
                     base_url = domain_part.group(1)
                 
-                logger.info(f"[DOCQUERY-NEW] Cas 1: Chemin contient déjà WebDAV pattern: {doc_path}")
+                logger.info(f"[CHERCHER] Cas 1: Chemin contient déjà WebDAV pattern: {doc_path}")
                 url = f"{base_url}/{doc_path}"
                 # Ajouter le paramètre de téléchargement
                 return f"{url}?download=1"
@@ -123,13 +123,13 @@ async def doc_query_adapted_command(ep: EventParser, matrix_client: MatrixClient
             if user_local and doc_path.startswith(f"{user_local}/"):
                 # Supprimer le préfixe utilisateur
                 real_doc_path = doc_path[len(user_local)+1:]
-                logger.info(f"[DOCQUERY-NEW] Cas 2: Suppression préfixe utilisateur: {real_doc_path}")
+                logger.info(f"[CHERCHER] Cas 2: Suppression préfixe utilisateur: {real_doc_path}")
             
             # Vérifier également si le chemin complet commence par le nom d'utilisateur
             elif username and doc_path.startswith(f"{username}/"):
                 # Supprimer le préfixe utilisateur complet
                 real_doc_path = doc_path[len(username)+1:]
-                logger.info(f"[DOCQUERY-NEW] Cas 2: Suppression préfixe email: {real_doc_path}")
+                logger.info(f"[CHERCHER] Cas 2: Suppression préfixe email: {real_doc_path}")
             
             # Cas 3: Construire l'URL WebDAV correcte
             # Vérifier si base_url contient déjà le pattern WebDAV
@@ -138,7 +138,7 @@ async def doc_query_adapted_command(ep: EventParser, matrix_client: MatrixClient
             else:
                 webdav_url = f"{base_url}/remote.php/dav/files/{username}/{real_doc_path}"
             
-            logger.info(f"[DOCQUERY-NEW] URL WebDAV construite: {webdav_url}")
+            logger.info(f"[CHERCHER] URL WebDAV construite: {webdav_url}")
             return f"{webdav_url}?download=1"
         
         # Construire l'URL WebDAV standard
@@ -148,20 +148,20 @@ async def doc_query_adapted_command(ep: EventParser, matrix_client: MatrixClient
     message_text = ep.event.body.strip() if hasattr(ep.event, 'body') else ""
     command_parts = message_text.split(maxsplit=1)
     
-    # Si le message est uniquement "!docquery-new" sans arguments
+    # Si le message est uniquement "!chercher" sans arguments
     if len(command_parts) <= 1:
-        logger.info(f"[DOCQUERY-NEW] Pas de question fournie, envoi des instructions")
-        return """❓ **Comment utiliser !docquery-new**
+        logger.info(f"[CHERCHER] Pas de question fournie, envoi des instructions")
+        return """❓ **Comment utiliser !chercher**
 
 ```
-!docquery-new Votre question sur les documents indexés
+!chercher Votre question sur les documents indexés
 ```
 
 Posez une question en langage naturel, et je chercherai des réponses dans les documents indexés."""
     
     # Extraire la question (tout ce qui suit après la commande)
     question = command_parts[1]
-    logger.info(f"[DOCQUERY-NEW] Question: '{question}'")
+    logger.info(f"[CHERCHER] Question: '{question}'")
     
     # Envoyer un message de chargement
     await matrix_client.send_markdown_message(
@@ -173,13 +173,13 @@ Posez une question en langage naturel, et je chercherai des réponses dans les d
     try:
         # Obtenir le service d'index
         index_service = await get_index_service(config)
-        logger.info(f"[DOCQUERY-NEW] Service d'index obtenu")
+        logger.info(f"[CHERCHER] Service d'index obtenu")
         
         # Vérifier si l'index est valide
         try:
             # Vérifier l'état de l'index
             if not hasattr(index_service, 'document_index') or not index_service.document_index:
-                logger.error(f"[DOCQUERY-NEW] Index de documents non initialisé")
+                logger.error(f"[CHERCHER] Index de documents non initialisé")
                 await matrix_client.send_markdown_message(
                     room_id,
                     "⚠️ **Index non disponible**\n\nL'index de documents n'est pas initialisé. Veuillez utiliser la commande `!index rebuild` pour reconstruire l'index.",
@@ -188,7 +188,7 @@ Posez une question en langage naturel, et je chercherai des réponses dans les d
                 return None
                 
             if not hasattr(index_service.document_index, 'faiss_index') or not index_service.document_index.faiss_index:
-                logger.error(f"[DOCQUERY-NEW] Index FAISS non initialisé")
+                logger.error(f"[CHERCHER] Index FAISS non initialisé")
                 await matrix_client.send_markdown_message(
                     room_id,
                     "⚠️ **Index corrompu**\n\nL'index FAISS n'est pas correctement initialisé. Veuillez utiliser la commande `!index rebuild` pour reconstruire l'index.",
@@ -199,7 +199,7 @@ Posez une question en langage naturel, et je chercherai des réponses dans les d
             # Vérifier si l'index contient des documents
             if (not hasattr(index_service.document_index.faiss_index, 'document_map') or 
                 not index_service.document_index.faiss_index.document_map):
-                logger.error(f"[DOCQUERY-NEW] Index vide ou corrompu")
+                logger.error(f"[CHERCHER] Index vide ou corrompu")
                 await matrix_client.send_markdown_message(
                     room_id,
                     "⚠️ **Index vide ou corrompu**\n\nAucun document n'est présent dans l'index. Veuillez utiliser la commande `!index rebuild` pour reconstruire l'index.",
@@ -207,7 +207,7 @@ Posez une question en langage naturel, et je chercherai des réponses dans les d
                 )
                 return None
         except Exception as index_err:
-            logger.error(f"[DOCQUERY-NEW] Erreur lors de la vérification de l'index: {str(index_err)}")
+            logger.error(f"[CHERCHER] Erreur lors de la vérification de l'index: {str(index_err)}")
             await matrix_client.send_markdown_message(
                 room_id,
                 "⚠️ **Erreur d'index**\n\nUne erreur s'est produite lors de la vérification de l'index. Veuillez utiliser la commande `!index rebuild` pour reconstruire l'index ou contactez l'administrateur.",
@@ -216,7 +216,7 @@ Posez une question en langage naturel, et je chercherai des réponses dans les d
             return None
         
         # Obtenir les résultats de recherche avec un timeout
-        logger.info(f"[DOCQUERY-NEW] Exécution de la recherche pour '{question}'")
+        logger.info(f"[CHERCHER] Exécution de la recherche pour '{question}'")
         try:
             search_results = await asyncio.wait_for(
                 index_service.search(
@@ -226,9 +226,9 @@ Posez une question en langage naturel, et je chercherai des réponses dans les d
                 ),
                 timeout=10.0
             )
-            logger.info(f"[DOCQUERY-NEW] Nombre de résultats: {len(search_results)}")
+            logger.info(f"[CHERCHER] Nombre de résultats: {len(search_results)}")
         except asyncio.TimeoutError:
-            logger.error(f"[DOCQUERY-NEW] Timeout lors de la recherche pour '{question}'")
+            logger.error(f"[CHERCHER] Timeout lors de la recherche pour '{question}'")
             await matrix_client.send_markdown_message(
                 room_id,
                 "⏱️ La recherche a pris trop de temps. Veuillez réessayer avec une question plus simple ou contactez l'administrateur.",
@@ -236,7 +236,7 @@ Posez une question en langage naturel, et je chercherai des réponses dans les d
             )
             return None
         except Exception as e:
-            logger.error(f"[DOCQUERY-NEW] Erreur lors de la recherche: {str(e)}")
+            logger.error(f"[CHERCHER] Erreur lors de la recherche: {str(e)}")
             await matrix_client.send_markdown_message(
                 room_id,
                 f"❌ Une erreur s'est produite lors de la recherche: {str(e)}",
@@ -245,19 +245,19 @@ Posez une question en langage naturel, et je chercherai des réponses dans les d
             return None
         
         # Logs détaillés pour les résultats de recherche
-        logger.info(f"[DOCQUERY-NEW] Détails des résultats de recherche:")
+        logger.info(f"[CHERCHER] Détails des résultats de recherche:")
         for i, result in enumerate(search_results):
             source = result.get("source", "Document inconnu")
             score = result.get("score", 0)
             text_preview = result.get("text", "")[:100] + "..." if result.get("text") else "Pas de texte"
             metadata = result.get("metadata", {})
-            logger.info(f"[DOCQUERY-NEW] Résultat #{i+1}: Source={source}, Score={score}")
-            logger.info(f"[DOCQUERY-NEW] Aperçu du texte: {text_preview}")
-            logger.info(f"[DOCQUERY-NEW] Métadonnées: {metadata}")
+            logger.info(f"[CHERCHER] Résultat #{i+1}: Source={source}, Score={score}")
+            logger.info(f"[CHERCHER] Aperçu du texte: {text_preview}")
+            logger.info(f"[CHERCHER] Métadonnées: {metadata}")
         
         # Si aucun résultat n'est trouvé
         if not search_results:
-            logger.warning(f"[DOCQUERY-NEW] Aucun résultat trouvé pour la question: '{question}'")
+            logger.warning(f"[CHERCHER] Aucun résultat trouvé pour la question: '{question}'")
             return f"""⚠️ Je n'ai trouvé aucun document pertinent pour répondre à votre question.
 
 Suggestions:
@@ -331,7 +331,7 @@ Suggestions:
                 content = "\n".join(content_parts)
             
             # Log détaillé pour comprendre la structure des résultats
-            logger.info(f"[DOCQUERY-NEW] Structure complète du résultat: {result}")
+            logger.info(f"[CHERCHER] Structure complète du résultat: {result}")
             
             # Ajouter le contexte seulement si nous avons du contenu
             if content and content.strip():
@@ -339,11 +339,11 @@ Suggestions:
                 # Ajouter également à la liste des sources pour compatibilité
                 sources.append(document_name or "Document inconnu")
             else:
-                logger.warning(f"[DOCQUERY-NEW] Résultat ignoré car contenu vide")
+                logger.warning(f"[CHERCHER] Résultat ignoré car contenu vide")
         
         # Si aucun contexte valide n'a été trouvé après le filtrage
         if not contexts:
-            logger.warning(f"[DOCQUERY-NEW] Aucun contexte textuel valide trouvé pour la question: '{question}'")
+            logger.warning(f"[CHERCHER] Aucun contexte textuel valide trouvé pour la question: '{question}'")
             return f"""⚠️ J'ai trouvé des documents potentiellement pertinents, mais je n'ai pas pu en extraire le contenu textuel.
 
 Suggestions:
@@ -357,11 +357,11 @@ Suggestions:
         # Générer et envoyer la réponse
         try:
             # Générer une réponse avec les références
-            logger.info(f"[DOCQUERY-NEW] Génération de la réponse avec {len(contexts)} contextes")
+            logger.info(f"[CHERCHER] Génération de la réponse avec {len(contexts)} contextes")
             
             # Tracer les contextes pour le débogage
             for i, context in enumerate(contexts):
-                logger.info(f"[DOCQUERY-NEW] Contexte {i+1}: {context[:100]}...")
+                logger.info(f"[CHERCHER] Contexte {i+1}: {context[:100]}...")
             
             # Déterminer le plan de requête avec l'inférence
             query_plan = await infer_query_plan(
@@ -369,7 +369,7 @@ Suggestions:
                 query=question,
                 contexts=contexts
             )
-            logger.info(f"[DOCQUERY-NEW] Plan de requête déterminé: {query_plan}")
+            logger.info(f"[CHERCHER] Plan de requête déterminé: {query_plan}")
             
             # Générer la réponse formatée
             response = await format_answer(
@@ -378,10 +378,10 @@ Suggestions:
                 contexts=contexts,
                 query_plan=query_plan
             )
-            logger.info(f"[DOCQUERY-NEW] Réponse générée: {response[:100]}...")
+            logger.info(f"[CHERCHER] Réponse générée: {response[:100]}...")
             
             # Ajouter les sources à la réponse (TOUJOURS inclure une section de sources)
-            logger.info(f"[DOCQUERY-NEW] Préparation des sources, {len(document_sources)} documents trouvés")
+            logger.info(f"[CHERCHER] Préparation des sources, {len(document_sources)} documents trouvés")
             
             # Trier les sources par score de similarité (du plus élevé au plus bas)
             document_sources.sort(key=lambda x: x.get("score", 0), reverse=True)
@@ -418,7 +418,7 @@ Suggestions:
                 webdav_base_url = config.webdav_url if hasattr(config, 'webdav_url') else ""
                 webdav_username = config.webdav_username if hasattr(config, 'webdav_username') else ""
                 
-                logger.info(f"[DOCQUERY-NEW] Base WebDAV URL: {webdav_base_url}")
+                logger.info(f"[CHERCHER] Base WebDAV URL: {webdav_base_url}")
                 
                 # Créer une instance de WebDAVService pour les liens de partage
                 webdav_service = WebDAVService(config)
@@ -509,7 +509,7 @@ Suggestions:
                         source_line = f"\n- {doc_name}{context_info}"
                     
                     formatted_sources += source_line
-                    logger.info(f"[DOCQUERY-NEW] Source ajoutée: {source_line}")
+                    logger.info(f"[CHERCHER] Source ajoutée: {source_line}")
             else:
                 # Si aucune source n'a été extraite, mais des résultats existent
                 if search_results:
@@ -528,10 +528,10 @@ Suggestions:
                     else:
                         formatted_sources += "\n- Document BPU_OPSIA.pdf (aucun lien disponible)"
                     
-                    logger.info("[DOCQUERY-NEW] Ajout des sources basé sur les résultats bruts")
+                    logger.info("[CHERCHER] Ajout des sources basé sur les résultats bruts")
                 else:
                     formatted_sources += "\n- Aucune source spécifique identifiée."
-                    logger.warning("[DOCQUERY-NEW] Aucune source unique n'a été identifiée")
+                    logger.warning("[CHERCHER] Aucune source unique n'a été identifiée")
             
             # Ajouter une note sur l'accessibilité des documents
             formatted_sources += "\n\n*Cliquez sur les noms des documents pour les télécharger. Si vous n'avez pas accès à certains documents, veuillez contacter votre administrateur.*"
@@ -543,22 +543,22 @@ Suggestions:
             response += "\n\n---\n*Cette réponse a été générée automatiquement à partir des documents indexés. Pour toute question, précision ou information complémentaire, n'hésitez pas à demander.*"
             
             # Log de la réponse complète pour débogage
-            logger.info(f"[DOCQUERY-NEW] Réponse finale générée: \n{response}")
+            logger.info(f"[CHERCHER] Réponse finale générée: \n{response}")
             
             # Envoyer la réponse finale
-            logger.info(f"[DOCQUERY-NEW] Envoi de la réponse finale au chat")
+            logger.info(f"[CHERCHER] Envoi de la réponse finale au chat")
             response_event = await matrix_client.send_markdown_message(
                 room_id,
                 response,
                 reply_to=ep.event.event_id
             )
             
-            logger.info(f"[DOCQUERY-NEW] Réponse envoyée avec event_id: {response_event}")
+            logger.info(f"[CHERCHER] Réponse envoyée avec event_id: {response_event}")
             return None
             
         except Exception as e:
             error_message = f"Une erreur est survenue lors de la génération de la réponse: {str(e)}"
-            logger.error(f"[DOCQUERY-NEW] {error_message}")
+            logger.error(f"[CHERCHER] {error_message}")
             logger.exception(e)
             
             # Envoyer un message d'erreur
@@ -570,7 +570,7 @@ Suggestions:
             return None
         
     except Exception as e:
-        logger.error(f"[DOCQUERY-NEW] Erreur lors du traitement de la commande: {str(e)}")
+        logger.error(f"[CHERCHER] Erreur lors du traitement de la commande: {str(e)}")
         # Envoyer le message d'erreur directement
         await matrix_client.send_markdown_message(
             room_id,

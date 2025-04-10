@@ -20,7 +20,7 @@ class BaseThreadCommand(abc.ABC):
     """
     
     # Attributs de classe à définir dans les sous-classes
-    COMMAND_NAME: ClassVar[str] = ""  # Nom de la commande (e.g., "pj-new")
+    COMMAND_NAME: ClassVar[str] = ""  # Nom de la commande (e.g., "classer")
     COMMAND_DESCRIPTION: ClassVar[str] = ""  # Description pour l'aide
     THREAD_NAME: ClassVar[str] = ""  # Nom du thread (par défaut, identique à COMMAND_NAME)
     COMMAND_TIMEOUT: ClassVar[float] = 60.0  # Timeout de la commande en secondes

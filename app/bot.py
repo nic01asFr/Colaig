@@ -154,8 +154,8 @@ Je suis en ligne avec les fonctionnalités suivantes :
 
 - Conversation générale : je réponds à tous les messages de manière suivie
 - Commande `!index` : gestion de l'espace documentaire
-- Commande `!docquery-new` : interrogation des documents
-- Commande `!pj-new` : classement des pièces jointes 
+- Commande `!chercher` : interrogation des documents
+- Commande `!classer` : classement des pièces jointes 
 
 
 Pour plus d'informations sur ces commandes, utilisez `!aide`.

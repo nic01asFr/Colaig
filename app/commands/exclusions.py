@@ -26,9 +26,9 @@ EXCLUDED_CLASSES = [
 # Liste des commandes explicitement autorisées (seules ces commandes seront activées)
 INCLUDED_COMMANDS = [
     "faiss_index_command",        # Commande index
-    "doc_query_adapted_command",  # Commande docquery-new 
-    "handle_attachments_adapted_command",  # Commande pj-new (décorateurs)
-    "handle_attachments_adapted_response",  # Réponse pour pj-new
+    "doc_query_adapted_command",  # Commande chercher 
+    "handle_attachments_adapted_command",  # Commande classer (décorateurs)
+    "handle_attachments_adapted_response",  # Réponse pour classer
     "handle_conversation",        # Nécessaire pour le fonctionnement de base
 ]
 
