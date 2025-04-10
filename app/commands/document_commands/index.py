@@ -38,7 +38,7 @@ import app.commands as cmd_module  # Import du module pour accéder à user_conf
     help="!index [status|verify|rebuild|clean] - Gérer l'index documentaire"
 )
 @only_allowed_user
-@command_lifecycle("index")
+@command_lifecycle("index", timeout=None)
 async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
     """Commande pour gérer l'index FAISS"""
     # Log détaillé pour le débogage

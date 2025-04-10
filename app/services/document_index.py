@@ -1165,6 +1165,10 @@ class DocumentIndex:
             await self._process_document_batch([document_path])
             logger.info(f"Document mis à jour: {document_path}")
             
+            # Sauvegarder l'index immédiatement après la mise à jour
+            await self.save_index()
+            logger.info(f"Index sauvegardé après mise à jour de {document_path}")
+            
         except Exception as e:
             logger.error(f"Erreur lors de la mise à jour du document {document_path}: {str(e)}")
             raise

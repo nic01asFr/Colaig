@@ -431,8 +431,16 @@ class WebDAVService:
             logger.error(f"Erreur lors de la liste du répertoire {path}: {str(e)}")
             return []  # Retourner une liste vide en cas d'erreur au lieu de lever une exception
 
-    async def list_documents(self, path: str = None) -> List[str]:
-        """Liste tous les documents dans le répertoire WebDAV"""
+    async def list_documents(self, path: str = None, pattern: str = None) -> List[str]:
+        """Liste tous les documents dans le répertoire WebDAV
+        
+        Args:
+            path: Chemin du répertoire à lister (relatif à la racine)
+            pattern: Motif de filtrage (glob pattern) - Actuellement ignoré
+            
+        Returns:
+            Liste des chemins de documents
+        """
         try:
             url = self._get_url(path or self.root_path)
             response = await self.http_client.request(
@@ -454,6 +462,9 @@ class WebDAVService:
                     if path.startswith(self.root_path):
                         path = path[len(self.root_path):].lstrip('/')
                     documents.append(path)
+            
+            # Note: le paramètre pattern est actuellement ignoré
+            # TODO: Implémenter le filtrage par motif si nécessaire
             
             return documents
             

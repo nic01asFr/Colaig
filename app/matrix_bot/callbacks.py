@@ -130,65 +130,90 @@ class Callbacks:
             COMMAND_TIMEOUT = 60.0  # Timeout de 60 secondes pour toutes les commandes
             
             cmd_name = feature.get('name', 'unknown')
-            logger.info(f"[TIMEOUT DEBUG] Démarrage de la commande {cmd_name} avec timeout de {COMMAND_TIMEOUT}s")
+            
+            # Liste des commandes spéciales qui nécessitent un temps d'exécution plus long
+            LONG_RUNNING_COMMANDS = [
+                ("index", "rebuild"),  # Commande index avec action rebuild
+                ("index", "clean"),    # Commande index avec action clean
+            ]
+            
+            # Vérifier si nous sommes dans le cas d'une commande longue
+            is_long_running = False
+            if hasattr(ep.event, 'body'):
+                message_parts = ep.event.body.strip().split()
+                if len(message_parts) >= 2:
+                    command = message_parts[0].lstrip('!')
+                    action = message_parts[1]
+                    if (command, action) in LONG_RUNNING_COMMANDS:
+                        is_long_running = True
+                        logger.info(f"[TIMEOUT DEBUG] Commande longue détectée: {command} {action} - pas de timeout global")
             
             try:
-                # Exécuter la commande avec un timeout global
-                try:
-                    await asyncio.wait_for(
-                        func(ep=ep, matrix_client=self.matrix_client),
-                        timeout=COMMAND_TIMEOUT
-                    )
-                    logger.info(f"[TIMEOUT DEBUG] Commande {cmd_name} terminée avec succès dans le délai imparti")
-                except asyncio.TimeoutError:
-                    logger.error(f"[TIMEOUT DEBUG] TIMEOUT GLOBAL pour la commande {cmd_name} après {COMMAND_TIMEOUT}s!")
-                    
-                    # Informer l'utilisateur du timeout
+                # Appliquer ou non le timeout selon le type de commande
+                if is_long_running:
+                    logger.info(f"[TIMEOUT DEBUG] Exécution de la commande {cmd_name} sans timeout global")
+                    # Exécution sans timeout
+                    await func(ep=ep, matrix_client=self.matrix_client)
+                    logger.info(f"[TIMEOUT DEBUG] Commande longue {cmd_name} terminée avec succès")
+                else:
+                    # Comportement standard avec timeout
+                    logger.info(f"[TIMEOUT DEBUG] Démarrage de la commande {cmd_name} avec timeout de {COMMAND_TIMEOUT}s")
                     try:
-                        await self.matrix_client.send_markdown_message(
-                            room.room_id,
-                            f"❌ **Délai d'attente dépassé**\n\nLa commande a pris trop de temps à s'exécuter et a été annulée. Veuillez réessayer ultérieurement.",
-                            msgtype="m.notice"
+                        # Exécuter la commande avec un timeout global
+                        await asyncio.wait_for(
+                            func(ep=ep, matrix_client=self.matrix_client),
+                            timeout=COMMAND_TIMEOUT
                         )
-                    except Exception as msg_err:
-                        logger.error(f"[TIMEOUT DEBUG] Impossible d'envoyer le message de timeout: {str(msg_err)}")
+                        logger.info(f"[TIMEOUT DEBUG] Commande {cmd_name} terminée avec succès dans le délai imparti")
+                    except asyncio.TimeoutError:
+                        logger.error(f"[TIMEOUT DEBUG] TIMEOUT GLOBAL pour la commande {cmd_name} après {COMMAND_TIMEOUT}s!")
                         
-                    # Essayer de nettoyer l'état
-                    try:
-                        # Nettoyer le contexte de conversation
-                        from app.commands import get_unified_session_context
-                        from app.services.context.types import ContextType
-                        from app.services.context.instance import context_manager
-                        
-                        # Récupérer la configuration
-                        config = getattr(self.matrix_client, "albert_config", self.matrix_client.config)
-                        
-                        # Récupérer et nettoyer le contexte
-                        session_context = await get_unified_session_context(config, room.room_id, event.sender)
-                        
-                        if hasattr(session_context, "conversation_state"):
-                            # Nettoyer les drapeaux bloquants
-                            session_context.conversation_state.pop("in_command_thread", None)
-                            session_context.conversation_state["command_completed"] = True
-                            session_context.conversation_state["timeout_occurred"] = True
-                            session_context.conversation_state["timeout_command"] = cmd_name
-                            
-                            # Mettre à jour le contexte
-                            session_id = f"{room.room_id}_{event.sender}"
-                            await context_manager.update_context(session_id, ContextType.SESSION, session_context.to_dict())
-                            logger.info(f"[TIMEOUT DEBUG] Contexte nettoyé avec succès après timeout")
-                    except Exception as ctx_err:
-                        logger.error(f"[TIMEOUT DEBUG] Erreur lors du nettoyage du contexte: {str(ctx_err)}")
-                    
-                    # Marquer l'événement comme traité malgré l'erreur
-                    if hasattr(event, 'event_id'):
+                        # Informer l'utilisateur du timeout
                         try:
-                            from app.commands.registry import mark_event_processed
-                            mark_event_processed(event.event_id, cmd_name, command_completed=True)
-                            logger.info(f"[TIMEOUT DEBUG] Événement marqué comme traité après timeout")
-                        except Exception as mark_err:
-                            logger.error(f"[TIMEOUT DEBUG] Erreur lors du marquage de l'événement: {str(mark_err)}")
-                    
+                            await self.matrix_client.send_markdown_message(
+                                room.room_id,
+                                f"❌ **Délai d'attente dépassé**\n\nLa commande a pris trop de temps à s'exécuter et a été annulée. Veuillez réessayer ultérieurement.",
+                                msgtype="m.notice"
+                            )
+                        except Exception as msg_err:
+                            logger.error(f"[TIMEOUT DEBUG] Impossible d'envoyer le message de timeout: {str(msg_err)}")
+                        
+                        # Essayer de nettoyer l'état
+                        try:
+                            # Nettoyer le contexte de conversation
+                            from app.commands import get_unified_session_context
+                            from app.services.context.types import ContextType
+                            from app.services.context.instance import context_manager
+                            
+                            # Récupérer la configuration
+                            config = getattr(self.matrix_client, "albert_config", self.matrix_client.config)
+                            
+                            # Récupérer et nettoyer le contexte
+                            session_context = await get_unified_session_context(config, room.room_id, event.sender)
+                            
+                            if hasattr(session_context, "conversation_state"):
+                                # Nettoyer les drapeaux bloquants
+                                session_context.conversation_state.pop("in_command_thread", None)
+                                session_context.conversation_state["command_completed"] = True
+                                session_context.conversation_state["timeout_occurred"] = True
+                                session_context.conversation_state["timeout_command"] = cmd_name
+                                
+                                # Mettre à jour le contexte
+                                session_id = f"{room.room_id}_{event.sender}"
+                                await context_manager.update_context(session_id, ContextType.SESSION, session_context.to_dict())
+                                logger.info(f"[TIMEOUT DEBUG] Contexte nettoyé avec succès après timeout")
+                        except Exception as ctx_err:
+                            logger.error(f"[TIMEOUT DEBUG] Erreur lors du nettoyage du contexte: {str(ctx_err)}")
+                        
+                        # Marquer l'événement comme traité malgré l'erreur
+                        if hasattr(event, 'event_id'):
+                            try:
+                                from app.commands.registry import mark_event_processed
+                                mark_event_processed(event.event_id, cmd_name, command_completed=True)
+                                logger.info(f"[TIMEOUT DEBUG] Événement marqué comme traité après timeout")
+                            except Exception as mark_err:
+                                logger.error(f"[TIMEOUT DEBUG] Erreur lors du marquage de l'événement: {str(mark_err)}")
+            
             except Exception as e:
                 # Capture explicite de toutes les exceptions pour assurer qu'elles sont bien loggées
                 logger.error(f"ERREUR CRITIQUE lors de l'exécution de {feature.get('name', 'unknown')}: {str(e)}")

@@ -175,6 +175,46 @@ Posez une question en langage naturel, et je chercherai des réponses dans les d
         index_service = await get_index_service(config)
         logger.info(f"[DOCQUERY-NEW] Service d'index obtenu")
         
+        # Vérifier si l'index est valide
+        try:
+            # Vérifier l'état de l'index
+            if not hasattr(index_service, 'document_index') or not index_service.document_index:
+                logger.error(f"[DOCQUERY-NEW] Index de documents non initialisé")
+                await matrix_client.send_markdown_message(
+                    room_id,
+                    "⚠️ **Index non disponible**\n\nL'index de documents n'est pas initialisé. Veuillez utiliser la commande `!index rebuild` pour reconstruire l'index.",
+                    reply_to=ep.event.event_id
+                )
+                return None
+                
+            if not hasattr(index_service.document_index, 'faiss_index') or not index_service.document_index.faiss_index:
+                logger.error(f"[DOCQUERY-NEW] Index FAISS non initialisé")
+                await matrix_client.send_markdown_message(
+                    room_id,
+                    "⚠️ **Index corrompu**\n\nL'index FAISS n'est pas correctement initialisé. Veuillez utiliser la commande `!index rebuild` pour reconstruire l'index.",
+                    reply_to=ep.event.event_id
+                )
+                return None
+                
+            # Vérifier si l'index contient des documents
+            if (not hasattr(index_service.document_index.faiss_index, 'document_map') or 
+                not index_service.document_index.faiss_index.document_map):
+                logger.error(f"[DOCQUERY-NEW] Index vide ou corrompu")
+                await matrix_client.send_markdown_message(
+                    room_id,
+                    "⚠️ **Index vide ou corrompu**\n\nAucun document n'est présent dans l'index. Veuillez utiliser la commande `!index rebuild` pour reconstruire l'index.",
+                    reply_to=ep.event.event_id
+                )
+                return None
+        except Exception as index_err:
+            logger.error(f"[DOCQUERY-NEW] Erreur lors de la vérification de l'index: {str(index_err)}")
+            await matrix_client.send_markdown_message(
+                room_id,
+                "⚠️ **Erreur d'index**\n\nUne erreur s'est produite lors de la vérification de l'index. Veuillez utiliser la commande `!index rebuild` pour reconstruire l'index ou contactez l'administrateur.",
+                reply_to=ep.event.event_id
+            )
+            return None
+        
         # Obtenir les résultats de recherche avec un timeout
         logger.info(f"[DOCQUERY-NEW] Exécution de la recherche pour '{question}'")
         try:
@@ -192,6 +232,14 @@ Posez une question en langage naturel, et je chercherai des réponses dans les d
             await matrix_client.send_markdown_message(
                 room_id,
                 "⏱️ La recherche a pris trop de temps. Veuillez réessayer avec une question plus simple ou contactez l'administrateur.",
+                reply_to=ep.event.event_id
+            )
+            return None
+        except Exception as e:
+            logger.error(f"[DOCQUERY-NEW] Erreur lors de la recherche: {str(e)}")
+            await matrix_client.send_markdown_message(
+                room_id,
+                f"❌ Une erreur s'est produite lors de la recherche: {str(e)}",
                 reply_to=ep.event.event_id
             )
             return None
