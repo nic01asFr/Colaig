@@ -34,21 +34,21 @@ def decode_path_for_display(path: str) -> str:
     return urllib.parse.unquote(path)
 
 @albert_thread_command(
-    thread_name="pj-new",
+    thread_name="classer",
     group="document",
-    command="pj-new",
-    help_text="!pj-new - Analyser une pièce jointe et proposer un classement intelligent",
+    command="classer",
+    help_text="!classer - Analyser une pièce jointe et proposer un classement intelligent",
     preserve_context=True
 )
 async def handle_attachments_adapted_command(ep: EventParser, matrix_client: MatrixClient):
-    """Gère la commande !pj-new pour analyser une pièce jointe et proposer un classement intelligent."""
+    """Gère la commande !classer pour analyser une pièce jointe et proposer un classement intelligent."""
     room_id = ep.room.room_id
     sender = ep.sender
     # Utiliser albert_config si disponible, sinon utiliser config
     config = getattr(matrix_client, "albert_config", matrix_client.config)
     
     # Log de démarrage
-    logger.info(f"[PJ-NEW] Démarrage de la commande pj-new")
+    logger.info(f"[PJ-NEW] Démarrage de la commande classer")
     logger.info(f"[PJ-NEW] Sender: {sender}, Room ID: {room_id}")
     
     # 1. Envoyer un message de démarrage immédiatement pour l'utilisateur
@@ -70,7 +70,7 @@ Pour classer intelligemment un document, veuillez utiliser cette commande en **r
 
 **Exemple d'utilisation:**
 1. Trouvez un message avec une pièce jointe
-2. Répondez à ce message avec `!pj-new`
+2. Répondez à ce message avec `!classer`
 3. Je vais analyser le document et vous proposer des options de classement
 """
     
@@ -635,6 +635,9 @@ N'utilise que les dossiers existants listés ci-dessus pour les 3 premières opt
                         folder_path = re.sub(r'[*]+', '', folder_path).strip()
                         # Nettoyer aussi les guillemets et autres caractères spéciaux
                         folder_path = re.sub(r'["""*<>:|?]', '', folder_path).strip()
+                        # Nettoyer folder_path s'il commence par /
+                        if folder_path.startswith('/'):
+                            folder_path = folder_path[1:]
                         matching_path = next((path for path in all_folder_paths if decode_path_for_display(path) == folder_path), None)
                         folder_options.append(("existing", matching_path or folder_path))
                         
@@ -667,12 +670,18 @@ N'utilise que les dossiers existants listés ci-dessus pour les 3 premières opt
                         # Nettoyer le chemin en retirant tous les caractères spéciaux
                         display_path = re.sub(r'[*]+', '', display_path).strip()
                         display_path = re.sub(r'["""*<>:|?]', '', display_path).strip()
+                        # Nettoyer display_path s'il commence par /
+                        if display_path.startswith('/'):
+                            display_path = display_path[1:]
                         # Afficher le chemin complet avec le dossier racine
                         full_path = f"{root_folder}{display_path}"
                         formatted_suggestions.append(f"{number_display} 📁 {full_path}\nDossier adapté pour ce type de document")
                     else:
                         # Nettoyer le nom du dossier en retirant les guillemets et autres caractères spéciaux
                         folder_name = re.sub(r'["""*]', '', option_path).strip()
+                        # Nettoyer folder_name s'il commence par /
+                        if folder_name.startswith('/'):
+                            folder_name = folder_name[1:]
                         # Afficher le chemin complet avec le dossier racine
                         full_path = f"{root_folder}{folder_name}"
                         formatted_suggestions.append(f"{number_display} +📁 {full_path}\nDossier spécifique pour ce document")
@@ -803,9 +812,9 @@ def validate_pj_response(text):
     # Log pour déboguer
     logger.info(f"[PJ-NEW-VALIDATE] Validation de la réponse: '{text}'")
     
-    # Ignorer la commande !pj-new elle-même
-    if text.strip() == "!pj-new":
-        logger.info(f"[PJ-NEW-VALIDATE] Commande !pj-new ignorée")
+    # Ignorer la commande !classer elle-même
+    if text.strip() == "!classer":
+        logger.info(f"[PJ-NEW-VALIDATE] Commande !classer ignorée")
         return False
     
     # Améliorer la détection des réponses valides
@@ -820,11 +829,11 @@ def validate_pj_response(text):
     command="",  # Pas de commande spécifique pour les réponses
     help=""  # Pas d'aide pour les réponses
 )
-@thread_response("pj-new")
+@thread_response("classer")
 async def handle_attachments_adapted_response(ep: EventParser, matrix_client: MatrixClient):
-    """Traite les réponses pour la commande pj-new et classe le document."""
+    """Traite les réponses pour la commande classer et classe le document."""
     # Logs de début
-    logger.info(f"[PJ-NEW-RESPONSE] Traitement de la réponse au thread pj-new")
+    logger.info(f"[PJ-NEW-RESPONSE] Traitement de la réponse au thread classer")
     logger.info(f"[PJ-NEW-RESPONSE] Sender: {ep.sender}, Room ID: {ep.room.room_id}")
     
     # Configuration de base
@@ -836,9 +845,9 @@ async def handle_attachments_adapted_response(ep: EventParser, matrix_client: Ma
     choice_text = ep.event.body.strip() if hasattr(ep.event, 'body') else ""
     logger.info(f"[PJ-NEW-RESPONSE] Réponse utilisateur: '{choice_text}'")
     
-    # Ignorer la commande !pj-new elle-même
-    if choice_text == "!pj-new":
-        logger.info(f"[PJ-NEW-RESPONSE] Commande !pj-new ignorée")
+    # Ignorer la commande !classer elle-même
+    if choice_text == "!classer":
+        logger.info(f"[PJ-NEW-RESPONSE] Commande !classer ignorée")
         return None
     
     # Récupérer l'état du thread
@@ -875,11 +884,11 @@ async def handle_attachments_adapted_response(ep: EventParser, matrix_client: Ma
     if not temp_file_path or not os.path.exists(temp_file_path):
         logger.error(f"[PJ-NEW-RESPONSE] Fichier temporaire introuvable: {temp_file_path}")
         await CommandThread.end(
-            room_id, sender, "pj-new", config,
+            room_id, sender, "classer", config,
             action="erreur_fichier_absent",
             status="error"
         )
-        return "⚠️ Le fichier temporaire n'existe plus. Veuillez réessayer avec la commande !pj-new."
+        return "⚠️ Le fichier temporaire n'existe plus. Veuillez réessayer avec la commande !classer."
     
     # Si l'utilisateur choisit d'annuler
     if choice_text.lower() == "annuler":
@@ -887,7 +896,7 @@ async def handle_attachments_adapted_response(ep: EventParser, matrix_client: Ma
         
         # Terminer le thread
         await CommandThread.end(
-            room_id, sender, "pj-new", config,
+            room_id, sender, "classer", config,
             action="classement_annulé",
             status="cancelled"
         )
@@ -998,7 +1007,7 @@ async def handle_attachments_adapted_response(ep: EventParser, matrix_client: Ma
             
             # Terminer le thread avec succès
             await CommandThread.end(
-                room_id, sender, "pj-new", config,
+                room_id, sender, "classer", config,
                 action="document_classé",
                 document_path=file_target_path,
                 document_name=attachment_name,
@@ -1031,7 +1040,7 @@ Le document *{attachment_name}* a été classé dans le dossier:
             
             # Terminer le thread avec une erreur
             await CommandThread.end(
-                room_id, sender, "pj-new", config,
+                room_id, sender, "classer", config,
                 action="erreur_classement",
                 status="error"
             )
@@ -1051,7 +1060,7 @@ Le document *{attachment_name}* a été classé dans le dossier:
         # Terminer le thread avec une erreur
         try:
             await CommandThread.end(
-                room_id, sender, "pj-new", config,
+                room_id, sender, "classer", config,
                 action="erreur",
                 error=str(e),
                 status="error"

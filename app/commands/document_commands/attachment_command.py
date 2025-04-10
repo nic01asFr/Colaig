@@ -36,9 +36,9 @@ class AttachmentCommand(BaseThreadCommand):
     """
     
     # Attributs de classe requis
-    COMMAND_NAME = "pj-new"
+    COMMAND_NAME = "classer"
     COMMAND_DESCRIPTION = "Analyser une pièce jointe et proposer un classement intelligent"
-    THREAD_NAME = "pj-new"
+    THREAD_NAME = "classer"
     COMMAND_TIMEOUT = 120.0  # 2 minutes pour l'analyse initiale
     RESPONSE_TIMEOUT = 900.0  # 15 minutes pour la réponse utilisateur
     
@@ -58,7 +58,7 @@ class AttachmentCommand(BaseThreadCommand):
         Returns:
             Dict[str, Any]: Réponse à envoyer à l'utilisateur
         """
-        logger.info(f"[PJ-NEW] Démarrage de la commande pj-new")
+        logger.info(f"[PJ-NEW] Démarrage de la commande classer")
         logger.info(f"[PJ-NEW] User ID: {user_id}, Thread ID: {thread_id}")
         
         # Vérifier si c'est une réponse à un message
@@ -74,7 +74,7 @@ Pour classer intelligemment un document, veuillez utiliser cette commande en **r
 
 **Exemple d'utilisation:**
 1. Trouvez un message avec une pièce jointe
-2. Répondez à ce message avec `!pj-new`
+2. Répondez à ce message avec `!classer`
 3. Je vais analyser le document et vous proposer des options de classement
 """
             }
@@ -161,7 +161,7 @@ Si vous souhaitez annuler, répondez "annuler".
             Dict[str, Any]: Réponse à envoyer à l'utilisateur
         """
         # Logs de début
-        logger.info(f"[PJ-NEW-RESPONSE] Traitement de la réponse au thread pj-new")
+        logger.info(f"[PJ-NEW-RESPONSE] Traitement de la réponse au thread classer")
         logger.info(f"[PJ-NEW-RESPONSE] User ID: {user_id}, Thread ID: {thread_id}")
         
         # Extraire la réponse de l'utilisateur

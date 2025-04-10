@@ -14,7 +14,7 @@ EXCLUDED_COMMANDS = [
 
 # Liste des modules à ne pas charger du tout
 EXCLUDED_MODULES = [
-    "app.commands.document_commands.attachment_command",  # Version classe de pj-new
+    "app.commands.document_commands.attachment_command",  # Version classe de classer
 ]
 
 # Liste des classes à ne pas instancier (pour l'approche orientée objet)
