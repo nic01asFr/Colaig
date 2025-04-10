@@ -55,8 +55,13 @@ class ContextManager:
         self._pending_saves: Dict[str, BaseContext] = {}
         self._save_lock = asyncio.Lock()
         self._cleanup_task = None
+        self._save_task = None
         self._initialized = False
         self._room_contexts: Dict[str, RoomContext] = {}
+        # Ajout pour le mode dégradé
+        self._local_cache: Dict[str, Dict[str, Any]] = {}
+        self._is_degraded_mode = False
+        self._last_save_attempt = datetime.now() - timedelta(hours=1)  # Forcer une première tentative
 
     async def initialize(self):
         """Initialise le gestionnaire de contexte"""
@@ -66,7 +71,14 @@ class ContextManager:
         try:
             # Initialiser WebDAV
             self._webdav = WebDAVService(self.config)
-            await self._webdav.initialize()
+            try:
+                await asyncio.wait_for(self._webdav.initialize(), timeout=30.0)
+            except asyncio.TimeoutError:
+                logger.warning("Timeout lors de l'initialisation WebDAV - passage en mode dégradé")
+                self._is_degraded_mode = True
+            except Exception as webdav_err:
+                logger.warning(f"Erreur initialisation WebDAV: {str(webdav_err)} - passage en mode dégradé")
+                self._is_degraded_mode = True
             
             # Démarrer le cache
             await self._cache.start()
@@ -75,15 +87,103 @@ class ContextManager:
             if self.config.context_auto_cleanup:
                 self._cleanup_task = asyncio.create_task(self._cleanup_loop())
                 
+            # Démarrer la tâche de sauvegarde périodique
+            self._save_task = asyncio.create_task(self._periodic_save_loop())
+                
             self._initialized = True
-            logger.info("Gestionnaire de contexte initialisé")
+            
+            # Précharger les contextes de session les plus récents si possible
+            if not self._is_degraded_mode:
+                try:
+                    await self._preload_recent_contexts()
+                except Exception as e:
+                    logger.warning(f"Erreur préchargement contextes: {str(e)}")
+            
+            logger.info(f"Gestionnaire de contexte initialisé (mode dégradé: {self._is_degraded_mode})")
             
         except Exception as e:
             logger.error(f"Erreur initialisation gestionnaire de contexte: {str(e)}")
             if self._webdav:
                 await self._webdav.close()
             self._webdav = None
-            raise
+            self._is_degraded_mode = True
+            self._initialized = True  # Marqué comme initialisé pour permettre le fonctionnement dégradé
+            logger.warning("Gestionnaire de contexte initialisé en mode dégradé")
+
+    async def _preload_recent_contexts(self):
+        """Précharge les contextes de session les plus récents"""
+        try:
+            if not self._webdav or self._is_degraded_mode:
+                return
+                
+            # Lister les fichiers de contexte de session
+            context_files = await self._webdav.list_documents(
+                f"{self._webdav.CONTEXTS_DIR}",
+                pattern="*_*_*"  # Motif pour les sessions (room_id_user_id_*)
+            )
+            
+            # Ne charger que les 50 plus récents pour éviter de surcharger la mémoire
+            if len(context_files) > 50:
+                # Trier par date de modification (si disponible)
+                context_files = context_files[-50:]
+                
+            # Précharger les contextes
+            loaded_count = 0
+            for file_path in context_files:
+                try:
+                    context_id = os.path.basename(file_path).replace(".json", "")
+                    context_type_str = context_id.split("_")[-1] if "_" in context_id else "session"
+                    context_type = ContextType(context_type_str) if context_type_str in ContextType.__members__ else ContextType.SESSION
+                    
+                    # Charger le contexte
+                    await self.get_context(context_id, context_type)
+                    loaded_count += 1
+                except Exception as e:
+                    logger.debug(f"Erreur préchargement contexte {file_path}: {str(e)}")
+                    continue
+                    
+            logger.info(f"Préchargement de {loaded_count}/{len(context_files)} contextes récents terminé")
+            
+        except Exception as e:
+            logger.warning(f"Erreur générale préchargement contextes: {str(e)}")
+
+    async def _periodic_save_loop(self):
+        """Tâche périodique pour sauvegarder les contextes en attente"""
+        save_interval = self.config.context_save_interval
+        retry_interval = 60  # Réessayer après 1 minute en cas d'échec
+        
+        while True:
+            try:
+                # Attendre l'intervalle configuré
+                await asyncio.sleep(save_interval)
+                
+                # Tentative de reconnexion WebDAV si en mode dégradé
+                if self._is_degraded_mode:
+                    # Ne tenter de reconnecter que toutes les 10 minutes
+                    time_since_last_attempt = (datetime.now() - self._last_save_attempt).total_seconds()
+                    if time_since_last_attempt > 600:  # 10 minutes
+                        self._last_save_attempt = datetime.now()
+                        logger.info("Tentative de reconnexion WebDAV...")
+                        try:
+                            if not self._webdav:
+                                self._webdav = WebDAVService(self.config)
+                            await asyncio.wait_for(self._webdav.initialize(), timeout=15.0)
+                            self._is_degraded_mode = False
+                            logger.info("Reconnexion WebDAV réussie, sortie du mode dégradé")
+                        except Exception as e:
+                            logger.warning(f"Échec reconnexion WebDAV: {str(e)}")
+                            await asyncio.sleep(retry_interval)
+                            continue
+                
+                # Sauvegarder les contextes en attente
+                if not self._is_degraded_mode:
+                    await self.flush_pending_saves()
+                    
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Erreur dans la boucle de sauvegarde périodique: {str(e)}")
+                await asyncio.sleep(retry_interval)
 
     async def close(self):
         """Ferme proprement le gestionnaire"""
@@ -97,16 +197,23 @@ class ContextManager:
             # Arrêter le cache
             await self._cache.stop()
             
-            # Arrêter la tâche de nettoyage
+            # Arrêter les tâches périodiques
             if self._cleanup_task:
                 self._cleanup_task.cancel()
                 try:
                     await self._cleanup_task
                 except asyncio.CancelledError:
                     pass
+                    
+            if self._save_task:
+                self._save_task.cancel()
+                try:
+                    await self._save_task
+                except asyncio.CancelledError:
+                    pass
                 
             # Fermer la connexion WebDAV
-            if self._webdav:
+            if self._webdav and not self._is_degraded_mode:
                 await self._webdav.close()
                 
             self._initialized = False
@@ -216,311 +323,212 @@ class ContextManager:
         # Utiliser directement l'ID sans encodage pour les anciens fichiers
         return f"{self._webdav.CONTEXTS_DIR}/{context_id}.json"
 
-    async def get_context(
-        self,
-        context_id: str,
-        context_type: ContextType
-    ) -> Optional[BaseContext]:
-        """Récupère un contexte par son ID et son type
+    async def get_context(self, context_id: str, context_type: ContextType) -> Optional[BaseContext]:
+        """Récupère un contexte par son ID et son type.
         
         Args:
-            context_id: ID du contexte
+            context_id: Identifiant du contexte
             context_type: Type de contexte
             
         Returns:
-            Le contexte demandé ou None s'il n'existe pas
+            Le contexte chargé ou None si non trouvé
         """
-        if not self._initialized:
-            try:
-                await self.initialize()
-            except Exception as e:
-                logger.warning(f"Problème d'initialisation lors de get_context: {str(e)}")
-                # Continue pour permettre de récupérer du cache malgré l'erreur
+        # Vérifier si le contexte est dans le cache local
+        if context_id in self._local_cache:
+            # Créer l'instance à partir des données en cache
+            context_class = self.CONTEXT_CLASSES.get(context_type)
+            if context_class:
+                try:
+                    return context_class.from_dict(self._local_cache[context_id])
+                except Exception as e:
+                    logger.error(f"Erreur création contexte depuis cache local: {str(e)}")
         
-        if not context_id:
-            return None
-        
-        # Vérifier le cache d'abord
-        cache_key = f"{context_type.value}:{context_id}"
-        cached_context = await self._cache.get(cache_key)
-        if cached_context:
-            return cached_context
-        
-        # Si c'est un contexte de salon, vérifier le dictionnaire local
-        if context_type == ContextType.ROOM and context_id in self._room_contexts:
-            # Mettre en cache pour les prochains accès
-            await self._cache.set(cache_key, self._room_contexts[context_id])
-            return self._room_contexts[context_id]
-        
+        # Vérifier d'abord dans le cache mémoire
         try:
-            # Vérifier si le WebDAV est disponible
-            if not self._webdav or not hasattr(self._webdav, '_initialized') or not self._webdav._initialized:
-                logger.warning("WebDAV non disponible lors de get_context")
+            # Essayer de récupérer depuis le cache
+            cached_data = await self._cache.get(f"{context_id}_{context_type.value}")
+            if cached_data:
+                return cached_data
+        except Exception as cache_err:
+            logger.error(f"Erreur accès cache pour {context_id}: {str(cache_err)}")
+        
+        # Si en mode dégradé, impossible de charger depuis WebDAV
+        if self._is_degraded_mode:
+            return None
+            
+        # Si pas dans le cache, charger depuis WebDAV
+        try:
+            if not self._webdav:
+                logger.warning("Tentative d'accès WebDAV sans connexion initialisée")
                 return None
+                
+            # Construire le chemin du fichier de contexte
+            context_file = f"{self._webdav.CONTEXTS_DIR}/{context_id}.json"
             
-            # Essayer d'abord avec le chemin encodé (nouveau format)
-            context_path = self._get_context_path(context_id)
-            context_data = await self._webdav.get_context_safely(context_path)
-            
-            # Si le contexte n'est pas trouvé, essayer avec le format legacy (caractères spéciaux préservés)
-            if not context_data:
-                # Générer le chemin avec caractères spéciaux préservés
-                legacy_path = self._get_context_path_legacy(context_id)
-                if legacy_path != context_path:
-                    logger.debug(f"Essai avec le format legacy (caractères spéciaux préservés): {legacy_path}")
-                    context_data = await self._webdav.get_context_safely(legacy_path)
-            
-            if not context_data:
+            # Vérifier si le fichier existe
+            if not await self._webdav.exists(context_file):
                 return None
-            
-            # Vérifier si le type correspond (accepter '_type' ou 'context_type')
-            stored_type = context_data.get("context_type") or context_data.get("_type")
-            if stored_type != context_type.value:
-                logger.warning(f"Type de contexte incorrect: {stored_type} != {context_type.value}")
+                
+            # Lire le contenu du fichier
+            content = await self._webdav.read_document(context_file)
+            if not content:
                 return None
-            
-            # Créer l'instance avec la classe appropriée
+                
+            # Désérialiser le contenu JSON
+            try:
+                data = json.loads(content)
+            except json.JSONDecodeError:
+                logger.error(f"Fichier de contexte {context_id} corrompu")
+                return None
+                
+            # Stocker dans le cache local pour accès futurs
+            self._local_cache[context_id] = data
+                
+            # Créer l'instance de contexte appropriée
             context_class = self.CONTEXT_CLASSES.get(context_type)
             if not context_class:
-                logger.error(f"Classe de contexte non trouvée pour {context_type}")
+                logger.error(f"Type de contexte {context_type} non supporté")
                 return None
-            
-            try:
-                # Nettoyer les données avant création (les modèles le font déjà, mais par précaution)
-                if "_type" in context_data:
-                    context_data.pop("_type")
-                if "context_type" in context_data:
-                    context_data.pop("context_type")
                 
-                # Utiliser la méthode from_dict spécifique si elle existe
-                if hasattr(context_class, 'from_dict'):
-                    context = context_class.from_dict(context_data)
-                else:
-                    # Sinon, utiliser l'initialisation standard
-                    context = context_class(**context_data)
-                
-                # Mettre en cache pour les prochains accès
-                await self._cache.set(cache_key, context)
-                
-                return context
-            except Exception as e:
-                logger.error(f"Erreur lors de la création du contexte: {str(e)}")
-                return None
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de la récupération du contexte {context_id}: {str(e)}")
-            return None
-
-    async def create_context(
-        self,
-        context_id: str,
-        context_type: ContextType,
-        data: Dict[str, Any]
-    ) -> BaseContext:
-        """Crée un nouveau contexte"""
-        if not self._initialized:
-            raise RuntimeError("Le gestionnaire de contexte n'est pas initialisé")
-            
-        try:
-            # Récupérer la classe appropriée
-            context_class = self.CONTEXT_CLASSES[context_type]
-            
-            # Nettoyer les données d'entrée
-            clean_data = {
-                k: v for k, v in data.items() 
-                if k not in ['_created_at', '_last_activity', '_meta']
-            }
-            
             # Créer l'instance
-            context = context_class(**clean_data)
+            context = context_class.from_dict(data)
             
-            # Sauvegarder dans le cache
-            await self._cache.set(context_id, context)
-            
-            # Marquer pour sauvegarde
-            self._pending_saves[context_id] = context
-            
-            # Sauvegarder immédiatement
-            await self._save_context(context_id, context)
+            # Mettre en cache
+            await self._cache.set(f"{context_id}_{context_type.value}", context)
             
             return context
             
         except Exception as e:
-            logger.error(f"Erreur création contexte {context_id}: {str(e)}")
-            raise
+            logger.error(f"Erreur chargement contexte {context_id}: {str(e)}")
+            return None
 
-    async def update_context(
-        self,
-        context_id: str,
-        context_type: ContextType,
-        data: Dict[str, Any],
-        immediate_save: bool = False
-    ) -> None:
-        """Met à jour un contexte existant
+    async def create_context(self, context_id: str, context_type: ContextType, data: Dict[str, Any]) -> BaseContext:
+        """Crée un nouveau contexte.
         
         Args:
-            context_id: ID du contexte
+            context_id: Identifiant du contexte
             context_type: Type de contexte
-            data: Données à mettre à jour
-            immediate_save: Si True, sauvegarde immédiatement, sinon ajoute à la file d'attente
+            data: Données du contexte
+            
+        Returns:
+            Le contexte créé
         """
-        if not self._initialized:
-            try:
-                await self.initialize()
-            except Exception as e:
-                logger.warning(f"Problème d'initialisation lors de update_context: {str(e)}")
-                # Continue pour essayer malgré l'erreur
+        # Vérifier si la classe de contexte est supportée
+        context_class = self.CONTEXT_CLASSES.get(context_type)
+        if not context_class:
+            raise ValueError(f"Type de contexte {context_type} non supporté")
             
-        if not context_id:
-            logger.warning("Tentative de mise à jour d'un contexte avec ID vide")
-            return
+        # Créer l'instance
+        context = context_class.from_dict(data)
         
-        try:
-            # Récupérer le contexte existant ou en créer un nouveau
-            cache_key = f"{context_type.value}:{context_id}"
-            context = await self._cache.get(cache_key)
-            
-            if not context:
-                # Tenter de récupérer depuis WebDAV
-                context = await self.get_context(context_id, context_type)
-                
-            if not context:
-                # Créer un nouveau contexte
-                logger.warning(f"Contexte {context_id} non trouvé, création d'un nouveau")
-                context_class = self.CONTEXT_CLASSES.get(context_type)
-                if context_class:
-                    # Créer une copie des données sans le champ context_type
-                    clean_data = {k: v for k, v in data.items() if k != 'context_type'}
-                    
-                    try:
-                        if hasattr(context_class, 'from_dict'):
-                            context = context_class.from_dict(clean_data)
-                        else:
-                            context = context_class(**clean_data)
-                    except Exception as create_err:
-                        logger.error(f"Erreur lors de la création du contexte: {str(create_err)}")
-                        return
-                else:
-                    logger.error(f"Classe de contexte non trouvée pour {context_type}")
-                    return
-            
-            # Mettre à jour le contexte avec les nouvelles données
-            for key, value in data.items():
-                if key != 'context_type' and hasattr(context, key):
-                    setattr(context, key, value)
-                
-            # Si c'est un contexte de salon, mettre à jour le dictionnaire local
-            if context_type == ContextType.ROOM:
-                self._room_contexts[context_id] = context
-            
-            # Mettre à jour le cache
-            await self._cache.set(cache_key, context)
-            
-            # Sauvegarder immédiatement si demandé
-            if immediate_save:
-                try:
-                    await self._save_context(context_id, context)
-                except Exception as save_err:
-                    logger.error(f"Erreur lors de la sauvegarde immédiate du contexte {context_id}: {str(save_err)}")
-                    # Ajouter à la file d'attente malgré l'erreur
-                    async with self._save_lock:
-                        self._pending_saves[context_id] = context
-            else:
-                # Ajouter à la file d'attente de sauvegarde
-                async with self._save_lock:
-                    self._pending_saves[context_id] = context
-                
-        except Exception as e:
-            logger.error(f"Erreur lors de la mise à jour du contexte {context_id}: {str(e)}")
-            # Essayer d'enregistrer malgré l'erreur
-            if context:
-                async with self._save_lock:
-                    self._pending_saves[context_id] = context
-
-    async def delete_context(self, context_id: str) -> None:
-        """Supprime un contexte"""
-        if not self._initialized:
-            raise RuntimeError("Le gestionnaire de contexte n'est pas initialisé")
-            
-        try:
-            # Supprimer du cache
-            await self._cache.delete(context_id)
-            
-            # Supprimer des sauvegardes en attente
-            self._pending_saves.pop(context_id, None)
-            
-            # Supprimer le fichier WebDAV
-            context_path = self._get_context_path(context_id)
+        # Mettre à jour le timestamp de création
+        context.created_at = get_synchronized_time()
+        context.updated_at = get_synchronized_time()
+        
+        # Mettre en cache
+        await self._cache.set(f"{context_id}_{context_type.value}", context)
+        
+        # Stocker dans le cache local
+        self._local_cache[context_id] = context.to_dict()
+        
+        # Ajouter à la liste des sauvegardes en attente
+        self._pending_saves[context_id] = context
+        
+        # Si pas en mode dégradé, tenter une sauvegarde immédiate
+        if not self._is_degraded_mode:
             try:
-                await self._webdav.delete_file(context_path)
+                # Sauvegarder sur WebDAV de manière asynchrone
+                asyncio.create_task(self._save_context(context_id, context))
             except Exception as e:
-                if "404" not in str(e):
-                    raise
-                    
-        except Exception as e:
-            logger.error(f"Erreur suppression contexte {context_id}: {str(e)}")
-            raise
+                logger.error(f"Erreur sauvegarde contexte {context_id}: {str(e)}")
+        
+        return context
+
+    async def update_context(self, context_id: str, context_type: ContextType, 
+                            data: Dict[str, Any], immediate_save: bool = False) -> None:
+        """Met à jour un contexte existant.
+        
+        Args:
+            context_id: Identifiant du contexte
+            context_type: Type de contexte
+            data: Nouvelles données
+            immediate_save: Si True, force une sauvegarde immédiate
+        """
+        # Vérifier si la classe de contexte est supportée
+        context_class = self.CONTEXT_CLASSES.get(context_type)
+        if not context_class:
+            raise ValueError(f"Type de contexte {context_type} non supporté")
+            
+        # Créer l'instance à partir des données
+        context = context_class.from_dict(data)
+        
+        # Mettre à jour le timestamp
+        context.updated_at = get_synchronized_time()
+        
+        # Mettre en cache
+        await self._cache.set(f"{context_id}_{context_type.value}", context)
+        
+        # Mettre à jour le cache local
+        self._local_cache[context_id] = context.to_dict()
+        
+        # Ajouter à la liste des sauvegardes en attente
+        self._pending_saves[context_id] = context
+        
+        # Sauvegarder immédiatement si demandé et pas en mode dégradé
+        if immediate_save and not self._is_degraded_mode:
+            try:
+                await self._save_context(context_id, context)
+            except Exception as e:
+                logger.error(f"Erreur sauvegarde immédiate contexte {context_id}: {str(e)}")
 
     async def _save_context(self, context_id: str, context: BaseContext) -> None:
-        """Sauvegarde un contexte sur WebDAV"""
-        if not self._initialized:
-            raise RuntimeError("Le gestionnaire de contexte n'est pas initialisé")
+        """Sauvegarde un contexte sur WebDAV.
+        
+        Args:
+            context_id: Identifiant du contexte
+            context: Instance du contexte
+        """
+        if self._is_degraded_mode or not self._webdav:
+            return
             
         try:
-            async with self._save_lock:
-                # Préparer les données
-                data = context.to_dict()
-                # Ajouter le type de contexte
-                context_type = next(
-                    (t for t, c in self.CONTEXT_CLASSES.items() 
-                     if isinstance(context, c)),
-                    None
-                )
-                if not context_type:
-                    raise ValueError(f"Type de contexte inconnu pour {context.__class__.__name__}")
-                    
-                data['_type'] = context_type.value
-                data['context_type'] = context_type.value  # Ajouter aussi sous context_type pour compatibilité
-                
-                # S'assurer que les dates sont des objets datetime
-                if 'updated_at' in data and isinstance(data['updated_at'], str):
-                    try:
-                        data['updated_at'] = datetime.fromisoformat(data['updated_at'])
-                    except ValueError:
-                        logger.warning(f"Format de date invalide pour updated_at: {data['updated_at']}")
-                        data['updated_at'] = datetime.now()
-                        
-                if 'created_at' in data and isinstance(data['created_at'], str):
-                    try:
-                        data['created_at'] = datetime.fromisoformat(data['created_at'])
-                    except ValueError:
-                        logger.warning(f"Format de date invalide pour created_at: {data['created_at']}")
-                        data['created_at'] = datetime.now()
-                
-                # Sauvegarder sur WebDAV
-                context_path = self._get_context_path(context_id)
-                await self._webdav.write_file(
-                    context_path,
-                    json.dumps(data, indent=2, cls=DateTimeEncoder)
-                )
-                
-                # Retirer des sauvegardes en attente
-                self._pending_saves.pop(context_id, None)
+            # Sérialiser le contexte
+            context_data = context.to_dict()
+            context_json = json.dumps(context_data, cls=DateTimeEncoder)
+            
+            # Construire le chemin du fichier
+            context_file = f"{self._webdav.CONTEXTS_DIR}/{context_id}.json"
+            
+            # Écrire le fichier
+            await self._webdav.write_file(context_file, context_json)
+            
+            # Retirer de la liste des sauvegardes en attente
+            if context_id in self._pending_saves:
+                del self._pending_saves[context_id]
                 
         except Exception as e:
             logger.error(f"Erreur sauvegarde contexte {context_id}: {str(e)}")
-            raise
+            # Garder dans la liste des sauvegardes en attente pour réessayer plus tard
 
     async def flush_pending_saves(self) -> None:
-        """Sauvegarde tous les contextes en attente"""
-        try:
-            async with self._save_lock:
-                for context_id, context in self._pending_saves.items():
+        """Sauvegarde tous les contextes en attente."""
+        if self._is_degraded_mode or not self._webdav:
+            return
+            
+        async with self._save_lock:
+            pending_ids = list(self._pending_saves.keys())
+            saved_count = 0
+            
+            for context_id in pending_ids:
+                try:
+                    context = self._pending_saves[context_id]
                     await self._save_context(context_id, context)
+                    saved_count += 1
+                except Exception as e:
+                    logger.error(f"Erreur sauvegarde contexte {context_id}: {str(e)}")
                     
-        except Exception as e:
-            logger.error(f"Erreur sauvegarde contextes en attente: {str(e)}")
-            raise
+            if saved_count > 0:
+                logger.info(f"Sauvegarde de {saved_count}/{len(pending_ids)} contextes en attente terminée")
 
     async def cleanup_old_contexts(self, max_age_days: int = 30) -> None:
         """Nettoie les vieux contextes"""

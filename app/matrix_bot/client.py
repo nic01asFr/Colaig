@@ -313,8 +313,117 @@ class MatrixClient(AsyncClient):
         thread_root : str, optional
             The event id of the message acting as a thread root for the message.
         """
-
+        # Prétraitement pour éviter les interprétations incorrectes de listes numérotées
+        import re
+        
+        # Fonction pour prétraiter le texte Markdown
+        def preprocess_markdown(text):
+            lines = text.split('\n')
+            processed_lines = []
+            
+            # Pattern pour détecter les titres potentiels qui pourraient être interprétés comme des listes
+            title_pattern = r'^([A-Za-z]+\s?[A-Za-z]*)\s?:'
+            
+            # Modèle pour détecter les lignes qui commencent par un nombre suivi d'un point
+            number_start_pattern = r'^(\d+)\.\s'
+            
+            for i, line in enumerate(lines):
+                # Si c'est une ligne qui ressemble à un titre (mot suivi de ":")
+                if re.match(title_pattern, line):
+                    # Si c'est un titre potentiel et qu'il n'est pas déjà en gras, le mettre en gras
+                    if i == 0 or lines[i-1].strip() == "":
+                        if not line.startswith('**') and not line.endswith('**'):
+                            line = f"**{line}**"
+                
+                # Si c'est une ligne qui commence par un nombre suivi d'un point (numéro potentiel de liste)
+                if re.match(number_start_pattern, line):
+                    # Si la ligne précédente ne finit pas par ":" ou n'est pas vide, c'est
+                    # probablement une phrase normale qui commence par un chiffre
+                    if i > 0:
+                        prev_line = lines[i-1].strip()
+                        if not prev_line.endswith(':') and prev_line != "":
+                            # Remplacer par une puce
+                            line = re.sub(number_start_pattern, '- ', line)
+                
+                processed_lines.append(line)
+            
+            return '\n'.join(processed_lines)
+        
+        # Appliquer le prétraitement
+        message = preprocess_markdown(message)
+        
+        # Conversion markdown vers HTML
         message = markdown.markdown(message, extensions=["fenced_code", "nl2br"])
+        
+        # Post-traitement pour corriger les listes numérotées inappropriées dans le HTML généré
+        def fix_html_lists(html_content):
+            # Détection des structures HTML qui correspondent à des listes mal formées ou inappropriées
+            # Cas spécifique: <ol><li>Titre :</li></ol> - liste qui démarre avec un titre suivi d'un ":"
+            import re
+            
+            # Cas 1: Corriger les listes commençant par un titre/descriptif
+            # Remplacer <ol><li>Titre :</li> par <p><strong>Titre :</strong></p>
+            html_content = re.sub(
+                r'<ol>\s*<li>([^<:]+):</li>',
+                r'<p><strong>\1:</strong></p>',
+                html_content
+            )
+            
+            # Cas 2: Si une liste contient seulement un ou deux éléments et que ces éléments semblent être des phrases complètes
+            # plutôt que des éléments d'une vraie liste, convertir en paragraphes
+            # Remplacer <ol><li>Phrase complète qui n'est pas un vrai élément de liste.</li></ol> par des paragraphes
+            content_with_no_single_item_lists = re.sub(
+                r'<ol>\s*<li>([A-Z][^<.]+\.)</li>\s*</ol>',
+                r'<p>\1</p>',
+                html_content
+            )
+            
+            # Si le remplacement a fonctionné, utiliser cette version
+            if content_with_no_single_item_lists != html_content:
+                html_content = content_with_no_single_item_lists
+            
+            # Cas 3: Convertir les listes numérotées en listes à puces dans des cas spécifiques
+            # comme pour les explications de fonctionnalités ou des caractéristiques
+            # Remplacer <ol> par <ul> pour certains motifs
+            content_with_bullets = re.sub(
+                r'<ol>\s*<li>([^<]*?(?:prix|classe|type|référenc|fonction|caractéristique)[^<]*?)</li>',
+                r'<ul><li>\1</li>',
+                html_content
+            )
+            
+            # Si ce remplacement a fonctionné, remplacer aussi </ol> par </ul>
+            if content_with_bullets != html_content:
+                html_content = content_with_bullets.replace('</ol>', '</ul>')
+            
+            # Cas 4: Problème spécifique observé - liste numérotée après un paragraphe contenant un titre en gras se terminant par ":"
+            # Par exemple "<p><strong>Relevé topographique :</strong></p><ol>..."
+            # Remplacer toute <ol> qui suit un titre en gras avec ":" par <ul>
+            html_content = re.sub(
+                r'<p><strong>([^<:]+):</strong></p>\s*<ol>',
+                r'<p><strong>\1:</strong></p><ul>',
+                html_content
+            )
+            # Remplacer les éventuelles balises </ol> correspondantes par </ul>
+            if '<ul>' in html_content and '</ol>' in html_content:
+                # Compter le nombre de <ul> et </ul>
+                ul_open_count = html_content.count('<ul>')
+                ul_close_count = html_content.count('</ul>')
+                
+                # Si on a plus de balises ouvrantes <ul> que de fermantes </ul>,
+                # remplacer des </ol> par </ul> pour équilibrer
+                if ul_open_count > ul_close_count:
+                    # Combien de </ol> à remplacer
+                    to_replace = min(ul_open_count - ul_close_count, html_content.count('</ol>'))
+                    
+                    # Remplacer progressivement
+                    for _ in range(to_replace):
+                        html_content = html_content.replace('</ol>', '</ul>', 1)
+            
+            return html_content
+        
+        # Appliquer le post-traitement au HTML généré
+        message = fix_html_lists(message)
+        
         if bot_lib_config.message_prefix:
             message = bot_lib_config.message_prefix + "\n\n" + message
 

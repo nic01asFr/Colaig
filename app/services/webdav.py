@@ -873,3 +873,78 @@ class WebDAVService:
         except Exception as e:
             logger.error(f"Erreur lors de la suppression du fichier WebDAV {path}: {str(e)}")
             return False
+
+    async def create_share_link(self, path: str, password: Optional[str] = None, 
+                              expiration_days: Optional[int] = None) -> str:
+        """
+        Crée un lien de partage public pour un fichier ou dossier via l'API OCS de Nextcloud.
+        
+        Args:
+            path: Chemin relatif du fichier ou dossier
+            password: Mot de passe optionnel pour protéger le partage
+            expiration_days: Nombre de jours avant expiration du lien
+            
+        Returns:
+            URL du lien de partage public ou chaîne vide en cas d'erreur
+        """
+        try:
+            # Extraire la base de l'URL Nextcloud (sans remote.php/dav/files/user)
+            base_url = self.base_url
+            if "/remote.php/dav/files/" in base_url:
+                base_url = base_url.split("/remote.php/dav/files/")[0]
+            
+            # Construire l'URL de l'API OCS
+            ocs_url = f"{base_url}/ocs/v2.php/apps/files_sharing/api/v1/shares"
+            
+            # Normaliser le chemin
+            if not path.startswith("/"):
+                path = f"/{path}"
+            
+            # Construire les paramètres du partage
+            params = {
+                "path": path,
+                "shareType": 3,  # 3 = lien public
+                "format": "json",
+            }
+            
+            # Ajouter un mot de passe si fourni
+            if password:
+                params["password"] = password
+                
+            # Ajouter une date d'expiration si fournie
+            if expiration_days and expiration_days > 0:
+                # Calculer la date d'expiration (format YYYY-MM-DD)
+                from datetime import datetime, timedelta
+                expiry_date = (datetime.now() + timedelta(days=expiration_days)).strftime("%Y-%m-%d")
+                params["expireDate"] = expiry_date
+            
+            # Effectuer la requête POST
+            headers = {
+                "OCS-APIRequest": "true",
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+            
+            logger.info(f"Création d'un lien de partage pour: {path}")
+            response = await self.http_client.post(
+                ocs_url, 
+                data=params,
+                headers=headers
+            )
+            response.raise_for_status()
+            
+            # Parser la réponse JSON
+            response_data = response.json()
+            
+            # Extraire l'URL du partage
+            if response_data.get("ocs", {}).get("data", {}).get("url"):
+                share_url = response_data["ocs"]["data"]["url"]
+                logger.info(f"Lien de partage créé avec succès: {share_url}")
+                return share_url
+            else:
+                logger.error(f"Réponse invalide de l'API OCS: {response_data}")
+                return ""
+                
+        except Exception as e:
+            logger.error(f"Erreur lors de la création du lien de partage: {str(e)}")
+            logger.exception(e)
+            return ""

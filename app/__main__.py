@@ -30,6 +30,23 @@ async def init_app():
         await context_manager.initialize()
         logger.info("Context manager initialized successfully")
         
+        # Préchargement de l'index documentaire
+        from app.config import env_config
+        from app.services.index_service import get_index_service
+        
+        logger.info("Préchargement de l'index documentaire...")
+        try:
+            # Initialisation asynchrone avec un timeout généreux
+            await asyncio.wait_for(
+                get_index_service(env_config),
+                timeout=120.0  # 2 minutes
+            )
+            logger.info("Index documentaire préchargé avec succès")
+        except asyncio.TimeoutError:
+            logger.warning("Timeout lors du préchargement de l'index documentaire - il sera chargé lors de la première utilisation")
+        except Exception as e:
+            logger.warning(f"Erreur lors du préchargement de l'index documentaire: {str(e)} - il sera chargé lors de la première utilisation")
+        
         # Import et démarrage du bot après l'initialisation du contexte
         from bot import main
         await main()

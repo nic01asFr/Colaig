@@ -9,10 +9,10 @@ from typing import List, Dict, Any, Optional, Tuple
 
 import asyncio
 import traceback
+import re
 from datetime import datetime
 import os
 import io
-import re
 import tempfile
 import mimetypes
 from pathlib import Path
@@ -25,7 +25,7 @@ from matrix_bot.eventparser import EventParser
 from nio import Event, RoomEncryptedFile, RoomMessageText, RoomMessageFile
 
 from app.bot_msg import AlbertMsg
-from app.config import Config
+from app.config import Config, COMMAND_PREFIX
 from app.services.webdav import WebDAVService
 from app.services.document_index import DocumentIndex
 from app.services.index_service import IndexService
@@ -35,7 +35,7 @@ from app.tchap_utils import (
     get_decrypted_file,
     isa_reply_to
 )
-from app.commands.registry import register_feature, only_allowed_user, mark_command_thread_end
+from app.commands.registry import register_feature, only_allowed_user, threaded_command, thread_response, CommandThread
 from app.commands import get_context_manager, get_unified_session_context, update_conversation_history
 from app.core_llm import generate, AlbertApiClient
 from app.services.context.models import SessionContext
@@ -63,6 +63,7 @@ def decode_path_for_display(path: str) -> str:
     help="!pj - Analyser les pièces jointes d'un message (utilisez cette commande en réponse à un message)"
 )
 @only_allowed_user
+@threaded_command("pj")
 async def handle_attachments_command(ep: EventParser, matrix_client: MatrixClient):
     """Gère la commande !pj"""
     try:
@@ -390,11 +391,22 @@ async def handle_attachments_command(ep: EventParser, matrix_client: MatrixClien
         session_id = f"{ep.room.room_id}_{ep.sender}"
         
         # Mettre à jour l'état de conversation pour la commande pj
-        session_context.conversation_state = {
-            "command_type": "pj",
-            "last_command": "pj",
-            "current_action": "classify"
-        }
+        if not hasattr(session_context, "conversation_state"):
+            session_context.conversation_state = {}
+            
+        # Log de l'état avant mise à jour
+        logger.info(f"[DEBUG PJ] État du conversation_state avant mise à jour: {session_context.conversation_state}")
+            
+        # Utiliser update() au lieu de réassigner pour préserver les marqueurs de thread
+        # Étape 1: action "analyser" - Téléchargement et analyse du fichier
+        session_context.conversation_state.update({
+                "command_type": "pj",
+                "last_command": "pj",
+            "action": "analyser"
+        })
+        
+        # Log de l'état après mise à jour
+        logger.info(f"[DEBUG PJ] État du conversation_state après mise à jour: {session_context.conversation_state}")
         
         # Récupérer le gestionnaire de contexte global
         context_manager = get_context_manager(config)
@@ -508,7 +520,7 @@ Format de réponse:
    - [nom du dossier alternatif 2] (niveau de confiance %)
 
 ### Explication : 
-[justification détaillée de la classification principale]
+[justification courte de la classification principale]
 
 IMPORTANT: L'explication doit être dans une section séparée, pas numérotée comme une alternative.
 """
@@ -669,26 +681,28 @@ IMPORTANT: L'explication doit être dans une section séparée, pas numérotée 
                 # Mise à jour du chemin cible
                 target_path = clean_target_path
                 
-                # Stocker les informations dans le contexte de session
-                session_context.conversation_state = {
-                    "command_type": "pj",
-                    "action": "classify",
+                # Après avoir analysé le fichier et juste avant de présenter les options, 
+                # mettre à jour l'action pour refléter l'étape "proposer_classement"
+                logger.info(f"[DEBUG PJ] Passage à l'étape 'proposer_classement'")
+                session_context.conversation_state.update({
+                    "action": "proposer_classement",  # Changement explicite d'étape
                     "file_info": file_info,
                     "suggested_path": target_path,
                     "suggested_folder": suggested_folder,
                     "alternatives": alternatives,
                     "explanation": explanation,
                     "temp_file_path": temp_file_path
-                }
+                })
                 
-                # Récupérer le gestionnaire de contexte global
-                context_manager = get_context_manager(config)
-                
+                # Mettre à jour le contexte avec la nouvelle action
                 await context_manager.update_context(
                     session_id,
                     ContextType.SESSION,
                     session_context.to_dict()
                 )
+                
+                # Log détaillé pour débogage du thread
+                logger.info(f"[DEBUG PJ THREAD] État du thread avant présentation des options: in_command_thread={session_context.conversation_state.get('in_command_thread')}, thread_command={session_context.conversation_state.get('thread_command')}, command_completed={session_context.conversation_state.get('command_completed', False)}, action={session_context.conversation_state.get('action')}")
                 
                 # Formatter les alternatives pour l'affichage
                 alternatives_text = ""
@@ -707,10 +721,9 @@ IMPORTANT: L'explication doit être dans une section séparée, pas numérotée 
 {alternatives_text}
 🔄 **Actions possibles** :
 1. Utiliser la suggestion principale
-2. Choisir une alternative
-3. Spécifier un autre emplacement
-
-Répondez avec le numéro de votre choix (1, 2 ou 3).
+2. Utiliser une alternative (répondez avec le numéro)
+3. Spécifier un autre dossier (répondez avec le nom du dossier)
+4. Annuler le classement (répondez "annuler")
 
 ### Explication :
 {explanation}
@@ -723,19 +736,11 @@ Répondez avec le numéro de votre choix (1, 2 ou 3).
                     msgtype="m.notice"
                 )
                 
-                # Indiquer explicitement que cette interaction est terminée et peut être suivie d'un dialogue
-                logger.info(f"Commande !pj terminée pour le fichier {file_info.get('filename')}. Prêt pour le dialogue.")
+                # Vérifier à nouveau l'état du thread pour confirmation
+                session_context = await get_unified_session_context(config, ep.room.room_id, ep.sender)
+                logger.info(f"[DEBUG PJ THREAD] État du thread après présentation des options: in_command_thread={session_context.conversation_state.get('in_command_thread')}, thread_command={session_context.conversation_state.get('thread_command')}, command_completed={session_context.conversation_state.get('command_completed', False)}, action={session_context.conversation_state.get('action')}")
                 
-                # Marquer la fin du thread
-                await mark_command_thread_end(
-                    ep.room.room_id, 
-                    ep.sender, 
-                    "pj", 
-                    config, 
-                    action="fichier classé",
-                    file_name=file_info.get('filename', ''),
-                    target_path=target_path
-                )
+                logger.debug(f"Options de classification présentées pour le fichier {file_info['filename']}")
                 
             except Exception as analysis_err:
                 logger.error(f"Erreur lors de l'analyse LLM: {str(analysis_err)}")
@@ -814,747 +819,391 @@ Répondez avec le numéro de votre choix (1, 2 ou 3).
     help=""
 )
 @only_allowed_user
+@thread_response("pj")
 async def handle_attachments_response(ep: EventParser, matrix_client: MatrixClient):
     """
     Fonction auxiliaire pour traiter les réponses aux commandes de pièces jointes.
     Cette fonction gère les réponses après l'analyse d'une pièce jointe.
     """
-    # Ignorer les commandes directes !pj pour éviter les doubles traitements
-    message_text = ep.event.body.strip() if hasattr(ep.event, 'body') else ""
-    if message_text.startswith("!pj"):
-        logger.debug("Ignoré par handle_attachments_response car c'est une commande !pj directe")
-        return
+    # LOGS DE DIAGNOSTIC
+    logger.info(f"[PJ DEBUG] ====== DÉMARRAGE handle_attachments_response ======")
+    logger.info(f"[PJ DEBUG] Type d'événement: {type(ep.event).__name__}")
+    logger.info(f"[PJ DEBUG] Event ID: {getattr(ep.event, 'event_id', 'Inconnu')}")
+    logger.info(f"[PJ DEBUG] Sender: {ep.sender}")
+    logger.info(f"[PJ DEBUG] Room ID: {ep.room.room_id}")
+    
+    try:
+        # Utiliser albert_config si disponible, sinon utiliser la config standard
+        config = getattr(matrix_client, "albert_config", matrix_client.config)
+        room_id = ep.room.room_id
+        sender = ep.sender
         
-    # Récupérer le contexte de session avec notre fonction unifiée
-    config = getattr(matrix_client, "albert_config", matrix_client.config)
-    session_context = await get_unified_session_context(config, ep.room.room_id, ep.sender)
-    
-    # Si pas d'état de conversation, ce n'est pas une réponse à !pj
-    if not session_context or not session_context.conversation_state:
-        return
-    
-    # Vérifier si la dernière commande était !pj
-    if session_context.conversation_state.get("command_type") != "pj":
-        return
-    
-    # Ajouter le message utilisateur à l'historique
-    await update_conversation_history(
-        config, 
-        ep.room.room_id, 
-        ep.sender, 
-        user_message=message_text
-    )
-    
-    # Récupérer les données du contexte de session
-    temp_file_path = session_context.conversation_state.get("temp_file_path")
-    
-    # Vérifier si le fichier temporaire existe encore
-    if not temp_file_path or not os.path.exists(temp_file_path):
-        await matrix_client.send_markdown_message(
-            ep.room.room_id,
-            "❌ Le fichier temporaire n'est plus disponible. Veuillez relancer la commande !pj.",
-            msgtype="m.notice"
+        # Extraire la réponse de l'utilisateur
+        choice_text = ep.event.body.strip() if hasattr(ep.event, 'body') else ""
+        logger.info(f"[PJ DEBUG] Choix utilisateur: '{choice_text}'")
+        
+        # Vérifier si le message est une commande (commence par "!") et l'ignorer dans ce cas
+        if choice_text.startswith(COMMAND_PREFIX):
+            logger.debug(f"[PJ DEBUG] Message '{choice_text}' ignoré car c'est une commande")
+            return None
+        
+        # Vérifier si nous sommes bien dans un thread de commande "pj"
+        from app.commands.registry import is_in_active_command_thread
+        logger.info(f"[PJ DEBUG] Vérification si dans un thread actif...")
+        is_in_thread, thread_command = await is_in_active_command_thread(
+            room_id, sender, config
         )
-        return
-    
-    # Récupérer les autres données du contexte
-    file_info = session_context.conversation_state.get("file_info", {})
-    
-    # Récupérer le gestionnaire de contexte global
-    context_manager = get_context_manager(config)
-    session_id = f"{ep.room.room_id}_{ep.sender}"
-    
-    # Récupérer le message de l'utilisateur
-    user_message = ep.event.body if hasattr(ep.event, 'body') else ""
-    user_choice = user_message.strip().split(maxsplit=1)
-    
-    # Configuration
-    config = getattr(matrix_client, "albert_config", matrix_client.config)
-    
-    # Traitement des réponses lorsqu'on attend un chemin personnalisé
-    if session_context.conversation_state.get("waiting_for_path", False):
-        # L'utilisateur a fourni un chemin personnalisé
-        custom_path = message_text.strip()
         
-        # Nettoyage et sécurisation du chemin utilisateur
-        path_parts = custom_path.split('/')
-        clean_parts = []
-        safe_filename = re.sub(r'[<>:"/\\|?*]', '_', file_info.get('filename', 'fichier.pdf'))
+        logger.info(f"[PJ DEBUG] Vérification thread pour réponse '{choice_text}': is_in_thread={is_in_thread}, thread_command={thread_command or 'None'}")
         
-        for part in path_parts:
-            # Nettoyer les parties du chemin
-            if part:
-                # Supprimer les espaces en début et fin
-                cleaned_part = part.strip()
+        # Cas spécial : si thread_command est None ou vide mais que la réponse ressemble à un chiffre 1-3,
+        # nous allons quand même tenter de traiter la réponse comme si c'était pour pj
+        if not is_in_thread and re.match(r"^\s*[1-3]\s*$", choice_text):
+            logger.info(f"[PJ DEBUG] Thread non détecté mais réponse '{choice_text}' ressemble à un choix PJ, tentative de récupération du contexte")
+            try:
+                # Récupérer les données du fichier depuis le contexte
+                logger.info(f"[PJ DEBUG] Récupération du contexte de session")
+                session_context = await get_unified_session_context(config, room_id, sender)
+                conversation_state = session_context.conversation_state
+                logger.info(f"[PJ DEBUG] État de conversation récupéré")
                 
-                # Si le dossier commence par un tiret suivi d'un espace, le supprimer
-                if cleaned_part.startswith('- '):
-                    cleaned_part = cleaned_part[2:].strip()
-                
-                # Éviter les noms vides
-                if not cleaned_part:
-                    cleaned_part = "dossier"
+                # Vérifier si nous avons les informations de base pour un traitement PJ
+                if conversation_state.get("file_info") and conversation_state.get("temp_file_path"):
+                    current_action = conversation_state.get("action", "")
+                    logger.info(f"[PJ DEBUG] Contexte PJ trouvé malgré l'absence de thread actif, action={current_action}")
                     
-                clean_parts.append(cleaned_part)
+                    # Vérifier si nous sommes à l'étape proposer_classement
+                    if current_action == "proposer_classement":
+                        logger.info(f"[PJ DEBUG] Action 'proposer_classement' détectée, forçage du traitement comme réponse PJ")
+                        # Forcer is_in_thread à True et thread_command à "pj" pour traiter cette réponse
+                        is_in_thread = True
+                        thread_command = "pj"
+                    else:
+                        logger.info(f"[PJ DEBUG] Action '{current_action}' non compatible avec le traitement de réponse")
+            except Exception as e:
+                logger.warning(f"[PJ DEBUG] Erreur lors de la tentative de récupération du contexte: {str(e)}")
         
-        # Reconstruire le chemin
-        clean_custom_path = '/' + '/'.join(filter(None, clean_parts))
-        
-        if not clean_custom_path.endswith('/'):
-            clean_custom_path += '/'
-        
-        # Ajouter le nom de fichier sécurisé
-        clean_custom_path += safe_filename
-        
-        # Mise à jour du chemin
-        custom_path = clean_custom_path
-        
-        # Initialiser le service WebDAV
-        webdav = WebDAVService(config)
-        await webdav.initialize()
-        
+        if not is_in_thread or (thread_command != "pj" and thread_command != "handle_attachments_command"):
+            # Si nous ne sommes pas dans un thread "pj", ignorer ce message
+            logger.debug(f"[PJ DEBUG] Message ignoré: pas dans un thread pj ou thread différent (actuel: {thread_command})")
+            return None
+            
+        # À ce stade, l'utilisateur a fait un choix valide (1, 2, ou 3)
+        # Traitement du choix de l'utilisateur
         try:
-            # Créer le dossier parent si nécessaire
-            folder_path = os.path.dirname(custom_path)
-            if folder_path != '/':
-                try:
-                    await webdav.create_directory(folder_path)
-                    logger.info(f"Dossier créé: {folder_path}")
-                except Exception as folder_err:
-                    logger.warning(f"Erreur lors de la création du dossier (peut-être existe-t-il déjà): {str(folder_err)}")
+            # Récupérer les données du fichier depuis le contexte
+            logger.info(f"[PJ DEBUG] Récupération du contexte pour le choix")
+            session_context = await get_unified_session_context(config, room_id, sender)
+            conversation_state = session_context.conversation_state
             
-            # Téléverser le fichier
-            with open(temp_file_path, "rb") as f:
-                await webdav.upload_file(f, custom_path)
+            logger.info(f"[PJ DEBUG] État de conversation avant traitement: {conversation_state}")
             
-            # Informer l'utilisateur
-            success_message = f"✅ Le fichier '{file_info.get('filename')}' a été classé avec succès dans '{folder_path}'."
+            # IMPORTANT: Récupérer d'abord les informations du fichier avant de les utiliser
+            # Récupération des informations depuis le contexte de session
+            file_info = conversation_state.get("file_info", {})
+            temp_file_path = conversation_state.get("temp_file_path", "")
+            suggested_folder = conversation_state.get("suggested_folder", "")
+            alternatives = conversation_state.get("alternatives", [])
+            
+            logger.info(f"[PJ DEBUG] Infos récupérées - Fichier: {file_info.get('filename', 'inconnu')}, Dossier suggéré: {suggested_folder}")
+            
+            # Vérifier que nous sommes bien à l'étape "proposer_classement"
+            current_action = conversation_state.get("action", "")
+            if current_action != "proposer_classement":
+                logger.warning(f"[PJ DEBUG] Action inattendue: {current_action}, attendu: proposer_classement")
+                # Si nous ne sommes pas à la bonne étape, informer l'utilisateur et s'arrêter
             await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                success_message,
+                    room_id,
+                    f"⚠️ Impossible de traiter votre réponse: l'état du processus n'est pas correct (action: {current_action}). Veuillez réessayer la commande !pj.",
                 msgtype="m.notice"
             )
             
-            # Ajouter la réponse du bot à l'historique
-            await update_conversation_history(
+            # Marquer la fin du thread avec un statut d'erreur
+            await CommandThread.end(
+                room_id, 
+                sender, 
+                "pj", 
                 config,
-                ep.room.room_id,
-                ep.sender,
-                bot_response=success_message
+                action="erreur",
+                error=f"Action inattendue: {current_action}",
+                étape_finale="erreur_sequence"
             )
+            return None
             
-            # Nettoyer le fichier temporaire
-            try:
-                os.unlink(temp_file_path)
-                logger.debug(f"Fichier temporaire supprimé: {temp_file_path}")
-            except Exception as clean_err:
-                logger.warning(f"Erreur lors de la suppression du fichier temporaire: {str(clean_err)}")
+            # Log détaillé après récupération des informations du fichier
+            logger.info(f"[PJ DEBUG] Traitement de la réponse '{choice_text}' pour le fichier {file_info.get('filename')}")
             
-            # Au lieu de réinitialiser complètement le contexte, marquer la commande comme terminée
-            # tout en conservant les informations importantes pour le contexte
-            old_state = session_context.conversation_state.copy()
-            session_context.conversation_state = {
-                "last_command": "pj",
-                "command_completed": True,
-                "last_action": old_state.get("action", "classify"),
-                "last_file_processed": file_info.get("filename"),
-                "last_target_path": folder_path
-            }
+            # Validation des données minimales requises
+            if not file_info or not temp_file_path:
+                raise ValueError("Informations manquantes pour traiter la réponse: fichier ou chemin temporaire non trouvé")
+            
+            # Mise à jour de l'action vers "classer"
+            conversation_state.update({
+                "action": "classer",
+                "user_choice": choice_text  # Enregistrer le choix de l'utilisateur
+            })
             
             # Mettre à jour le contexte
-            await context_manager.update_context(
+            session_id = f"{room_id}_{sender}"
+            logger.info(f"[PJ DEBUG] Mise à jour du contexte - action=classer, choix={choice_text}")
+            ctx_manager = get_context_manager(config)
+            await ctx_manager.update_context(
                 session_id,
                 ContextType.SESSION,
                 session_context.to_dict()
             )
             
-            # Indiquer explicitement que cette interaction est terminée et peut être suivie d'un dialogue
-            logger.info(f"Commande !pj terminée pour le fichier {file_info.get('filename')}. Prêt pour le dialogue.")
+            # Log après mise à jour pour confirmer le changement d'action
+            logger.info(f"[PJ DEBUG] Action mise à jour: de 'proposer_classement' à 'classer' - Choix utilisateur: {choice_text}")
+            logger.info(f"[PJ DEBUG] État du conversation_state après mise à jour de l'action: {conversation_state}")
             
-            # Marquer la fin du thread
-            await mark_command_thread_end(
-                ep.room.room_id, 
-                ep.sender, 
-                "pj", 
-                config, 
-                action="fichier classé",
-                file_name=file_info.get('filename', ''),
-                target_path=folder_path
-            )
+            # Déterminer le chemin choisi en fonction de la réponse
+            chosen_path = ""
             
-            return
+            if choice_text == "1":
+                # Utiliser la suggestion principale
+                chosen_path = suggested_folder
+                logger.info(f"[PJ DEBUG] Utilisateur a choisi la suggestion principale: {chosen_path}")
+            elif choice_text == "2" and alternatives and len(alternatives) >= 1:
+                # Utiliser la première alternative
+                chosen_path = alternatives[0][0]
+                logger.info(f"[PJ DEBUG] Utilisateur a choisi la première alternative: {chosen_path}")
+            elif choice_text == "3":
+                # L'utilisateur veut spécifier un autre emplacement
+                # Pour l'instant, utiliser un emplacement par défaut
+                chosen_path = "dossiers-espace-demonstration-2"
+                logger.info(f"[PJ DEBUG] Utilisateur a choisi de spécifier un emplacement (utilisation de l'emplacement par défaut)")
+            else:
+                # Réponse non reconnue, utiliser la suggestion principale par défaut
+                chosen_path = suggested_folder
+                logger.warning(f"[PJ DEBUG] Réponse '{choice_text}' non reconnue, utilisation de la suggestion principale par défaut")
             
-        except Exception as upload_err:
-            logger.error(f"Erreur lors du téléversement du fichier: {str(upload_err)}")
-            error_message = "❌ Une erreur est survenue lors du traitement du fichier. " 
-            error_message += f"Détails: {str(upload_err)}"
+            # S'assurer que le chemin est valide
+            if not chosen_path:
+                raise ValueError("Impossible de déterminer un emplacement valide pour le fichier")
+                
+            # Sauvegarder le fichier dans WebDAV
+            logger.info(f"[PJ DEBUG] Initialisation du service WebDAV")
+            webdav_service = WebDAVService(config)
+            await webdav_service.initialize()
+            logger.info(f"[PJ DEBUG] Service WebDAV initialisé")
             
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                error_message,
-                msgtype="m.notice"
-            )
-            
-            # Marquer la fin du thread même en cas d'erreur
-            try:
-                await mark_command_thread_end(
-                    ep.room.room_id, 
-                    ep.sender, 
-                    "pj", 
-                    config, 
-                    action="erreur de traitement",
-                    file_name=file_info.get('filename', ''),
-                    error=str(upload_err)
-                )
-            except Exception as mark_error:
-                logger.error(f"Erreur lors du marquage de fin de thread: {str(mark_error)}")
-            
-            return
-    
-    # Réponse à un choix d'alternative
-    elif session_context.conversation_state.get("waiting_for_alternative"):
-        # Vérifier que le message est un chiffre
-        if not user_message.strip().isdigit():
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                "❌ Veuillez répondre avec le numéro de l'alternative choisie.",
-                msgtype="m.notice"
-            )
-            return
-            
-        alt_index = int(user_message.strip()) - 1
-        alternatives = session_context.conversation_state.get("alternatives", [])
-        
-        if alt_index < 0 or alt_index >= len(alternatives):
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                f"❌ Choix invalide. Veuillez choisir un nombre entre 1 et {len(alternatives)}.",
-                msgtype="m.notice"
-            )
-            return
-            
-        # Récupérer le dossier choisi
-        chosen_folder, _ = alternatives[alt_index]
+            # Extraire le nom du fichier
+            file_name = file_info.get("filename", "fichier_sans_nom.pdf")
         
         # Construire le chemin complet
-        target_path = chosen_folder
-        if not target_path.startswith('/'):
-            target_path = '/' + target_path
-        
-        if not target_path.endswith('/'):
-            target_path += '/'
+            if not chosen_path.endswith('/'):
+                chosen_path += '/'
+            full_path = f"{chosen_path}{file_name}"
+            logger.info(f"[PJ DEBUG] Chemin complet pour upload: {full_path}")
             
-        # Nettoyer le nom de fichier pour éviter les caractères problématiques
-        safe_filename = file_info.get("filename", "fichier.bin")
-        safe_filename = safe_filename.replace('\t', ' ').replace('\n', ' ').replace('\r', ' ')
-        
-        # Assainir le chemin pour éviter les problèmes d'encodage
-        target_path = target_path.strip()
-        
-        # Vérifier les caractères spéciaux problématiques en début de dossier
-        path_parts = target_path.split('/')
-        clean_parts = []
-        
-        for part in path_parts:
-            # Nettoyer les parties du chemin
-            if part:
-                # Supprimer les espaces en début et fin
-                cleaned_part = part.strip()
+            # Vérifier si le fichier temporaire existe
+            if not os.path.exists(temp_file_path):
+                logger.error(f"[PJ DEBUG] ERREUR: Le fichier temporaire n'existe pas: {temp_file_path}")
+                raise FileNotFoundError(f"Le fichier temporaire n'existe pas: {temp_file_path}")
                 
-                # Si le dossier commence par un tiret suivi d'un espace, le supprimer
-                if cleaned_part.startswith('- '):
-                    cleaned_part = cleaned_part[2:].strip()
+            # Ouvrir le fichier depuis le chemin temporaire
+            logger.info(f"[PJ DEBUG] Lecture du fichier temporaire: {temp_file_path}")
+            with open(temp_file_path, 'rb') as f:
+                file_content = f.read()
+                logger.info(f"[PJ DEBUG] Fichier lu avec succès: {len(file_content)} octets")
                 
-                # Éviter les noms vides
-                if not cleaned_part:
-                    cleaned_part = "dossier"
-                    
-                clean_parts.append(cleaned_part)
-        
-        # Reconstruire le chemin
-        clean_target_path = '/' + '/'.join(filter(None, clean_parts))
-        
-        if not clean_target_path.endswith('/'):
-            clean_target_path += '/'
-        
-        # Ajouter le nom de fichier sécurisé
-        clean_target_path += safe_filename
-        
-        # Mise à jour du chemin cible
-        target_path = clean_target_path
-        
-        # Mettre à jour le contexte
-        session_context.conversation_state["waiting_for_alternative"] = False
-        session_context.conversation_state["target_path"] = target_path
-        
-        # Récupérer le gestionnaire de contexte global
-        context_manager = get_context_manager(config)
-        
-        await context_manager.update_context(
-            session_id,
-            ContextType.SESSION,
-            session_context.to_dict()
-        )
-        
-        # Initialiser le service WebDAV et téléverser le fichier
-        webdav = WebDAVService(config)
-        await webdav.initialize()
-        
-        try:
-            # Informer l'utilisateur
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                f"🔄 Classement du fichier dans '{decode_path_for_display(chosen_folder)}'...",
-                msgtype="m.notice"
-            )
-            
-            # Créer le dossier parent si nécessaire
-            folder_path = os.path.dirname(target_path)
-            if folder_path != '/':
+            # Télécharger le fichier sur le serveur WebDAV avec timeout
+            try:
+                logger.info(f"[PJ DEBUG] Tentative de téléchargement du fichier vers {full_path}")
+                
+                # Utiliser asyncio.wait_for pour ajouter un timeout au téléchargement
+                upload_timeout = 30.0  # 30 secondes de timeout pour l'upload
+                logger.info(f"[PJ DEBUG] Début du téléchargement avec timeout de {upload_timeout}s")
+                
                 try:
-                    await webdav.create_directory(folder_path)
-                    logger.info(f"Dossier créé: {folder_path}")
-                except Exception as folder_err:
-                    logger.warning(f"Erreur lors de la création du dossier (peut-être existe-t-il déjà): {str(folder_err)}")
-            
-            # Téléverser le fichier
-            with open(temp_file_path, "rb") as f:
-                await webdav.upload_file(f, target_path)
-            
-            # Informer l'utilisateur
-            success_message = f"✅ Le fichier '{file_info.get('filename')}' a été classé avec succès dans '{decode_path_for_display(folder_path)}'."
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                success_message,
-                msgtype="m.notice"
-            )
-            
-            # Ajouter la réponse du bot à l'historique
-            await update_conversation_history(
-                config,
-                ep.room.room_id,
-                ep.sender,
-                bot_response=success_message
-            )
-            
-            # Nettoyer le fichier temporaire
-            try:
-                os.unlink(temp_file_path)
-                logger.debug(f"Fichier temporaire supprimé: {temp_file_path}")
-            except Exception as clean_err:
-                logger.warning(f"Erreur lors de la suppression du fichier temporaire: {str(clean_err)}")
-            
-            # Au lieu de réinitialiser complètement le contexte, marquer la commande comme terminée
-            # tout en conservant les informations importantes pour le contexte
-            old_state = session_context.conversation_state.copy()
-            session_context.conversation_state = {
-                "last_command": "pj",
-                "command_completed": True,
-                "last_action": old_state.get("action", "classify"),
-                "last_file_processed": file_info.get("filename"),
-                "last_target_path": folder_path
-            }
-            
-            # Mettre à jour le contexte
-            await context_manager.update_context(
-                session_id,
-                ContextType.SESSION,
-                session_context.to_dict()
-            )
-            
-            # Indiquer explicitement que cette interaction est terminée et peut être suivie d'un dialogue
-            logger.info(f"Commande !pj terminée pour le fichier {file_info.get('filename')}. Prêt pour le dialogue.")
-            
-            # Marquer la fin du thread
-            await mark_command_thread_end(
-                ep.room.room_id, 
-                ep.sender, 
-                "pj", 
-                config, 
-                action="fichier classé",
-                file_name=file_info.get('filename', ''),
-                target_path=folder_path
-            )
-            
-        except Exception as upload_err:
-            logger.error(f"Erreur lors du téléversement du fichier: {str(upload_err)}")
-            error_message = "❌ Une erreur est survenue lors du traitement du fichier. " 
-            error_message += f"Détails: {str(upload_err)}"
-            
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                error_message,
-                msgtype="m.notice"
-            )
-            
-            # Marquer la fin du thread même en cas d'erreur
-            try:
-                await mark_command_thread_end(
-                    ep.room.room_id, 
-                    ep.sender, 
-                    "pj", 
-                    config, 
-                    action="erreur de traitement",
-                    file_name=file_info.get('filename', ''),
-                    error=str(upload_err)
+                    upload_success = await asyncio.wait_for(
+                        webdav_service.upload_file(file_content, full_path),
+                        timeout=upload_timeout
+                    )
+                    logger.info(f"[PJ DEBUG] Téléchargement terminé: succès={upload_success}")
+                except asyncio.TimeoutError:
+                    logger.error(f"[PJ DEBUG] TIMEOUT: Le téléchargement a dépassé {upload_timeout}s")
+                    raise TimeoutError(f"Le téléchargement a pris trop de temps (>{upload_timeout}s)")
+                
+                if not upload_success:
+                    # Si le téléchargement échoue
+                    error_message = "Le serveur a retourné une erreur lors du téléchargement."
+                    logger.error(f"[PJ DEBUG] Échec du téléchargement vers WebDAV pour {full_path}: {error_message}")
+                    
+                    # Envoyer un message d'erreur
+                    await matrix_client.send_markdown_message(
+                        room_id,
+                        f"⚠️ Impossible de classer le fichier dans NextCloud. Le serveur a retourné une erreur."
+                    )
+                    
+                    # Marquer la fin du thread avec un statut d'erreur
+                    await CommandThread.end(
+                        room_id, 
+                        sender, 
+                        "pj", 
+                        config,
+                        action="erreur",
+                        error_message="Échec du téléchargement WebDAV",
+                        étape_finale="erreur_webdav",
+                        file_name=file_info.get('filename')
+                    )
+                    
+                    logger.info(f"[PJ DEBUG] Fin du thread marquée avec état d'erreur WebDAV")
+                    return None
+                    
+            except Exception as upload_error:
+                # Gestion des erreurs de téléchargement
+                error_message = f"Erreur lors du téléchargement WebDAV: {str(upload_error)}"
+                logger.error(f"[PJ DEBUG] {error_message}\n{traceback.format_exc()}")
+                
+                # Envoyer un message d'erreur à l'utilisateur
+                await matrix_client.send_markdown_message(
+                    room_id,
+                    f"⚠️ Impossible de classer le fichier dans NextCloud. Erreur: {str(upload_error)[:100]}..."
                 )
-            except Exception as mark_error:
-                logger.error(f"Erreur lors du marquage de fin de thread: {str(mark_error)}")
+                
+                # Marquer la fin du thread avec un statut d'erreur
+                await CommandThread.end(
+                    room_id, 
+                    sender, 
+                    "pj", 
+                    config,
+                    action="erreur",
+                    error=str(upload_error),
+                    étape_finale="exception_webdav",
+                    file_name=file_info.get('filename')
+                )
+                
+                logger.info(f"[PJ DEBUG] Fin du thread marquée avec état d'exception WebDAV")
+                return None
             
-            return
-        
-        return
-    
-    # Traitement des choix principaux (1-4)
-    elif not user_choice or not user_choice[0].isdigit():
-        return
-        
-    choice = int(user_choice[0])
-    target_path = None
-    
-    # Mode d'erreur (options plus limitées)
-    if session_context.conversation_state.get("error_mode"):
-        if choice == 1:
-            # Option 1: Enregistrer dans le dossier racine
-            # Nettoyer le nom de fichier pour éviter les caractères problématiques
-            safe_filename = file_info.get("filename", "fichier.bin")
-            safe_filename = safe_filename.replace('\t', ' ').replace('\n', ' ').replace('\r', ' ')
-            target_path = "/" + safe_filename
-        elif choice == 2:
-            # Option 2: Spécifier manuellement
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                "Veuillez spécifier le chemin complet où enregistrer le fichier:",
-                msgtype="m.notice"
-            )
-            session_context.conversation_state["waiting_for_path"] = True
-            await context_manager.update_context(
-                session_id,
-                ContextType.SESSION,
-                session_context.to_dict()
-            )
-            return
-        elif choice == 3:
-            # Option 3: Annuler
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                "❌ Opération annulée.",
-                msgtype="m.notice"
-            )
-            
-            # Nettoyer le fichier temporaire
+            # Nettoyer le fichier temporaire après l'upload
             try:
-                os.unlink(temp_file_path)
-                logger.debug(f"Fichier temporaire supprimé: {temp_file_path}")
+                logger.info(f"[PJ DEBUG] Nettoyage du fichier temporaire: {temp_file_path}")
+                if os.path.exists(temp_file_path):
+                    os.unlink(temp_file_path)
+                    logger.info(f"[PJ DEBUG] Fichier temporaire supprimé avec succès")
+                else:
+                    logger.warning(f"[PJ DEBUG] Le fichier temporaire n'existe plus: {temp_file_path}")
             except Exception as clean_err:
-                logger.warning(f"Erreur lors de la suppression du fichier temporaire: {str(clean_err)}")
+                logger.warning(f"[PJ DEBUG] Erreur lors de la suppression du fichier temporaire: {str(clean_err)}")
+                
+            # Construire le message de confirmation exactement au format souhaité
+            confirmation_message = f"✅ Le fichier '{file_name}' a été classé avec succès dans '{decode_path_for_display(chosen_path)}'."
             
-            # Au lieu de réinitialiser complètement le contexte, marquer la commande comme terminée
-            # tout en conservant les informations importantes pour le contexte
-            old_state = session_context.conversation_state.copy()
-            session_context.conversation_state = {
-                "last_command": "pj",
-                "command_completed": True,
-                "last_action": old_state.get("action", "classify"),
-                "last_file_processed": file_info.get("filename"),
-                "last_target_path": f"/{file_info['filename']}"
-            }
-            
-            # Mettre à jour le contexte
-            await context_manager.update_context(
-                session_id,
-                ContextType.SESSION,
-                session_context.to_dict()
-            )
-            return
-        else:
-            # Choix invalide
+            # Envoyer le message de confirmation
+            logger.info(f"[PJ DEBUG] Envoi du message de confirmation")
             await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                "❌ Choix invalide. Veuillez répondre avec 1, 2 ou 3.",
-                msgtype="m.notice"
+                room_id,
+                confirmation_message
             )
-            return
-    else:
-        # Mode normal
-        if choice == 1:
-            # Option 1: Utiliser la suggestion principale
-            target_path = session_context.conversation_state.get("suggested_path")
-        elif choice == 2:
-            # Option 2: Choisir une alternative
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                "Veuillez entrer le numéro de l'alternative (1, 2, 3):",
-                msgtype="m.notice"
-            )
-            session_context.conversation_state["waiting_for_alternative"] = True
             
-            # Récupérer le gestionnaire de contexte global
-            context_manager = get_context_manager(config)
+            logger.info(f"[PJ DEBUG] Message de confirmation envoyé: '{confirmation_message}'")
+            logger.info(f"[PJ DEBUG] Marquage de fin de thread immédiatement après confirmation...")
             
-            await context_manager.update_context(
-                session_id,
-                ContextType.SESSION,
-                session_context.to_dict()
-            )
-            return
-            
-        elif choice == 3:
-            # Option 3: Spécifier un autre emplacement
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                "Veuillez spécifier le chemin complet où enregistrer le fichier:",
-                msgtype="m.notice"
-            )
-            session_context.conversation_state["waiting_for_path"] = True
-            
-            # Récupérer le gestionnaire de contexte global
-            context_manager = get_context_manager(config)
-            
-            await context_manager.update_context(
-                session_id,
-                ContextType.SESSION,
-                session_context.to_dict()
-            )
-            return
-            
-        else:
-            # Choix invalide
-            await matrix_client.send_markdown_message(
-                ep.room.room_id,
-                "❌ Choix invalide. Veuillez répondre avec 1, 2 ou 3.",
-                msgtype="m.notice"
-            )
-            return
-
-    # Si nous arrivons ici, nous avons un chemin cible
-    if not target_path:
-        await matrix_client.send_markdown_message(
-            ep.room.room_id,
-            "❌ Erreur lors de la détermination du chemin cible.",
-            msgtype="m.notice"
-        )
-        return
-    
-    # Initialiser le service WebDAV et téléverser le fichier
-    webdav = WebDAVService(config)
-    await webdav.initialize()
-    
-    try:
-        # Informer l'utilisateur
-        await matrix_client.send_markdown_message(
-            ep.room.room_id,
-            f"🔄 Classement du fichier en cours...",
-            msgtype="m.notice"
-        )
-        
-        # Créer le dossier parent si nécessaire
-        folder_path = os.path.dirname(target_path)
-        if folder_path != '/':
-            try:
-                await webdav.create_directory(folder_path)
-                logger.info(f"Dossier créé: {folder_path}")
-            except Exception as folder_err:
-                logger.warning(f"Erreur lors de la création du dossier (peut-être existe-t-il déjà): {str(folder_err)}")
-        
-        # Téléverser le fichier
-        with open(temp_file_path, "rb") as f:
-            await webdav.upload_file(f, target_path)
-        
-        # Informer l'utilisateur
-        success_message = f"✅ Le fichier '{file_info.get('filename')}' a été classé avec succès dans '{decode_path_for_display(folder_path)}'."
-        await matrix_client.send_markdown_message(
-            ep.room.room_id,
-            success_message,
-            msgtype="m.notice"
-        )
-        
-        # Ajouter la réponse du bot à l'historique
-        await update_conversation_history(
-            config,
-            ep.room.room_id,
-            ep.sender,
-            bot_response=success_message
-        )
-        
-        # Nettoyer le fichier temporaire
-        try:
-            os.unlink(temp_file_path)
-            logger.debug(f"Fichier temporaire supprimé: {temp_file_path}")
-        except Exception as clean_err:
-            logger.warning(f"Erreur lors de la suppression du fichier temporaire: {str(clean_err)}")
-        
-        # Au lieu de réinitialiser complètement le contexte, marquer la commande comme terminée
-        # tout en conservant les informations importantes pour le contexte
-        old_state = session_context.conversation_state.copy()
-        session_context.conversation_state = {
-            "last_command": "pj",
-            "command_completed": True,
-            "last_action": old_state.get("action", "classify"),
-            "last_file_processed": file_info.get("filename"),
-            "last_target_path": folder_path
-        }
-        
-        # Mettre à jour le contexte
-        await context_manager.update_context(
-            session_id,
-            ContextType.SESSION,
-            session_context.to_dict()
-        )
-        
-        # Indiquer explicitement que cette interaction est terminée et peut être suivie d'un dialogue
-        logger.info(f"Commande !pj terminée pour le fichier {file_info.get('filename')}. Prêt pour le dialogue.")
-        
-        # Marquer la fin du thread
-        await mark_command_thread_end(
-            ep.room.room_id, 
-            ep.sender, 
-            "pj", 
-            config, 
-            action="fichier classé",
-            file_name=file_info.get('filename', ''),
-            target_path=folder_path
-        )
-        
-    except Exception as upload_err:
-        logger.error(f"Erreur lors du téléversement du fichier: {str(upload_err)}")
-        error_message = "❌ Une erreur est survenue lors du traitement du fichier. " 
-        error_message += f"Détails: {str(upload_err)}"
-        
-        await matrix_client.send_markdown_message(
-            ep.room.room_id,
-            error_message,
-            msgtype="m.notice"
-        )
-        
-        # Marquer la fin du thread même en cas d'erreur
-        try:
-            await mark_command_thread_end(
-                ep.room.room_id, 
-                ep.sender, 
+            # Marquer explicitement la fin du thread de commande JUSTE APRÈS l'envoi du message de confirmation
+            await CommandThread.end(
+                room_id, 
+                sender, 
                 "pj", 
-                config, 
-                action="erreur de traitement",
-                file_name=file_info.get('filename', ''),
-                error=str(upload_err)
+                config,
+                action="classé",  # Action finale : fichier classé avec succès
+                file_name=file_info.get('filename'),
+                target_path=chosen_path,
+                étape_finale="classer_terminé"  # Indiquer clairement l'étape finale
             )
-        except Exception as mark_error:
-            logger.error(f"Erreur lors du marquage de fin de thread: {str(mark_error)}")
-        
-        return
-
-    # Si nous arrivons ici, nous avons un chemin cible
-    if not target_path:
-        await matrix_client.send_markdown_message(
-            ep.room.room_id,
-            "❌ Erreur lors de la détermination du chemin cible.",
-            msgtype="m.notice"
-        )
-        return
-    
-    # Initialiser le service WebDAV et téléverser le fichier
-    webdav = WebDAVService(config)
-    await webdav.initialize()
-    
-    try:
-        # Informer l'utilisateur
-        await matrix_client.send_markdown_message(
-            ep.room.room_id,
-            f"🔄 Classement du fichier en cours...",
-            msgtype="m.notice"
-        )
-        
-        # Créer le dossier parent si nécessaire
-        folder_path = os.path.dirname(target_path)
-        if folder_path != '/':
+            
+            logger.info(f"[PJ DEBUG] Fin du thread marquée avec succès, action finale: classé")
+            logger.info(f"[PJ DEBUG] Commande !pj terminée pour le fichier {file_info.get('filename')}. Prêt pour le dialogue.")
+            
+            # Fermer proprement le service WebDAV
+            logger.info(f"[PJ DEBUG] Fermeture du service WebDAV")
+            await webdav_service.close()
+            logger.info(f"[PJ DEBUG] Service WebDAV fermé")
+            
+            # Retourner explicitement None pour permettre à handle_conversation de traiter les réponses
+            return None
+            
+        except Exception as e:
+            # Gestion des erreurs générales
+            error_message = f"Erreur lors du classement du fichier: {str(e)}"
+            logger.error(f"[PJ DEBUG] {error_message}\n{traceback.format_exc()}")
+            
+            # Récupérer le nom du fichier de façon sécurisée
+            file_name = "inconnu"
             try:
-                await webdav.create_directory(folder_path)
-                logger.info(f"Dossier créé: {folder_path}")
-            except Exception as folder_err:
-                logger.warning(f"Erreur lors de la création du dossier (peut-être existe-t-il déjà): {str(folder_err)}")
-        
-        # Téléverser le fichier
-        with open(temp_file_path, "rb") as f:
-            await webdav.upload_file(f, target_path)
-        
-        # Informer l'utilisateur
-        success_message = f"✅ Le fichier '{file_info.get('filename')}' a été classé avec succès dans '{decode_path_for_display(folder_path)}'."
-        await matrix_client.send_markdown_message(
-            ep.room.room_id,
-            success_message,
-            msgtype="m.notice"
-        )
-        
-        # Ajouter la réponse du bot à l'historique
-        await update_conversation_history(
-            config,
-            ep.room.room_id,
-            ep.sender,
-            bot_response=success_message
-        )
-        
-        # Nettoyer le fichier temporaire
-        try:
-            os.unlink(temp_file_path)
-            logger.debug(f"Fichier temporaire supprimé: {temp_file_path}")
-        except Exception as clean_err:
-            logger.warning(f"Erreur lors de la suppression du fichier temporaire: {str(clean_err)}")
-        
-        # Au lieu de réinitialiser complètement le contexte, marquer la commande comme terminée
-        # tout en conservant les informations importantes pour le contexte
-        old_state = session_context.conversation_state.copy()
-        session_context.conversation_state = {
-            "last_command": "pj",
-            "command_completed": True,
-            "last_action": old_state.get("action", "classify"),
-            "last_file_processed": file_info.get("filename"),
-            "last_target_path": folder_path
-        }
-        
-        # Mettre à jour le contexte
-        await context_manager.update_context(
-            session_id,
-            ContextType.SESSION,
-            session_context.to_dict()
-        )
-        
-        # Indiquer explicitement que cette interaction est terminée et peut être suivie d'un dialogue
-        logger.info(f"Commande !pj terminée pour le fichier {file_info.get('filename')}. Prêt pour le dialogue.")
-        
-        # Marquer la fin du thread
-        await mark_command_thread_end(
-            ep.room.room_id, 
-            ep.sender, 
-            "pj", 
-            config, 
-            action="fichier classé",
-            file_name=file_info.get('filename', ''),
-            target_path=folder_path
-        )
-        
-    except Exception as upload_err:
-        logger.error(f"Erreur lors du téléversement du fichier: {str(upload_err)}")
-        error_message = "❌ Une erreur est survenue lors du traitement du fichier. " 
-        error_message += f"Détails: {str(upload_err)}"
-        
-        await matrix_client.send_markdown_message(
-            ep.room.room_id,
-            error_message,
-            msgtype="m.notice"
-        )
-        
-        # Marquer la fin du thread même en cas d'erreur
-        try:
-            await mark_command_thread_end(
-                ep.room.room_id, 
-                ep.sender, 
-                "pj", 
-                config, 
-                action="erreur de traitement",
-                file_name=file_info.get('filename', ''),
-                error=str(upload_err)
+                # Tenter de récupérer le nom du fichier depuis le contexte de session
+                session_context = await get_unified_session_context(config, room_id, sender)
+                conversation_state = session_context.conversation_state
+                file_info_safe = conversation_state.get("file_info", {})
+                if isinstance(file_info_safe, dict):
+                    file_name = file_info_safe.get("filename", "inconnu")
+            except Exception as ctx_err:
+                logger.error(f"[PJ DEBUG] Erreur supplémentaire lors de la récupération du contexte: {str(ctx_err)}")
+            
+            # Construire et envoyer un message d'erreur formaté pour l'utilisateur
+            user_error_message = f"❌ Une erreur est survenue lors du classement du fichier '{file_name}': {str(e)}"
+            
+            # Envoyer le message d'erreur à l'utilisateur
+            await matrix_client.send_markdown_message(
+                room_id,
+                user_error_message
             )
-        except Exception as mark_error:
-            logger.error(f"Erreur lors du marquage de fin de thread: {str(mark_error)}")
+            
+            logger.info(f"[PJ DEBUG] Message d'erreur envoyé: '{user_error_message}'")
+            logger.info(f"[PJ DEBUG] Marquage de fin de thread après message d'erreur...")
+            
+            # Marquer également la fin du thread en cas d'erreur - JUSTE APRÈS l'envoi du message d'erreur
+            try:
+                await CommandThread.end(
+                    room_id, 
+                    sender, 
+                    "pj", 
+                    config,
+                    action="erreur",
+                    error=str(e),
+                    étape_finale="erreur_générale",
+                    file_name=file_name
+                )
+                
+                logger.info(f"[PJ DEBUG] Fin du thread marquée avec succès malgré l'erreur")
+                logger.info(f"[PJ DEBUG] Thread de commande 'pj' terminé avec erreur: {str(e)}")
+            except Exception as mark_error:
+                logger.error(f"[PJ DEBUG] Erreur lors du marquage de fin de thread: {str(mark_error)}")
+                # Tenter une dernière fois avec des données minimales
+                try:
+                    await CommandThread.end(
+                        room_id, 
+                        sender, 
+                        "pj", 
+                        config,
+                        action="erreur",
+                        error="Erreur critique",
+                        étape_finale="erreur_critique"
+                    )
+                    logger.info(f"[PJ DEBUG] Seconde tentative de marquage de fin de thread réussie")
+                except Exception as final_error:
+                    logger.error(f"[PJ DEBUG] Échec définitif du marquage de fin de thread: {str(final_error)}")
+            
+            # Retourner explicitement None pour permettre à handle_conversation de traiter les réponses
+            return None
+    except Exception as global_error:
+        # Capture globale pour éviter que l'erreur ne se propage
+        logger.error(f"[PJ DEBUG] ERREUR GLOBALE dans handle_attachments_response: {str(global_error)}")
+        logger.error(f"[PJ DEBUG] Traceback: {traceback.format_exc()}")
         
-        return 
+        # Tenter d'envoyer un message d'erreur à l'utilisateur
+        try:
+            await matrix_client.send_markdown_message(
+                ep.room.room_id,
+                f"❌ Une erreur critique s'est produite lors du traitement de votre réponse. Les administrateurs ont été notifiés.",
+                msgtype="m.notice"
+            )
+        except Exception as msg_err:
+            logger.error(f"[PJ DEBUG] Impossible d'envoyer le message d'erreur: {str(msg_err)}")
+        
+        # Toujours retourner None pour éviter la propagation de l'erreur
+        return None
+    finally:
+        logger.info(f"[PJ DEBUG] ====== FIN handle_attachments_response ======") 

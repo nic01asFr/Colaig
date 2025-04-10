@@ -1135,6 +1135,40 @@ class DocumentIndex:
             logger.error(f"Erreur lors de la recherche: {str(e)}")
             return []
 
+    async def update_specific_document(self, document_path: str) -> None:
+        """Met à jour l'index pour un document spécifique
+        
+        Args:
+            document_path: Chemin du document à mettre à jour
+        """
+        try:
+            # Supprimer les chunks existants pour ce document
+            chunks_to_remove = [
+                idx for idx, chunk in self.faiss_index.document_map.items()
+                if chunk.document_path == document_path
+            ]
+            
+            if chunks_to_remove:
+                # Créer un nouvel index temporaire
+                temp_index = FAISSIndex(dimension=self.embedding_service.embedding_dimension)
+                
+                # Copier uniquement les documents à conserver
+                for idx, chunk in self.faiss_index.document_map.items():
+                    if idx not in chunks_to_remove:
+                        temp_index.add_document(chunk, np.array(chunk.embedding))
+                
+                # Remplacer l'ancien index
+                self.faiss_index = temp_index
+                logger.info(f"Anciens chunks supprimés pour {document_path}")
+            
+            # Ajouter le nouveau document
+            await self._process_document_batch([document_path])
+            logger.info(f"Document mis à jour: {document_path}")
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de la mise à jour du document {document_path}: {str(e)}")
+            raise
+
     async def __aenter__(self):
         await self.initialize()
         return self

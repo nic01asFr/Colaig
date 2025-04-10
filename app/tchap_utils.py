@@ -118,6 +118,147 @@ async def get_decrypted_file(ep: EventParser) -> BytesIO:
     file.type = ep.event.source['content']['info']['mimetype']
     return file
 
+
+async def get_decrypted_file_from_parser(ep: EventParser) -> BytesIO:
+    """
+    Récupère et déchiffre une pièce jointe à partir d'un EventParser.
+    Version originale maintenue pour compatibilité.
+    
+    Args:
+        ep: L'EventParser contenant l'événement avec le fichier
+    
+    Returns:
+        Le contenu du fichier déchiffré sous forme de BytesIO
+    """
+    response = await ep.matrix_client.download(ep.event.url)
+    content = decrypt_attachment(
+        response.body, 
+        ep.event.key.get('k'), 
+        ep.event.hashes['sha256'], 
+        ep.event.iv
+    )
+    file = BytesIO(content)
+    file.name = ep.event.source['content']['body']
+    file.type = ep.event.source['content']['info']['mimetype']
+    return file
+
+
+async def get_decrypted_file(event, matrix_client) -> bytes:
+    """
+    Récupère et déchiffre une pièce jointe à partir d'un événement Matrix.
+    
+    Args:
+        event: L'événement Matrix contenant le fichier (RoomMessageFile ou RoomEncryptedFile)
+        matrix_client: Le client Matrix pour télécharger le fichier
+    
+    Returns:
+        Le contenu du fichier déchiffré sous forme de bytes
+    """
+    # Vérifier si c'est un EventParser ou un Event directement
+    if hasattr(event, 'matrix_client') and hasattr(event, 'event'):
+        # C'est un EventParser
+        ep = event
+        event = ep.event
+        matrix_client = ep.matrix_client
+    
+    # Ajouter des logs pour le débogage
+    from matrix_bot.config import logger
+    logger.info(f"[GET_DECRYPTED_FILE] Type de l'événement: {type(event).__name__}")
+    
+    # S'assurer que nous avons une URL pour télécharger le fichier
+    url = None
+    
+    # Cas 1: URL directement sur l'objet event
+    if hasattr(event, 'url') and event.url:
+        url = event.url
+        logger.info(f"[GET_DECRYPTED_FILE] URL trouvée sur l'objet event: {url}")
+    
+    # Cas 2: URL dans source.content
+    elif hasattr(event, 'source') and isinstance(event.source, dict) and 'content' in event.source:
+        content = event.source['content']
+        
+        # Cas 2.1: URL directe dans content
+        if 'url' in content:
+            url = content['url']
+            logger.info(f"[GET_DECRYPTED_FILE] URL trouvée dans content: {url}")
+        
+        # Cas 2.2: URL dans file.url (fichier chiffré)
+        elif 'file' in content and isinstance(content['file'], dict) and 'url' in content['file']:
+            url = content['file']['url']
+            logger.info(f"[GET_DECRYPTED_FILE] URL trouvée dans file.url: {url}")
+        
+        # Cas 2.3: Essayer de trouver l'URL dans des structures plus profondes
+        elif 'info' in content and isinstance(content['info'], dict):
+            if 'url' in content['info']:
+                url = content['info']['url']
+                logger.info(f"[GET_DECRYPTED_FILE] URL trouvée dans info.url: {url}")
+    
+    # Si aucune URL n'a été trouvée, lever une exception
+    if not url:
+        logger.error(f"[GET_DECRYPTED_FILE] Impossible de trouver l'URL du fichier dans l'événement")
+        raise ValueError("Impossible de trouver l'URL du fichier dans l'événement. Structure de l'événement non reconnue.")
+    
+    try:
+        # Télécharger le fichier
+        logger.info(f"[GET_DECRYPTED_FILE] Téléchargement du fichier depuis: {url}")
+        response = await matrix_client.download(url)
+        
+        if not response or not hasattr(response, 'body'):
+            logger.error(f"[GET_DECRYPTED_FILE] Réponse de téléchargement invalide")
+            raise ValueError("Erreur lors du téléchargement du fichier: réponse invalide")
+        
+        logger.info(f"[GET_DECRYPTED_FILE] Fichier téléchargé avec succès, taille: {len(response.body)} octets")
+        
+        # Vérifier si le fichier est chiffré et doit être déchiffré
+        # Cas 1: Attributs de chiffrement directement sur l'objet event
+        if hasattr(event, 'key') and hasattr(event, 'iv') and hasattr(event, 'hashes'):
+            logger.info(f"[GET_DECRYPTED_FILE] Déchiffrement avec attributs de l'objet event")
+            try:
+                content = decrypt_attachment(
+                    response.body, 
+                    event.key.get('k'), 
+                    event.hashes['sha256'], 
+                    event.iv
+                )
+                logger.info(f"[GET_DECRYPTED_FILE] Fichier déchiffré avec succès, taille: {len(content)} octets")
+            except Exception as e:
+                logger.error(f"[GET_DECRYPTED_FILE] Erreur lors du déchiffrement (méthode 1): {str(e)}")
+                # Retourner le contenu non déchiffré en cas d'échec
+                content = response.body
+        
+        # Cas 2: Informations de chiffrement dans source.content.file
+        elif (hasattr(event, 'source') and 'content' in event.source 
+              and 'file' in event.source['content'] and isinstance(event.source['content']['file'], dict)):
+            file_info = event.source['content']['file']
+            if 'key' in file_info and 'iv' in file_info and 'hashes' in file_info:
+                logger.info(f"[GET_DECRYPTED_FILE] Déchiffrement avec informations dans source.content.file")
+                try:
+                    content = decrypt_attachment(
+                        response.body,
+                        file_info['key'].get('k'),
+                        file_info['hashes'].get('sha256'),
+                        file_info['iv']
+                    )
+                    logger.info(f"[GET_DECRYPTED_FILE] Fichier déchiffré avec succès, taille: {len(content)} octets")
+                except Exception as e:
+                    logger.error(f"[GET_DECRYPTED_FILE] Erreur lors du déchiffrement (méthode 2): {str(e)}")
+                    # Retourner le contenu non déchiffré en cas d'échec
+                    content = response.body
+            else:
+                # Fichier non chiffré ou format non reconnu
+                logger.info(f"[GET_DECRYPTED_FILE] Fichier considéré comme non chiffré (méthode 2)")
+                content = response.body
+        else:
+            # Fichier non chiffré
+            logger.info(f"[GET_DECRYPTED_FILE] Fichier considéré comme non chiffré")
+            content = response.body
+        
+        return content
+        
+    except Exception as e:
+        logger.error(f"[GET_DECRYPTED_FILE] Erreur lors du traitement du fichier: {str(e)}")
+        raise ValueError(f"Erreur lors du téléchargement ou du déchiffrement du fichier: {str(e)}")
+
 #
 # User management
 #

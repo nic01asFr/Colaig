@@ -5,6 +5,9 @@ Ce module contient la commande principale et les fonctions auxiliaires
 pour questionner les documents indexés avec le contexte de conversation.
 """
 
+import sys
+import time
+import json
 import asyncio
 import traceback
 from typing import Dict, Any, Optional, List
@@ -20,13 +23,12 @@ from app.config import Config
 from app.core_llm import AlbertApiClient
 
 from app.services.index_service import IndexService
-from app.services.webdav import WebDAVService
-from app.services.context.manager import ContextManager
 from app.services.context.types import ContextType
 from app.services.context.models import SessionContext
 
-from app.commands.registry import register_feature, only_allowed_user, mark_command_thread_end
+from app.commands.registry import register_feature, only_allowed_user, mark_event_processed
 from app.commands import get_context_manager, get_unified_session_context
+from app.commands.lifecycle import command_lifecycle, CommandLifecycleManager
 
 async def get_session_context(
     config: Config,
@@ -44,7 +46,7 @@ async def get_session_context(
     # sans toucher à l'historique
     session_context.conversation_state.update({
         "last_command": "docquery",
-        "current_action": "question",
+        "action": "question",
         "command_context": "document"  # Marquer clairement le contexte documentaire
     })
     
@@ -65,57 +67,79 @@ async def get_session_context(
     help="!docquery [question] - Interroge les documents indexés avec une question",
 )
 @only_allowed_user
+@command_lifecycle("docquery")  # Utiliser le nouveau décorateur pour la gestion du cycle de vie
 async def doc_query_command(ep: EventParser, matrix_client: MatrixClient):
     """Exécute une requête sur les documents indexés"""
-    # Utiliser albert_config si disponible, sinon utiliser la config standard
-    config = getattr(matrix_client, "albert_config", matrix_client.config)
-    room_id = ep.room.room_id
-    sender = ep.sender
-    
-    # Extraire la requête du texte du message
-    message_text = ep.event.body.strip() if hasattr(ep.event, 'body') else ""
-    command_parts = message_text.split()
-    
-    # Si le message est seulement "!docquery" sans arguments
-    if len(command_parts) <= 1:
-        await matrix_client.send_markdown_message(
-            room_id,
-            "❓ **Comment utiliser !docquery**\n\n"
-            "Cette commande vous permet d'interroger vos documents.\n"
-            "```\n!docquery Votre question sur les documents\n```",
-            msgtype="m.notice"
-        )
-        
-        # Marquer la fin du thread car la commande est terminée (cas d'usage sans argument)
-        await mark_command_thread_end(
-            room_id, 
-            sender, 
-            "docquery", 
-            config, 
-            action="aide affichée", 
-            result="help_message"
-        )
-        return
-    
-    # Extraire la requête (tout ce qui suit après le premier mot)
-    query = " ".join(command_parts[1:])
-    
-    # Envoyer un message de confirmation
-    loading_msg_event = await matrix_client.send_markdown_message(
-        room_id,
-        f"🔍 Je recherche des informations pour répondre à: *{query}*",
-        msgtype="m.notice"
-    )
-    
+    # AMÉLIORATIONS DE ROBUSTESSE: Ajouter plus de logs et une meilleure gestion des exceptions
     try:
+        # Capturer toutes les informations essentielles au début
+        logger.info(f"[DOCQUERY DEBUG] ====== DÉMARRAGE DE LA COMMANDE DOCQUERY ======")
+        logger.info(f"[DOCQUERY DEBUG] Type d'événement: {type(ep.event).__name__}")
+        logger.info(f"[DOCQUERY DEBUG] Event ID: {getattr(ep.event, 'event_id', 'NON DISPONIBLE')}")
+        logger.info(f"[DOCQUERY DEBUG] Sender: {ep.sender}")
+        logger.info(f"[DOCQUERY DEBUG] Room ID: {ep.room.room_id}")
+        
+        # Utiliser albert_config si disponible, sinon utiliser la config standard
+        config = getattr(matrix_client, "albert_config", matrix_client.config)
+        room_id = ep.room.room_id
+        sender = ep.sender
+        event_id = getattr(ep.event, "event_id", None)
+        
+        # Log détaillé au début de la fonction
+        logger.info(f"[DOCQUERY DEBUG] Début du traitement de la commande docquery")
+        
+        # Extraire la requête du texte du message
+        message_text = ep.event.body.strip() if hasattr(ep.event, 'body') else ""
+        command_parts = message_text.split()
+        logger.info(f"[DOCQUERY DEBUG] Message reçu: '{message_text}'")
+        
+        # Si le message est seulement "!docquery" sans arguments
+        if len(command_parts) <= 1:
+            logger.info(f"[DOCQUERY DEBUG] Message d'aide envoyé (pas d'arguments)")
+            await matrix_client.send_markdown_message(
+                room_id,
+                "❓ **Comment utiliser !docquery**\n\n"
+                "Cette commande vous permet d'interroger vos documents.\n"
+                "```\n!docquery Votre question sur les documents\n```",
+                msgtype="m.notice"
+            )
+            
+            # Retourner des résultats pour le décorateur command_lifecycle
+            return {
+                "action": "aide affichée",
+                "result": "help_message"
+            }
+        
+        # Extraire la requête (tout ce qui suit après le premier mot)
+        query = " ".join(command_parts[1:])
+        logger.info(f"[DOCQUERY DEBUG] Requête extraite: '{query}'")
+        
+        # ROBUSTESSE: Utiliser un bloc try/except pour l'envoi du message de confirmation
+        try:
+            logger.info(f"[DOCQUERY DEBUG] Envoi du message de chargement")
+            loading_msg_event = await matrix_client.send_markdown_message(
+                room_id,
+                f"🔍 Je recherche des informations pour répondre à: *{query}*",
+                msgtype="m.notice"
+            )
+            logger.info(f"[DOCQUERY DEBUG] Message de chargement envoyé: {type(loading_msg_event).__name__}")
+        except Exception as msg_err:
+            # Capture explicite des erreurs d'envoi de message
+            logger.error(f"[DOCQUERY DEBUG] Erreur lors de l'envoi du message de chargement: {str(msg_err)}")
+            # Ne pas interrompre le traitement, continuer sans message de chargement
+            loading_msg_event = None
+        
         # Récupérer ou créer le contexte de session
+        logger.info(f"[DOCQUERY DEBUG] Récupération du contexte de session")
         session_context = await get_session_context(config, room_id, sender)
         
         # Référence au gestionnaire de contexte
+        logger.info(f"[DOCQUERY DEBUG] Obtention du gestionnaire de contexte")
         ctx_manager = get_context_manager(config)
         
         # Mettre à jour l'activité du salon
         try:
+            logger.info(f"[DOCQUERY DEBUG] Mise à jour de l'activité du salon")
             room_context = await ctx_manager.get_or_create_room_context(
                 room_id=room_id,
                 room_name=ep.room.display_name if hasattr(ep.room, 'display_name') else "Salon inconnu",
@@ -127,6 +151,7 @@ async def doc_query_command(ep: EventParser, matrix_client: MatrixClient):
             # Continuer malgré l'erreur
         
         # Convertir l'historique de conversation en texte pour le prompt
+        logger.info(f"[DOCQUERY DEBUG] Préparation de l'historique de conversation")
         history_text = ""
         if session_context.history:
             # Limiter à 5 derniers échanges pour éviter token overflow
@@ -143,11 +168,14 @@ async def doc_query_command(ep: EventParser, matrix_client: MatrixClient):
                 
         # Mettre à jour le message de chargement
         try:
+            # Vérifier si loading_msg_event a un event_id, mais ne pas l'utiliser pour send_markdown_message
+            if hasattr(loading_msg_event, 'event_id'):
+                # Pour référence future, mais non utilisé actuellement
+                event_id = loading_msg_event.event_id
             await matrix_client.send_markdown_message(
                 room_id,
                 f"🔍 Recherche en cours pour: *{query}*\nAnalyse des documents pertinents...",
-                msgtype="m.notice",
-                message_id=loading_msg_event.event_id
+                msgtype="m.notice"
             )
         except AttributeError:
             # Fallback si update_message n'est pas disponible
@@ -158,20 +186,90 @@ async def doc_query_command(ep: EventParser, matrix_client: MatrixClient):
                 msgtype="m.notice"
             )
         
-        # Initialiser l'index
-        index_service = IndexService(config)
-        await index_service.initialize(init_document_index=True)
-        
-        # Effectuer la recherche
-        chunks = await index_service.search(
-            query=query,
-            limit=5,
-            index_type="document",
-            search_mode="precise"
-        )
-        
+        # Initialiser l'index avec timeout explicite
+        logger.info(f"[DOCQUERY DEBUG] Initialisation du service d'index")
+        try:
+            # Utiliser le service d'index global au lieu d'en créer un nouveau
+            from app.services.index_service import get_index_service
+            index_service = await asyncio.wait_for(
+                get_index_service(config), 
+                timeout=30.0
+            )
+            logger.info(f"[DOCQUERY DEBUG] Service d'index global récupéré avec succès")
+        except asyncio.TimeoutError:
+            # En cas de timeout, envoyer un message d'erreur et terminer
+            logger.error(f"[DOCQUERY DEBUG] Timeout lors de l'initialisation du service d'index")
+            try:
+                # Noter la présence de l'event_id mais ne pas l'utiliser avec send_markdown_message
+                if hasattr(loading_msg_event, 'event_id'):
+                    event_id = loading_msg_event.event_id  # Pour référence future
+                await matrix_client.send_markdown_message(
+                    room_id,
+                    "❌ Délai d'attente dépassé lors de l'initialisation du service de recherche. Veuillez réessayer ultérieurement.",
+                    msgtype="m.notice"
+                )
+            except Exception as msg_error:
+                # En cas d'erreur, fallback sur un nouveau message
+                logger.warning(f"Erreur lors de la mise à jour du message: {str(msg_error)}")
+                await matrix_client.send_markdown_message(
+                    room_id,
+                    "❌ Délai d'attente dépassé lors de l'initialisation du service de recherche. Veuillez réessayer ultérieurement.",
+                    msgtype="m.notice"
+                )
+            
+            # Retourner un résultat d'erreur pour le décorateur command_lifecycle
+            return {
+                "action": "recherche terminée avec erreur",
+                "result": "initialization_timeout",
+                "query": query,
+                "error": "Timeout lors de l'initialisation"
+            }
+            
+        # Effectuer la recherche avec timeout
+        logger.info(f"[DOCQUERY DEBUG] Exécution de la recherche")
+        try:
+            # Timeout de 20 secondes pour la recherche
+            chunks = await asyncio.wait_for(
+                index_service.search(
+                    query=query,
+                    limit=5,
+                    index_type="document",
+                    search_mode="precise"
+                ),
+                timeout=20.0
+            )
+            logger.info(f"[DOCQUERY DEBUG] Recherche terminée avec {len(chunks) if chunks else 0} résultats")
+        except asyncio.TimeoutError:
+            # En cas de timeout, envoyer un message d'erreur et terminer
+            logger.error(f"[DOCQUERY DEBUG] Timeout lors de la recherche")
+            try:
+                # Noter la présence de l'event_id mais ne pas l'utiliser pour send_markdown_message
+                if hasattr(loading_msg_event, 'event_id'):
+                    event_id = loading_msg_event.event_id  # Pour référence future
+                await matrix_client.send_markdown_message(
+                    room_id,
+                    "❌ Délai d'attente dépassé lors de la recherche. Veuillez réessayer avec une question plus simple.",
+                    msgtype="m.notice"
+                )
+            except AttributeError:
+                # Fallback si loading_msg_event est invalide
+                await matrix_client.send_markdown_message(
+                    room_id,
+                    "❌ Délai d'attente dépassé lors de la recherche. Veuillez réessayer avec une question plus simple.",
+                    msgtype="m.notice"
+                )
+            
+            # Retourner un résultat d'erreur pour le décorateur command_lifecycle
+            return {
+                "action": "recherche terminée avec erreur",
+                "result": "search_timeout",
+                "query": query,
+                "error": "Timeout lors de la recherche"
+            }
+            
         # Si aucun document pertinent n'est trouvé
         if not chunks:
+            logger.info(f"[DOCQUERY DEBUG] Aucun document pertinent trouvé pour la requête")
             # Mettre à jour l'historique de conversation
             user_message = {"role": "user", "content": query}
             bot_message = {"role": "assistant", "content": "Je n'ai pas trouvé de documents pertinents pour répondre à votre question."}
@@ -185,11 +283,13 @@ async def doc_query_command(ep: EventParser, matrix_client: MatrixClient):
             
             # Informer l'utilisateur
             try:
+                # Noter la présence de l'event_id mais ne pas l'utiliser pour send_markdown_message
+                if hasattr(loading_msg_event, 'event_id'):
+                    event_id = loading_msg_event.event_id  # Pour référence future
                 await matrix_client.send_markdown_message(
                     room_id,
                     "❌ Je n'ai pas trouvé de documents pertinents pour répondre à votre question.",
-                    msgtype="m.notice",
-                    message_id=loading_msg_event.event_id
+                    msgtype="m.notice"
                 )
             except AttributeError:
                 await matrix_client.send_markdown_message(
@@ -197,18 +297,13 @@ async def doc_query_command(ep: EventParser, matrix_client: MatrixClient):
                     "❌ Je n'ai pas trouvé de documents pertinents pour répondre à votre question.",
                     msgtype="m.notice"
                 )
-                
-            # Marquer la fin du thread car la commande est terminée (cas où aucun document n'est trouvé)
-            await mark_command_thread_end(
-                room_id, 
-                sender, 
-                "docquery", 
-                config, 
-                action="recherche terminée", 
-                result="no_documents_found",
-                query=query
-            )
-            return
+            
+            # Retourner un résultat pour le décorateur command_lifecycle
+            return {
+                "action": "recherche terminée",
+                "result": "no_documents_found",
+                "query": query
+            }
             
         # Construire le prompt avec les documents et l'historique
         # Préparer la chaîne de documents en dehors de la f-string pour éviter les problèmes d'échappement
@@ -230,6 +325,7 @@ Réponse:"""
         # Générer la réponse avec le client Albert
         response_text = ""
         try:
+            logger.info(f"[DOCQUERY DEBUG] Initialisation du client Albert API")
             albert_client = AlbertApiClient(
                 base_url=config.albert_api_url,
                 api_key=config.albert_api_token
@@ -247,20 +343,53 @@ Réponse:"""
                 }
             ]
             
-            response_text = await albert_client.generate(
-                model=config.albert_model,
-                messages=messages,
-                max_tokens=1024,
-                temperature=0.1
+            logger.info(f"[DOCQUERY DEBUG] Génération de la réponse avec le modèle")
+            # Ajouter un timeout pour la génération de la réponse
+            response_text = await asyncio.wait_for(
+                albert_client.generate(
+                    model=config.albert_model,
+                    messages=messages,
+                    max_tokens=1024,
+                    temperature=0.1
+                ),
+                timeout=30.0  # 30 secondes de timeout
             )
+            logger.info(f"[DOCQUERY DEBUG] Réponse générée avec succès ({len(response_text)} caractères)")
+        except asyncio.TimeoutError:
+            logger.error(f"[DOCQUERY DEBUG] Timeout lors de la génération de la réponse")
+            try:
+                # Noter la présence de l'event_id mais ne pas l'utiliser pour send_markdown_message
+                if hasattr(loading_msg_event, 'event_id'):
+                    event_id = loading_msg_event.event_id  # Pour référence future
+                await matrix_client.send_markdown_message(
+                    room_id,
+                    f"❌ Délai d'attente dépassé lors de la génération de la réponse. Veuillez réessayer avec une question plus simple.",
+                    msgtype="m.notice"
+                )
+            except AttributeError:
+                await matrix_client.send_markdown_message(
+                    room_id,
+                    f"❌ Délai d'attente dépassé lors de la génération de la réponse. Veuillez réessayer avec une question plus simple.",
+                    msgtype="m.notice"
+                )
+                
+            # Retourner un résultat d'erreur pour le décorateur command_lifecycle
+            return {
+                "action": "recherche terminée avec erreur",
+                "result": "generation_timeout",
+                "query": query,
+                "error": "Timeout lors de la génération de la réponse"
+            }
         except Exception as e:
             logger.error(f"Erreur génération réponse: {str(e)}")
             try:
+                # Noter la présence de l'event_id mais ne pas l'utiliser pour send_markdown_message
+                if hasattr(loading_msg_event, 'event_id'):
+                    event_id = loading_msg_event.event_id  # Pour référence future
                 await matrix_client.send_markdown_message(
                     room_id,
                     f"❌ Erreur lors de la génération de la réponse: {str(e)}",
-                    msgtype="m.notice",
-                    message_id=loading_msg_event.event_id
+                    msgtype="m.notice"
                 )
             except AttributeError:
                 await matrix_client.send_markdown_message(
@@ -269,18 +398,13 @@ Réponse:"""
                     msgtype="m.notice"
                 )
                 
-            # Marquer la fin du thread car la commande est terminée avec erreur
-            await mark_command_thread_end(
-                room_id, 
-                sender, 
-                "docquery", 
-                config, 
-                action="recherche terminée avec erreur", 
-                result="generation_error",
-                query=query,
-                error=str(e)
-            )
-            return
+            # Retourner un résultat d'erreur pour le décorateur command_lifecycle
+            return {
+                "action": "recherche terminée avec erreur",
+                "result": "generation_error",
+                "query": query,
+                "error": str(e)
+            }
             
         # Ajouter les informations sur les sources
         sources = []
@@ -315,15 +439,18 @@ Réponse:"""
         
         # Mettre à jour le contexte
         session_id = f"{room_id}_{sender}"
+        ctx_manager = get_context_manager(config)
         await ctx_manager.update_context(session_id, ContextType.SESSION, session_context.to_dict())
         
         # Envoyer la réponse
         try:
+            # Noter la présence de l'event_id mais ne pas l'utiliser pour send_markdown_message
+            if hasattr(loading_msg_event, 'event_id'):
+                event_id = loading_msg_event.event_id  # Pour référence future
             await matrix_client.send_markdown_message(
                 room_id,
                 f"🤖 {response_with_sources}",
-                msgtype="m.notice",
-                message_id=loading_msg_event.event_id
+                msgtype="m.notice"
             )
         except AttributeError:
             await matrix_client.send_markdown_message(
@@ -331,45 +458,33 @@ Réponse:"""
                 f"🤖 {response_with_sources}",
                 msgtype="m.notice"
             )
-            
-        # Marquer la fin du thread car la commande est terminée avec succès
-        await mark_command_thread_end(
-            room_id, 
-            sender, 
-            "docquery", 
-            config, 
-            action="recherche terminée avec succès", 
-            result="response_generated",
-            query=query,
-            sources_count=len(sources)
-        )
         
-    except Exception as e:
-        logger.error(f"Erreur dans docquery: {str(e)}\n{traceback.format_exc()}")
+        # Retourner les résultats finaux pour le décorateur command_lifecycle
+        return {
+            "action": "recherche terminée avec succès",
+            "result": "response_generated",
+            "query": query,
+            "sources_count": len(chunks) if chunks else 0
+        }
+        
+    # ROBUSTESSE: Capture globale de toutes les exceptions pour diagnostic
+    except Exception as global_err:
+        # Log détaillé de l'erreur 
+        logger.error(f"[DOCQUERY DEBUG] ====== ERREUR GLOBALE DANS DOCQUERY ======")
+        logger.error(f"[DOCQUERY DEBUG] Type d'erreur: {type(global_err).__name__}")
+        logger.error(f"[DOCQUERY DEBUG] Message d'erreur: {str(global_err)}")
+        logger.error(f"[DOCQUERY DEBUG] Traceback: {traceback.format_exc()}")
+        
+        # Essayer d'informer l'utilisateur si possible
         try:
-            await matrix_client.send_markdown_message(
-                room_id,
-                f"❌ Une erreur est survenue: {str(e)}",
-                msgtype="m.notice",
-                message_id=loading_msg_event.event_id
-            )
-        except (AttributeError, NameError):
-            await matrix_client.send_markdown_message(
-                room_id,
-                f"❌ Une erreur est survenue: {str(e)}",
-                msgtype="m.notice"
-            )
-            
-        # Marquer la fin du thread même en cas d'erreur générale
-        try:
-            await mark_command_thread_end(
-                room_id, 
-                sender, 
-                "docquery", 
-                config, 
-                action="recherche terminée avec erreur critique", 
-                result="critical_error",
-                error=str(e)
-            )
-        except Exception as mark_error:
-            logger.error(f"Erreur lors du marquage de fin de thread: {str(mark_error)}")
+            if 'room_id' in locals() and room_id:
+                await matrix_client.send_markdown_message(
+                    room_id,
+                    "❌ Une erreur est survenue lors du traitement de votre demande. L'équipe technique a été notifiée.",
+                    msgtype="m.notice"
+                )
+        except Exception as msg_err:
+            logger.error(f"[DOCQUERY DEBUG] Impossible d'envoyer le message d'erreur: {str(msg_err)}")
+        
+        # Propager l'erreur pour que le décorateur command_lifecycle la gère correctement
+        raise

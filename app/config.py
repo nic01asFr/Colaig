@@ -41,7 +41,7 @@ class Config(BaseConfig):
         ["*"],
         description="List of allowed Tchap users email domains allowed to use Albert Tchap",
     )
-    groups_used: str = Field("basic", description="List of commands groups to use (comma-separated)")
+    groups_used: str = Field("document", description="List of commands groups to use (comma-separated)")
     last_activity: int = Field(int(time.time()), description="Last activity timestamp")
 
     # Grist Api Key
@@ -148,6 +148,18 @@ env_config = Config(
     webdav_root_path=os.getenv("WEBDAV_ROOT_PATH", "/documents"),
     webdav_index_name=os.getenv("WEBDAV_INDEX_NAME", "index.json")
 )
+
+
+def get_config() -> Config:
+    """
+    Retourne la configuration globale du système.
+    
+    Cette fonction est utilisée pour accéder à la configuration depuis n'importe quel module.
+    
+    Returns:
+        Config: L'instance de configuration globale.
+    """
+    return env_config
 
 
 def use_systemd_config():

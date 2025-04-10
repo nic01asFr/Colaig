@@ -545,3 +545,50 @@ class IndexService:
             # Déclencher un nettoyage si nécessaire
             if datetime.now() - self._last_cache_cleanup > timedelta(hours=1):
                 await self._cleanup_cache() 
+
+# Singleton pour IndexService
+_index_service_instance = None
+_init_lock = asyncio.Lock()
+
+async def get_index_service(config, force_reload=False):
+    """
+    Récupère l'instance unique de IndexService, la créant si elle n'existe pas.
+    
+    Args:
+        config: Configuration de l'application
+        force_reload: Si True, force la réinitialisation de l'instance
+        
+    Returns:
+        L'instance unique de IndexService
+    """
+    global _index_service_instance, _init_lock
+    
+    async with _init_lock:
+        if _index_service_instance is None or force_reload:
+            logger.info("Création d'une nouvelle instance de IndexService")
+            _index_service_instance = IndexService(config)
+            try:
+                await _index_service_instance.initialize(init_document_index=True)
+                logger.info("Service d'index initialisé globalement")
+            except Exception as e:
+                logger.error(f"Erreur initialisation service d'index global: {str(e)}")
+                _index_service_instance = None
+                raise
+    
+    return _index_service_instance
+
+async def close_index_service():
+    """Ferme proprement l'instance du service d'index global."""
+    global _index_service_instance
+    
+    if _index_service_instance is not None:
+        logger.info("Fermeture du service d'index global")
+        try:
+            await _index_service_instance.close()
+        except Exception as e:
+            logger.error(f"Erreur lors de la fermeture du service d'index global: {str(e)}")
+        finally:
+            _index_service_instance = None
+
+# Exporter la fonction get_index_service
+__all__ = ['IndexService', 'get_index_service', 'close_index_service'] 
