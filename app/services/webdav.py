@@ -92,8 +92,29 @@ class WebDAVService:
         # Ne pas lancer la tâche ici, elle sera lancée dans initialize()
 
     async def initialize(self) -> None:
-        """Initialise le service WebDAV"""
+        """Initialise le service WebDAV ou réinitialise la connexion si déjà initialisé"""
         try:
+            # Fermer l'ancienne connexion si elle existe
+            if hasattr(self, 'http_client') and self.http_client:
+                try:
+                    await self.http_client.aclose()
+                except Exception:
+                    pass  # Ignorer les erreurs de fermeture
+            
+            # Recréer un nouveau client HTTP si nécessaire
+            self.http_client = httpx.AsyncClient(
+                auth=(self.config.webdav_username, self.config.webdav_password),
+                timeout=60.0,
+                headers={
+                    'User-Agent': 'AlbertTchap/1.0',
+                    'Accept': '*/*'
+                },
+                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
+                http2=True,
+                verify=True  # Vérification SSL
+            )
+            logger.info("Client WebDAV réinitialisé")
+            
             # Vérifier la configuration
             if not hasattr(self.config, 'webdav_url') or not self.config.webdav_url:
                 raise ValueError("Configuration WebDAV manquante ou invalide")

@@ -17,6 +17,7 @@ from matrix_bot.client import MatrixClient
 from matrix_bot.config import logger
 from matrix_bot.eventparser import EventParser
 from nio import Event, RoomEncryptedFile, RoomMessageText, RoomMessageFile
+from nio.crypto.attachments import decrypt_attachment
 
 from app.commands.decorators import albert_thread_command, albert_thread_response
 from app.commands.registry import CommandThread
@@ -38,7 +39,8 @@ def decode_path_for_display(path: str) -> str:
     group="document",
     command="classer",
     help_text="!classer - Analyser une pièce jointe et proposer un classement intelligent",
-    preserve_context=True
+    preserve_context=True,
+    timeout=300  # Augmentation du timeout à 5 minutes
 )
 async def handle_attachments_adapted_command(ep: EventParser, matrix_client: MatrixClient):
     """Gère la commande !classer pour analyser une pièce jointe et proposer un classement intelligent."""
@@ -51,11 +53,23 @@ async def handle_attachments_adapted_command(ep: EventParser, matrix_client: Mat
     logger.info(f"[PJ-NEW] Démarrage de la commande classer")
     logger.info(f"[PJ-NEW] Sender: {sender}, Room ID: {room_id}")
     
+    # Vérifier si la commande est exécutée dans un fil de discussion
+    is_in_matrix_thread = False
+    matrix_thread_id = None
+    
+    if hasattr(ep.event, 'source') and 'content' in ep.event.source:
+        content = ep.event.source['content']
+        if 'm.relates_to' in content and content['m.relates_to'].get('rel_type') == 'm.thread':
+            is_in_matrix_thread = True
+            matrix_thread_id = content['m.relates_to'].get('event_id')
+            logger.info(f"[PJ-NEW] Commande exécutée dans un fil de discussion Matrix, thread_id: {matrix_thread_id}")
+    
     # 1. Envoyer un message de démarrage immédiatement pour l'utilisateur
     await matrix_client.send_markdown_message(
         room_id,
         "🔄 **Recherche de pièce jointe...**\nAnalyse du message en cours...",
-        msgtype="m.notice"
+        msgtype="m.notice",
+        thread_root=matrix_thread_id if is_in_matrix_thread else None
     )
     
     # 2. Vérifier si c'est une réponse à un message
@@ -78,9 +92,15 @@ Pour classer intelligemment un document, veuillez utiliser cette commande en **r
     referenced_event_id = None
     if hasattr(ep.event, 'source') and 'm.relates_to' in ep.event.source.get('content', {}):
         relates_to = ep.event.source['content']['m.relates_to']
+        # Cas 1: Si c'est une réponse directe
         if 'm.in_reply_to' in relates_to:
             referenced_event_id = relates_to['m.in_reply_to'].get('event_id')
-            logger.info(f"[PJ-NEW] ID de l'événement référencé: {referenced_event_id}")
+            logger.info(f"[PJ-NEW] ID de l'événement référencé (réponse directe): {referenced_event_id}")
+        # Cas 2: Si on est dans un fil et qu'on a un event_id racine différent de celui de la réponse
+        elif is_in_matrix_thread and matrix_thread_id:
+            # Le message racine du fil peut contenir la pièce jointe
+            referenced_event_id = matrix_thread_id
+            logger.info(f"[PJ-NEW] ID de l'événement référencé (racine du fil): {referenced_event_id}")
     
     if not referenced_event_id:
         logger.error(f"[PJ-NEW] Impossible de trouver l'ID de l'événement référencé")
@@ -236,7 +256,8 @@ Veuillez répondre à un message contenant un fichier, une image ou un document.
     await matrix_client.send_markdown_message(
         room_id,
         f"📥 **Téléchargement en cours** : *{attachment_name}*...",
-        msgtype="m.notice"
+        msgtype="m.notice",
+        thread_root=matrix_thread_id if is_in_matrix_thread else None
     )
     
     # 7. Récupérer le contenu du fichier
@@ -321,7 +342,8 @@ Une erreur est survenue lors du traitement de la pièce jointe: {str(e)}
     await matrix_client.send_markdown_message(
         room_id,
         f"🔍 **Analyse du document** : *{attachment_name}*...",
-        msgtype="m.notice"
+        msgtype="m.notice",
+        thread_root=matrix_thread_id if is_in_matrix_thread else None
     )
     
     # 8. Analyser le document
@@ -334,31 +356,46 @@ Une erreur est survenue lors du traitement de la pièce jointe: {str(e)}
         await matrix_client.send_markdown_message(
             room_id,
             f"🔎 **Analyse approfondie du document** : *{attachment_name}*...",
-            msgtype="m.notice"
+            msgtype="m.notice",
+            thread_root=matrix_thread_id if is_in_matrix_thread else None
         )
         
         # Utiliser analyze_document pour une analyse plus complète
         with open(temp_file_path, "rb") as file:
-            # Récupérer d'abord le texte brut
+            # Récupérer d'abord le texte brut avec un timeout
             file.seek(0)
-            raw_document_content = await analyzer.extract_text(file, attachment_name)
-            
-            # Vérifier si le texte a été extrait correctement
-            if raw_document_content and len(raw_document_content.strip()) > 100 and not raw_document_content.startswith("Le document"):
-                # Si nous avons du texte, générer une analyse
-                file.seek(0)
-                analysis_result = await analyzer.analyze_document(file, attachment_name)
-                document_content = analysis_result
-            else:
-                # Si l'extraction échoue, utiliser le texte brut
-                document_content = raw_document_content
+            try:
+                raw_document_content = await asyncio.wait_for(
+                    analyzer.extract_text(file, attachment_name),
+                    timeout=30  # Timeout de 30 secondes pour l'extraction de texte
+                )
+                
+                # Vérifier si le texte a été extrait correctement
+                if raw_document_content and len(raw_document_content.strip()) > 100 and not raw_document_content.startswith("Le document"):
+                    # Si nous avons du texte, générer une analyse avec un timeout
+                    file.seek(0)
+                    try:
+                        analysis_result = await asyncio.wait_for(
+                            analyzer.analyze_document(file, attachment_name),
+                            timeout=45  # Timeout de 45 secondes pour l'analyse complète
+                        )
+                        document_content = analysis_result
+                    except asyncio.TimeoutError:
+                        logger.warning(f"[PJ-NEW] Timeout lors de l'analyse du document, utilisation du texte brut")
+                        document_content = raw_document_content
+                else:
+                    # Si l'extraction échoue, utiliser un contenu par défaut
+                    document_content = raw_document_content or f"Document {attachment_name} (type: {mimetype})"
+            except asyncio.TimeoutError:
+                logger.warning(f"[PJ-NEW] Timeout lors de l'extraction du texte du document")
+                document_content = f"Document {attachment_name} (type: {mimetype})"
         
         if not document_content or len(document_content.strip()) < 10:
             logger.warning(f"[PJ-NEW] Contenu du document trop court ou vide: {len(document_content) if document_content else 0} caractères")
-            document_content = "Document vide ou non analysable"
+            document_content = f"Document {attachment_name} (type: {mimetype})"
     except Exception as e:
         logger.error(f"[PJ-NEW] Erreur lors de l'analyse du document: {str(e)}")
-        document_content = f"Erreur d'analyse: {str(e)}"
+        document_content = f"Document {attachment_name} (type: {mimetype})"
     
     # 9. Analyser l'espace documentaire (arborescence des dossiers)
     try:
@@ -366,7 +403,8 @@ Une erreur est survenue lors du traitement de la pièce jointe: {str(e)}
         await matrix_client.send_markdown_message(
             room_id,
             f"🗂️ **Exploration de l'arborescence documentaire**...",
-            msgtype="m.notice"
+            msgtype="m.notice",
+            thread_root=matrix_thread_id if is_in_matrix_thread else None
         )
         
         # Récupérer le service WebDAV
@@ -444,6 +482,13 @@ Une erreur est survenue lors du traitement de la pièce jointe: {str(e)}
         display_folders = []
         all_folder_paths = []
         folder_options = []  # Initialisation en cas d'erreur
+        
+        # Utiliser "A classer" par défaut en cas d'erreur
+        logger.info(f"[PJ-NEW] Utilisation du dossier 'A classer' par défaut suite à une erreur d'exploration")
+        folder_options = [
+            ("existing", "A classer"),
+            ("new", f"A classer/{int(time.time())}")
+        ]
     
     # 10. Utiliser le LLM pour proposer un classement intelligent
     try:
@@ -451,7 +496,8 @@ Une erreur est survenue lors du traitement de la pièce jointe: {str(e)}
         await matrix_client.send_markdown_message(
             room_id,
             f"🧠 **Analyse des options de classement**...",
-            msgtype="m.notice"
+            msgtype="m.notice",
+            thread_root=matrix_thread_id if is_in_matrix_thread else None
         )
         
         # Si aucun dossier n'est trouvé, créer des options par défaut
@@ -585,12 +631,34 @@ Option 4: NOUVEAU - [nom du nouveau dossier] - [brève justification]
 N'utilise que les dossiers existants listés ci-dessus pour les 3 premières options. Si tu ne peux pas faire de suggestion pertinente, indique simplement "Pas de suggestion pertinente" pour cette option."""
 
                 # Génération des suggestions avec le LLM
-                api_suggestions = await generate(config, [{"role": "user", "content": prompt}])
-                if api_suggestions and len(api_suggestions) > 50:
-                    suggestions_text = api_suggestions
-                    logger.info(f"[PJ-NEW] Suggestions générées par le LLM: {len(suggestions_text)} caractères")
+                try:
+                    api_suggestions = await asyncio.wait_for(
+                        generate(config, [{"role": "user", "content": prompt}]),
+                        timeout=20  # Timeout de 20 secondes pour la génération des suggestions
+                    )
+                    if api_suggestions and len(api_suggestions) > 50:
+                        suggestions_text = api_suggestions
+                        logger.info(f"[PJ-NEW] Suggestions générées par le LLM: {len(suggestions_text)} caractères")
+                except asyncio.TimeoutError:
+                    logger.warning(f"[PJ-NEW] Timeout lors de la génération des suggestions par le LLM, utilisation des suggestions par défaut")
+                    # Ajouter une option "A classer" si les suggestions échouent
+                    if not folder_options:
+                        logger.info(f"[PJ-NEW] Ajout du dossier 'A classer' par défaut suite à l'échec des suggestions LLM")
+                        # Assurer au moins une option avec le dossier "A classer"
+                        folder_options = [
+                            ("existing", "A classer"),
+                            ("new", f"A classer/{int(time.time())}")
+                        ]
         except Exception as llm_err:
             logger.warning(f"[PJ-NEW] Impossible d'utiliser l'API LLM, utilisation des suggestions par défaut: {str(llm_err)}")
+            # Ajouter une option "A classer" si les suggestions échouent
+            if not folder_options:
+                logger.info(f"[PJ-NEW] Ajout du dossier 'A classer' par défaut suite à l'échec des suggestions LLM")
+                # Assurer au moins une option avec le dossier "A classer"
+                folder_options = [
+                    ("existing", "A classer"),
+                    ("new", f"A classer/{int(time.time())}")
+                ]
         
         # Extraire les suggestions du texte généré
         suggestion_pattern = r"Option (\d): ([^\n]+)"
@@ -690,11 +758,12 @@ N'utilise que les dossiers existants listés ci-dessus pour les 3 premières opt
             else:
                 # Aucun dossier racine ni suggestion LLM, créer des options par défaut
                 logger.warning(f"[PJ-NEW] Aucun dossier ni suggestion, création d'options par défaut")
+                # Définir "A classer" comme dossier par défaut dans le dossier racine
                 dossiers_par_defaut = [
+                    "A classer",  # Option par défaut dans le dossier racine
                     "Documents", 
                     "Projets", 
-                    "Archives", 
-                    f"Documents/PDFs_{int(time.time())}"
+                    f"A classer/{int(time.time())}"
                 ]
                 
                 for i, folder in enumerate(dossiers_par_defaut[:3]):
@@ -707,7 +776,7 @@ N'utilise que les dossiers existants listés ci-dessus pour les 3 premières opt
                 # Ajouter la suggestion de nouveau dossier
                 folder_options.append(("new", dossiers_par_defaut[3]))
                 # Extraire le nom de dossier sans le chemin
-                new_folder_name = os.path.basename(dossiers_par_defaut[3])
+                new_folder_name = dossiers_par_defaut[3]
                 formatted_suggestions.append(f"𝟰 +📁 {root_folder}{new_folder_name}\nDossier spécifique pour ce document")
         
         logger.info(f"[PJ-NEW] {len(formatted_suggestions)} suggestions formatées pour l'affichage")
@@ -724,23 +793,32 @@ N'utilise que les dossiers existants listés ci-dessus pour les 3 premières opt
         # Limiter la synthèse aux 2000 premiers caractères pour éviter un prompt trop long
         content_for_summary = document_content[:2000] if document_content else "Contenu non disponible"
         
-        # Requête pour la synthèse
+        # Requête pour la synthèse avec un timeout interne
         summary_prompt = f"""Résume le contenu suivant en exactement 3 phrases et 5 lignes maximum:
         
 {content_for_summary}
 
 Sois très concis et va à l'essentiel. Limite-toi à 3 phrases."""
         
-        summary_response = await generate(config, [{"role": "user", "content": summary_prompt}])
-        
-        if summary_response and len(summary_response) > 10:
-            document_summary = summary_response.strip()
-        else:
-            document_summary = "Synthèse non disponible pour ce document."
+        # Utiliser asyncio.wait_for pour ajouter un timeout interne à la génération du résumé
+        try:
+            summary_response = await asyncio.wait_for(
+                generate(config, [{"role": "user", "content": summary_prompt}]),
+                timeout=15  # Timeout de 15 secondes pour la génération du résumé
+            )
+            
+            if summary_response and len(summary_response) > 10:
+                document_summary = summary_response.strip()
+            else:
+                logger.warning("[PJ-NEW] Résumé trop court ou vide, utilisation du nom du document uniquement")
+                document_summary = f"Document de type {os.path.splitext(attachment_name)[1] if '.' in attachment_name else 'inconnu'} : {attachment_name}"
+        except asyncio.TimeoutError:
+            logger.warning("[PJ-NEW] Timeout lors de la génération du résumé, utilisation du nom du document uniquement")
+            document_summary = f"Document de type {os.path.splitext(attachment_name)[1] if '.' in attachment_name else 'inconnu'} : {attachment_name}"
             
     except Exception as summary_err:
         logger.warning(f"[PJ-NEW] Impossible de générer une synthèse: {str(summary_err)}")
-        document_summary = "Synthèse non disponible pour ce document."
+        document_summary = f"Document de type {os.path.splitext(attachment_name)[1] if '.' in attachment_name else 'inconnu'} : {attachment_name}"
     
     # 11. Mettre à jour le contexte du thread
     session_context = await get_unified_session_context(config, room_id, sender)
@@ -789,7 +867,8 @@ Si vous souhaitez annuler, répondez "annuler".
     try:
         await matrix_client.send_markdown_message(
             room_id,
-            suggestions_message
+            suggestions_message,
+            thread_root=matrix_thread_id if is_in_matrix_thread else None
         )
         logger.info(f"[PJ-NEW] Message de suggestions envoyé avec succès au salon")
     except Exception as e:
@@ -798,7 +877,8 @@ Si vous souhaitez annuler, répondez "annuler".
         try:
             await matrix_client.send_markdown_message(
                 room_id,
-                "📋 **Analyse terminée** : Veuillez répondre avec un numéro entre 1 et 4 pour choisir une option de classement."
+                "📋 **Analyse terminée** : Veuillez répondre avec un numéro entre 1 et 4 pour choisir une option de classement.",
+                thread_root=matrix_thread_id if is_in_matrix_thread else None
             )
         except:
             logger.error(f"[PJ-NEW] Échec de l'envoi du message de secours")
@@ -829,7 +909,7 @@ def validate_pj_response(text):
     command="",  # Pas de commande spécifique pour les réponses
     help=""  # Pas d'aide pour les réponses
 )
-@thread_response("classer")
+@thread_response("classer", timeout=300)  # Augmentation du timeout à 5 minutes
 async def handle_attachments_adapted_response(ep: EventParser, matrix_client: MatrixClient):
     """Traite les réponses pour la commande classer et classe le document."""
     # Logs de début
@@ -840,6 +920,17 @@ async def handle_attachments_adapted_response(ep: EventParser, matrix_client: Ma
     config = getattr(matrix_client, "albert_config", matrix_client.config)
     room_id = ep.room.room_id
     sender = ep.sender
+    
+    # Vérifier si la réponse est dans un fil de discussion Matrix
+    is_in_matrix_thread = False
+    matrix_thread_id = None
+    
+    if hasattr(ep.event, 'source') and 'content' in ep.event.source:
+        content = ep.event.source['content']
+        if 'm.relates_to' in content and content['m.relates_to'].get('rel_type') == 'm.thread':
+            is_in_matrix_thread = True
+            matrix_thread_id = content['m.relates_to'].get('event_id')
+            logger.info(f"[PJ-NEW-RESPONSE] Réponse dans un fil de discussion Matrix, thread_id: {matrix_thread_id}")
     
     # Extraire la réponse de l'utilisateur
     choice_text = ep.event.body.strip() if hasattr(ep.event, 'body') else ""
@@ -909,7 +1000,11 @@ async def handle_attachments_adapted_response(ep: EventParser, matrix_client: Ma
             logger.warning(f"[PJ-NEW-RESPONSE] Erreur lors de la suppression du fichier temporaire: {str(e)}")
         
         # Envoyer le message directement dans le salon
-        await matrix_client.send_markdown_message(room_id, "❌ Classement du document annulé.")
+        await matrix_client.send_markdown_message(
+            room_id, 
+            "❌ Classement du document annulé.",
+            thread_root=matrix_thread_id if is_in_matrix_thread else None
+        )
         
         # Également retourner le message
         return "❌ Classement du document annulé."
@@ -926,53 +1021,155 @@ async def handle_attachments_adapted_response(ep: EventParser, matrix_client: Ma
         option_type, option_path = folder_options[choice_index]
         logger.info(f"[PJ-NEW-RESPONSE] Option choisie: type={option_type}, chemin={option_path}")
         
-        # Récupérer le service WebDAV
-        from app.services.index_service import get_index_service
-        index_service = await get_index_service(config)
-        webdav_service = index_service.webdav_service
-        
         # Message de confirmation
         await matrix_client.send_markdown_message(
             room_id,
             f"📁 **Classement en cours** : *{attachment_name}*...",
-            msgtype="m.notice"
+            msgtype="m.notice",
+            thread_root=matrix_thread_id if is_in_matrix_thread else None
         )
+        
+        # Récupérer le service WebDAV avec réinitialisation
+        from app.services.index_service import get_index_service
+        max_retries = 3
+        webdav_service = None
+        
+        for attempt in range(max_retries):
+            try:
+                index_service = await get_index_service(config)
+                webdav_service = index_service.webdav_service
+                
+                # Réinitialiser le client WebDAV pour s'assurer qu'il est actif
+                if attempt > 0:
+                    logger.info(f"[PJ-NEW-RESPONSE] Tentative {attempt+1}/{max_retries} - Réinitialisation du client WebDAV")
+                    await webdav_service.initialize()
+                    
+                # Vérifier que le client est bien initialisé
+                test_response = await webdav_service.exists("/")
+                logger.info(f"[PJ-NEW-RESPONSE] Test de connexion WebDAV: {test_response}")
+                break
+            except Exception as e:
+                logger.error(f"[PJ-NEW-RESPONSE] Erreur lors de l'initialisation du client WebDAV (tentative {attempt+1}/{max_retries}): {str(e)}")
+                if attempt == max_retries - 1:
+                    logger.error("[PJ-NEW-RESPONSE] Échec de toutes les tentatives d'initialisation WebDAV")
+                    await CommandThread.end(
+                        room_id, sender, "classer", config,
+                        action="erreur_webdav",
+                        status="error",
+                        error="Erreur de connexion au serveur WebDAV"
+                    )
+                    return "❌ **Erreur de connexion au serveur WebDAV**\n\nImpossible de classer le document. Veuillez réessayer plus tard."
+                await asyncio.sleep(1)  # Pause avant la prochaine tentative
         
         # Traiter en fonction du type d'option
         target_path = None
         
         if option_type == "new":
-            # Créer un nouveau dossier
+            # Créer un nouveau dossier avec plusieurs tentatives
             folder_name = option_path
             
             # Nettoyer le nom du dossier
             folder_name = re.sub(r'[<>:"/\\|?*]', '_', folder_name)  # Remplacer les caractères invalides
             
-            # Créer le dossier à la racine
+            # Créer le dossier à la racine avec plusieurs tentatives
             new_folder_path = folder_name
-            success = await webdav_service.create_directory(new_folder_path)
+            success = False
             
-            if success:
-                logger.info(f"[PJ-NEW-RESPONSE] Nouveau dossier créé: {new_folder_path}")
-                target_path = new_folder_path
-            else:
-                logger.error(f"[PJ-NEW-RESPONSE] Échec de la création du dossier: {new_folder_path}")
+            for attempt in range(max_retries):
+                try:
+                    success = await webdav_service.create_directory(new_folder_path)
+                    if success:
+                        logger.info(f"[PJ-NEW-RESPONSE] Nouveau dossier créé: {new_folder_path}")
+                        target_path = new_folder_path
+                        break
+                    else:
+                        logger.error(f"[PJ-NEW-RESPONSE] Échec de la création du dossier (tentative {attempt+1}/{max_retries}): {new_folder_path}")
+                        if attempt < max_retries - 1:
+                            # Réinitialiser le client WebDAV avant la prochaine tentative
+                            await webdav_service.initialize()
+                except Exception as e:
+                    logger.error(f"[PJ-NEW-RESPONSE] Erreur lors de la création du dossier (tentative {attempt+1}/{max_retries}): {str(e)}")
+                    if "client has been closed" in str(e) and attempt < max_retries - 1:
+                        # Réinitialiser le client WebDAV si fermé
+                        logger.info(f"[PJ-NEW-RESPONSE] Client WebDAV fermé, réinitialisation pour tentative {attempt+2}/{max_retries}")
+                        await webdav_service.initialize()
+                    elif attempt == max_retries - 1:
+                        logger.error(f"[PJ-NEW-RESPONSE] Échec de toutes les tentatives de création du dossier: {new_folder_path}")
+                        await CommandThread.end(
+                            room_id, sender, "classer", config,
+                            action="erreur_creation_dossier",
+                            status="error"
+                        )
+                        return f"❌ Impossible de créer le dossier {new_folder_path}. Veuillez réessayer avec un autre choix."
+                
+                # Pause avant la prochaine tentative
+                await asyncio.sleep(1)
+            
+            if not success:
+                logger.error(f"[PJ-NEW-RESPONSE] Échec de la création du dossier après {max_retries} tentatives: {new_folder_path}")
                 return "❌ Impossible de créer le nouveau dossier. Veuillez réessayer avec un autre choix."
         
         elif option_type == "existing":
             # Utiliser un dossier existant
             target_path = option_path
+            
+            # Vérifier si c'est le dossier "A classer" et s'il existe, sinon le créer
+            if target_path == "A classer":
+                for attempt in range(max_retries):
+                    try:
+                        folder_exists = await webdav_service.exists(target_path)
+                        if not folder_exists:
+                            logger.info(f"[PJ-NEW-RESPONSE] Le dossier 'A classer' n'existe pas, création automatique")
+                            success = await webdav_service.create_directory(target_path)
+                            if not success:
+                                logger.error(f"[PJ-NEW-RESPONSE] Échec de la création du dossier 'A classer' (tentative {attempt+1}/{max_retries})")
+                                if attempt < max_retries - 1:
+                                    # Réinitialiser le client WebDAV avant la prochaine tentative
+                                    await webdav_service.initialize()
+                                    continue
+                                return "❌ Impossible de créer le dossier 'A classer'. Veuillez réessayer avec un autre choix."
+                        break
+                    except Exception as e:
+                        logger.error(f"[PJ-NEW-RESPONSE] Erreur lors de la vérification/création du dossier 'A classer' (tentative {attempt+1}/{max_retries}): {str(e)}")
+                        if "client has been closed" in str(e) and attempt < max_retries - 1:
+                            logger.info(f"[PJ-NEW-RESPONSE] Client WebDAV fermé, réinitialisation pour tentative {attempt+2}/{max_retries}")
+                            await webdav_service.initialize()
+                            continue
+                        if attempt == max_retries - 1:
+                            return f"❌ Erreur lors de la vérification du dossier: {str(e)}"
+                    
+                    # Pause avant la prochaine tentative
+                    await asyncio.sleep(1)
         
         # Vérifier si le chemin cible est valide
         if not target_path:
             logger.error(f"[PJ-NEW-RESPONSE] Chemin cible invalide ou non défini")
+            await CommandThread.end(
+                room_id, sender, "classer", config,
+                action="erreur_chemin_invalide",
+                status="error"
+            )
             return "❌ Le chemin cible est invalide. Veuillez réessayer avec un autre choix."
         
         # Déterminer le chemin complet du fichier cible
         file_target_path = f"{target_path}/{attachment_name}"
         
-        # Vérifier si un fichier du même nom existe déjà
-        file_exists = await webdav_service.exists(file_target_path)
+        # Vérifier si un fichier du même nom existe déjà avec plusieurs tentatives
+        file_exists = False
+        for attempt in range(max_retries):
+            try:
+                file_exists = await webdav_service.exists(file_target_path)
+                break
+            except Exception as e:
+                logger.error(f"[PJ-NEW-RESPONSE] Erreur lors de la vérification d'existence du fichier (tentative {attempt+1}/{max_retries}): {str(e)}")
+                if "client has been closed" in str(e) and attempt < max_retries - 1:
+                    logger.info(f"[PJ-NEW-RESPONSE] Client WebDAV fermé, réinitialisation pour tentative {attempt+2}/{max_retries}")
+                    await webdav_service.initialize()
+                if attempt == max_retries - 1:
+                    logger.warning(f"[PJ-NEW-RESPONSE] Échec de la vérification d'existence du fichier après {max_retries} tentatives, on suppose qu'il n'existe pas")
+            
+            # Pause avant la prochaine tentative
+            await asyncio.sleep(1)
         
         if file_exists:
             # Ajouter un suffixe au nom du fichier
@@ -982,9 +1179,37 @@ async def handle_attachments_adapted_response(ep: EventParser, matrix_client: Ma
             file_target_path = f"{target_path}/{new_file_name}"
             logger.info(f"[PJ-NEW-RESPONSE] Un fichier du même nom existe déjà, utilisation du nouveau nom: {new_file_name}")
         
-        # Télécharger le fichier vers l'emplacement cible
-        with open(temp_file_path, "rb") as file:
-            upload_success = await webdav_service.upload_file(file, file_target_path)
+        # Télécharger le fichier vers l'emplacement cible avec plusieurs tentatives
+        upload_success = False
+        for attempt in range(max_retries):
+            try:
+                with open(temp_file_path, "rb") as file:
+                    upload_success = await webdav_service.upload_file(file, file_target_path)
+                
+                if upload_success:
+                    logger.info(f"[PJ-NEW-RESPONSE] Fichier téléchargé avec succès vers: {file_target_path}")
+                    break
+                else:
+                    logger.error(f"[PJ-NEW-RESPONSE] Échec du téléchargement du fichier (tentative {attempt+1}/{max_retries}): {file_target_path}")
+                    if attempt < max_retries - 1:
+                        # Réinitialiser le client WebDAV avant la prochaine tentative
+                        await webdav_service.initialize()
+            except Exception as e:
+                logger.error(f"[PJ-NEW-RESPONSE] Erreur lors du téléchargement du fichier (tentative {attempt+1}/{max_retries}): {str(e)}")
+                if "client has been closed" in str(e) and attempt < max_retries - 1:
+                    logger.info(f"[PJ-NEW-RESPONSE] Client WebDAV fermé, réinitialisation pour tentative {attempt+2}/{max_retries}")
+                    await webdav_service.initialize()
+                elif attempt == max_retries - 1:
+                    logger.error(f"[PJ-NEW-RESPONSE] Échec de toutes les tentatives de téléchargement du fichier: {file_target_path}")
+                    await CommandThread.end(
+                        room_id, sender, "classer", config,
+                        action="erreur_telechargement",
+                        status="error"
+                    )
+                    return f"❌ Erreur lors du téléchargement du fichier: {str(e)}"
+            
+            # Pause avant la prochaine tentative
+            await asyncio.sleep(1)
         
         if upload_success:
             logger.info(f"[PJ-NEW-RESPONSE] Fichier téléchargé avec succès vers: {file_target_path}")
@@ -993,14 +1218,30 @@ async def handle_attachments_adapted_response(ep: EventParser, matrix_client: Ma
             await matrix_client.send_markdown_message(
                 room_id,
                 f"📑 **Indexation du document** : *{attachment_name}*...",
-                msgtype="m.notice"
+                msgtype="m.notice",
+                thread_root=matrix_thread_id if is_in_matrix_thread else None
             )
             
             try:
-                # Mise à jour de l'index pour ce document
-                await index_service.document_index.update_specific_document(file_target_path)
-                logger.info(f"[PJ-NEW-RESPONSE] Document indexé avec succès: {file_target_path}")
-                indexation_success = True
+                # Mise à jour de l'index pour ce document avec plusieurs tentatives
+                indexation_success = False
+                for attempt in range(max_retries):
+                    try:
+                        await index_service.document_index.update_specific_document(file_target_path)
+                        logger.info(f"[PJ-NEW-RESPONSE] Document indexé avec succès: {file_target_path}")
+                        indexation_success = True
+                        break
+                    except Exception as index_err:
+                        logger.error(f"[PJ-NEW-RESPONSE] Erreur lors de l'indexation (tentative {attempt+1}/{max_retries}): {str(index_err)}")
+                        if "client has been closed" in str(index_err) and attempt < max_retries - 1:
+                            # Réinitialiser le client WebDAV pour l'indexation
+                            await webdav_service.initialize()
+                        if attempt == max_retries - 1:
+                            logger.error(f"[PJ-NEW-RESPONSE] Échec de l'indexation après {max_retries} tentatives")
+                            indexation_success = False
+                    
+                    # Pause avant la prochaine tentative
+                    await asyncio.sleep(1)
             except Exception as index_err:
                 logger.error(f"[PJ-NEW-RESPONSE] Erreur lors de l'indexation du document: {str(index_err)}")
                 indexation_success = False
@@ -1031,7 +1272,7 @@ Le document *{attachment_name}* a été classé dans le dossier:
                 final_message += "⚠️ L'indexation du document a échoué, mais le fichier a bien été classé."
             
             # Envoyer le message directement dans le salon
-            await matrix_client.send_markdown_message(room_id, final_message)
+            await matrix_client.send_markdown_message(room_id, final_message, thread_root=matrix_thread_id if is_in_matrix_thread else None)
             
             # Également retourner le message
             return final_message
@@ -1047,7 +1288,7 @@ Le document *{attachment_name}* a été classé dans le dossier:
             
             # Envoyer le message directement dans le salon
             error_message = "❌ Impossible de classer le document. Une erreur s'est produite lors du téléchargement."
-            await matrix_client.send_markdown_message(room_id, error_message)
+            await matrix_client.send_markdown_message(room_id, error_message, thread_root=matrix_thread_id if is_in_matrix_thread else None)
             
             # Également retourner le message
             return error_message
@@ -1070,7 +1311,7 @@ Le document *{attachment_name}* a été classé dans le dossier:
         
         # Envoyer le message directement dans le salon
         error_message = f"⚠️ Une erreur est survenue: {str(e)}"
-        await matrix_client.send_markdown_message(room_id, error_message)
+        await matrix_client.send_markdown_message(room_id, error_message, thread_root=matrix_thread_id if is_in_matrix_thread else None)
         
         # Également retourner le message
         return error_message
