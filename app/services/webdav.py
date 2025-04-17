@@ -176,6 +176,37 @@ class WebDAVService:
             logger.error(f"Erreur lors de la fermeture du client HTTP: {str(e)}")
             raise
 
+    async def reinitialize_client(self):
+        """Réinitialise le client HTTP s'il a été fermé"""
+        try:
+            # Vérifier si le client est fermé ou n'existe pas
+            if not hasattr(self, 'http_client') or self.http_client is None or self.http_client.is_closed:
+                # Fermer l'ancien client si nécessaire
+                if hasattr(self, 'http_client') and self.http_client:
+                    try:
+                        await self.http_client.aclose()
+                    except Exception:
+                        pass  # Ignorer les erreurs de fermeture
+                
+                # Créer un nouveau client
+                self.http_client = httpx.AsyncClient(
+                    auth=(self.config.webdav_username, self.config.webdav_password),
+                    timeout=60.0,
+                    headers={
+                        'User-Agent': 'AlbertTchap/1.0',
+                        'Accept': '*/*'
+                    },
+                    limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
+                    http2=True,
+                    verify=True  # Vérification SSL
+                )
+                logger.info("Client WebDAV réinitialisé après fermeture")
+                return True
+            return False  # Client déjà ouvert
+        except Exception as e:
+            logger.error(f"Erreur lors de la réinitialisation du client HTTP: {str(e)}")
+            raise
+
     def _normalize_path(self, path: str) -> str:
         """Normalise un chemin WebDAV"""
         # Nettoyer le chemin
@@ -251,6 +282,10 @@ class WebDAVService:
     async def write_file(self, path: str, content: Union[str, bytes]) -> None:
         """Écrit le contenu dans un fichier WebDAV"""
         try:
+            # Vérifier et réinitialiser le client si nécessaire
+            if hasattr(self.http_client, 'is_closed') and self.http_client.is_closed:
+                await self.reinitialize_client()
+                
             logger.info(f"Écriture du fichier WebDAV: {path}")
             url = self._get_url(path)
             
@@ -267,6 +302,10 @@ class WebDAVService:
 
     async def read_document(self, path: str, max_retries: int = 3) -> str:
         """Lit le contenu d'un document avec retry"""
+        # Vérifier et réinitialiser le client si nécessaire
+        if hasattr(self.http_client, 'is_closed') and self.http_client.is_closed:
+            await self.reinitialize_client()
+            
         url = self._get_url(path)
         
         for attempt in range(max_retries):
@@ -391,6 +430,10 @@ class WebDAVService:
                 - modified: Date de dernière modification
         """
         try:
+            # Vérifier et réinitialiser le client si nécessaire
+            if hasattr(self.http_client, 'is_closed') and self.http_client.is_closed:
+                await self.reinitialize_client()
+                
             url = self._get_url(path or self.root_path)
             response = await self.http_client.request(
                 "PROPFIND",
@@ -463,6 +506,10 @@ class WebDAVService:
             Liste des chemins de documents
         """
         try:
+            # Vérifier et réinitialiser le client si nécessaire
+            if hasattr(self.http_client, 'is_closed') and self.http_client.is_closed:
+                await self.reinitialize_client()
+                
             url = self._get_url(path or self.root_path)
             response = await self.http_client.request(
                 "PROPFIND",
@@ -608,6 +655,10 @@ class WebDAVService:
             bool: True si la création a réussi, False sinon
         """
         try:
+            # Vérifier et réinitialiser le client si nécessaire
+            if hasattr(self.http_client, 'is_closed') and self.http_client.is_closed:
+                await self.reinitialize_client()
+                
             # Vérifier si le chemin existe déjà
             exists = await self.exists(path)
             if exists:
@@ -733,6 +784,10 @@ class WebDAVService:
             bool: True si le chemin existe
         """
         try:
+            # Vérifier et réinitialiser le client si nécessaire
+            if hasattr(self.http_client, 'is_closed') and self.http_client.is_closed:
+                await self.reinitialize_client()
+                
             url = self._get_url(path)
             response = await self.http_client.request(
                 "PROPFIND",

@@ -190,3 +190,31 @@ To get started, take a look at [CONTRIBUTING.md](CONTRIBUTING.md).
 This project is licensed under the MIT License. A full copy of the license text can be found in the `LICENSES/MIT.txt` file.
 
 </details>
+
+## Structure du système de commandes
+
+Le bot utilise un système modulaire de commandes organisé comme suit :
+
+### Commandes disponibles
+
+- `!chercher` : Interroge les documents indexés avec une question en langage naturel.
+- `!classer` : Analyse une pièce jointe et propose un classement intelligent.
+- `!index` : Gestion de l'index documentaire (status/verify/rebuild/clean).
+- `!aide` : Affiche la liste des commandes disponibles et leur utilisation.
+
+En plus de ces commandes, le bot maintient une conversation contextuelle qui lui permet de répondre aux messages qui ne sont pas des commandes spécifiques.
+
+### Organisation du code
+
+Les commandes sont organisées de manière modulaire dans le répertoire `app/commands/` :
+
+- `app/commands/basic_commands.py` : Commandes de base (!aide)
+- `app/commands/conversation.py` : Gestion de la conversation contextuelle
+- `app/commands/document_commands/` : Commandes pour la gestion des documents
+  - `docquery_adapted.py` : Implémentation de la commande !chercher
+  - `attachment_adapted.py` : Implémentation de la commande !classer
+  - `index.py` : Implémentation de la commande !index
+
+Cette architecture modulaire facilite la maintenance et l'extension des fonctionnalités du bot.
+
+### Nodemon

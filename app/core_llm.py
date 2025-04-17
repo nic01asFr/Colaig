@@ -469,3 +469,62 @@ Réponse :
         )
         response.raise_for_status()
         return response.json()['data']
+
+    async def rerank(
+        self, 
+        query: str, 
+        documents: List[Dict],
+        top_k: int = 20,
+        model: str = None
+    ) -> List[Dict]:
+        """
+        Reranking des documents avec Albert.
+        
+        Args:
+            query: Requête utilisateur
+            documents: Liste de dictionnaires avec les clés 'text' et 'metadata'
+            top_k: Nombre de documents à retourner
+            model: Modèle de reranking (optionnel)
+            
+        Returns:
+            Liste des documents réorganisés par pertinence
+        """
+        try:
+            # Construire le payload pour l'API
+            # Le format attendu est {query, documents, top_k}
+            # où documents est une liste de {text, metadata}
+            payload = {
+                "query": query,
+                "documents": documents,
+                "top_k": min(top_k, len(documents))
+            }
+            
+            if model:
+                payload["model"] = model
+                
+            # Appel à l'API de reranking
+            response = await self.http_client.post(
+                f"{self.base_url}/v1/rerank",
+                json=payload
+            )
+            response.raise_for_status()
+            
+            # Le format de réponse observé est une liste de {text, metadata, score}
+            reranked_results = response.json()
+            
+            # Vérifier que nous avons bien reçu une liste
+            if not isinstance(reranked_results, list):
+                # Si ce n'est pas une liste, vérifier si c'est l'ancien format avec "results"
+                if isinstance(reranked_results, dict) and "results" in reranked_results:
+                    # Format ancien: {"results": [...]}
+                    reranked_results = reranked_results["results"]
+                else:
+                    logger.warning(f"Format de réponse inattendu du reranking: {reranked_results}")
+                    return documents[:top_k]
+            
+            return reranked_results
+            
+        except Exception as e:
+            logger.error(f"Erreur lors du reranking: {str(e)}")
+            # En cas d'erreur, retourner les documents originaux
+            return documents[:top_k]

@@ -127,16 +127,79 @@ async def main():
     tchap_bot.command_registry.function_register.clear()
     tchap_bot.command_registry.activated_functions.clear()
     
-    # 2. Importation sélective des modules avec enregistrement automatique des commandes
-    #    Les décorateurs @register_feature de chaque commande s'exécuteront
-    #    lors de l'importation, enregistrant les commandes dans le registre.
+    # Importer le module d'exclusions
+    try:
+        from app.commands.exclusions import (
+            EXCLUDED_MODULES, 
+            EXCLUDED_COMMANDS, 
+            INCLUDED_COMMANDS,
+            USE_STRICT_INCLUSION
+        )
+        using_exclusions = True
+        logger.info(f"Exclusions chargées: {len(EXCLUDED_COMMANDS)} commandes, {len(EXCLUDED_MODULES)} modules exclus")
+        logger.info(f"Mode inclusion stricte: {USE_STRICT_INCLUSION}")
+    except ImportError:
+        logger.info("Module d'exclusions non trouvé, toutes les commandes seront importées")
+        using_exclusions = False
+        EXCLUDED_MODULES = []
+        EXCLUDED_COMMANDS = []
+        INCLUDED_COMMANDS = []
+        USE_STRICT_INCLUSION = False
+    
+    # 2. Importation directe des modules essentiels
+    #    Les décorateurs @register_feature ou @albert_command de chaque commande
+    #    s'exécuteront lors de l'importation, enregistrant les commandes dans le registre.
+    logger.info("Importation directe des commandes essentielles...")
+    
+    # Commandes de base
     logger.info("Chargement des commandes de base")
     from app.commands.basic_commands import help
     
+    # Conversation générale (nécessaire pour le fonctionnement de base)
+    logger.info("Chargement du module conversation")
+    import app.commands.conversation
+    
+    # Commandes documentaires
     logger.info("Chargement des commandes documentaires")
-    from app.commands.document_commands.docquery import doc_query_command
+    # Utiliser les versions adaptées des commandes documentaires
+    from app.commands.document_commands.docquery_adapted import doc_query_adapted_command
     from app.commands.document_commands.index import faiss_index_command
-    from app.commands.document_commands.attachment import handle_attachments_command
+    from app.commands.document_commands.attachment_adapted import handle_attachments_adapted_command
+    from app.commands.document_commands.synthesis import handle_synthesis_command
+    
+    # Si nous ne sommes pas en mode inclusion stricte, charger d'autres modules
+    if not USE_STRICT_INCLUSION:
+        logger.info("Importation des modules supplémentaires...")
+        # Importation normale des autres modules
+        from app.commands import register_all_commands
+        # Ne pas importer les modules exclus
+        modules = []
+        for module_name in register_all_commands():
+            if module_name not in EXCLUDED_MODULES:
+                modules.append(module_name)
+                try:
+                    __import__(module_name)
+                    logger.info(f"Module {module_name} importé")
+                except Exception as e:
+                    logger.error(f"Erreur lors de l'importation du module {module_name}: {e}")
+    
+    # En mode inclusion stricte, activer uniquement les commandes listées
+    if USE_STRICT_INCLUSION:
+        # Sauvegarder toutes les commandes enregistrées
+        all_commands = set(tchap_bot.command_registry.function_register.keys())
+        
+        # Réinitialiser les commandes activées
+        tchap_bot.command_registry.activated_functions = set()
+        
+        # Activer uniquement les commandes incluses
+        for cmd_name in INCLUDED_COMMANDS:
+            if cmd_name in all_commands:
+                tchap_bot.command_registry.activated_functions.add(cmd_name)
+                logger.info(f"Activation spécifique de la commande: {cmd_name}")
+            else:
+                logger.warning(f"Commande {cmd_name} non trouvée dans le registre")
+        
+        logger.info(f"Mode inclusion stricte: {len(tchap_bot.command_registry.activated_functions)}/{len(all_commands)} commandes activées")
     
     # 3. Afficher les commandes enregistrées pour diagnostic
     logger.info("=== COMMANDES ENREGISTRÉES ===")
@@ -146,112 +209,30 @@ async def main():
     
     # 4. Message au démarrage pour informer sur le mode de fonctionnement
     async def startup_message(room_id):
-        await tchap_bot.matrix_client.send_markdown_message(
-            room_id,
-            """✨ **Colaig Albert** - Niveau 1
-            
+        await tchap_bot.matrix_client.room_typing(room_id, typing_state=True)
+        try:
+            await tchap_bot.matrix_client.send_markdown_message(
+                room_id,
+                """✨ **Colaig Albert** - Niveau 1
+                
 Je suis en ligne avec les fonctionnalités suivantes :
 
 - Conversation générale : je réponds à tous les messages de manière suivie
-- Commande `!index` : gestion de l'espace documentaire
 - Commande `!chercher` : interrogation des documents
-- Commande `!classer` : classement des pièces jointes 
-
+- Commande `!synthese` : génération de synthèses sur un sujet
+- Commande `!classer` : classement des pièces jointes
+- Commande `!index` : gestion de l'espace documentaire
 
 Pour plus d'informations sur ces commandes, utilisez `!aide`.
 """,
-            msgtype="m.notice"
-        )
+                msgtype="m.notice"
+            )
+        finally:
+            await tchap_bot.matrix_client.room_typing(room_id, typing_state=False)
     
     # Enregistrer l'action de démarrage
     tchap_bot.callbacks.register_on_startup(startup_message)
     # ===================================================================
-    
-    # Importer les modules de commandes
-    def import_command_modules():
-        """Import all command modules"""
-        logger.info("Importing command modules...")
-        try:
-            # Importer le module d'exclusions
-            try:
-                from app.commands.exclusions import (
-                    EXCLUDED_MODULES, 
-                    EXCLUDED_COMMANDS, 
-                    INCLUDED_COMMANDS,
-                    USE_STRICT_INCLUSION
-                )
-                using_exclusions = True
-                logger.info(f"Exclusions chargées: {len(EXCLUDED_COMMANDS)} commandes, {len(EXCLUDED_MODULES)} modules exclus")
-                logger.info(f"Mode inclusion stricte: {USE_STRICT_INCLUSION}")
-            except ImportError:
-                logger.info("Module d'exclusions non trouvé, toutes les commandes seront importées")
-                using_exclusions = False
-                EXCLUDED_MODULES = []
-                EXCLUDED_COMMANDS = []
-                INCLUDED_COMMANDS = []
-                USE_STRICT_INCLUSION = False
-
-            # Importation spécifique des commandes essentielles
-            logger.info("Importation directe des commandes essentielles...")
-            
-            # 1. Importer handle_conversation (nécessaire pour le fonctionnement de base)
-            import app.commands.conversation
-            logger.info("Module conversation importé")
-            
-            # 2. Importer les commandes document spécifiquement requises
-            from app.commands.document_commands import index
-            logger.info("Module index importé")
-            
-            from app.commands.document_commands import docquery_adapted
-            logger.info("Module docquery_adapted importé")
-            
-            from app.commands.document_commands import attachment_adapted
-            logger.info("Module attachment_adapted importé")
-            
-            # Importation des modules restants (éviter les conflits)
-            if not USE_STRICT_INCLUSION:
-                logger.info("Importation des modules supplémentaires...")
-                # Importation normale des autres modules
-                from app.commands import register_all_commands
-                # Ne pas importer les modules exclus
-                modules = []
-                for module_name in register_all_commands():
-                    if module_name not in EXCLUDED_MODULES:
-                        modules.append(module_name)
-                        try:
-                            __import__(module_name)
-                            logger.info(f"Module {module_name} importé")
-                        except Exception as e:
-                            logger.error(f"Erreur lors de l'importation du module {module_name}: {e}")
-            
-            logger.info("Modules de commandes importés avec succès")
-            
-            # Activer uniquement les commandes spécifiques si en mode inclusion stricte
-            if USE_STRICT_INCLUSION:
-                from app.commands.registry import command_registry
-                
-                # Sauvegarder toutes les commandes enregistrées
-                all_commands = set(command_registry.function_register.keys())
-                
-                # Réinitialiser les commandes activées
-                command_registry.activated_functions = set()
-                
-                # Activer uniquement les commandes incluses
-                for cmd_name in INCLUDED_COMMANDS:
-                    if cmd_name in all_commands:
-                        command_registry.activated_functions.add(cmd_name)
-                        logger.info(f"Activation spécifique de la commande: {cmd_name}")
-                    else:
-                        logger.warning(f"Commande {cmd_name} non trouvée dans le registre")
-                
-                logger.info(f"Mode inclusion stricte: {len(command_registry.activated_functions)}/{len(all_commands)} commandes activées")
-            
-        except Exception as e:
-            logger.error(f"Error importing command modules: {e}")
-            logger.error(traceback.format_exc())
-    
-    # Importer les modules avant d'activer les groupes
-    import_command_modules()
     
     # Charger les groupes configurés dans l'environnement
     groups_to_activate = []

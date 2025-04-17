@@ -2,6 +2,7 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Union
 import logging
+import dataclasses
 
 logger = logging.getLogger(__name__)
 
@@ -87,8 +88,34 @@ class BaseContext:
         data_copy.pop('_type', None)
         data_copy.pop('context_type', None)
         
+        # Filtrer les arguments inconnus pour éviter les erreurs
+        # lors du chargement de contextes créés avec une version différente
+        if hasattr(cls, '__dataclass_fields__'):
+            valid_fields = cls.__dataclass_fields__.keys()
+            # Conserver uniquement les champs valides
+            filtered_data = {k: v for k, v in data_copy.items() if k in valid_fields}
+        else:
+            # Si ce n'est pas une dataclass, utiliser tous les champs
+            filtered_data = data_copy
+        
         # Créer l'instance
-        instance = cls(**data_copy)
+        try:
+            instance = cls(**filtered_data)
+        except TypeError as e:
+            # En cas d'erreur, journaliser et essayer avec un ensemble minimal de paramètres
+            logger.warning(f"Erreur lors de la création de {cls.__name__} depuis un dictionnaire: {str(e)}")
+            # Déterminer les paramètres requis (ceux sans valeur par défaut)
+            if hasattr(cls, '__dataclass_fields__'):
+                required_fields = {
+                    name: data_copy.get(name) 
+                    for name, field in cls.__dataclass_fields__.items() 
+                    if field.default == dataclasses.MISSING and 
+                       field.default_factory == dataclasses.MISSING
+                }
+                instance = cls(**required_fields)
+            else:
+                # Si tout échoue, lever l'exception
+                raise
         
         # Initialiser last_activity
         if last_activity_str:

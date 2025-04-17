@@ -1,0 +1,54 @@
+{
+  "type": "action",
+  "id": "cmd_chercher",
+  "description": "Exécute la recherche dans les documents indexés en réponse à une question en langage naturel",
+  "priority": 0.8,
+  "configuration": {
+    "command": "chercher",
+    "examples": [
+      "Recherche des informations sur les procédures d'appel d'offres",
+      "Trouve-moi des documents qui parlent de sécurité informatique",
+      "Cherche dans les documents si on parle de RGPD",
+      "Est-ce que les documents contiennent des informations sur les congés?",
+      "Je voudrais savoir ce que disent les documents à propos du télétravail",
+      "Y a-t-il quelque chose sur les budgets dans les documents?",
+      "Quelles sont les directives concernant les déplacements professionnels?"
+    ],
+    "parameters": [
+      {
+        "name": "query",
+        "description": "La question ou requête à rechercher dans les documents",
+        "type": "string",
+        "required": true,
+        "extraction_pattern": "(cherche|trouve|recherche|est-ce que|quoi|comment|quelles sont|y a-t-il).*"
+      }
+    ],
+    "intent_patterns": [
+      ".*cherch(er|e|ons|ez).*dans.*documents.*",
+      ".*trouv(er|e|ons|ez).*documents.*",
+      ".*recherch(er|e|ons|ez).*information.*",
+      ".*documents.*parl(er|e|ent).*de.*",
+      ".*informations.*sur.*",
+      ".*savoir.*documents.*"
+    ],
+    "response_templates": {
+      "success": "📚 **Recherche dans les documents**\n\n{{result}}",
+      "no_results": "Je n'ai pas trouvé d'information pertinente sur ce sujet dans les documents indexés.",
+      "error": "Une erreur s'est produite lors de la recherche: {{error_message}}"
+    },
+    "config": {
+      "max_results": 5,
+      "min_similarity": 0.6,
+      "include_metadata": true
+    }
+  },
+  "connections": {
+    "tools": ["webdav_access", "llm_processing"],
+    "required_services": ["index_service"]
+  },
+  "behavior": {
+    "conversation_style": "helpful",
+    "should_confirm": false,
+    "can_interrupt": true
+  }
+} 

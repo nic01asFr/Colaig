@@ -185,7 +185,7 @@ async def update_conversation_history(config, room_id, sender, user_message=None
 # 
 # Pour utiliser une commande, importez-la directement depuis son module:
 # from app.commands.basic_commands import help
-# from app.commands.document_commands.docquery import doc_query_command
+# from app.commands.document_commands.docquery_adapted import doc_query_adapted_command
 # etc.
 
 # Pour la phase de transition

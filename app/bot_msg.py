@@ -3,7 +3,7 @@ from config import APP_VERSION, COMMAND_PREFIX, Config
 
 class AlbertMsg:
     common_msg_prefixes = [
-        "👋 Bonjour, je suis **Albert**",
+        "👋 Bonjour, je suis **Colaig Albert**",
         "🤖 Configuration actuelle",
         "\u26a0\ufe0f **Erreur**",
         "\u26a0\ufe0f **Commande inconnue**",
@@ -38,8 +38,8 @@ class AlbertMsg:
         return msg
 
     def help(model_url, model_short_name, cmds):
-        msg = "👋 Bonjour, je suis **Albert**, votre **assistant automatique dédié aux questions légales et administratives** mis à disposition par la **DINUM**. Je suis actuellement en phase de **test**.\n\n"
-        msg += f"J'utilise le modèle de langage _[{model_short_name}]({model_url})_ et j'ai été alimenté par des bases de connaissances gouvernementales, comme les fiches pratiques de service-public.fr éditées par la Direction de l'information légale et administrative (DILA).\n\n"
+        msg = "👋 Bonjour, je suis **Colaig Albert**, votre **assistant dédié à votre espace de travail** du **Bnum**. Je suis actuellement en phase de **test**.\n\n"
+        msg += f"J'utilise le modèle de langage _[{model_short_name}]({model_url})_ .\n\n"
         msg += "Maintenant que nous avons fait plus connaissance, quelques **règles pour m'utiliser** :\n\n"
         msg += "✅ Vous pouvez m'attacher en pièces jointes des documents pdf qui m'aideront à répondre plus efficacement.\n\n"
         msg += "✅ Utilisez !docquery pour me poser une question en utilisant la documentation comme contexte.\n\n"
@@ -52,8 +52,8 @@ class AlbertMsg:
         msg += "🛠️ **Pour gérer notre conversation** :\n"
         msg += "- " + "\n- ".join(cmds)
         msg += "\n\n"
-        msg += "📁 **Sur l'usage des données**\nLes conversations sont stockées de manière anonyme. Elles me permettent de contextualiser les conversations et l'équipe qui me développe les utilise pour m'évaluer et analyser mes performances.\n\n"
-        msg += "📯 Nous contacter : albert-contact@data.gouv.fr"
+        msg += "📁 **Sur l'usage des données**\nLes conversations sont stockées sur votre espace documentaire. Elles me permettent de contextualiser les conversations et l'équipe qui me développe les utilise pour m'évaluer et analyser mes performances.\n\n"
+        msg += "📯 Nous contacter : colaig.assistant@developpement-durable.gouv.fr"
 
         return msg
 

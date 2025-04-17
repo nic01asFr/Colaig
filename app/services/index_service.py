@@ -158,8 +158,10 @@ class IndexService:
             if self._cache_cleanup_task:
                 self._cache_cleanup_task.cancel()
                 
-            if self.webdav_service:
-                await self.webdav_service.close()
+            # Ne pas fermer automatiquement le webdav_service car il peut être réutilisé
+            # Réinitialiser le client à la place si nécessaire
+            if self.webdav_service and hasattr(self.webdav_service, 'http_client') and hasattr(self.webdav_service.http_client, 'is_closed') and self.webdav_service.http_client.is_closed:
+                await self.webdav_service.reinitialize_client()
                 
             if self.behavior_manager:
                 await self.behavior_manager.close()
@@ -349,7 +351,10 @@ class IndexService:
                 return cache_entry["data"]
             return None
             
-    @lru_cache(maxsize=100)
+    def _make_cache_key(self, query: str, index_type: str, limit: int) -> str:
+        """Crée une clé de cache basée sur les paramètres de recherche"""
+        return f"{query}_{index_type}_{limit}"
+            
     async def _get_optimized_search_results(
         self,
         query: str,
@@ -357,11 +362,25 @@ class IndexService:
         limit: int
     ) -> List[Dict[str, Any]]:
         """Cache les résultats de recherche fréquents"""
+        # Créer une clé de cache basée sur les paramètres
+        cache_key = self._make_cache_key(query, index_type, limit)
+        
+        # Vérifier si les résultats sont dans le cache
+        result = await self.get_cached_index(cache_key)
+        if result is not None:
+            return result
+            
+        # Si pas dans le cache, récupérer les résultats
         if index_type == "behavior":
-            return await self.behavior_manager.index.search(query, limit=limit)
+            result = await self.behavior_manager.index.search(query, limit=limit)
         elif index_type == "document":
-            return await self.document_index.search(query, limit=limit)
-        return []
+            result = await self.document_index.search(query, limit=limit)
+        else:
+            result = []
+            
+        # Mettre en cache le résultat
+        await self.set_cached_index(cache_key, result)
+        return result
     
     async def search(
         self,
@@ -508,8 +527,18 @@ class IndexService:
         
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         try:
-            if self.webdav_service:
-                await self.webdav_service.close()
+            if self._cache_cleanup_task:
+                self._cache_cleanup_task.cancel()
+                try:
+                    await self._cache_cleanup_task
+                except asyncio.CancelledError:
+                    pass
+            
+            # Ne pas fermer automatiquement le webdav_service car il peut être réutilisé
+            # Réinitialiser le client à la place si nécessaire
+            if self.webdav_service and hasattr(self.webdav_service, 'http_client') and hasattr(self.webdav_service.http_client, 'is_closed') and self.webdav_service.http_client.is_closed:
+                await self.webdav_service.reinitialize_client()
+                
             if self.behavior_manager:
                 await self.behavior_manager.close()
         except Exception as e:
@@ -525,9 +554,9 @@ class IndexService:
             except asyncio.CancelledError:
                 pass
             
-        if self.webdav_service:
-            await self.webdav_service.close()
-            
+        # Ne pas fermer le WebDAV service automatiquement
+        # pour permettre sa réutilisation
+        
     async def get_cached_index(self, key: str) -> Optional[Any]:
         """Récupère un index depuis le cache"""
         async with self._cache_lock:

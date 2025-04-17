@@ -58,6 +58,9 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
     message_text = ep.event.body.strip() if hasattr(ep.event, 'body') else ""
     command_parts = message_text.split()
     action = "status"  # Par défaut
+    room_id = ep.room.room_id
+    event_id = ep.event.event_id
+    sender = ep.sender
     
     # Si la commande a des arguments, le deuxième élément est l'action
     if len(command_parts) > 1:
@@ -65,19 +68,26 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
     
     if action not in ["status", "verify", "rebuild", "clean"]:
         await matrix_client.send_markdown_message(
-            ep.room.room_id,
+            room_id,
             "❌ Action invalide. Actions disponibles: status, verify, rebuild, clean",
-            msgtype="m.notice"
+            msgtype="m.notice",
+            reply_to=event_id
         )
         return
     
+    # Activer l'indicateur de frappe
+    await matrix_client.room_typing(room_id, typing_state=True)
+    
     try:
         # Informer l'utilisateur que l'action est en cours
-        loading_message = await matrix_client.send_markdown_message(
-            ep.room.room_id,
+        await matrix_client.send_markdown_message(
+            room_id,
             f"🔄 Action '{action}' en cours...",
             msgtype="m.notice"
         )
+        
+        # Désactiver l'indicateur de frappe après le message informatif
+        await matrix_client.room_typing(room_id, typing_state=False)
         
         # Utiliser albert_config si disponible, sinon utiliser la config standard
         config = getattr(matrix_client, "albert_config", matrix_client.config)
@@ -87,8 +97,8 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
         
         # Récupérer ou créer le contexte de session
         logger.info(f"[INDEX DEBUG] Récupération du contexte de session")
-        session_context = await get_unified_session_context(config, ep.room.room_id, ep.sender)
-        session_id = f"{ep.room.room_id}_{ep.sender}"
+        session_context = await get_unified_session_context(config, room_id, sender)
+        session_id = f"{room_id}_{sender}"
         
         # S'assurer que conversation_state existe
         if not hasattr(session_context, "conversation_state"):
@@ -111,7 +121,7 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
         
         # Mettre à jour l'activité du participant
         logger.info(f"[INDEX DEBUG] Mise à jour de l'activité du salon")
-        await context_manager.update_room_activity(ep.room.room_id, ep.sender)
+        await context_manager.update_room_activity(room_id, sender)
         
         try:
             # Utiliser le service d'index global au lieu d'en créer un nouveau
@@ -123,9 +133,10 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
                     # Vérifier si l'index est correctement initialisé
                     if not hasattr(index_service, 'document_index') or index_service.document_index is None:
                         await matrix_client.send_markdown_message(
-                            ep.room.room_id,
+                            room_id,
                             "❌ L'index documentaire n'est pas correctement initialisé. Veuillez vérifier la configuration WebDAV.",
-                            msgtype="m.notice"
+                            msgtype="m.notice",
+                            reply_to=event_id
                         )
                         return
                         
@@ -155,39 +166,20 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
                     if status.get('last_update'):
                         status_msg.append(f"- Dernière mise à jour: {status['last_update'].strftime('%Y-%m-%d %H:%M:%S')}")
                     
-                    # Supprimer le message de chargement
-                    try:
-                        # Vérifier si la méthode redact_message existe
-                        if hasattr(matrix_client, 'redact_message'):
-                            await matrix_client.redact_message(
-                                ep.room.room_id,
-                                loading_message
-                            )
-                        elif hasattr(matrix_client, 'room_redact'):
-                            # Alternative avec room_redact si disponible
-                            await matrix_client.room_redact(
-                                ep.room.room_id,
-                                loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                            )
-                        else:
-                            # Si aucune méthode de suppression n'est disponible, écrasement du message
-                            logger.debug("Méthode redact_message non disponible, effacement du message par remplacement")
-                            await matrix_client.send_markdown_message(
-                                ep.room.room_id,
-                                "",  # Message vide pour "effacer" visuellement
-                                msgtype="m.notice",
-                                message_id=loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                            )
-                    except Exception as redact_err:
-                        logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
-                        
+                    # Activer l'indicateur de frappe avant l'envoi de la réponse finale
+                    await matrix_client.room_typing(room_id, typing_state=True)
+                    
                     # Envoyer le message de statut
                     logger.info(f"[INDEX DEBUG] Envoi du message de statut")
                     await matrix_client.send_markdown_message(
-                        ep.room.room_id,
+                        room_id,
                         "\n".join(status_msg),
-                        msgtype="m.notice"
+                        msgtype="m.notice",
+                        reply_to=event_id
                     )
+                    
+                    # Désactiver l'indicateur de frappe après l'envoi de la réponse
+                    await matrix_client.room_typing(room_id, typing_state=False)
                     
                     # Enregistrer dans l'historique de session
                     session_context.add_message("user", f"!index {action}")
@@ -201,69 +193,24 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
                 except Exception as status_err:
                     logger.error(f"[INDEX DEBUG] Erreur lors de la récupération du statut: {str(status_err)}")
                     
-                    # Supprimer le message de chargement
-                    try:
-                        # Vérifier si la méthode redact_message existe
-                        if hasattr(matrix_client, 'redact_message'):
-                            await matrix_client.redact_message(
-                                ep.room.room_id,
-                                loading_message
-                            )
-                        elif hasattr(matrix_client, 'room_redact'):
-                            # Alternative avec room_redact si disponible
-                            await matrix_client.room_redact(
-                                ep.room.room_id,
-                                loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                            )
-                        else:
-                            # Si aucune méthode de suppression n'est disponible, écrasement du message
-                            logger.debug("Méthode redact_message non disponible, effacement du message par remplacement")
-                            await matrix_client.send_markdown_message(
-                                ep.room.room_id,
-                                "",  # Message vide pour "effacer" visuellement
-                                msgtype="m.notice",
-                                message_id=loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                            )
-                    except Exception as redact_err:
-                        logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
+                    # Activer l'indicateur de frappe avant l'envoi du message d'erreur
+                    await matrix_client.room_typing(room_id, typing_state=True)
                     
                     await matrix_client.send_markdown_message(
-                        ep.room.room_id,
+                        room_id,
                         f"❌ Erreur lors de la récupération du statut: {str(status_err)}",
-                        msgtype="m.notice"
+                        msgtype="m.notice",
+                        reply_to=event_id
                     )
                     
+                    # Désactiver l'indicateur de frappe après l'envoi du message d'erreur
+                    await matrix_client.room_typing(room_id, typing_state=False)
+                
             elif action == "verify":
                 try:
                     # Vérifier la fraîcheur de l'index
                     logger.info(f"[INDEX DEBUG] Vérification de la fraîcheur de l'index")
                     is_fresh = await index_service.verify()
-                    
-                    # Supprimer le message de chargement
-                    try:
-                        # Vérifier si la méthode redact_message existe
-                        if hasattr(matrix_client, 'redact_message'):
-                            await matrix_client.redact_message(
-                                ep.room.room_id,
-                                loading_message
-                            )
-                        elif hasattr(matrix_client, 'room_redact'):
-                            # Alternative avec room_redact si disponible
-                            await matrix_client.room_redact(
-                                ep.room.room_id,
-                                loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                            )
-                        else:
-                            # Si aucune méthode de suppression n'est disponible, écrasement du message
-                            logger.debug("Méthode redact_message non disponible, effacement du message par remplacement")
-                            await matrix_client.send_markdown_message(
-                                ep.room.room_id,
-                                "",  # Message vide pour "effacer" visuellement
-                                msgtype="m.notice",
-                                message_id=loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                            )
-                    except Exception as redact_err:
-                        logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
                     
                     if is_fresh:
                         response = "✅ L'index est à jour!"
@@ -279,82 +226,44 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
                         session_context.to_dict()
                     )
                     
+                    # Activer l'indicateur de frappe avant l'envoi de la réponse finale
+                    await matrix_client.room_typing(room_id, typing_state=True)
+                    
                     logger.info(f"[INDEX DEBUG] Envoi du résultat de vérification")
                     await matrix_client.send_markdown_message(
-                        ep.room.room_id,
+                        room_id,
                         response,
-                        msgtype="m.notice"
+                        msgtype="m.notice",
+                        reply_to=event_id
                     )
+                    
+                    # Désactiver l'indicateur de frappe après l'envoi de la réponse
+                    await matrix_client.room_typing(room_id, typing_state=False)
                 except Exception as verify_err:
                     logger.error(f"[INDEX DEBUG] Erreur lors de la vérification: {str(verify_err)}")
                     
-                    # Supprimer le message de chargement
-                    try:
-                        # Vérifier si la méthode redact_message existe
-                        if hasattr(matrix_client, 'redact_message'):
-                            await matrix_client.redact_message(
-                                ep.room.room_id,
-                                loading_message
-                            )
-                        elif hasattr(matrix_client, 'room_redact'):
-                            # Alternative avec room_redact si disponible
-                            await matrix_client.room_redact(
-                                ep.room.room_id,
-                                loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                            )
-                        else:
-                            # Si aucune méthode de suppression n'est disponible, écrasement du message
-                            logger.debug("Méthode redact_message non disponible, effacement du message par remplacement")
-                            await matrix_client.send_markdown_message(
-                                ep.room.room_id,
-                                "",  # Message vide pour "effacer" visuellement
-                                msgtype="m.notice",
-                                message_id=loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                            )
-                    except Exception as redact_err:
-                        logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
-                        
+                    # Activer l'indicateur de frappe avant l'envoi du message d'erreur
+                    await matrix_client.room_typing(room_id, typing_state=True)
+                    
                     await matrix_client.send_markdown_message(
-                        ep.room.room_id,
+                        room_id,
                         f"❌ Erreur lors de la vérification de l'index: {str(verify_err)}",
-                        msgtype="m.notice"
+                        msgtype="m.notice",
+                        reply_to=event_id
                     )
+                    
+                    # Désactiver l'indicateur de frappe après l'envoi du message d'erreur
+                    await matrix_client.room_typing(room_id, typing_state=False)
                 
             elif action == "rebuild":
                 try:
                     # Mettre à jour le message de chargement
-                    try:
-                        # Vérifier si la méthode redact_message existe
-                        if hasattr(matrix_client, 'redact_message'):
-                            await matrix_client.redact_message(
-                                ep.room.room_id,
-                                loading_message
-                            )
-                        elif hasattr(matrix_client, 'room_redact'):
-                            # Alternative avec room_redact si disponible
-                            await matrix_client.room_redact(
-                                ep.room.room_id,
-                                loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                            )
-                        else:
-                            # Si aucune méthode de suppression n'est disponible, écrasement du message
-                            logger.debug("Méthode redact_message non disponible, effacement du message par remplacement")
-                            await matrix_client.send_markdown_message(
-                                ep.room.room_id,
-                                "",  # Message vide pour "effacer" visuellement
-                                msgtype="m.notice",
-                                message_id=loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                            )
-                    except Exception as redact_err:
-                        logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
-                        
-                        loading_message = await matrix_client.send_markdown_message(
-                            ep.room.room_id,
-                            "🔄 Début de la reconstruction de l'index...\nCette opération peut prendre plusieurs minutes.",
-                            msgtype="m.notice"
-                        )
-                    except Exception as update_msg_err:
-                        logger.warning(f"Erreur lors de la mise à jour du message de chargement: {str(update_msg_err)}")
+                    await matrix_client.send_markdown_message(
+                        room_id,
+                        "🔄 Début de la reconstruction de l'index...\nCette opération peut prendre plusieurs minutes.",
+                        msgtype="m.notice",
+                        reply_to=event_id
+                    )
                     
                     # Vérifier d'abord l'existence du répertoire documents
                     try:
@@ -366,32 +275,6 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
                     logger.info(f"[INDEX DEBUG] Début de la reconstruction de l'index")
                     await index_service.rebuild()
                     
-                    # Supprimer le message de chargement
-                    try:
-                        # Vérifier si la méthode redact_message existe
-                        if hasattr(matrix_client, 'redact_message'):
-                            await matrix_client.redact_message(
-                                ep.room.room_id,
-                                loading_message
-                            )
-                        elif hasattr(matrix_client, 'room_redact'):
-                            # Alternative avec room_redact si disponible
-                            await matrix_client.room_redact(
-                                ep.room.room_id,
-                                loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                            )
-                        else:
-                            # Si aucune méthode de suppression n'est disponible, écrasement du message
-                            logger.debug("Méthode redact_message non disponible, effacement du message par remplacement")
-                            await matrix_client.send_markdown_message(
-                                ep.room.room_id,
-                                "",  # Message vide pour "effacer" visuellement
-                                msgtype="m.notice",
-                                message_id=loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                            )
-                    except Exception as redact_err:
-                        logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
-                        
                     response = "✅ Index reconstruit avec succès!"
                     
                     # Enregistrer dans l'historique de session
@@ -403,40 +286,21 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
                         session_context.to_dict()
                     )
                     
+                    # Activer l'indicateur de frappe avant l'envoi de la réponse finale
+                    await matrix_client.room_typing(room_id, typing_state=True)
+                    
                     logger.info(f"[INDEX DEBUG] Index reconstruit avec succès")
                     await matrix_client.send_markdown_message(
-                        ep.room.room_id,
+                        room_id,
                         response,
-                        msgtype="m.notice"
+                        msgtype="m.notice",
+                        reply_to=event_id
                     )
+                    
+                    # Désactiver l'indicateur de frappe après l'envoi de la réponse
+                    await matrix_client.room_typing(room_id, typing_state=False)
                 except Exception as rebuild_err:
                     logger.error(f"[INDEX DEBUG] Erreur lors de la reconstruction: {str(rebuild_err)}")
-                    
-                    # Supprimer le message de chargement
-                    try:
-                        # Vérifier si la méthode redact_message existe
-                        if hasattr(matrix_client, 'redact_message'):
-                            await matrix_client.redact_message(
-                                ep.room.room_id,
-                                loading_message
-                            )
-                        elif hasattr(matrix_client, 'room_redact'):
-                            # Alternative avec room_redact si disponible
-                            await matrix_client.room_redact(
-                                ep.room.room_id,
-                                loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                            )
-                        else:
-                            # Si aucune méthode de suppression n'est disponible, écrasement du message
-                            logger.debug("Méthode redact_message non disponible, effacement du message par remplacement")
-                            await matrix_client.send_markdown_message(
-                                ep.room.room_id,
-                                "",  # Message vide pour "effacer" visuellement
-                                msgtype="m.notice",
-                                message_id=loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                            )
-                    except Exception as redact_err:
-                        logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
                     
                     error_msg = f"❌ Erreur lors de la reconstruction de l'index: {str(rebuild_err)}"
                     
@@ -449,11 +313,18 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
                         session_context.to_dict()
                     )
                     
+                    # Activer l'indicateur de frappe avant l'envoi du message d'erreur
+                    await matrix_client.room_typing(room_id, typing_state=True)
+                    
                     await matrix_client.send_markdown_message(
-                        ep.room.room_id,
+                        room_id,
                         error_msg,
-                        msgtype="m.notice"
+                        msgtype="m.notice",
+                        reply_to=event_id
                     )
+                    
+                    # Désactiver l'indicateur de frappe après l'envoi du message d'erreur
+                    await matrix_client.room_typing(room_id, typing_state=False)
                 
             elif action == "clean":
                 try:
@@ -461,32 +332,6 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
                     logger.info(f"[INDEX DEBUG] Nettoyage de l'index")
                     await index_service.clean()
                     
-                    # Supprimer le message de chargement
-                    try:
-                        # Vérifier si la méthode redact_message existe
-                        if hasattr(matrix_client, 'redact_message'):
-                            await matrix_client.redact_message(
-                                ep.room.room_id,
-                                loading_message
-                            )
-                        elif hasattr(matrix_client, 'room_redact'):
-                            # Alternative avec room_redact si disponible
-                            await matrix_client.room_redact(
-                                ep.room.room_id,
-                                loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                            )
-                        else:
-                            # Si aucune méthode de suppression n'est disponible, écrasement du message
-                            logger.debug("Méthode redact_message non disponible, effacement du message par remplacement")
-                            await matrix_client.send_markdown_message(
-                                ep.room.room_id,
-                                "",  # Message vide pour "effacer" visuellement
-                                msgtype="m.notice",
-                                message_id=loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                            )
-                    except Exception as redact_err:
-                        logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
-                        
                     response = "✅ Index et cache nettoyés avec succès!"
                     
                     # Enregistrer dans l'historique de session
@@ -498,41 +343,22 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
                         session_context.to_dict()
                     )
                     
+                    # Activer l'indicateur de frappe avant l'envoi de la réponse finale
+                    await matrix_client.room_typing(room_id, typing_state=True)
+                    
                     logger.info(f"[INDEX DEBUG] Index nettoyé avec succès")
                     await matrix_client.send_markdown_message(
-                        ep.room.room_id,
+                        room_id,
                         response,
-                        msgtype="m.notice"
+                        msgtype="m.notice",
+                        reply_to=event_id
                     )
+                    
+                    # Désactiver l'indicateur de frappe après l'envoi de la réponse
+                    await matrix_client.room_typing(room_id, typing_state=False)
                 except Exception as clean_err:
                     logger.error(f"[INDEX DEBUG] Erreur lors du nettoyage: {str(clean_err)}")
                     
-                    # Supprimer le message de chargement
-                    try:
-                        # Vérifier si la méthode redact_message existe
-                        if hasattr(matrix_client, 'redact_message'):
-                            await matrix_client.redact_message(
-                                ep.room.room_id,
-                                loading_message
-                            )
-                        elif hasattr(matrix_client, 'room_redact'):
-                            # Alternative avec room_redact si disponible
-                            await matrix_client.room_redact(
-                                ep.room.room_id,
-                                loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                            )
-                        else:
-                            # Si aucune méthode de suppression n'est disponible, écrasement du message
-                            logger.debug("Méthode redact_message non disponible, effacement du message par remplacement")
-                            await matrix_client.send_markdown_message(
-                                ep.room.room_id,
-                                "",  # Message vide pour "effacer" visuellement
-                                msgtype="m.notice",
-                                message_id=loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                            )
-                    except Exception as redact_err:
-                        logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
-                        
                     error_msg = f"❌ Erreur lors du nettoyage de l'index: {str(clean_err)}"
                     
                     # Enregistrer dans l'historique de session
@@ -544,41 +370,22 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
                         session_context.to_dict()
                     )
                     
+                    # Activer l'indicateur de frappe avant l'envoi du message d'erreur
+                    await matrix_client.room_typing(room_id, typing_state=True)
+                    
                     await matrix_client.send_markdown_message(
-                        ep.room.room_id,
+                        room_id,
                         error_msg,
-                        msgtype="m.notice"
+                        msgtype="m.notice",
+                        reply_to=event_id
                     )
                     
+                    # Désactiver l'indicateur de frappe après l'envoi du message d'erreur
+                    await matrix_client.room_typing(room_id, typing_state=False)
+                
         except Exception as index_err:
             logger.error(f"[INDEX DEBUG] Erreur lors de l'utilisation du service d'index: {str(index_err)}")
             
-            # Supprimer le message de chargement
-            try:
-                # Vérifier si la méthode redact_message existe
-                if hasattr(matrix_client, 'redact_message'):
-                    await matrix_client.redact_message(
-                        ep.room.room_id,
-                        loading_message
-                    )
-                elif hasattr(matrix_client, 'room_redact'):
-                    # Alternative avec room_redact si disponible
-                    await matrix_client.room_redact(
-                        ep.room.room_id,
-                        loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                    )
-                else:
-                    # Si aucune méthode de suppression n'est disponible, écrasement du message
-                    logger.debug("Méthode redact_message non disponible, effacement du message par remplacement")
-                    await matrix_client.send_markdown_message(
-                        ep.room.room_id,
-                        "",  # Message vide pour "effacer" visuellement
-                        msgtype="m.notice",
-                        message_id=loading_message.event_id if hasattr(loading_message, 'event_id') else loading_message
-                    )
-            except Exception as redact_err:
-                logger.warning(f"Erreur lors de la suppression du message de chargement: {str(redact_err)}")
-                
             error_msg = f"❌ Une erreur est survenue lors de l'utilisation du service d'index: {str(index_err)}"
             
             # Enregistrer dans l'historique de session
@@ -590,19 +397,36 @@ async def faiss_index_command(ep: EventParser, matrix_client: MatrixClient):
                 session_context.to_dict()
             )
             
+            # Activer l'indicateur de frappe avant l'envoi du message d'erreur
+            await matrix_client.room_typing(room_id, typing_state=True)
+            
             await matrix_client.send_markdown_message(
-                ep.room.room_id,
+                room_id,
                 error_msg,
-                msgtype="m.notice"
+                msgtype="m.notice",
+                reply_to=event_id
             )
             
+            # Désactiver l'indicateur de frappe après l'envoi du message d'erreur
+            await matrix_client.room_typing(room_id, typing_state=False)
+        
     except Exception as e:
         logger.error(f"[INDEX DEBUG] Erreur lors du traitement de la commande !index: {str(e)}")
         logger.error(traceback.format_exc())
         
+        # Activer l'indicateur de frappe avant l'envoi du message d'erreur
+        await matrix_client.room_typing(room_id, typing_state=True)
+        
         await matrix_client.send_markdown_message(
-            ep.room.room_id,
+            room_id,
             f"❌ Une erreur est survenue lors du traitement de la commande: {str(e)}",
-            msgtype="m.notice"
+            msgtype="m.notice",
+            reply_to=event_id
         )
-        return 
+        
+        # Désactiver l'indicateur de frappe après l'envoi du message d'erreur
+        await matrix_client.room_typing(room_id, typing_state=False)
+        return
+    finally:
+        # Ne plus désactiver l'indicateur de frappe ici car il est géré individuellement
+        pass 
