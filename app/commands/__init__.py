@@ -14,7 +14,7 @@ from .registry import (
 )
 
 # Import du logger pour les logs
-from matrix_bot.config import logger
+from app.matrix_bot.config import logger
 
 # Fonction utilitaire pour obtenir le gestionnaire de contexte
 def get_context_manager(config):

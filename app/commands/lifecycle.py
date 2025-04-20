@@ -11,9 +11,9 @@ from functools import wraps
 from typing import Dict, Any, Optional
 import traceback
 
-from matrix_bot.client import MatrixClient
-from matrix_bot.config import logger
-from matrix_bot.eventparser import EventParser
+from app.matrix_bot.client import MatrixClient
+from app.matrix_bot.config import logger
+from app.matrix_bot.eventparser import EventParser
 
 from app.services.context.types import ContextType
 from app.services.context.instance import context_manager, ensure_initialized

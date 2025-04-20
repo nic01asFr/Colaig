@@ -3,8 +3,8 @@ from dataclasses import dataclass
 import numpy as np
 from datetime import datetime
 
-from matrix_bot.config import logger
-from services.models import DocumentChunk
+from app.matrix_bot.config import logger
+from app.services.models import DocumentChunk
 
 @dataclass
 class ChunkContext:

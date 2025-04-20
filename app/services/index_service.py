@@ -4,12 +4,12 @@ from datetime import datetime, timedelta
 import asyncio
 from functools import lru_cache
 
-from matrix_bot.config import logger
-from config import Config
-from services.webdav import WebDAVService
-from services.document_index import DocumentIndex, DocumentChunk, FAISSIndex
-from services.behavior_index import BehaviorIndex, BehaviorChunk
-from services.behavior_manager import BehaviorManager
+from app.matrix_bot.config import logger
+from app.config import Config
+from app.services.webdav import WebDAVService
+from app.services.document_index import DocumentIndex, DocumentChunk, FAISSIndex
+from app.services.behavior_index import BehaviorIndex, BehaviorChunk
+from app.services.behavior_manager import BehaviorManager
 
 @dataclass
 class IndexService:

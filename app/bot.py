@@ -7,11 +7,11 @@ import time
 import asyncio
 import traceback
 
-from matrix_bot.client import MatrixClient
-from matrix_bot.config import logger
-from matrix_bot.auth import AuthLogin, Credentials
-from matrix_bot.callbacks import Callbacks
-from matrix_bot.config import bot_lib_config
+from app.matrix_bot.client import MatrixClient
+from app.matrix_bot.config import logger
+from app.matrix_bot.auth import AuthLogin, Credentials
+from app.matrix_bot.callbacks import Callbacks
+from app.matrix_bot.config import bot_lib_config
 
 # Référence au registre de commandes unique
 from app.commands.registry import command_registry
@@ -167,6 +167,10 @@ async def main():
     from app.commands.document_commands.attachment_adapted import handle_attachments_adapted_command
     from app.commands.document_commands.synthesis import handle_synthesis_command
     
+    # Commandes Web (nouvelles)
+    logger.info("Chargement des commandes de recherche web")
+    from app.commands.web_commands.web_search import web_search_command, add_link_command, list_links_command, explore_link_command
+    
     # Si nous ne sommes pas en mode inclusion stricte, charger d'autres modules
     if not USE_STRICT_INCLUSION:
         logger.info("Importation des modules supplémentaires...")
@@ -223,6 +227,12 @@ Je suis en ligne avec les fonctionnalités suivantes :
 - Commande `!classer` : classement des pièces jointes
 - Commande `!index` : gestion de l'espace documentaire
 
+**Nouvelles fonctionnalités web** :
+- Commande `!recherche_web` : recherche d'informations sur Internet
+- Commande `!ajouter_lien` : ajout de liens dans la base de données
+- Commande `!liste_liens` : affichage des liens enregistrés
+- Commande `!explorer_lien` : exploration et résumé de pages web
+
 Pour plus d'informations sur ces commandes, utilisez `!aide`.
 """,
                 msgtype="m.notice"
@@ -243,6 +253,10 @@ Pour plus d'informations sur ces commandes, utilisez `!aide`.
     # au bot de répondre aux messages qui ne sont pas des commandes
     if 'conversation' not in groups_to_activate:
         groups_to_activate.append('conversation')
+    
+    # S'assurer que le groupe 'web' est activé pour les fonctionnalités web
+    if 'web' not in groups_to_activate:
+        groups_to_activate.append('web')
     
     logger.info(f"Groups to activate: {groups_to_activate}")
     

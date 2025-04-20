@@ -4,13 +4,13 @@ Commandes de base du bot Albert.
 Ce module contient les commandes fondamentales comme l'aide.
 """
 
-from matrix_bot.client import MatrixClient
-from matrix_bot.config import logger
-from matrix_bot.eventparser import EventParser
+from app.matrix_bot.client import MatrixClient
+from app.matrix_bot.config import logger
+from app.matrix_bot.eventparser import EventParser
 from nio import RoomMessageText, RoomMemberEvent
 
-from bot_msg import AlbertMsg
-from config import Config
+from app.bot_msg import AlbertMsg
+from app.config import Config
 
 from .registry import register_feature, only_allowed_user, command_registry
 

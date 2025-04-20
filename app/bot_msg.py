@@ -1,4 +1,4 @@
-from config import APP_VERSION, COMMAND_PREFIX, Config
+from app.config import APP_VERSION, COMMAND_PREFIX, Config
 
 
 class AlbertMsg:
@@ -19,6 +19,10 @@ class AlbertMsg:
         "model": f"Pour modifier le modèle, tapez `{COMMAND_PREFIX}model MODEL_NAME`",
         "mode": f"Pour modifier le mode du modèle (c'est-à-dire le modèle de prompt utilisé), tapez `{COMMAND_PREFIX}mode MODE`",
         "sources": f"Pour obtenir les sources utilisées pour générer ma dernière réponse, tapez `{COMMAND_PREFIX}sources`",
+        "recherche_web": f"Pour rechercher des informations sur Internet, tapez `{COMMAND_PREFIX}recherche_web [votre question]`",
+        "ajouter_lien": f"Pour ajouter un lien à la base de données, tapez `{COMMAND_PREFIX}ajouter_lien [URL] [titre?] [catégorie?]`",
+        "liste_liens": f"Pour afficher la liste des liens enregistrés, tapez `{COMMAND_PREFIX}liste_liens [catégorie?]`",
+        "explorer_lien": f"Pour explorer et résumer le contenu d'un lien, tapez `{COMMAND_PREFIX}explorer_lien [URL]`",
     }
 
     failed = "🤖 Albert a échoué à répondre. Veuillez réessayez dans un moment."
@@ -37,23 +41,49 @@ class AlbertMsg:
         msg = f"\u26a0\ufe0f **Albert API error**\n\n{reason}\n\n- Albert API URL: {config.albert_api_url}\n- Matrix server: {config.matrix_home_server}"
         return msg
 
-    def help(model_url, model_short_name, cmds):
-        msg = "👋 Bonjour, je suis **Colaig Albert**, votre **assistant dédié à votre espace de travail** du **Bnum**. Je suis actuellement en phase de **test**.\n\n"
-        msg += f"J'utilise le modèle de langage _[{model_short_name}]({model_url})_ .\n\n"
-        msg += "Maintenant que nous avons fait plus connaissance, quelques **règles pour m'utiliser** :\n\n"
-        msg += "✅ Vous pouvez m'attacher en pièces jointes des documents pdf qui m'aideront à répondre plus efficacement.\n\n"
-        msg += "✅ Utilisez !docquery pour me poser une question en utilisant la documentation comme contexte.\n\n"
-        msg += "🔮 Ne m'utilisez pas pour élaborer une décision administrative individuelle.\n\n"
-        msg += "❌ **Ne me transmettez pas** :\n"
-        msg += "- des fichiers autres que pdf, ni des images;\n"
-        msg += "- des données permettant de **vous** identifier ou **d'autres personnes** ;\n"
-        msg += "- des données **confidentielles** ;\n\n"
-        msg += "Enfin, quelques informations pratiques :\n\n"
-        msg += "🛠️ **Pour gérer notre conversation** :\n"
-        msg += "- " + "\n- ".join(cmds)
-        msg += "\n\n"
-        msg += "📁 **Sur l'usage des données**\nLes conversations sont stockées sur votre espace documentaire. Elles me permettent de contextualiser les conversations et l'équipe qui me développe les utilise pour m'évaluer et analyser mes performances.\n\n"
-        msg += "📯 Nous contacter : colaig.assistant@developpement-durable.gouv.fr"
+    def help(cls, cmds=None, verbose=False):
+        """
+        Generate help message
+        """
+        if cmds is None:
+            cmds = []
+
+        if verbose:
+            msg = "🤖 Je suis Albert, votre assistant IA pour les tâches collaboratives.\n\n"
+            msg += "Je peux vous aider à explorer des documents, répondre à vos questions et même rechercher des informations sur Internet.\n\n"
+            msg += "📖 **Règles d'utilisation**\n"
+            msg += "1️⃣ Posez-moi des questions de façon claire et précise\n"
+            msg += "2️⃣ Je peux chercher dans les documents que vous me partagez\n"
+            msg += "3️⃣ Je peux rechercher des informations sur Internet avec la commande !recherche_web\n"
+            msg += "4️⃣ Je peux vous aider à explorer des liens web avec !explorer_lien\n"
+            msg += "5️⃣ Pour voir toutes les commandes disponibles, tapez !aide\n\n"
+            msg += "📁 **Sur l'usage des données**\nLes conversations sont stockées sur votre espace documentaire. Elles me permettent de contextualiser les conversations et l'équipe qui me développe les utilise pour m'évaluer et analyser mes performances.\n\n"
+            msg += "📯 Nous contacter : colaig.assistant@developpement-durable.gouv.fr"
+
+            msg += "\n\n**Commandes disponibles :**\n"
+            msg += "- " + "\n- ".join(cmds)
+            
+            msg += "\n\n**Commandes web :**\n"
+            msg += "!recherche_web [question] - Rechercher des informations sur Internet\n"
+            msg += "!explorer_lien [URL] - Explorer et résumer le contenu d'un lien\n"
+            msg += "!ajouter_lien [URL] - Ajouter un lien à la base de données\n"
+            msg += "!liste_liens - Afficher les liens enregistrés\n"
+
+            msg += "\n**Commandes avancées :**\n"
+            msg += "!source - Sélectionner les sources à utiliser pour la conversation"
+        else:
+            msg = "🤖 Je suis Albert, votre assistant IA pour les tâches collaboratives.\n\n"
+            msg += "**Commandes principales :**\n"
+            for cmd in cmds:
+                msg += f"- {cmd}\n"
+                
+            msg += "\n**Commandes web :**\n"
+            msg += "!recherche_web [question] - Rechercher des informations sur Internet\n"
+            msg += "!explorer_lien [URL] - Explorer et résumer le contenu d'un lien\n"
+            msg += "!ajouter_lien [URL] - Ajouter un lien à la base de données\n"
+            msg += "!liste_liens - Afficher les liens enregistrés\n"
+                
+            msg += "\nPour plus d'informations, tapez `!aide verbose`"
 
         return msg
 

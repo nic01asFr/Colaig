@@ -6,12 +6,12 @@
 from typing import Optional
 from io import BytesIO
 
-from matrix_bot.eventparser import EventParser
+from app.matrix_bot.eventparser import EventParser
 from nio import Event, MatrixRoom, MessageDirection
 from nio.crypto.attachments import decrypt_attachment
 
-from bot_msg import AlbertMsg
-from config import Config
+from app.bot_msg import AlbertMsg
+from app.config import Config
 
 
 def has_keys_along(nested_dict: dict, keys: list[str]) -> bool:
@@ -162,7 +162,7 @@ async def get_decrypted_file(event, matrix_client) -> bytes:
         matrix_client = ep.matrix_client
     
     # Ajouter des logs pour le débogage
-    from matrix_bot.config import logger
+    from app.matrix_bot.config import logger
     logger.info(f"[GET_DECRYPTED_FILE] Type de l'événement: {type(event).__name__}")
     
     # S'assurer que nous avons une URL pour télécharger le fichier

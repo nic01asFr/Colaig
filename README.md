@@ -5,6 +5,85 @@ SPDX-FileCopyrightText: 2024 Etalab <etalab@modernisation.gouv.fr>
 SPDX-License-Identifier: MIT
 -->
 
+# Albert-Tchap
+
+Assistant pour Tchap basé sur Albert et le modèle Llama
+
+## Installation
+
+### Prérequis
+- Python 3.11+
+- [Poetry](https://python-poetry.org/)
+
+### Étapes d'installation
+
+1. Cloner le dépôt
+```bash
+git clone https://github.com/votre-organisation/albert-tchap.git
+cd albert-tchap
+```
+
+2. Installation des dépendances
+```bash
+poetry install
+```
+
+3. Installation des navigateurs pour Playwright
+```bash
+poetry run python scripts/install_playwright.py
+```
+
+4. Configuration
+Copiez le fichier `.env.example` vers `.env` et modifiez les valeurs selon votre environnement
+```bash
+cp .env.example .env
+```
+
+## Utilisation
+
+### Démarrer l'application
+```bash
+poetry run python -m albert_tchap.main
+```
+
+### Commandes disponibles
+- Recherche web: `poetry run python -m albert_tchap.commands.web_search`
+- Classification de contenu: `poetry run python -m albert_tchap.web.classification`
+
+## Résolution des problèmes courants
+
+### Conflit de dépendances
+Si vous rencontrez des conflits de dépendances lors du build Docker, notamment avec browser-use, vérifiez que vos versions sont compatibles:
+
+```
+# Versions minimales requises pour browser-use 0.1.41
+faiss-cpu>=1.10.0
+httpx>=0.27.2
+langchain-openai>=0.3.11
+pydantic>=2.10.4,<2.11.0
+openai>=1.68.2,<2.0.0
+```
+
+Pour mettre à jour ces dépendances dans votre environnement:
+```bash
+pip install --upgrade faiss-cpu httpx langchain-openai "pydantic>=2.10.4,<2.11.0" "openai>=1.68.2,<2.0.0"
+```
+
+Dans un environnement Docker, reconstruisez l'image après avoir mis à jour les dépendances dans pyproject.toml.
+
+### Problèmes avec Playwright
+Si les navigateurs ne s'installent pas correctement:
+```bash
+poetry run playwright install --with-deps chromium
+```
+
+## Développement
+
+Pour exécuter les tests:
+```bash
+poetry run pytest
+```
+
 # Albert Tchap
 
 *[English version below](#english-version)*
@@ -68,153 +147,4 @@ Cette commande stoppera surement si vous ne la lancez pas en mode sudo car
 elle installe par défault le data/store et le data/session.txt à la racine "/".
 Vous pouvez lancer l'application pour qu'elle crée ces fichiers dans le dossier du projet directement avec la commande :
 
-```bash
-export STORE_PATH='./data/store/' && export SESSION_PATH='./data/session.txt' && python app
 ```
-
-#### NOTE 2
-
-Si vous voulez développez tout en faisant que le bot reload automatiquement, vous pouvez utiliser par exemple [nodemon](https://github.com/python-nodemon/nodemon) en module global python et lancer la commande suivante dans un terminal :
-
-```bash
-nodemon --watch app --ext py --exec "export STORE_PATH='./data/store/' && export SESSION_PATH='./data/session.txt' && python app"
-```
-
-#### NOTE 3
-
-Si vous voulez que vos messages engendrés par le bot se distinguent des autres messages, possiblement envoyé par d'autres bots (comme celui de staging):
-
-```bash
-nodemon --watch app --ext py --exec "export MESSAGE_PREFIX='[DEV]' && export STORE_PATH='./data/store/' && export SESSION_PATH='./data/session.txt' && python app"
-```
-
-#### NOTE 4
-
-Si vous voulez merger votre branche de dev pour la tester sur beta.tchap (branche staging) :
-
-```bash
-git checkout staging
-git merge <your-branch>
-git push origin staging
-```
-
-### Troubleshooting
-
-Le premier sync est assez long, et a priori non bloquant. Si vous avez une interaction avec le bot avant qu'il se soit bien sync vous risquez de le laisser dans un état instable (où le bot n'a pas le listing des rooms).
-
-
-### Contribution
-
-Le projet est en open source, sous [licence MIT](LICENSES/MIT.txt). Toutes les contributions sont bienvenues, sous forme de pull requests ou d'ouvertures d'issues sur le [repo officiel GitHub](https://github.com/etalab-ia/albert-tchapbot).
-
-Pour commencer, consultez [CONTRIBUTING.md](CONTRIBUTING.md).
-
-
-### Licence
-
-Ce projet est sous licence MIT. Une copie intégrale du texte de la licence se trouve dans le fichier [`LICENSES/MIT.txt`](LICENSES/MIT.txt).
-
-
----
-
-# English version
-
-<details>
-  <summary>English version</summary>
-
-
-| <a href="https://github.com/etalab-ia/albert"><b>Albert API on GitHub</b></a> | <a href="https://huggingface.co/AgentPublic"><b>Albert models on HuggingFace</b></a> |
-
-## Project Description
-
-Bot for [Tchap, the French government messaging application](https://tchap.beta.gouv.fr/).
-This bot uses [Albert](https://github.com/etalab-ia/albert), the conversational agent (large language models, LLM) of the French government, to answer questions about [Tchap](https://tchap.beta.gouv.fr/).
-
-The project is a Proof of Concept (POC) to show how a bot can be used to answer questions about Tchap using Albert.
-It is a Work In Progress (WIP) and is not (yet) intended for production use.
-
-The project is a fork of [tchap_bot](https://code.peren.fr/open-source/tchapbot) which is a Matrix bot for Tchap, designed by the [Pôle d'Expertise de la Régulation Numérique](https://www.peren.gouv.fr/). The library part (`matrix_bot`) is heavily inspired by https://github.com/imbev/simplematrixbotlib.
-
-Contains:
-- `app/.`: the codebase for the Albert Tchap bot
-- `app/matrix_bot`: a library that wraps [matrix-nio](https://github.com/matrix-nio/matrix-nio) to make Matrix bots
-
-
-### Local Installation
-
-The project uses a dependencies and config file `pyproject.toml` and not a `requirements.txt` file. It is therefore necessary to use `pip` in version 19.0 or higher, or with a package manager like `pdm`, `pip-tools`, `uv`, `rye`, `hatch` etc. (but not `poetry` which does not use the standard `pyproject.toml`).
-
-```bash
-# Getting the code with Git
-git clone ${GITHUB_URL}
-
-# Creating a Python virtual environment
-python3 -m venv .venv
-
-# Activating the Python virtual environment
-source .venv/bin/activate
-
-# Installing dependencies
-pip install .
-```
-
-### Configuration
-
-Create the environment file `app/.env` with the connection information (or provide them as environment variables). You can use the `app/.env.example` file as inspiration, which is initialized with default values:
-```bash
-cp app/.env.example app/.env
-```
-
-The set of available environment variables is documented in the following file: [app/config.py](./app/config.py)
-
-### Run the bot
-
-To launch the bot:
-```bash
-python app
-```
-
-
-### Troubleshooting
-
-The first sync is quite long, and apparently non-blocking. If you interact with the bot before it has synced properly, you risk leaving it in an unstable state (where the bot does not have the room listing).
-
-### Contribution
-
-This project is open source, under the [MIT license](LICENSES/MIT.txt). All contributions are welcome, in the form of pull requests or issue openings on the [repo officiel GitHub](https://github.com/etalab-ia/albert-tchapbot).
-
-To get started, take a look at [CONTRIBUTING.md](CONTRIBUTING.md).
-
-### License
-
-This project is licensed under the MIT License. A full copy of the license text can be found in the `LICENSES/MIT.txt` file.
-
-</details>
-
-## Structure du système de commandes
-
-Le bot utilise un système modulaire de commandes organisé comme suit :
-
-### Commandes disponibles
-
-- `!chercher` : Interroge les documents indexés avec une question en langage naturel.
-- `!classer` : Analyse une pièce jointe et propose un classement intelligent.
-- `!index` : Gestion de l'index documentaire (status/verify/rebuild/clean).
-- `!aide` : Affiche la liste des commandes disponibles et leur utilisation.
-
-En plus de ces commandes, le bot maintient une conversation contextuelle qui lui permet de répondre aux messages qui ne sont pas des commandes spécifiques.
-
-### Organisation du code
-
-Les commandes sont organisées de manière modulaire dans le répertoire `app/commands/` :
-
-- `app/commands/basic_commands.py` : Commandes de base (!aide)
-- `app/commands/conversation.py` : Gestion de la conversation contextuelle
-- `app/commands/document_commands/` : Commandes pour la gestion des documents
-  - `docquery_adapted.py` : Implémentation de la commande !chercher
-  - `attachment_adapted.py` : Implémentation de la commande !classer
-  - `index.py` : Implémentation de la commande !index
-
-Cette architecture modulaire facilite la maintenance et l'extension des fonctionnalités du bot.
-
-### Nodemon

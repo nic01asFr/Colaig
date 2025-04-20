@@ -5,8 +5,8 @@ import json
 import os
 import urllib.parse
 
-from matrix_bot.config import logger
-from config import Config
+from app.matrix_bot.config import logger
+from app.config import Config
 from .types import ContextType
 from .models import (
     BaseContext,
@@ -20,7 +20,7 @@ from .models import (
     RoomContext,
     get_synchronized_time
 )
-from ..webdav import WebDAVService
+# Importation conditionnelle pour éviter l'importation circulaire
 from .cache import ContextCache
 
 class DateTimeEncoder(json.JSONEncoder):
@@ -69,6 +69,9 @@ class ContextManager:
             return
             
         try:
+            # Import conditionnel à l'intérieur de la méthode pour éviter les importations circulaires
+            from ..webdav import WebDAVService
+            
             # Initialiser WebDAV
             self._webdav = WebDAVService(self.config)
             try:

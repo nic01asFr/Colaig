@@ -16,9 +16,9 @@ from datetime import datetime
 import os
 import io
 
-from matrix_bot.client import MatrixClient
-from matrix_bot.config import logger
-from matrix_bot.eventparser import EventParser
+from app.matrix_bot.client import MatrixClient
+from app.matrix_bot.config import logger
+from app.matrix_bot.eventparser import EventParser
 from nio import Event, RoomMessageText, RoomMessageFile
 
 from app.bot_msg import AlbertMsg

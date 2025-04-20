@@ -7,7 +7,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: albert-tchap
-    restart: unless-stopped
+    restart: always
     volumes:
       - albert-data:/code/data
       - albert-config:/code/app/.albert
@@ -34,33 +34,17 @@ services:
       - WEBDAV_ROOT_PATH=${WEBDAV_ROOT_PATH:-/documents}
       - INDEX_DIR=.index
       - CHUNK_SIZE=1000
+      - PLAYWRIGHT_HEADLESS=true
+      - DISABLE_BROWSER_EXTRACTION=true
+      - USE_HTTPX_EXTRACTION=true
+      - DEBUG=true
     networks:
       - albert-network
-    depends_on:
-      - webdav
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    command: python -m app
-
-  # Service WebDAV local pour le développement
-  # (peut être remplacé par votre serveur WebDAV externe en production)
-  webdav:
-    image: bytemark/webdav
-    container_name: albert-webdav
-    restart: unless-stopped
-    environment:
-      - AUTH_TYPE=Basic
-      - USERNAME=${WEBDAV_DEV_USERNAME:-albert}
-      - PASSWORD=${WEBDAV_DEV_PASSWORD:-password}
-    volumes:
-      - webdav-data:/var/lib/dav
-    ports:
-      - "8888:80"
-    networks:
-      - albert-network
 
 networks:
   albert-network:
@@ -72,6 +56,4 @@ volumes:
   albert-config:
     driver: local
   albert-cache:
-    driver: local
-  webdav-data:
     driver: local 

@@ -7,9 +7,9 @@ import re
 import asyncio
 import traceback
 
-from matrix_bot.client import MatrixClient
-from matrix_bot.config import logger
-from matrix_bot.eventparser import EventNotConcerned, EventParser
+from app.matrix_bot.client import MatrixClient
+from app.matrix_bot.config import logger
+from app.matrix_bot.eventparser import EventNotConcerned, EventParser
 from nio import Event, RoomEncryptedFile, RoomMemberEvent, RoomMessageText
 
 from app.bot_msg import AlbertMsg

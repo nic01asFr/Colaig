@@ -7,11 +7,11 @@ from pathlib import Path
 # Ajout du chemin racine au PYTHONPATH
 sys.path.append(str(Path(__file__).parent.parent))
 
-from config import Config
-from core_llm import AlbertApiClient
-from services.index_service import IndexService
-from services.webdav import WebDAVService
-from matrix_bot.config import logger
+from app.config import Config
+from app.core_llm import AlbertApiClient
+from app.services.index_service import IndexService
+from app.services.webdav import WebDAVService
+from app.matrix_bot.config import logger
 
 @dataclass
 class AskAlbertRagAction:

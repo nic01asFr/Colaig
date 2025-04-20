@@ -11,9 +11,9 @@ import traceback
 from typing import Dict, Any, Optional, List
 import re
 
-from matrix_bot.client import MatrixClient
-from matrix_bot.config import logger
-from matrix_bot.eventparser import EventParser, EventNotConcerned
+from app.matrix_bot.client import MatrixClient
+from app.matrix_bot.config import logger
+from app.matrix_bot.eventparser import EventParser, EventNotConcerned
 from nio import RoomMessageText
 
 from app.core_llm import AlbertApiClient, generate

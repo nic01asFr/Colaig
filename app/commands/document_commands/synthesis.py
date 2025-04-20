@@ -3,10 +3,10 @@ import asyncio
 import urllib.parse
 from typing import Dict, Any, Optional, List, Union
 
-from matrix_bot.config import logger
-from matrix_bot.eventparser import EventParser
+from app.matrix_bot.config import logger
+from app.matrix_bot.eventparser import EventParser
 from nio import RoomMessageText
-from matrix_bot.client import MatrixClient
+from app.matrix_bot.client import MatrixClient
 
 from app.config import Config
 from app.commands.registry import register_feature

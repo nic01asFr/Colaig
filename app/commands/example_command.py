@@ -8,9 +8,9 @@ qui utilise le nouveau système de thread de façon simple et claire.
 import asyncio
 from typing import Dict, Any, Optional
 
-from matrix_bot.client import MatrixClient
-from matrix_bot.config import logger
-from matrix_bot.eventparser import EventParser
+from app.matrix_bot.client import MatrixClient
+from app.matrix_bot.config import logger
+from app.matrix_bot.eventparser import EventParser
 from nio import RoomMessageText
 
 from app.commands.registry import register_feature, only_allowed_user, threaded_command, thread_response, CommandThread

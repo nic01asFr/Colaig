@@ -3,12 +3,12 @@ from dataclasses import dataclass
 import asyncio
 import time
 
-from matrix_bot.config import logger
-from config import Config
-from core_llm import AlbertApiClient
-from services.index_service import IndexService
-from services.webdav import WebDAVService
-from services.context.models import SessionContext, RoomContext
+from app.matrix_bot.config import logger
+from app.config import Config
+from app.core_llm import AlbertApiClient
+from app.services.index_service import IndexService
+from app.services.webdav import WebDAVService
+from app.services.context.models import SessionContext, RoomContext
 
 SYNTHESIS_SYSTEM_PROMPT = '''
 Tu es Colaig, un assistant automatique de l'État français spécialisé dans la synthèse d'information pour les agents publics.

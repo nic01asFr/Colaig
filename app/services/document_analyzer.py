@@ -9,7 +9,7 @@ import asyncio
 import io
 from typing import Optional, Any, Dict, BinaryIO, List
 
-from matrix_bot.config import logger
+from app.matrix_bot.config import logger
 
 from app.core_llm import AlbertApiClient
 

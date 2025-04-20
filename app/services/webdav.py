@@ -20,9 +20,13 @@ from pathlib import Path
 import httpx
 import urllib.parse
 
-from config import Config
-from matrix_bot.config import logger
-from .context.models import get_synchronized_time
+from app.config import Config
+from app.matrix_bot.config import logger
+
+# Définition d'une fonction locale pour éviter l'importation circulaire
+def get_current_time() -> datetime:
+    """Fournit un timestamp pour les opérations WebDAV"""
+    return datetime.now()
 
 @dataclass
 class WebDAVDocument:
@@ -546,7 +550,7 @@ class WebDAVService:
             versions_path = os.path.join(self.versions_path, "versions.json")
             if not await self.exists(versions_path):
                 self.versions = {
-                    "last_update": get_synchronized_time().isoformat(),
+                    "last_update": get_current_time().isoformat(),
                     "documents": {}
                 }
                 await self._save_versions()
@@ -556,7 +560,7 @@ class WebDAVService:
             content = await self.read_document(versions_path)
             if not content.strip():
                 self.versions = {
-                    "last_update": get_synchronized_time().isoformat(),
+                    "last_update": get_current_time().isoformat(),
                     "documents": {}
                 }
                 await self._save_versions()
@@ -573,7 +577,7 @@ class WebDAVService:
         except (json.JSONDecodeError, ValueError) as e:
             logger.warning(f"Erreur lors du chargement de l'historique des versions: {str(e)}")
             self.versions = {
-                "last_update": get_synchronized_time().isoformat(),
+                "last_update": get_current_time().isoformat(),
                 "documents": {}
             }
             await self._save_versions()
@@ -583,7 +587,7 @@ class WebDAVService:
         try:
             # Convertir les versions en format sérialisable
             versions_data = {
-                "last_update": get_synchronized_time().isoformat(),
+                "last_update": get_current_time().isoformat(),
                 "documents": {}
             }
             
@@ -604,7 +608,7 @@ class WebDAVService:
                             version_dict = {
                                 'version': version.get('version', 1),
                                 'path': version.get('path', ''),
-                                'created_at': version.get('created_at', get_synchronized_time().isoformat()),
+                                'created_at': version.get('created_at', get_current_time().isoformat()),
                                 'metadata': version.get('metadata', {})
                             }
                         versions_data["documents"][doc_path].append(version_dict)
@@ -1035,3 +1039,24 @@ class WebDAVService:
             logger.error(f"Erreur lors de la création du lien de partage: {str(e)}")
             logger.exception(e)
             return ""
+
+# Fonction d'initialisation globale pour obtenir le service WebDAV
+# Version simplifiée qui évite l'importation circulaire
+async def initialize_webdav_service(config: Config) -> "WebDAVService":
+    """
+    Initialise une instance du service WebDAV.
+    Pour éviter les importations circulaires, cette fonction crée une nouvelle instance
+    au lieu d'utiliser webdav_instance.
+    
+    Args:
+        config: Configuration de l'application
+        
+    Returns:
+        Instance initialisée de WebDAVService
+    """
+    service = WebDAVService(config)
+    await service.initialize()
+    return service
+
+# Exporter la classe et la fonction d'initialisation
+__all__ = ['WebDAVService', 'initialize_webdav_service']

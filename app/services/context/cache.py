@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, TypeVar, Generic
 from dataclasses import dataclass, field
 import asyncio
-from matrix_bot.config import logger
+from app.matrix_bot.config import logger
 
 T = TypeVar('T')
 

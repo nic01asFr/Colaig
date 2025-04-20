@@ -9,8 +9,8 @@ import httpx
 import time
 import hashlib
 
-from matrix_bot.config import logger
-from config import Config
+from app.matrix_bot.config import logger
+from app.config import Config
 
 class EmbeddingCache:
     """Gère le cache des embeddings avec une taille maximale et une politique LRU"""

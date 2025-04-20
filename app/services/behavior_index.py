@@ -7,9 +7,9 @@ import json
 import numpy as np
 import faiss
 
-from matrix_bot.config import logger
-from config import Config
-from services.webdav import WebDAVService
+from app.matrix_bot.config import logger
+from app.config import Config
+from app.services.webdav import WebDAVService
 
 class BehaviorPriority:
     """Constantes de priorité pour les comportements"""

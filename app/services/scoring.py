@@ -4,7 +4,7 @@ from datetime import datetime
 import statistics
 from dataclasses import dataclass
 
-from matrix_bot.config import logger
+from app.matrix_bot.config import logger
 
 @dataclass
 class ScoringResult:

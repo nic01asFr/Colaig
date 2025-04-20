@@ -6,10 +6,10 @@ import os
 from pathlib import Path
 import time
 
-from matrix_bot.config import logger
-from config import Config
-from services.webdav import WebDAVService
-from services.behavior_index import BehaviorIndex, BehaviorChunk
+from app.matrix_bot.config import logger
+from app.config import Config
+from app.services.webdav import WebDAVService
+from app.services.behavior_index import BehaviorIndex, BehaviorChunk
 
 class BehaviorManager:
     """Gestionnaire des comportements avec synchronisation WebDAV"""

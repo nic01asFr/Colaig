@@ -7,7 +7,7 @@ import asyncio
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 
-from matrix_bot.config import logger
+from app.matrix_bot.config import logger
 
 from app.core_llm import AlbertApiClient
 

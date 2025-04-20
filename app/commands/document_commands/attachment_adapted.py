@@ -13,9 +13,9 @@ import tempfile
 import traceback
 from typing import Dict, Any, Optional, List
 
-from matrix_bot.client import MatrixClient
-from matrix_bot.config import logger
-from matrix_bot.eventparser import EventParser
+from app.matrix_bot.client import MatrixClient
+from app.matrix_bot.config import logger
+from app.matrix_bot.eventparser import EventParser
 from nio import Event, RoomEncryptedFile, RoomMessageText, RoomMessageFile
 from nio.crypto.attachments import decrypt_attachment
 

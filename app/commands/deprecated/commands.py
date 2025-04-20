@@ -25,14 +25,14 @@ from datetime import datetime
 from enum import Enum
 import io
 
-from matrix_bot.client import MatrixClient
-from matrix_bot.config import logger
-from matrix_bot.eventparser import EventNotConcerned, EventParser
+from app.matrix_bot.client import MatrixClient
+from app.matrix_bot.config import logger
+from app.matrix_bot.eventparser import EventNotConcerned, EventParser
 from nio import Event, RoomEncryptedFile, RoomMemberEvent, RoomMessageText
 
-from bot_msg import AlbertMsg
-from config import COMMAND_PREFIX, Config
-from core_llm import (
+from app.bot_msg import AlbertMsg
+from app.config import COMMAND_PREFIX, Config
+from app.core_llm import (
     flush_collections_with_name,
     get_all_public_collections,
     get_or_create_collection_with_name,
@@ -44,8 +44,8 @@ from core_llm import (
     upload_file,
     AlbertApiClient,
 )
-from iam import TchapIam
-from tchap_utils import (
+from app.iam import TchapIam
+from app.tchap_utils import (
     get_cleanup_body, 
     get_decrypted_file,
     get_previous_messages, 
@@ -53,14 +53,14 @@ from tchap_utils import (
     isa_reply_to,
     room_is_direct_message
 )
-from actions.rag_action import AskAlbertRagAction
-from actions.standard_rag_action import StandardMessageRagAction
-from services.webdav import WebDAVService
-from services.document_index import DocumentIndex
-from services.index_service import IndexService
-from services.context import ContextManager, ContextType
-from services.context.models import BaseContext, UserContext  # Import des classes de contexte
-from services.context.instance import context_manager  # Import du gestionnaire global
+from app.actions.rag_action import AskAlbertRagAction
+from app.actions.standard_rag_action import StandardMessageRagAction
+from app.services.webdav import WebDAVService
+from app.services.document_index import DocumentIndex
+from app.services.index_service import IndexService
+from app.services.context import ContextManager, ContextType
+from app.services.context.models import BaseContext, UserContext  # Import des classes de contexte
+from app.services.context.instance import context_manager  # Import du gestionnaire global
 
 # Import de l'instance unique du registre de commandes
 from app.commands.registry import command_registry

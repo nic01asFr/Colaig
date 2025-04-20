@@ -78,7 +78,6 @@ Les volumes suivants sont utilisés pour la persistance des données :
 - `albert-data` : Données générales d'Albert Tchap
 - `albert-config` : Fichiers de configuration
 - `albert-cache` : Cache pour améliorer les performances
-- `webdav-data` : Données stockées sur le serveur WebDAV local
 
 ## Environnement de production
 

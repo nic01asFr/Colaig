@@ -12,7 +12,7 @@ from typing import Optional, Any
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from _version import __version__
+from ._version import __version__
 
 COMMAND_PREFIX = "!"
 
@@ -41,7 +41,7 @@ class Config(BaseConfig):
         ["*"],
         description="List of allowed Tchap users email domains allowed to use Albert Tchap",
     )
-    groups_used: str = Field("document", description="List of commands groups to use (comma-separated)")
+    groups_used: str = Field("document,web", description="List of commands groups to use (comma-separated)")
     last_activity: int = Field(int(time.time()), description="Last activity timestamp")
 
     # Grist Api Key
@@ -60,6 +60,9 @@ class Config(BaseConfig):
     webdav_password: str = Field("", description="Mot de passe WebDAV")
     webdav_root_path: str = Field("/documents", description="Chemin racine WebDAV")
     webdav_index_name: str = Field("index.json", description="Nom du fichier d'index WebDAV")
+
+    # Extraction web avec browser-use
+    allow_fallback_extraction: bool = Field(True, description="Autoriser les méthodes alternatives d'extraction quand browser-use n'est pas disponible")
 
     # Albert Conversation settings
     albert_collections_by_id: dict[str, dict] = Field({}, description="Collections to use for Albert API chat completion with RAG")
@@ -146,7 +149,8 @@ env_config = Config(
     webdav_username=os.getenv("WEBDAV_USERNAME", ""),
     webdav_password=os.getenv("WEBDAV_PASSWORD", ""),
     webdav_root_path=os.getenv("WEBDAV_ROOT_PATH", "/documents"),
-    webdav_index_name=os.getenv("WEBDAV_INDEX_NAME", "index.json")
+    webdav_index_name=os.getenv("WEBDAV_INDEX_NAME", "index.json"),
+    allow_fallback_extraction=os.getenv("ALLOW_FALLBACK_EXTRACTION", "True").lower() in ("true", "1", "yes")
 )
 
 

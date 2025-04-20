@@ -1,8 +1,8 @@
 """Instance globale du gestionnaire de contexte"""
 from typing import Any, Optional
 import asyncio
-from matrix_bot.config import logger
-from config import Config
+from app.matrix_bot.config import logger
+from app.config import Config
 from .manager import ContextManager
 
 # Instance globale du gestionnaire de contexte

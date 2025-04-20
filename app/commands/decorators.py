@@ -16,9 +16,9 @@ import time
 import traceback
 from typing import Callable, Optional, List, Dict, Any, Union
 
-from matrix_bot.config import logger
-from matrix_bot.client import MatrixClient
-from matrix_bot.eventparser import EventParser
+from app.matrix_bot.config import logger
+from app.matrix_bot.client import MatrixClient
+from app.matrix_bot.eventparser import EventParser
 
 # Utiliser les décorateurs existants de notre registre
 from app.commands.registry import (

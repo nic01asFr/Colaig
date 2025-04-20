@@ -16,7 +16,7 @@ from nio import (
     UnknownEvent,
 )
 
-from bot_msg import AlbertMsg
+from app.bot_msg import AlbertMsg
 
 from .client import MatrixClient
 from .config import bot_lib_config, logger

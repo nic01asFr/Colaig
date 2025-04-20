@@ -3,10 +3,10 @@ from io import BytesIO
 import os
 from pathlib import Path
 
-from matrix_bot.config import logger
-from config import Config
-from services.webdav import WebDAVService
-from services.attachment_classifier import AttachmentClassifier, AttachmentClassificationResult
+from app.matrix_bot.config import logger
+from app.config import Config
+from app.services.webdav import WebDAVService
+from app.services.attachment_classifier import AttachmentClassifier, AttachmentClassificationResult
 
 class AttachmentHandler:
     """Service dédié à la gestion des pièces jointes pour la commande !pj"""

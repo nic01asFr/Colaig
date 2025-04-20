@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import aiohttp
 
-from bot_msg import AlbertMsg
+from app.bot_msg import AlbertMsg
 
 UserRecord = namedtuple(
     "UserRecord",

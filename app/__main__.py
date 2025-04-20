@@ -8,27 +8,32 @@ import asyncio
 import logging
 import sys
 
-from matrix_bot.config import logger
+# Configuration du logger
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)-8s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+)
+logger = logging.getLogger("albert-tchap")
 
 def setup_logging():
     """Configure le système de logging"""
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
+    # Déjà configuré plus haut
+    pass
 
 async def init_app():
-    """Initialisation de l'application"""
-    setup_logging()
-    logger.info("Starting Albert Tchap...")
-    
+    """Initialise l'application"""
     try:
-        # Import après la configuration du logging
-        from services.context.instance import context_manager
-        
         # Initialisation du gestionnaire de contexte
-        await context_manager.initialize()
+        from app.services.context.instance import context_manager, ensure_initialized
+        await ensure_initialized()
         logger.info("Context manager initialized successfully")
+        
+        # Initialisation de Playwright pour les extractions web
+        logger.info("Initialisation de Playwright pour les extractions web...")
+        from app.services.browser_extraction import ensure_playwright_installed
+        await ensure_playwright_installed()
+        logger.info("Initialisation de Playwright terminée")
         
         # Préchargement de l'index documentaire
         from app.config import env_config
@@ -48,7 +53,7 @@ async def init_app():
             logger.warning(f"Erreur lors du préchargement de l'index documentaire: {str(e)} - il sera chargé lors de la première utilisation")
         
         # Import et démarrage du bot après l'initialisation du contexte
-        from bot import main
+        from app.bot import main
         await main()
         
     except Exception as e:

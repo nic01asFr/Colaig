@@ -9,13 +9,13 @@ import faiss
 import numpy as np
 from functools import lru_cache
 
-from matrix_bot.config import logger
-from config import Config
-from services.webdav import WebDAVService
-from services.embedding_service import EmbeddingService
-from services.scoring import DynamicScoreManager, ScoringResult
-from services.chunk_selector import ChunkSelector
-from services.models import DocumentChunk
+from app.matrix_bot.config import logger
+from app.config import Config
+from app.services.webdav import WebDAVService
+from app.services.embedding_service import EmbeddingService
+from app.services.scoring import DynamicScoreManager, ScoringResult
+from app.services.chunk_selector import ChunkSelector
+from app.services.models import DocumentChunk
 
 @dataclass
 class DocumentChunk:

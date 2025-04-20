@@ -9,17 +9,27 @@ import asyncio
 import logging
 import sys
 
-from matrix_bot.config import setup_logging, logger
+from app.matrix_bot.config import setup_logging, logger
 
-from app.bot import main
+async def main():
+    """Point d'entrée principal"""
+    logger.info("Starting Albert Tchap...")
+    
+    # Initialisation de Playwright pour les extractions web
+    logger.info("Initialisation de Playwright pour les extractions web...")
+    from app.services.browser_extraction import ensure_playwright_installed
+    await ensure_playwright_installed()
+    logger.info("Initialisation de Playwright terminée")
+    
+    # Exécution du bot
+    from app.bot import main as bot_main
+    await bot_main()
 
 if __name__ == "__main__":
     # Configuration du logging
     setup_logging()
     logger.info("starting the bot")
-    logger.info("Starting Albert Tchap...")
     
-    # Exécution du bot
     try:
         asyncio.run(main())
     except KeyboardInterrupt:

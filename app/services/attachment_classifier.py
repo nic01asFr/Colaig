@@ -4,10 +4,10 @@ import os
 from pathlib import Path
 import asyncio
 
-from matrix_bot.config import logger
-from config import Config
-from services.webdav import WebDAVService
-from services.embedding_service import EmbeddingService
+from app.matrix_bot.config import logger
+from app.config import Config
+from app.services.webdav import WebDAVService
+from app.services.embedding_service import EmbeddingService
 
 @dataclass
 class AttachmentClassificationResult:

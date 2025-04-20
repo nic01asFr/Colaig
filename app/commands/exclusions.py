@@ -44,6 +44,13 @@ INCLUDED_COMMANDS = [
     "doc_query_adapted_command",          # Commande !chercher
     "handle_attachments_adapted_command", # Commande !classer
     "handle_attachments_adapted_response",# Réponse pour !classer
+    "handle_synthesis_command",           # Commande !synthese
+    
+    # Commandes web (nouvelles)
+    "web_search_command",                # Commande !recherche_web
+    "add_link_command",                  # Commande !ajouter_lien
+    "list_links_command",                # Commande !liste_liens
+    "explore_link_command",              # Commande !explorer_lien
     
     # Commandes de base et conversation
     "handle_conversation",                # Conversation contextuelle

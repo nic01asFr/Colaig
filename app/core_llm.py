@@ -17,9 +17,9 @@ from nio import AsyncClient
 import numpy as np
 import asyncio
 
-from config import Config
-from utils import log_and_raise_for_status
-from matrix_bot.config import logger
+from app.config import Config
+from app.utils import log_and_raise_for_status
+from app.matrix_bot.config import logger
 
 API_PREFIX_V1 = "v1"
 

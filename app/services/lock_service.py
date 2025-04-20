@@ -4,9 +4,9 @@ import asyncio
 from dataclasses import dataclass
 import json
 
-from matrix_bot.config import logger
-from config import Config
-from services.webdav import WebDAVService
+from app.matrix_bot.config import logger
+from app.config import Config
+from app.services.webdav import WebDAVService
 
 @dataclass
 class FileLock:
