@@ -1,13 +1,13 @@
-# Colaig✨
-
+![colaig_icon_dark.png](https://docs.numerique.gouv.fr/media/f2353396-3b17-4886-8ae7-9ea45c7abd1d/attachments/7828c1f8-c617-4ad8-bd12-49e8c730b23e.png)
+# Colaig
 > Assistant IA intégré à mon espace numérique
 
 
 ## 📋 Présentation
 
-Colaig✨ est une solution d'intelligence artificielle conversationnelle conçue spécifiquement pour le Bnum. 
+Colaig est une solution d'intelligence artificielle conversationnelle conçue spécifiquement pour le Bnum. 
 
-Contrairement aux assistants IA génériques, Colaig✨ est pensé pour s'intégrer organiquement dans l'écosystème administratif, évoluer avec l'organisation, et transformer l'expertise individuelle en ressource collective.
+Contrairement aux assistants IA génériques, Colaig est pensé pour s'intégrer organiquement dans l'écosystème administratif, évoluer avec l'organisation, et transformer l'expertise individuelle en ressource collective.
 
 ## 🌟 Caractéristiques principales
 
@@ -19,7 +19,7 @@ Contrairement aux assistants IA génériques, Colaig✨ est pensé pour s'intég
 
 ## 🚀 Parcours d'évolution
 
-Colaig✨ évolue progressivement pour offrir des capacités croissantes :
+Colaig évolue progressivement pour offrir des capacités croissantes :
 
 ### Niveau 1: Documentation Intelligente
 
@@ -36,7 +36,7 @@ L'assistant qui agit sur vos systèmes
 
 - **Ce qu'il fait**: Orchestre des séquences d'actions à travers vos applications
 - **Avantage**: Automatise les processus répétitifs et complexes
-- **Exemple**: "Prépare-moi un rapport sur X" → Colaig✨ collecte les données, génère des visualisations et compile un document synthétique
+- **Exemple**: "Prépare-moi un rapport sur X" → Colaig collecte les données, génère des visualisations et compile un document synthétique
 
 
 ### Niveau 3: Expertise Configurable
@@ -45,7 +45,7 @@ L'assistant personnalisable par les experts métier
 
 - **Ce qu'il fait**: Permet la création d'assistants spécialisés sans programmation
 - **Avantage**: Démocratise la création d'IA spécialisées pour chaque service
-- **Exemple**: Un expert juridique configure son Colaig✨ pour analyser automatiquement les contrats selon des critères spécifiques
+- **Exemple**: Un expert juridique configure son Colaig pour analyser automatiquement les contrats selon des critères spécifiques
 
 
 ### Niveau 4: Réseau Collaboratif
@@ -68,7 +68,7 @@ L'assistant qui apprend de tous les utilisateurs
 
 ## 🔒 Sécurité et Conformité
 
-Colaig✨ est conçu selon le principe de "sécurité par défaut" :
+Colaig est conçu selon le principe de "sécurité par défaut" :
 
 - **☁️ Hébergement souverain** sur cloud de confiance ou sur site
 - **🔐 Intégration native** avec Tchap pour la communication sécurisée
@@ -93,7 +93,7 @@ Colaig✨ est conçu selon le principe de "sécurité par défaut" :
 
 ## 🚗 Feuille de route
 
-- [x] **T1 2025**: Preuve de concept Colaig✨ RAG
+- [x] **T1 2025**: Preuve de concept Colaig RAG
 - [x] **T2 2025**: Version bêta avec premières capacités workflow
 - [ ] **En cours**: Refonte de l'app pour compatibilité avec le modelcontextprotocol d'Anthropic
 - [ ] **T4 2025**: Version 1.0 avec interfaces de personnalisation
@@ -103,7 +103,7 @@ Colaig✨ est conçu selon le principe de "sécurité par défaut" :
 
 ## 🤝 Contribuer
 
-Colaig✨ est un projet ouvert à la collaboration. [Découvrez comment contribuer](https://github.com/nic01asFr/colaig-Albert).
+Colaig est un projet ouvert à la collaboration. [Découvrez comment contribuer](https://github.com/nic01asFr/colaig-Albert).
 
 ## 📄 Licence
 
@@ -111,7 +111,7 @@ Ce projet est sous licence [Licence Ouverte 2.0](https://www.etalab.gouv.fr/lice
 
 ## 📞 Contact
 
-Pour toute information complémentaire, démonstration ou projet pilote, contactez-nous à [colaig.albert@developpement-durable.gouv.fr](mailto:nicolas.laval@developpement-durable.gouv.fr).
+Pour toute information complémentaire, démonstration ou projet pilote, contactez-nous à [colaig.assistant@developpement-durable.gouv.fr](mailto:colaig.assistant@developpement-durable.gouv.fr).
 
 ---
 
