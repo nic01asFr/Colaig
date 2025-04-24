@@ -2,7 +2,7 @@
 # Colaig
 > Assistant IA intégré à mon espace numérique
 
-
+ 
 ## 📋 Présentation
 
 Colaig est une solution d'intelligence artificielle conversationnelle conçue spécifiquement pour le Bnum. 
