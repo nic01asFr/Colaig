@@ -1,4 +1,4 @@
-![colaig_icon_dark.png](https://docs.numerique.gouv.fr/media/f2353396-3b17-4886-8ae7-9ea45c7abd1d/attachments/a3065b65-fd53-4138-820f-73cde7c4de16.png)
+![colaig\_icon\_dark\_300.png](https://docs.numerique.gouv.fr/media/f2353396-3b17-4886-8ae7-9ea45c7abd1d/attachments/be9b2c32-0eb7-46e3-9031-b6be7b3c375a.png)
 # Colaig
 > Assistant IA intégré à mon espace numérique
 
