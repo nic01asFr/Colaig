@@ -2,6 +2,7 @@
 
 > Colaig, assistant IA intégré à mon Bnum accessible par Tchap, la messagerie sécurisée de l'état
 
+
 ## 📋 Présentation
 
 Colaig est une solution d'intelligence artificielle conversationnelle conçue spécifiquement pour le Bnum.
