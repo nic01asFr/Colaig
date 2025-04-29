@@ -35,8 +35,6 @@ L'assistant qui connaît toute votre documentation
 
 - **Exemple**: "Quelle est la procédure pour appliquer une pénalité ?" → Colaig fournit la réponse précise avec les références et fournit les formulaires à compléter et donne les contacts.
 
-- [](https://github.com/nic01asFr/Colaig/blob/dev/demonstration)
-
 ### Niveau 2: Actions Automatisées
 
 L'assistant qui agit sur vos outils et données métier
