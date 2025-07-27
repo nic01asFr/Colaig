@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  # Service principal Albert Tchap
+  albert-tchap:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: albert-tchap
+    restart: always
+    volumes:
+      - albert-data:/code/data
+      - albert-config:/code/app/.albert
+      - albert-cache:/code/.cache
+    environment:
+      - MATRIX_HOME_SERVER=${MATRIX_HOME_SERVER}
+      - MATRIX_BOT_USERNAME=${MATRIX_BOT_USERNAME}
+      - MATRIX_BOT_PASSWORD=${MATRIX_BOT_PASSWORD}
+      - USER_ALLOWED_DOMAINS=${USER_ALLOWED_DOMAINS}
+      - ERRORS_ROOM_ID=${ERRORS_ROOM_ID}
+      - GROUPS_USED=basic,document
+      - ALBERT_API_URL=${ALBERT_API_URL}
+      - ALBERT_API_TOKEN=${ALBERT_API_TOKEN}
+      - ALBERT_MODEL=${ALBERT_MODEL:-mistralai/Mistral-Small-3.1-24B-Instruct-2503}
+      - ALBERT_MODEL_EMBEDDING=${ALBERT_MODEL_EMBEDDING:-BAAI/bge-m3}
+      - ALBERT_MODE=rag
+      - ALBERT_WITH_HISTORY=true
+      - EMBEDDING_DIMENSION=1024
+      - EMBEDDING_CACHE_DURATION=24
+      - EMBEDDING_CACHE_SIZE=10000
+      - WEBDAV_URL=${WEBDAV_URL}
+      - WEBDAV_USERNAME=${WEBDAV_USERNAME}
+      - WEBDAV_PASSWORD=${WEBDAV_PASSWORD}
+      - WEBDAV_ROOT_PATH=${WEBDAV_ROOT_PATH:-/documents}
+      - INDEX_DIR=.index
+      - CHUNK_SIZE=1000
+      - PLAYWRIGHT_HEADLESS=true
+      - DISABLE_BROWSER_EXTRACTION=true
+      - USE_HTTPX_EXTRACTION=true
+      - DEBUG=true
+    networks:
+      - albert-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  albert-network:
+    driver: bridge
+
+volumes:
+  albert-data:
+    driver: local
+  albert-config:
+    driver: local
+  albert-cache:
+    driver: local 
