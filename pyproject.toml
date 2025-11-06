@@ -1,0 +1,64 @@
+[project]
+name = "webextract-service"
+version = "1.0.0"
+description = "Service autonome d'extraction de contenu web avec support multi-LLM"
+authors = [
+    { name = "WebExtract Team" }
+]
+requires-python = ">= 3.11"
+readme = "README.md"
+license = { text = "MIT" }
+
+dependencies = [
+    # Web Framework
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+
+    # Browser Automation
+    "browser-use==0.1.41",
+    "playwright>=1.40.0",
+
+    # LLM Support
+    "langchain-openai>=0.3.11",
+    "openai>=1.68.2",
+    "anthropic>=0.19.0",
+
+    # HTTP Clients
+    "httpx>=0.27.2",
+    "aiohttp==3.9.3",
+    "requests==2.32.3",
+
+    # Data Validation
+    "pydantic>=2.10.4",
+    "pydantic-settings==2.3.4",
+
+    # Utilities
+    "tenacity==8.2.3",
+    "filelock==3.12.2",
+    "python-multipart>=0.0.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "httpx>=0.27.2",
+    "ruff>=0.1.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app"]
+package-dir = {""="."}
+
+[tool.ruff]
+line-length = 100
+src = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

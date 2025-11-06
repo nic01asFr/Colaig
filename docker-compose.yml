@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  webextract:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: webextract-service
+    ports:
+      - "8000:8000"
+    environment:
+      # API Configuration
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+
+      # Default LLM Configuration
+      - DEFAULT_LLM_PROVIDER=${DEFAULT_LLM_PROVIDER:-openai}
+      - DEFAULT_LLM_MODEL=${DEFAULT_LLM_MODEL:-gpt-4o}
+      - DEFAULT_LLM_API_KEY=${DEFAULT_LLM_API_KEY}
+
+      # OpenAI
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+
+      # Anthropic
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+
+      # Albert
+      - ALBERT_API_URL=${ALBERT_API_URL:-https://albert.api.etalab.gouv.fr}
+      - ALBERT_API_KEY=${ALBERT_API_KEY}
+      - ALBERT_MODEL=${ALBERT_MODEL:-AgentPublic/llama3-instruct-8b}
+
+      # Playwright
+      - PLAYWRIGHT_HEADLESS=true
+      - PLAYWRIGHT_TIMEOUT=45000
+
+      # Extraction
+      - DEFAULT_EXTRACTION_TIMEOUT=45
+      - MAX_RETRIES=3
+
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+
+    volumes:
+      # Optionnel: monter un volume pour les caches
+      - webextract-cache:/home/webextract/.cache
+
+    restart: unless-stopped
+
+    # Limites de ressources (ajustez selon vos besoins)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+    # Healthcheck
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  webextract-cache:
+    driver: local
