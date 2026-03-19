@@ -31,14 +31,17 @@ from app.services.context.instance import get_context_manager, ensure_initialize
 # - !info: show the chat setting (model, with_history).
 
 class TchapBot:
-    def __init__(self, homeserver: str, username: str, password: str):
+    def __init__(self, homeserver: str, username: str, password: str, config: Config = None):
         # Préparer les configurations avant de créer le client Matrix
         # Ajouter le registre de commandes en tant qu'attribut direct
         self.command_registry = command_registry
-        
+        self.config = config or env_config
+
         self.matrix_client = MatrixClient(
             AuthLogin(Credentials(homeserver=homeserver, username=username, password=password))
         )
+        # Inject config into matrix_client for downstream access
+        self.matrix_client.albert_config = self.config
         
         self.callbacks = Callbacks(self.matrix_client)
         self._maintenance_task = None
@@ -181,8 +184,8 @@ Pour plus d'informations sur ces commandes, utilisez `!aide`.
         
         # Charger les groupes configurés dans l'environnement
         groups_to_activate = []
-        if hasattr(env_config, 'groups_used') and env_config.groups_used:
-            groups_to_activate = [g.strip() for g in env_config.groups_used.split(",")]
+        if hasattr(self.config, 'groups_used') and self.config.groups_used:
+            groups_to_activate = [g.strip() for g in self.config.groups_used.split(",")]
         
         # S'assurer que le groupe 'conversation' est toujours activé pour permettre
         # au bot de répondre aux messages qui ne sont pas des commandes
@@ -229,13 +232,13 @@ Pour plus d'informations sur ces commandes, utilisez `!aide`.
                 await context_manager.flush_pending_saves()
                 
                 # Nettoyage des vieux contextes si activé
-                if env_config.context_auto_cleanup:
+                if self.config.context_auto_cleanup:
                     await context_manager.cleanup_old_contexts(
-                        max_age_days=env_config.context_max_age_days
+                        max_age_days=self.config.context_max_age_days
                     )
-                
+
                 # Attente avant la prochaine exécution
-                await asyncio.sleep(env_config.context_save_interval)
+                await asyncio.sleep(self.config.context_save_interval)
                 
             except Exception as e:
                 logger.error(f"Erreur maintenance contextes: {str(e)}")
@@ -401,12 +404,12 @@ Pour plus d'informations sur ces commandes, utilisez `!aide`.
             logger.info("Tentative d'initialisation du gestionnaire de contexte...")
             await ensure_initialized()
             logger.info("Gestionnaire de contexte initialisé avec succès")
-            
+
             # Initialiser les autres services
             from app.services.initialization import initialize_services, _initialized
             if not _initialized:
                 logger.info("Initialisation des services...")
-                await initialize_services(env_config)
+                await initialize_services(self.config)
                 logger.info("Services initialisés avec succès")
             
             # Retourner True pour indiquer le succès
@@ -416,21 +419,26 @@ Pour plus d'informations sur ces commandes, utilisez `!aide`.
             logger.error(traceback.format_exc())
             return False
 
-async def main():
+async def main(config: Config = None):
     """
     Fonction principale qui initialise et démarre le bot.
     Cette fonction est le point d'entrée centralisé pour éviter les instances multiples.
+
+    Args:
+        config: Optional Config instance. If None, uses the global env_config singleton.
+                Pass a custom Config for multi-instance support.
     """
+    config = config or env_config
     logger.info("=== DÉMARRAGE APPLICATION ALBERT ===")
-    
+
     # Créer le bot Matrix qui ne dépendra pas immédiatement de WebDAV
     logger.info("=== CRÉATION CLIENT MATRIX ===")
     tchap_bot = TchapBot(
-        env_config.matrix_home_server,
-        env_config.matrix_bot_username,
-        env_config.matrix_bot_password,
+        config.matrix_home_server,
+        config.matrix_bot_username,
+        config.matrix_bot_password,
+        config=config,
     )
-    tchap_bot.matrix_client.albert_config = env_config
     
     # Démarrer le bot avec un timeout global
     try:

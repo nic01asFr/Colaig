@@ -1,207 +1,149 @@
-import asyncio
-import json
+import logging
 import re
-from collections import namedtuple
-from datetime import datetime, timedelta, timezone
-
-import aiohttp
+from typing import Optional
 
 from app.bot_msg import AlbertMsg
 
-UserRecord = namedtuple(
-    "UserRecord",
-    ["id", "tchap_user", "status", "domain", "n_questions", "last_activity"],
-    defaults=(None,),  # default apply following the rightmost parameter first.
-)
-
-
-def to_record(_id: str, data: dict) -> UserRecord:
-    """Dict to a grist record"""
-    return UserRecord(**{"id": _id, **{k: v for k, v in data.items() if k in UserRecord._fields}})
-
-
-# from grist_api import GristDocAPI => is not async
-class AsyncGristDocAPI:
-    def __init__(self, doc_id: str, server: str, api_key: str):
-        self.doc_id = doc_id
-        self.server = server
-        self.api_key = api_key
-        self.base_url = f"{server}/api"
-
-    async def _request(self, method, endpoint, json_data=None):
-        headers = {"Authorization": f"Bearer {self.api_key}"}
-        async with aiohttp.ClientSession() as session:
-            if method in ["GET"]:
-                data = {"params": json_data}
-            else:
-                headers["Content-Type"] = "application/json"
-                data = {"json": json_data}
-
-            async with session.request(
-                method, self.base_url + endpoint, headers=headers, **data
-            ) as response:
-                response.raise_for_status()
-                return await response.json()
-
-    async def fetch_table(self, table_id, filters=None) -> list[UserRecord]:
-        endpoint = f"/docs/{self.doc_id}/tables/{table_id}/records"
-        data = {}
-        if filters:
-            data["filter"] = json.dumps(filters)
-        result = await self._request("GET", endpoint, data)
-
-        if not result["records"]:
-            return []
-        records = [to_record(r["id"], r["fields"]) for r in result["records"]]
-        return records
-
-    async def add_records(self, table_id, records):
-        endpoint = f"/docs/{self.doc_id}/tables/{table_id}/records"
-        data = {"records": [{"fields": r} for r in records]}
-        result = await self._request("POST", endpoint, data)
-        return result
-
-    async def update_records(self, table_id, records):
-        endpoint = f"/docs/{self.doc_id}/tables/{table_id}/records"
-        records = [r.copy() for r in records]
-        data = {"records": [{"id": r.pop("id"), "fields": r} for r in records]}
-        result = await self._request("PATCH", endpoint, data)
-        return result
+logger = logging.getLogger(__name__)
 
 
 class TchapIam:
-    REFRESH_DELTA = 3600
-    TZ = timezone(timedelta(hours=2))
+    """
+    Identity and Access Management for Tchap users.
+
+    Primary check: domain-based (user_allowed_domains from config).
+    No external dependency required.
+
+    Legacy Grist integration is kept as an optional add-on but never
+    blocks startup or basic authorization.
+    """
 
     def __init__(self, config):
         self.config = config
-        # Vérifier si la configuration Grist est présente
-        if (
-            not getattr(config, "grist_api_server", None)
-            or not getattr(config, "grist_api_key", None)
-            or not getattr(config, "grist_users_table_id", None)
-            or not getattr(config, "grist_users_table_name", None)
-        ):
-            # Grist n'est pas configuré, désactivez l'intégration
-            self.iam_client = None
-            print("Grist integration disabled: missing configuration")
-        else:
-            self.users_table_id = config.grist_users_table_id
-            self.users_table_name = config.grist_users_table_name
-            self.iam_client = AsyncGristDocAPI(
-                self.users_table_id,
-                server=config.grist_api_server,
-                api_key=config.grist_api_key,
-            )
+        self._grist_client = None
+        self._users_allowed: dict = {}
+        self._users_not_allowed: dict = {}
 
-        # Listes d'utilisateurs
-        self.users_allowed = {}
-        self.users_not_allowed = {}
-        self.last_refresh = None
+        # Optional Grist integration (legacy)
+        grist_server = getattr(config, "grist_api_server", "")
+        grist_key = getattr(config, "grist_api_key", "")
+        grist_doc = getattr(config, "grist_users_table_id", "")
+        grist_table = getattr(config, "grist_users_table_name", "")
 
-        # Si l'intégration Grist est active, lancer le refresh
-        if self.iam_client:
-            asyncio.run(self._refresh())
+        if grist_server and grist_key and grist_doc and grist_table:
+            try:
+                from app._grist_legacy import AsyncGristDocAPI
+
+                self._grist_client = AsyncGristDocAPI(grist_doc, server=grist_server, api_key=grist_key)
+                self._grist_table_name = grist_table
+                logger.info("Grist IAM integration enabled (legacy)")
+            except ImportError:
+                logger.info("Grist legacy module not found, domain-only IAM active")
         else:
-            print("Skipping Grist refresh as integration is disabled")
+            logger.info("Grist not configured, domain-only IAM active")
 
     @staticmethod
-    def domain_from_sender(sender: str) -> str:
+    def domain_from_sender(sender: str) -> Optional[str]:
         """
-        Sender IDs are formatted like this: "@<mail_username>-<mail_domain>:<matrix_server>
-        e.g. @john.doe-ministere_example.gouv.fr1:agent.ministere_example.tchap.gouv.frmerci
+        Extract email domain from a Tchap Matrix sender ID.
+
+        Sender IDs look like: @john.doe-ministere.gouv.fr1:agent.tchap.gouv.fr
+        We extract the domain part between the last '-' and ':'.
         """
-        match = re.search(
-            r"(?<=\-)[^\-\:]+[0-9]*(?=\:)", sender
-        )  # match the domain name (between the last "-" and ":", with optional numbers to ignore at the end of the domain) WARNING: this regex is not perfect and doesn't work for domain names with dashes in it like "developpement-durable.gouv.fr"
+        match = re.search(r"(?<=\-)[^\-\:]+[0-9]*(?=\:)", sender)
         if match:
             return match.group(0)
+        logger.warning(f"Could not extract domain from sender: {sender}")
+        return None
 
-        print("Could not extract domain from sender: %s" % sender)
+    async def is_user_allowed(self, config, username: str, refresh: bool = False) -> tuple[bool, str]:
+        """
+        Check if a user is allowed to interact with the bot.
 
-    async def _refresh(self):
-        if not self.iam_client:
-            print("Skipping _refresh: Grist integration disabled")
+        1. Domain check (always active, from config.user_allowed_domains)
+        2. Grist user table check (optional legacy, if configured)
+
+        Returns:
+            (is_allowed, error_message)
+        """
+        allowed_domains = getattr(config, "user_allowed_domains", ["*"])
+
+        # 1. Domain check
+        if "*" not in allowed_domains:
+            domain = self.domain_from_sender(username)
+            if not domain or domain not in allowed_domains:
+                return False, AlbertMsg.domain_not_allowed
+
+        # 2. Grist check (optional)
+        if self._grist_client:
+            if refresh:
+                await self._refresh_grist()
+            if self._users_allowed and username not in self._users_allowed:
+                return False, AlbertMsg.user_not_allowed
+
+        return True, ""
+
+    async def _refresh_grist(self):
+        """Refresh user lists from Grist (legacy, optional)."""
+        if not self._grist_client:
             return
-        ttl = datetime.utcnow() - timedelta(seconds=self.REFRESH_DELTA)
-        if not self.last_refresh or self.last_refresh < ttl:
-            # Met à jour la liste des utilisateurs autorisés
-            users_table = await self.iam_client.fetch_table(
-                self.users_table_name, filters={"status": ["allowed"]}
-            )
-            self.users_allowed.clear()
-            for record in users_table:
-                self.users_allowed[record.tchap_user] = record
-
-            # Met à jour la liste des utilisateurs non autorisés
-            users_table = await self.iam_client.fetch_table(
-                self.users_table_name, filters={"status": ["pending", "forbidden"]}
-            )
-            self.users_not_allowed.clear()
-            for record in users_table:
-                self.users_not_allowed[record.tchap_user] = record
-
-            self.last_refresh = datetime.utcnow()
-            print("User table (IAM) updated")
-
-    async def is_user_allowed(self, config, username, refresh=False) -> tuple[bool, str]:
-        # Si Grist n'est pas configuré, on autorise tous les utilisateurs par défaut
-        if not self.iam_client:
-            return True, ""
-        if refresh:
-            await self._refresh()
-        is_allowed = False
-        msg = ""
-        # 1. Vérification de l'utilisateur
-        is_allowed = username in self.users_allowed
-        if not is_allowed:
-            msg = AlbertMsg.user_not_allowed
-        # 2. Vérification du domaine
-        if is_allowed:
-            if "*" in config.user_allowed_domains:
-                is_allowed = True
-            elif self.domain_from_sender(username) in config.user_allowed_domains:
-                is_allowed = True
-            else:
-                is_allowed = False
-                msg = AlbertMsg.domain_not_allowed
-        return is_allowed, msg
-
-    async def add_pending_user(self, config, username) -> bool:
-        # Si Grist n'est pas configuré, on ne peut pas ajouter l'utilisateur en pending
-        if not self.iam_client:
-            print("Cannot add pending user: Grist integration disabled")
-            return False
-
-        if username in list(self.users_allowed) + list(self.users_not_allowed):
-            return False
-
-        record = {
-            "tchap_user": username,
-            "status": "pending",
-            "domain": self.domain_from_sender(username),
-            "n_questions": 0,
-        }
-        results = await self.iam_client.add_records(self.users_table_name, [record])
-        # Mise à jour de la liste des utilisateurs non autorisés
-        records = [to_record(results["records"][0]["id"], record)]
-        for r in records:
-            self.users_not_allowed[r.tchap_user] = r
-        return True
-
-    async def increment_user_question(self, username, n=1, update_last_activity=True):
-        if not self.iam_client:
-            print("Grist integration is disabled, skipping increment_user_question")
-            return
-
         try:
-            record = self.users_allowed[username]
-        except Exception as err:
-            raise ValueError("User not found in grist") from err
+            from app._grist_legacy import to_record
 
-        updates = {"n_questions": record.n_questions + n}
-        if update_last_activity:
-            updates["last_activity"] = str(datetime.now(self.TZ))
+            users_table = await self._grist_client.fetch_table(
+                self._grist_table_name, filters={"status": ["allowed"]}
+            )
+            self._users_allowed.clear()
+            for record in users_table:
+                self._users_allowed[record.tchap_user] = record
 
-        await self.iam_client.update_records(self.users_table_name, [{"id": record.id, **updates}])
-        self.users_allowed[username] = record._replace(**updates)
+            users_table = await self._grist_client.fetch_table(
+                self._grist_table_name, filters={"status": ["pending", "forbidden"]}
+            )
+            self._users_not_allowed.clear()
+            for record in users_table:
+                self._users_not_allowed[record.tchap_user] = record
+
+            logger.info("Grist user table refreshed")
+        except Exception as e:
+            logger.warning(f"Grist refresh failed (non-blocking): {e}")
+
+    async def add_pending_user(self, config, username: str) -> bool:
+        """Add a pending user (Grist only, no-op if Grist not configured)."""
+        if not self._grist_client:
+            return False
+        try:
+            if username in list(self._users_allowed) + list(self._users_not_allowed):
+                return False
+            record = {
+                "tchap_user": username,
+                "status": "pending",
+                "domain": self.domain_from_sender(username),
+                "n_questions": 0,
+            }
+            await self._grist_client.add_records(self._grist_table_name, [record])
+            return True
+        except Exception as e:
+            logger.warning(f"Failed to add pending user to Grist: {e}")
+            return False
+
+    async def increment_user_question(self, username: str, n: int = 1, update_last_activity: bool = True):
+        """Increment question counter (Grist only, no-op if not configured)."""
+        if not self._grist_client:
+            return
+        try:
+            record = self._users_allowed.get(username)
+            if not record:
+                return
+            from datetime import datetime, timedelta, timezone
+
+            updates = {"n_questions": record.n_questions + n}
+            if update_last_activity:
+                tz = timezone(timedelta(hours=2))
+                updates["last_activity"] = str(datetime.now(tz))
+            await self._grist_client.update_records(
+                self._grist_table_name, [{"id": record.id, **updates}]
+            )
+            self._users_allowed[username] = record._replace(**updates)
+        except Exception as e:
+            logger.warning(f"Failed to increment user question in Grist: {e}")
