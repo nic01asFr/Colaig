@@ -1,127 +1,225 @@
-# Synthese Claude - Projet Colaig
+# Synthese Claude - Projet Colaig APF Platform
 
-## Qu'est-ce que Colaig ?
+## 1. Etat actuel du projet
 
-**Colaig** (anciennement "Albert-Tchap") est un **bot conversationnel pour Tchap** (la messagerie instantanee de l'administration francaise, basee sur le protocole Matrix).
+**Colaig** (anciennement "Albert-Tchap") est un **bot conversationnel mono-instance pour Tchap** (messagerie Matrix de l'administration francaise) utilisant **Albert** (LLM souverain, Llama 3.1 8B) avec du **RAG** sur documents stockes en **WebDAV**.
 
-Il utilise **Albert** (le LLM souverain de l'administration, base sur Llama) pour repondre aux questions des agents publics, avec un systeme de **RAG** (Retrieval Augmented Generation) qui s'appuie sur des documents stockes en **WebDAV**.
+### Stack technique actuelle
+- Python 3.10+ / pydantic-settings / matrix-nio / FAISS / Playwright+browser-use
+- Deploiement Docker mono-instance
 
-### Stack technique
-- **Langage** : Python 3.10+
-- **Protocole** : Matrix (via `matrix-nio`)
-- **LLM** : Albert API (Llama 3.1 8B Instruct)
-- **Embeddings** : BAAI/bge-m3 (dimension 1024)
-- **Index vectoriel** : FAISS
-- **Stockage documents** : WebDAV (Nextcloud/mDrive)
-- **Extraction web** : Playwright + browser-use
-- **Config** : pydantic-settings + `.env`
-- **Deploiement** : Docker
-
-### Architecture principale
+### Architecture actuelle
 ```
 app/
-  bot.py              # TchapBot - point d'entree principal
-  config.py           # Config (pydantic-settings) + EnvConfig (dataclass) - DOUBLON
-  core_llm.py         # Logique LLM/Albert
-  llm.py              # Couche LLM complementaire
-  bot_msg.py          # Gestion des messages
-  tchap_utils.py      # Utilitaires Tchap
-  iam.py              # Gestion identite/autorisations
-  commands/            # Systeme de commandes (registry, decorators, web, document...)
-  services/            # Services metier (WebDAV, embeddings, comportements, webhooks...)
-  actions/             # Actions RAG (standard, synthese)
-  handlers/            # Handlers web
-  matrix_bot/          # Lib wrapper matrix-nio (fork simplematrixbotlib)
-  index/               # Types d'index
+  bot.py              # TchapBot (21k) - monolithique
+  config.py           # 2 systemes dupliques : Config Pydantic + EnvConfig dataclass
+  core_llm.py         # Client Albert API (23k)
+  iam.py              # Auth via Grist (dependance externe)
+  commands/            # Commandes (!aide, !indexer, !recherche_web...)
+  services/
+    webdav.py              # Client WebDAV (66k - monolithique)
+    document_index.py      # Index FAISS (65k)
+    behavior_manager.py    # Comportements bot (38k)
+    browser_extraction.py  # Extraction web Playwright (101k)
+    embedding_service.py   # Embeddings Albert
+    ... (30+ fichiers)
+  matrix_bot/          # Wrapper matrix-nio
 ```
 
-### Fonctionnalites cles
-1. **Espaces documentaires isoles** : chaque salon Tchap peut etre lie a un espace avec ses propres documents, index et comportements
-2. **Commandes web** : `!recherche_web`, `!ajouter_lien`, `!explorer_lien`, etc.
-3. **Systeme de comportement** : actions, tools, prompts, rules personnalisables par espace (JSON)
-4. **Webhooks** : systeme de notifications entrantes/sortantes
-5. **Gestion de contextes** : hierarchie global > espace > salon > utilisateur > session
-6. **Extraction web dynamique** : Playwright pour le contenu JavaScript
+### Problemes structurels identifies
+1. **Double config** : `Config(BaseSettings)` + `EnvConfig(dataclass)` dans le meme fichier
+2. **`eval()` dangereux** dans config.py:181 pour parser USER_ALLOWED_DOMAINS
+3. **Dependance Grist** pour la gestion des utilisateurs (non souverain)
+4. **Mono-instance** : une seule paire de credentials possible
+5. **browser_extraction.py a 101k** : Playwright + Xvfb, trop lourd pour plateforme partagee
+6. **Aucune interface web**, aucun concept de plateforme
+7. **Fichier .whl commite** dans le repo
 
 ---
 
-## Travail demande
+## 2. Vision cible : Colaig APF Platform
 
-La branche assignee est `claude/refactor-colaig-tchap-bot-qRqkF`, ce qui indique un **refactoring** du bot Colaig/Tchap.
+Transformer le bot mono-instance en **plateforme d'instanciation** : une interface web admin centralisee permettant aux responsables de ministeres de creer et gerer leurs bots Colaig sans intervention technique.
 
-**Aucune issue GitHub ouverte** n'a ete trouvee pour preciser le perimetre exact.
+```
++------------------------------------------------------+
+|              COLAIG APF -- Plateforme                 |
+|                                                       |
+|  Interface web (FastAPI + Jinja2 + HTMX)              |
+|  Auth : AgentConnect OIDC (agents publics FR)         |
+|                                                       |
+|  Operateur DINUM       Admin Ministere                |
+|  -----------------     ------------------             |
+|  Creer admins          Creer/gerer ses bots           |
+|  Vue globale           Configurer workspaces          |
+|  Politiques            Superviser/redemarrer          |
+|                                                       |
+|  ======== Moteur bot (existant, refactorise) ======   |
+|  N instances async concurrentes                       |
+|  Instance 1 : Bot DGFIP  -> Tchap #1 + WebDAV #1     |
+|  Instance 2 : Bot MTE    -> Tchap #2 + WebDAV #2     |
+|  Instance N : ...                                     |
++------------------------------------------------------+
+```
 
-Le commit unique sur `main` est un mega-commit contenant tout le projet, ce qui confirme que le code n'a pas encore ete structure/refactore.
-
----
-
-## Problemes identifies dans le code actuel
-
-### 1. Double systeme de configuration
-`config.py` contient **deux classes de config** qui font la meme chose :
-- `Config(BaseSettings)` avec pydantic-settings (lignes 32-168)
-- `EnvConfig` dataclass (lignes 257-299)
-- Plus un singleton `env_config` instancie manuellement avec `os.getenv()` partout (lignes 175-224), ce qui **annule l'interet de pydantic-settings**
-
-### 2. Fichier bot.py monolithique
-`bot.py` (580+ lignes) melange initialisation, chargement de commandes, callbacks, maintenance, et logique metier.
-
-### 3. Beaucoup de documentation, peu de tests
-- Nombreux fichiers `.md` a la racine (12+)
-- Seulement 2 fichiers de test (`test_detection_only.py`, `test_dynamic_extraction.py`)
-
-### 4. Structure de packages non standard
-- Le package s'appelle `albert-tchap` dans `pyproject.toml` mais le code est dans `app/`
-- `setuptools.packages = ["app"]` avec `package-dir = {""="."}` est fragile
-
-### 5. Securite
-- `eval()` utilise dans `config.py:181` pour parser `USER_ALLOWED_DOMAINS` - **injection de code possible**
-
-### 6. Fichier .whl commite
-- `browser_use-0.1.41-py3-none-any.whl` est directement dans le repo (112 Ko)
-
----
-
-## Questions ouvertes
-
-### Perimetre du refactoring
-1. **Quel est le scope exact du refactoring demande ?** La branche dit "refactor" mais sans issue, le perimetre est flou. Options possibles :
-   - Refactoring complet de l'architecture
-   - Nettoyage du systeme de configuration (fusionner Config/EnvConfig)
-   - Decoupage de `bot.py` en modules
-   - Reorganisation des fichiers `.md`
-   - Ajout de tests
-
-2. **Faut-il renommer le projet ?** Le `pyproject.toml` dit "albert-tchap", le README dit "Colaig", le code utilise les deux noms.
-
-3. **Faut-il garder la compatibilite avec l'upstream albert-tchap ?** Le projet est un fork de `tchap_bot` (PEREN) enrichi. Un refactoring profond casserait ce lien.
-
-### Questions techniques
-4. **Config unifiee** : Peut-on supprimer `EnvConfig` et ne garder que `Config(BaseSettings)` ? Certains modules utilisent l'un, d'autres l'autre.
-
-5. **Le fichier .whl** : Peut-on le retirer et utiliser une dependance pip classique pour `browser-use` ?
-
-6. **Tests** : Y a-t-il un environnement de test (mock Albert API, mock Matrix) ou faut-il le creer ?
-
-7. **WebDAV** : Le systeme WebDAV semble etre un ajout specifique a Colaig (pas dans l'upstream). Est-ce la partie la plus critique a preserver ?
-
-### Questions fonctionnelles
-8. **Quels sont les salons/espaces actuellement utilises ?** Pour comprendre les cas d'usage reels.
-
-9. **Le systeme de comportement (behavior)** est-il utilise en production ou est-ce encore experimental ?
-
-10. **Les webhooks** sont-ils actifs ? Quels systemes les declenchent ?
+### Contraintes absolues
+- Aucun LLM autre qu'Albert API (souverainete)
+- Aucun storage autre que WebDAV
+- Aucun messaging autre que Matrix/Tchap
+- Aucune dependance cloud non-souveraine
+- Jamais de donnees documentaires dans la DB plateforme (SQLite = registre seulement)
+- Auth : AgentConnect uniquement (fallback mot de passe pour dev/test)
+- Un seul container Docker
+- Deployable sur infra DINUM
 
 ---
 
-## Prochaines etapes possibles (en attente de validation)
+## 3. Architecture cible
 
-| Priorite | Action | Effort |
-|----------|--------|--------|
-| P0 | Corriger la faille `eval()` dans config.py | Petit |
-| P1 | Fusionner Config/EnvConfig en un seul systeme | Moyen |
-| P1 | Decouper bot.py en modules coherents | Moyen |
-| P2 | Renommer le projet de facon coherente | Petit |
-| P2 | Ajouter des tests unitaires | Grand |
-| P3 | Nettoyer les .md redondants a la racine | Petit |
-| P3 | Retirer le .whl et utiliser pip | Petit |
+### Nouveaux fichiers a creer
+
+```
+platform/
+  __init__.py
+  registry.py          # PlatformRegistry (aiosqlite) : admins + instances + sessions
+  session.py           # Sessions web (cookie signe HMAC-SHA256, expiry 8h)
+  agentconnect.py      # Client OIDC AgentConnect
+  provisioner.py       # Creation/demarrage/arret des instances bot
+
+web/
+  __init__.py
+  app.py               # FastAPI create_app() + montage routes
+  routes_admin.py      # Routes interface admin
+  templates/
+    base.html
+    login.html
+    dashboard.html             # Vue operateur DINUM
+    admin/
+      dashboard.html           # Vue admin ministere
+      instances.html           # Liste ses bots
+      instance_new.html        # Wizard creation (4 etapes)
+      instance_detail.html     # Config + statut + actions
+      partials/
+        test_webdav.html       # Badge test connexion HTMX
+        test_tchap.html        # Badge test connexion HTMX
+        instance_status.html
+    operator/
+      dashboard.html
+      admins.html
+```
+
+### Fichiers existants a refactoriser
+
+| Fichier | Action |
+|---------|--------|
+| `app/config.py` | Fusionner Config+EnvConfig, ajouter BotInstanceConfig |
+| `app/bot.py` | Extraire BotRunner(config: BotInstanceConfig) pour N instances |
+| `app/iam.py` | Supprimer Grist, verification domaine via platform registry |
+| `app/__main__.py` | Remplacer par main.py qui demarre web + N bots |
+
+### BotInstanceConfig (dataclass cible)
+
+```python
+@dataclass
+class BotInstanceConfig:
+    instance_id: str
+    matrix_homeserver: str
+    matrix_username: str
+    matrix_password: str
+    webdav_url: str
+    webdav_username: str
+    webdav_password: str
+    webdav_root_path: str
+    albert_api_url: str
+    albert_api_token: str
+    albert_model: str
+    albert_model_embedding: str
+    admin_email: str
+    created_at: str
+    status: str = "stopped"  # running | stopped | error
+```
+
+---
+
+## 4. Feuille de route
+
+### Phase 0 -- Preparation et nettoyage (P1)
+- [ ] Fusionner Config + EnvConfig en une seule classe Pydantic
+- [ ] Creer BotInstanceConfig
+- [ ] Extraire BotRunner depuis bot.py (accepte BotInstanceConfig, pas env_config global)
+- [ ] Supprimer dependance Grist dans iam.py (verification domaine simple)
+- [ ] Desactiver browser_extraction par defaut (BROWSER_EXTRACTION_ENABLED=false)
+
+### Phase 1 -- Registre plateforme (P2)
+- [ ] platform/registry.py : PlatformRegistry (aiosqlite)
+  - Tables : platform_admins, bot_instances, platform_sessions
+  - CRUD admins + instances
+- [ ] platform/session.py : sessions cookie signe HMAC-SHA256
+
+### Phase 2 -- Auth AgentConnect (P3)
+- [ ] platform/agentconnect.py : flux OIDC Authorization Code
+- [ ] Routes auth : /auth/login, /auth/callback, /auth/logout
+- [ ] Middleware session sur /platform/ et /admin/
+
+### Phase 3 -- Interface web admin (P4)
+- [ ] web/app.py : FastAPI create_platform_app()
+- [ ] Routes operateur DINUM (/platform/) : dashboard, gestion admins
+- [ ] Routes admin ministere (/admin/) : dashboard, liste instances, wizard creation
+- [ ] Wizard creation 4 etapes HTMX :
+  1. Identite (nom bot, description, domaines)
+  2. Espace WebDAV (URL, credentials, test connexion)
+  3. Bot Tchap (homeserver, credentials, test connexion)
+  4. Resume + confirmation
+- [ ] Routes test HTMX : POST /admin/test/webdav, POST /admin/test/tchap
+
+### Phase 4 -- Multi-instance runner (P5)
+- [ ] platform/provisioner.py : BotRunnerManager
+  - start/stop/status/restart par instance
+  - Chaque bot = asyncio.Task independante
+- [ ] main.py : demarre web + reprend instances actives au redemarrage
+
+### Phase 5 -- Finalisation (P6)
+- [ ] Dockerfile : retirer Playwright/Xvfb si desactive (~500MB -> ~200MB)
+- [ ] docker-compose.yml : volumes SQLite + sessions Matrix
+- [ ] .env.example : toutes les nouvelles variables
+- [ ] README.md : guide deploiement + guide admin
+
+---
+
+## 5. Variables d'env cibles
+
+```bash
+# Plateforme
+PLATFORM_SESSION_SECRET=xxx
+PLATFORM_OPERATOR_EMAILS=admin@dinum.gouv.fr
+PLATFORM_DB_PATH=/app/data/platform.db
+
+# AgentConnect
+AGENTCONNECT_CLIENT_ID=xxx
+AGENTCONNECT_CLIENT_SECRET=xxx
+AGENTCONNECT_REDIRECT_URI=https://colaig.din.gouv.fr/auth/callback
+AGENTCONNECT_ISSUER=https://auth.agentconnect.gouv.fr/api/v2
+
+# Albert (partage, surchargeable par instance)
+ALBERT_API_URL=https://albert-api.etalab.gouv.fr
+ALBERT_API_TOKEN=xxx
+ALBERT_MODEL=meta-llama/Llama-3.1-8B-Instruct
+ALBERT_MODEL_EMBEDDING=BAAI/bge-m3
+
+# Feature flags
+BROWSER_EXTRACTION_ENABLED=false
+```
+
+Les credentials Matrix et WebDAV sont geres **par instance** dans la DB plateforme, pas dans le .env.
+
+---
+
+## 6. Questions ouvertes
+
+1. **Ordre d'execution** : Faut-il livrer phase par phase ou tout d'un bloc ?
+2. **Tests** : Quel niveau de couverture attendu ? Mocks Albert API + Matrix ?
+3. **AgentConnect integration** : Acces aux credentials d'integration deja disponible ?
+4. **Fallback auth** : Le mode PLATFORM_ADMIN_PASSWORD pour dev/test est-il suffisant pour commencer ?
+5. **Donnees existantes** : Y a-t-il des instances en production a migrer ?
+6. **browser_extraction** : Supprimer le code ou juste le desactiver par feature flag ?
+7. **WebDAV monolithique (66k)** : Faut-il le decouper dans cette iteration ou plus tard ?
