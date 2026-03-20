@@ -23,18 +23,24 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
+from jinja2 import Environment, FileSystemLoader
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse, RedirectResponse
+from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
 from starlette.routing import Route
 
 from .models import AdminRole, BotInstanceConfig, InstanceStatus, PlatformAdmin
 from .proconnect import MockProConnectClient, ProConnectClient, create_auth_client
 from .registry import PlatformRegistry
 from .session import SESSION_COOKIE_NAME, SessionManager
+
+# Jinja2 templates
+_TEMPLATES_DIR = Path(__file__).parent / "templates"
+_jinja_env = Environment(loader=FileSystemLoader(str(_TEMPLATES_DIR)), autoescape=True)
 
 logger = logging.getLogger(__name__)
 
@@ -500,6 +506,34 @@ async def health(request: Request) -> JSONResponse:
     })
 
 
+# === HTML pages ===
+
+
+async def ui_login(request: Request) -> HTMLResponse:
+    """Render the login page."""
+    auth_client = request.app.state.auth_client
+    proconnect_enabled = isinstance(auth_client, ProConnectClient) and auth_client.is_enabled
+    template = _jinja_env.get_template("login.html")
+    return HTMLResponse(template.render(proconnect_enabled=proconnect_enabled))
+
+
+async def ui_dashboard(request: Request) -> HTMLResponse:
+    """Render the dashboard. Auth check is done client-side via /api/me."""
+    session = await _get_current_user(request)
+    if not session:
+        return RedirectResponse(url="/ui/login", status_code=302)
+    template = _jinja_env.get_template("dashboard.html")
+    return HTMLResponse(template.render())
+
+
+async def ui_root(request: Request) -> RedirectResponse:
+    """Redirect root to dashboard or login."""
+    session = await _get_current_user(request)
+    if session:
+        return RedirectResponse(url="/dashboard", status_code=302)
+    return RedirectResponse(url="/ui/login", status_code=302)
+
+
 # === App factory ===
 
 
@@ -519,14 +553,18 @@ def create_app(
         runner: BotRunner instance (optional, for start/stop)
     """
     routes = [
-        # Auth
+        # HTML pages
+        Route("/", ui_root, methods=["GET"]),
+        Route("/ui/login", ui_login, methods=["GET"]),
+        Route("/dashboard", ui_dashboard, methods=["GET"]),
+        # Auth API
         Route("/login", login_password, methods=["POST"]),
         Route("/auth/login", auth_proconnect_login, methods=["GET"]),
         Route("/auth/callback", auth_proconnect_callback, methods=["GET"]),
         Route("/auth/logout", auth_logout, methods=["GET", "POST"]),
-        # User
+        # User API
         Route("/api/me", api_me, methods=["GET"]),
-        # Instances
+        # Instances API
         Route("/api/instances", api_list_instances, methods=["GET"]),
         Route("/api/instances", api_create_instance, methods=["POST"]),
         Route("/api/instances/{instance_id}", api_get_instance, methods=["GET"]),

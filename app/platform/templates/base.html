@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Colaig{% endblock %} - Plateforme APF</title>
+    <style>
+        :root {
+            --bg: #f8f9fa;
+            --card: #fff;
+            --primary: #000091;
+            --primary-light: #e3e3fd;
+            --success: #18753c;
+            --danger: #ce0500;
+            --warning: #b34000;
+            --text: #161616;
+            --text-muted: #666;
+            --border: #ddd;
+            --radius: 6px;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Marianne', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+
+        /* Header */
+        .header { background: var(--primary); color: #fff; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 18px; font-weight: 600; }
+        .header .user-info { font-size: 14px; display: flex; align-items: center; gap: 12px; }
+        .header a { color: #fff; text-decoration: none; opacity: 0.8; }
+        .header a:hover { opacity: 1; }
+
+        /* Layout */
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+        /* Cards */
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+        .card h2 { font-size: 16px; margin-bottom: 12px; color: var(--primary); }
+
+        /* Status badges */
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        .badge-running { background: #b8fec9; color: var(--success); }
+        .badge-stopped { background: #eee; color: var(--text-muted); }
+        .badge-error { background: #ffe9e6; color: var(--danger); }
+        .badge-starting { background: #feecc2; color: var(--warning); }
+
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; }
+        th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+        th { font-size: 13px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        tr:hover td { background: #f5f5fe; }
+
+        /* Buttons */
+        .btn { display: inline-block; padding: 8px 16px; border: none; border-radius: var(--radius); font-size: 14px; cursor: pointer; text-decoration: none; font-weight: 500; }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: #1212ff; }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-small { padding: 4px 10px; font-size: 12px; }
+
+        /* Forms */
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+        /* Messages */
+        .alert { padding: 12px 16px; border-radius: var(--radius); margin-bottom: 16px; font-size: 14px; }
+        .alert-success { background: #b8fec9; color: var(--success); }
+        .alert-error { background: #ffe9e6; color: var(--danger); }
+
+        /* Actions bar */
+        .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+
+        /* Login page */
+        .login-container { max-width: 400px; margin: 80px auto; }
+        .login-container .card { text-align: center; }
+        .login-container h1 { color: var(--primary); margin-bottom: 4px; }
+        .login-container p { color: var(--text-muted); margin-bottom: 24px; }
+    </style>
+</head>
+<body>
+    {% block body %}{% endblock %}
+
+    <script>
+    // Helpers
+    async function apiCall(method, url, body) {
+        const opts = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin' };
+        if (body) opts.body = JSON.stringify(body);
+        const resp = await fetch(url, opts);
+        return { ok: resp.ok, status: resp.status, data: await resp.json() };
+    }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -44,7 +44,7 @@ build-backend = "setuptools.build_meta"
 # Packaging
 
 [tool.setuptools]
-packages = ["app", "platform"]
+packages = ["app", "app.platform"]
 package-dir = {""="."}
 
 # Linter

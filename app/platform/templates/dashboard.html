@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block body %}
+<div class="header">
+    <h1>Colaig - Plateforme APF</h1>
+    <div class="user-info">
+        <span id="userName"></span>
+        <a href="/auth/logout">Deconnexion</a>
+    </div>
+</div>
+
+<div class="container">
+    <div id="alert" class="alert" style="display:none;"></div>
+
+    <!-- Stats -->
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+        <div class="card" style="text-align:center;">
+            <div style="font-size: 28px; font-weight: 700; color: var(--primary);" id="totalInstances">-</div>
+            <div style="color: var(--text-muted); font-size: 13px;">Instances</div>
+        </div>
+        <div class="card" style="text-align:center;">
+            <div style="font-size: 28px; font-weight: 700; color: var(--success);" id="runningInstances">-</div>
+            <div style="color: var(--text-muted); font-size: 13px;">En cours</div>
+        </div>
+        <div class="card" style="text-align:center;">
+            <div style="font-size: 28px; font-weight: 700; color: var(--danger);" id="errorInstances">-</div>
+            <div style="color: var(--text-muted); font-size: 13px;">En erreur</div>
+        </div>
+    </div>
+
+    <!-- Instances list -->
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h2>Instances de bot</h2>
+            <button class="btn btn-primary btn-small" onclick="showCreateForm()">+ Nouvelle instance</button>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Serveur</th>
+                    <th>Utilisateur</th>
+                    <th>Statut</th>
+                    <th>Admin</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="instancesBody">
+                <tr><td colspan="6" style="text-align:center; color: var(--text-muted);">Chargement...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Create form (hidden by default) -->
+    <div id="createForm" class="card" style="display:none;">
+        <h2>Nouvelle instance</h2>
+        <form onsubmit="return createInstance(event)">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Nom</label>
+                    <input type="text" id="c_name" required placeholder="Bot MTE">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="c_description" placeholder="Bot pour le ministere">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Serveur Matrix</label>
+                    <input type="url" id="c_homeserver" required placeholder="https://matrix.agent.dev-durable.tchap.gouv.fr">
+                </div>
+                <div class="form-group">
+                    <label>Utilisateur Matrix</label>
+                    <input type="text" id="c_username" required placeholder="colaig.assistant">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Mot de passe Matrix</label>
+                    <input type="password" id="c_password" required>
+                </div>
+                <div class="form-group">
+                    <label>Domaines autorises (CSV)</label>
+                    <input type="text" id="c_domains" placeholder="* (tous) ou gouv.fr,ecologie.gouv.fr">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>URL WebDAV</label>
+                    <input type="url" id="c_webdav_url" placeholder="https://...">
+                </div>
+                <div class="form-group">
+                    <label>Utilisateur WebDAV</label>
+                    <input type="text" id="c_webdav_user">
+                </div>
+            </div>
+            <div class="actions">
+                <button type="button" class="btn" onclick="document.getElementById('createForm').style.display='none'">Annuler</button>
+                <button type="submit" class="btn btn-primary">Creer</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentUser = null;
+
+async function loadUser() {
+    const { ok, data } = await apiCall('GET', '/api/me');
+    if (!ok) { window.location.href = '/ui/login'; return; }
+    currentUser = data;
+    document.getElementById('userName').textContent = data.display_name || data.email;
+}
+
+async function loadInstances() {
+    const { ok, data } = await apiCall('GET', '/api/instances');
+    if (!ok) return;
+
+    const instances = data.instances || [];
+    document.getElementById('totalInstances').textContent = instances.length;
+    document.getElementById('runningInstances').textContent = instances.filter(i => i.status === 'running').length;
+    document.getElementById('errorInstances').textContent = instances.filter(i => i.status === 'error').length;
+
+    const tbody = document.getElementById('instancesBody');
+    if (instances.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">Aucune instance. Cliquez sur "+ Nouvelle instance" pour commencer.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = instances.map(inst => `
+        <tr>
+            <td><strong>${esc(inst.name || inst.instance_id)}</strong></td>
+            <td style="font-size:13px;">${esc(inst.matrix_homeserver || '-')}</td>
+            <td style="font-size:13px;">${esc(inst.matrix_username || '-')}</td>
+            <td><span class="badge badge-${inst.status}">${inst.status}</span>
+                ${inst.error_message ? '<br><small style="color:var(--danger);">' + esc(inst.error_message) + '</small>' : ''}
+            </td>
+            <td style="font-size:13px;">${esc(inst.admin_email)}</td>
+            <td>
+                ${inst.status === 'stopped' || inst.status === 'error' ? `<button class="btn btn-success btn-small" onclick="startInstance('${inst.instance_id}')">Demarrer</button>` : ''}
+                ${inst.status === 'running' ? `<button class="btn btn-danger btn-small" onclick="stopInstance('${inst.instance_id}')">Arreter</button>` : ''}
+                ${inst.status !== 'running' ? `<button class="btn btn-danger btn-small" onclick="deleteInstance('${inst.instance_id}')">Supprimer</button>` : ''}
+            </td>
+        </tr>
+    `).join('');
+}
+
+function showCreateForm() {
+    document.getElementById('createForm').style.display = 'block';
+    document.getElementById('c_name').focus();
+}
+
+async function createInstance(e) {
+    e.preventDefault();
+    const domains = document.getElementById('c_domains').value.trim();
+    const body = {
+        name: document.getElementById('c_name').value,
+        description: document.getElementById('c_description').value,
+        matrix_homeserver: document.getElementById('c_homeserver').value,
+        matrix_username: document.getElementById('c_username').value,
+        matrix_password: document.getElementById('c_password').value,
+        webdav_url: document.getElementById('c_webdav_url').value,
+        webdav_username: document.getElementById('c_webdav_user').value,
+        allowed_domains: domains ? domains.split(',').map(d => d.trim()) : ['*'],
+    };
+
+    const { ok, data } = await apiCall('POST', '/api/instances', body);
+    if (ok) {
+        showAlert('Instance creee avec succes', 'success');
+        document.getElementById('createForm').style.display = 'none';
+        e.target.reset();
+        loadInstances();
+    } else {
+        showAlert(data.error || 'Erreur', 'error');
+    }
+    return false;
+}
+
+async function startInstance(id) {
+    const { ok, data } = await apiCall('POST', `/api/instances/${id}/start`);
+    if (ok) { showAlert('Instance en cours de demarrage', 'success'); }
+    else { showAlert(data.error || 'Erreur', 'error'); }
+    loadInstances();
+}
+
+async function stopInstance(id) {
+    if (!confirm('Arreter cette instance ?')) return;
+    const { ok, data } = await apiCall('POST', `/api/instances/${id}/stop`);
+    if (ok) { showAlert('Instance arretee', 'success'); }
+    else { showAlert(data.error || 'Erreur', 'error'); }
+    loadInstances();
+}
+
+async function deleteInstance(id) {
+    if (!confirm('Supprimer definitivement cette instance ?')) return;
+    const { ok, data } = await apiCall('DELETE', `/api/instances/${id}`);
+    if (ok) { showAlert('Instance supprimee', 'success'); }
+    else { showAlert(data.error || 'Erreur', 'error'); }
+    loadInstances();
+}
+
+function showAlert(msg, type) {
+    const el = document.getElementById('alert');
+    el.className = `alert alert-${type}`;
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+// Init
+loadUser();
+loadInstances();
+// Auto-refresh every 15s
+setInterval(loadInstances, 15000);
+</script>
+{% endblock %}

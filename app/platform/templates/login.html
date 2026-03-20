@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Connexion{% endblock %}
+
+{% block body %}
+<div class="login-container">
+    <div class="card">
+        <h1>Colaig</h1>
+        <p>Plateforme d'administration des bots</p>
+
+        <div id="alert" class="alert" style="display:none;"></div>
+
+        {% if proconnect_enabled %}
+        <a href="/auth/login" class="btn btn-primary" style="width:100%; margin-bottom:16px;">
+            Se connecter avec ProConnect
+        </a>
+        <hr style="margin: 16px 0; border: none; border-top: 1px solid var(--border);">
+        <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">Ou connexion directe (dev)</p>
+        {% endif %}
+
+        <form id="loginForm" onsubmit="return handleLogin(event)">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required placeholder="prenom.nom@gouv.fr">
+            </div>
+            <div class="form-group">
+                <label for="password">Mot de passe</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Connexion</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function handleLogin(e) {
+    e.preventDefault();
+    const alertEl = document.getElementById('alert');
+    alertEl.style.display = 'none';
+
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+
+    const { ok, data } = await apiCall('POST', '/login', { email, password });
+    if (ok) {
+        window.location.href = '/dashboard';
+    } else {
+        alertEl.className = 'alert alert-error';
+        alertEl.textContent = data.error || 'Erreur de connexion';
+        alertEl.style.display = 'block';
+    }
+    return false;
+}
+</script>
+{% endblock %}
