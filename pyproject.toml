@@ -19,7 +19,6 @@ dependencies = [
     "matrix-nio[e2e]==0.24.0",
     "cryptography==42.0.8",
     "structlog==24.2.0",
-    "grist_api==0.1.0",
     "jinja2==3.1.4",
     "openai>=1.68.2,<2.0.0",
     "aiohttp==3.9.3",
@@ -31,6 +30,11 @@ dependencies = [
     "browser-use==0.1.41",
     "langchain-openai>=0.3.11",
     "filelock==3.12.2",
+    # Platform dependencies (admin UI, multi-instance)
+    "aiosqlite>=0.20.0",
+    "starlette>=0.41.0",
+    "uvicorn[standard]>=0.30.0",
+    "python-multipart>=0.0.9",
 ]
 
 [build-system]
@@ -40,7 +44,7 @@ build-backend = "setuptools.build_meta"
 # Packaging
 
 [tool.setuptools]
-packages = ["app"]
+packages = ["app", "platform"]
 package-dir = {""="."}
 
 # Linter

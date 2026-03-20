@@ -1,0 +1,28 @@
+# Colaig Platform - Multi-instance admin server
+# Lighter than the main Dockerfile: no Playwright/Xvfb needed
+# The bot instances started by the runner share this image
+
+FROM python:3.11-slim
+
+WORKDIR /code
+COPY . .
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --upgrade pip wheel setuptools --timeout 1000 && \
+    pip install --timeout 1000 --retries 5 -e .
+
+# Create data directory for SQLite and sessions
+RUN mkdir -p /code/data
+
+WORKDIR /code
+ENV PYTHONPATH=/code
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+CMD ["python", "-m", "platform", "--host", "0.0.0.0", "--port", "8080"]

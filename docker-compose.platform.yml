@@ -1,0 +1,58 @@
+version: '3.8'
+
+# Colaig APF Platform - Multi-instance bot management
+# Usage: docker compose -f docker-compose.platform.yml up -d
+#
+# Two modes available:
+# 1. "python -m platform" (this file) - Web API + multi-instance runner
+# 2. "python -m app" (docker-compose.yml) - Single bot instance (legacy)
+
+services:
+  colaig-platform:
+    build:
+      context: .
+      dockerfile: Dockerfile.platform
+    container_name: colaig-platform
+    restart: unless-stopped
+    ports:
+      - "${PLATFORM_PORT:-8080}:8080"
+    volumes:
+      - platform-data:/code/data
+    environment:
+      # Platform configuration
+      - PLATFORM_SESSION_SECRET=${PLATFORM_SESSION_SECRET}
+      - PLATFORM_ADMIN_PASSWORD=${PLATFORM_ADMIN_PASSWORD:-}
+      - PLATFORM_OPERATOR_EMAILS=${PLATFORM_OPERATOR_EMAILS:-}
+      - PLATFORM_DB_PATH=/code/data/platform.db
+
+      # ProConnect OIDC (set PROCONNECT_ENABLED=true when credentials are ready)
+      - PROCONNECT_ENABLED=${PROCONNECT_ENABLED:-false}
+      - PROCONNECT_CLIENT_ID=${PROCONNECT_CLIENT_ID:-}
+      - PROCONNECT_CLIENT_SECRET=${PROCONNECT_CLIENT_SECRET:-}
+      - PROCONNECT_REDIRECT_URI=${PROCONNECT_REDIRECT_URI:-}
+      - PROCONNECT_ISSUER=${PROCONNECT_ISSUER:-https://auth.proconnect.gouv.fr/api/v2}
+
+      # Default Albert API (instances inherit these if not overridden)
+      - ALBERT_API_URL=${ALBERT_API_URL:-https://api.albert.etalab.gouv.fr/v1}
+      - ALBERT_API_TOKEN=${ALBERT_API_TOKEN:-}
+      - ALBERT_MODEL=${ALBERT_MODEL:-meta-llama/Llama-3.1-8B-Instruct}
+      - ALBERT_MODEL_EMBEDDING=${ALBERT_MODEL_EMBEDDING:-BAAI/bge-m3}
+
+      # Logging
+      - LOGLEVEL=${LOGLEVEL:-INFO}
+      - CONSOLE_LOGGING=true
+    networks:
+      - colaig-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+networks:
+  colaig-network:
+    driver: bridge
+
+volumes:
+  platform-data:
+    driver: local
