@@ -318,7 +318,8 @@ class Callbacks:
         )
         await self.matrix_client.send_text_message(
             room.room_id,
-            "Failed to decrypt your message. Make sure encryption is enabled in my config and "
-            "either enable sending messages to unverified devices or verify me if possible.",
+            "⚠️ Je ne peux pas déchiffrer votre message. "
+            "Pour résoudre ce problème, allez dans mon profil → Appareils → faites confiance à mon appareil, "
+            "ou créez un nouveau salon avec moi.",
             msgtype="m.notice",
         )

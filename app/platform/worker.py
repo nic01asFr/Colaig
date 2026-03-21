@@ -50,9 +50,12 @@ def _build_config(instance_data: dict):
         "browser_extraction_enabled": "browser_extraction_enabled",
     }
 
+    # Champs qui peuvent légitimement être vides (override les défauts de Config)
+    allow_empty = {"webdav_root_path"}
+
     for src, dst in field_map.items():
         val = instance_data.get(src)
-        if val is not None and val != "":
+        if val is not None and (val != "" or src in allow_empty):
             kwargs[dst] = val
 
     # allowed_domains needs special handling
@@ -145,6 +148,30 @@ def main():
         sys.stdout.write(f"ERROR invalid JSON: {e}\n")
         sys.stdout.flush()
         sys.exit(1)
+
+    # Isoler les chemins de session par instance AVANT tout import de l'app
+    # (bot_lib_config est un singleton instancié à l'import de app.matrix_bot.config)
+    instance_id = instance_data.get("instance_id", "unknown")
+    data_dir = f"/code/data/instances/{instance_id}"
+    os.makedirs(f"{data_dir}/store", exist_ok=True)
+    os.environ["STORE_PATH"] = f"{data_dir}/store"
+    os.environ["SESSION_PATH"] = f"{data_dir}/session.txt"
+
+    # E2E keys: decode base64 content and write to a temp file in the instance dir
+    e2e_keys_data = instance_data.get("e2e_keys_data", "")
+    e2e_keys_passphrase = instance_data.get("e2e_keys_passphrase", "")
+    if e2e_keys_data and e2e_keys_passphrase:
+        import base64
+        try:
+            keys_bytes = base64.b64decode(e2e_keys_data)
+            keys_path = f"{data_dir}/e2e_keys.txt"
+            with open(keys_path, "wb") as f:
+                f.write(keys_bytes)
+            os.environ["E2E_KEYS_PATH"] = keys_path
+            os.environ["E2E_KEYS_PASSPHRASE"] = e2e_keys_passphrase
+            logger.info(f"E2E keys written to {keys_path} for instance {instance_id}")
+        except Exception as e:
+            logger.error(f"Failed to decode E2E keys for instance {instance_id}: {e}")
 
     # Signal ready
     sys.stdout.write("READY\n")

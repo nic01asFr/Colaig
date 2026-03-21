@@ -49,6 +49,8 @@ CREATE TABLE IF NOT EXISTS bot_instances (
     allowed_domains TEXT DEFAULT '["*"]',
     groups_used TEXT DEFAULT 'document,web',
     browser_extraction_enabled INTEGER DEFAULT 0,
+    e2e_keys_data TEXT DEFAULT '',
+    e2e_keys_passphrase TEXT DEFAULT '',
     status TEXT DEFAULT 'stopped',
     created_at TEXT NOT NULL,
     last_started_at TEXT,
@@ -81,6 +83,19 @@ class PlatformRegistry:
         self._db.row_factory = aiosqlite.Row
         await self._db.executescript(_SCHEMA)
         await self._db.commit()
+        # Migrations: add new columns to existing databases
+        for col, definition in [
+            ("e2e_keys_data", "TEXT DEFAULT ''"),
+            ("e2e_keys_passphrase", "TEXT DEFAULT ''"),
+        ]:
+            try:
+                await self._db.execute(
+                    f"ALTER TABLE bot_instances ADD COLUMN {col} {definition}"
+                )
+                await self._db.commit()
+                logger.info(f"Migration: added column {col} to bot_instances")
+            except Exception:
+                pass  # Column already exists
         logger.info(f"Platform registry opened: {self.db_path}")
 
     async def close(self) -> None:

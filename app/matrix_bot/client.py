@@ -22,7 +22,8 @@ from nio import (
     LoginResponse,
 )
 from nio.exceptions import OlmUnverifiedDeviceError
-from nio.responses import UploadResponse
+from nio.responses import UploadResponse, KeysQueryResponse
+from nio.crypto.device import TrustState
 from PIL import Image
 
 from .auth import AuthLogin
@@ -96,9 +97,11 @@ class MatrixClient(AsyncClient):
             
         client_config = AsyncClientConfig(
             max_limit_exceeded=0,
-            max_timeouts=10,
+            max_timeouts=0,  # 0 = illimité, pas de backoff exponentiel
+            backoff_factor=0,  # pas de sleep entre les retries
             store_sync_tokens=True,
             encryption_enabled=self.matrix_config.encryption_enabled,
+            request_timeout=90,  # timeout aiohttp en secondes
         )
         logger.info(f"Configuration AsyncClient créée, encryption_enabled={self.matrix_config.encryption_enabled}")
         
@@ -161,7 +164,20 @@ class MatrixClient(AsyncClient):
                     if self.matrix_config.encryption_enabled:
                         logger.info("Chargement du store de chiffrement")
                         self.load_store()
-                        
+                        # Publier les clés Olm du device (obligatoire pour que Synapse accepte le sync)
+                        logger.info("Publication des clés Olm (keys_upload)...")
+                        keys_resp = await self.keys_upload()
+                        logger.info(f"keys_upload: {keys_resp}")
+                        # Auto-trust tous les devices connus (pattern bot)
+                        self.auto_trust_devices()
+                        # Importer les clés E2E si configurées (Megolm session export)
+                        await self.import_e2e_keys_if_configured()
+                        # Callback pour auto-trust les nouveaux devices après chaque keys_query
+                        self.add_response_callback(
+                            lambda resp: self.auto_trust_devices() or None,
+                            KeysQueryResponse,
+                        )
+
                     logger.info(f"Connecté avec la session existante: {self.user_id} (device_id: {self.auth.device_id})")
                     return True
                 else:
@@ -185,6 +201,24 @@ class MatrixClient(AsyncClient):
             
             if isinstance(response, LoginResponse):
                 logger.info(f"Authentification réussie, user_id: {response.user_id}, device_id: {response.device_id}")
+                # Charger le store E2E et publier les clés Olm
+                if self.matrix_config.encryption_enabled:
+                    self.load_store()
+                    logger.info("Publication des clés Olm (keys_upload) après login...")
+                    keys_resp = await self.keys_upload()
+                    logger.info(f"keys_upload: {keys_resp}")
+                    self.auto_trust_devices()
+                    # Importer les clés E2E si configurées (Megolm session export)
+                    await self.import_e2e_keys_if_configured()
+                    self.add_response_callback(
+                        lambda resp: self.auto_trust_devices() or None,
+                        KeysQueryResponse,
+                    )
+                # Persister la session pour réutiliser le même device au prochain démarrage
+                self.auth.device_id = response.device_id
+                self.auth.access_token = response.access_token
+                self.auth.write_session_file()
+                logger.info(f"Session sauvegardée dans {self.auth.session_stored_file_path}")
                 return response
             else:
                 logger.error(f"Échec de l'authentification: {response}")
@@ -193,6 +227,41 @@ class MatrixClient(AsyncClient):
             logger.error(f"Erreur critique lors de l'authentification: {str(e)}")
             logger.error(traceback.format_exc())
             return False
+
+    async def import_e2e_keys_if_configured(self) -> None:
+        """Import Megolm session keys from E2E_KEYS_PATH env var if set."""
+        import os as _os
+        keys_path = _os.environ.get("E2E_KEYS_PATH", "")
+        passphrase = _os.environ.get("E2E_KEYS_PASSPHRASE", "")
+        if not keys_path or not passphrase:
+            return
+        if not _os.path.exists(keys_path):
+            import logging as _log
+            _log.getLogger("colaig.bot").warning(f"E2E_KEYS_PATH défini mais fichier introuvable: {keys_path}")
+            return
+        import logging as _log
+        _log = _log.getLogger("colaig.bot")
+        try:
+            _log.info(f"Importation des clés E2E depuis {keys_path}...")
+            resp = await self.import_keys(keys_path, passphrase)
+            _log.info(f"Clés E2E importées: {resp}")
+        except Exception as e:
+            _log.error(f"Erreur import clés E2E: {e}")
+
+    def auto_trust_devices(self) -> None:
+        """Marque tous les devices non-vérifiés comme user_ignored (pattern bot).
+        Le bot ne fait pas de vérification manuelle — tous les devices sont acceptés.
+        """
+        if self.olm is None:
+            return
+        count = 0
+        for device in self.olm.device_store:
+            if device.trust_state == TrustState.unset:
+                device.trust_state = TrustState.ignored
+                count += 1
+        if count:
+            import logging as _log
+            _log.getLogger("colaig.bot").info(f"auto_trust: {count} device(s) marqués ignored")
 
     def get_non_private_rooms(self):
         return {

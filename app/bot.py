@@ -247,14 +247,14 @@ Pour plus d'informations sur ces commandes, utilisez `!aide`.
     async def setup_basic_callbacks(self):
         """Configure uniquement les callbacks essentiels ne dépendant pas de WebDAV"""
         # Importer les types d'événements nécessaires
-        from nio import InviteMemberEvent, RoomMessageText
-        
-        # Configurer uniquement la réception des messages
-        # pour permettre au bot de répondre de façon minimale
-        
+        from nio import InviteMemberEvent, RoomMessageText, MegolmEvent
+
         # Ajouter le callback pour les invitations qui ne dépend pas de WebDAV
         if bot_lib_config.join_on_invite:
             self.matrix_client.add_event_callback(self.callbacks.invite_callback, InviteMemberEvent)
+
+        # Toujours enregistrer le callback pour les messages non déchiffrés
+        self.matrix_client.add_event_callback(self.callbacks.decryption_failure, MegolmEvent)
             
         # Ajouter un gestionnaire de base pour les messages
         async def basic_message_handler(room, event):
@@ -328,14 +328,6 @@ Pour plus d'informations sur ces commandes, utilisez `!aide`.
             logger.info("Configuration des callbacks basiques...")
             await self.setup_basic_callbacks()
             
-            # Synchronisation initiale (rapide)
-            logger.info("Lancement de la synchronisation initiale...")
-            sync = await self.matrix_client.sync(timeout=bot_lib_config.timeout, full_state=True)
-            logger.info("Synchronisation initiale réussie", 
-                next_batch=sync.next_batch,
-                rooms_joined=len(sync.rooms.join) if sync.rooms else 0
-            )
-            
             # Signal que l'initialisation de base est terminée
             initialization_done.set()
             
@@ -346,25 +338,81 @@ Pour plus d'informations sur ces commandes, utilisez `!aide`.
             # Démarrer le bot en mode limité
             logger.info("Démarrage du bot en mode limité...")
             
-            # Tenter d'initialiser les services avec un timeout
-            try:
-                await asyncio.wait_for(services_task, timeout=30)
-                logger.info("Services initialisés avec succès")
-                
-                # Activer toutes les fonctionnalités
-                await self.enable_full_functionality()
-            except asyncio.TimeoutError:
-                logger.warning("Timeout lors de l'initialisation des services. Fonctionnement en mode dégradé.")
-                # Continuer en mode dégradé
-            except Exception as e:
-                logger.error(f"Erreur lors de l'initialisation des services: {str(e)}")
-                logger.error(traceback.format_exc())
-                # Continuer en mode dégradé
+            # Attendre les services puis activer les fonctionnalités (sans timeout bloquant)
+            async def _enable_when_ready():
+                try:
+                    await services_task
+                    await self.enable_full_functionality()
+                except Exception as e:
+                    logger.error(f"Erreur initialisation services: {str(e)}")
+            asyncio.create_task(_enable_when_ready())
             
+            # Sync initial pour peupler next_batch avant sync_forever
+            _SYNC_FILTER = {
+                "room": {
+                    "state": {"lazy_load_members": True},
+                    "timeline": {"limit": 50},
+                },
+                "presence": {"not_types": ["*"]},
+            }
+            try:
+                from nio import SyncError as NioSyncError, KeysQueryResponse
+                logger.info("Sync initial pour peupler next_batch...")
+                sync_resp = await self.matrix_client.sync(timeout=30000, full_state=True, sync_filter=_SYNC_FILTER)
+                if isinstance(sync_resp, NioSyncError):
+                    logger.warning(f"Sync initial échoué (ignoré): {sync_resp}")
+                else:
+                    logger.info(f"Sync initial réussi, next_batch={sync_resp.next_batch}")
+                    # Interroger les clés des membres + établir sessions Olm
+                    if self.matrix_client.matrix_config.encryption_enabled:
+                        import logging as _logging
+                        from nio import KeysClaimResponse
+                        _log = _logging.getLogger("colaig.bot")
+                        _log.info("Requête des clés des membres (keys_query)...")
+                        try:
+                            kq_resp = await self.matrix_client.keys_query()
+                            if isinstance(kq_resp, KeysQueryResponse):
+                                _log.info(f"keys_query réussi: {len(kq_resp.device_keys)} users")
+                            else:
+                                _log.warning(f"keys_query réponse inattendue: {kq_resp}")
+                        except Exception as kq_err:
+                            _log.warning(f"keys_query exception: {kq_err}")
+
+                        # Claim one-time keys pour établir des sessions Olm avec tous les membres
+                        try:
+                            users_devices = {}
+                            device_store = self.matrix_client.device_store
+                            _log.info(f"device_store users: {list(device_store.users)}")
+                            for user_id in device_store.users:
+                                if user_id == self.matrix_client.user_id:
+                                    continue
+                                devices = list(device_store[user_id].keys())
+                                if devices:
+                                    users_devices[user_id] = devices
+                            _log.info(f"keys_claim: {len(users_devices)} users à claim")
+                            if users_devices:
+                                claim_resp = await self.matrix_client.keys_claim(users_devices)
+                                if isinstance(claim_resp, KeysClaimResponse):
+                                    _log.info(f"keys_claim réussi: {len(claim_resp.one_time_keys)} users")
+                                else:
+                                    _log.warning(f"keys_claim: {claim_resp}")
+                        except Exception as claim_err:
+                            _log.warning(f"keys_claim exception: {claim_err}")
+            except Exception as e:
+                logger.warning(f"Sync initial exception (ignorée): {e}")
+
             try:
                 logger.info("Démarrage de sync_forever...")
-                await self.matrix_client.sync_forever(timeout=3000, full_state=True)
-                logger.info("sync_forever terminé")
+                while True:
+                    try:
+                        await self.matrix_client.sync_forever(timeout=3000, full_state=False, sync_filter=_SYNC_FILTER)
+                        logger.info("sync_forever terminé normalement")
+                        break
+                    except asyncio.TimeoutError:
+                        logger.warning("sync_forever: timeout aiohttp, relance immédiate...")
+                    except Exception as e:
+                        logger.error(f"sync_forever: erreur inattendue: {e}, relance dans 5s...")
+                        await asyncio.sleep(5)
             finally:
                 # Nettoyage à la fermeture
                 logger.info("Nettoyage des ressources...")

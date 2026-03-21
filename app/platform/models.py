@@ -62,6 +62,12 @@ class BotInstanceConfig:
     groups_used: str = "document,web"
     browser_extraction_enabled: bool = False
 
+    # E2E key import (Megolm session export from Tchap/Element)
+    # e2e_keys_data: base64-encoded content of the key export file
+    # e2e_keys_passphrase: passphrase used when exporting the keys
+    e2e_keys_data: str = ""
+    e2e_keys_passphrase: str = ""
+
     # Status
     status: str = InstanceStatus.STOPPED
     created_at: str = field(
@@ -93,6 +99,8 @@ class BotInstanceConfig:
             "allowed_domains": json.dumps(self.allowed_domains),
             "groups_used": self.groups_used,
             "browser_extraction_enabled": self.browser_extraction_enabled,
+            "e2e_keys_data": self.e2e_keys_data,
+            "e2e_keys_passphrase": self.e2e_keys_passphrase,
             "status": self.status,
             "created_at": self.created_at,
             "last_started_at": self.last_started_at,
@@ -130,6 +138,8 @@ class BotInstanceConfig:
             allowed_domains=domains,
             groups_used=data.get("groups_used", "document,web"),
             browser_extraction_enabled=bool(data.get("browser_extraction_enabled", False)),
+            e2e_keys_data=data.get("e2e_keys_data", ""),
+            e2e_keys_passphrase=data.get("e2e_keys_passphrase", ""),
             status=data.get("status", InstanceStatus.STOPPED),
             created_at=data.get("created_at", ""),
             last_started_at=data.get("last_started_at"),

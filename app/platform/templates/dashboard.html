@@ -53,6 +53,93 @@
         </table>
     </div>
 
+    <!-- Edit form (hidden by default) -->
+    <div id="editForm" class="card" style="display:none;">
+        <h2>Modifier l'instance</h2>
+        <input type="hidden" id="e_instance_id">
+        <form onsubmit="return updateInstance(event)">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Nom</label>
+                    <input type="text" id="e_name" required>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="e_description">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Serveur Matrix</label>
+                    <input type="url" id="e_homeserver" required>
+                </div>
+                <div class="form-group">
+                    <label>Utilisateur Matrix</label>
+                    <input type="text" id="e_username" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Mot de passe Matrix <small>(laisser vide = inchangé)</small></label>
+                    <input type="password" id="e_password">
+                </div>
+                <div class="form-group">
+                    <label>Domaines autorises (CSV)</label>
+                    <input type="text" id="e_domains">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>URL WebDAV</label>
+                    <input type="url" id="e_webdav_url">
+                </div>
+                <div class="form-group">
+                    <label>Utilisateur WebDAV</label>
+                    <input type="text" id="e_webdav_user">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Mot de passe WebDAV <small>(laisser vide = inchangé)</small></label>
+                    <input type="password" id="e_webdav_password">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Chemin racine WebDAV</label>
+                    <input type="text" id="e_webdav_root_path" placeholder="documents">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>URL Albert API</label>
+                    <input type="url" id="e_albert_api_url">
+                </div>
+                <div class="form-group">
+                    <label>Clé Albert API <small>(laisser vide = inchangé)</small></label>
+                    <input type="password" id="e_albert_api_token">
+                </div>
+            </div>
+            <details style="margin-bottom:12px;">
+                <summary style="cursor:pointer; font-weight:500; padding:6px 0;">Clés E2E (chiffrement Tchap) <small>— optionnel</small></summary>
+                <div class="form-row" style="margin-top:8px;">
+                    <div class="form-group">
+                        <label>Fichier de clés exporté <small>(laisser vide = inchangé)</small></label>
+                        <input type="file" id="e_e2e_keys_file" accept=".txt">
+                    </div>
+                    <div class="form-group">
+                        <label>Phrase secrète des clés <small>(laisser vide = inchangé)</small></label>
+                        <input type="password" id="e_e2e_keys_passphrase">
+                    </div>
+                </div>
+            </details>
+            <div class="actions">
+                <button type="button" class="btn" onclick="document.getElementById('editForm').style.display='none'">Annuler</button>
+                <button type="submit" class="btn btn-primary">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+
     <!-- Create form (hidden by default) -->
     <div id="createForm" class="card" style="display:none;">
         <h2>Nouvelle instance</h2>
@@ -97,6 +184,35 @@
                     <input type="text" id="c_webdav_user">
                 </div>
             </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Mot de passe WebDAV</label>
+                    <input type="password" id="c_webdav_password">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>URL Albert API</label>
+                    <input type="url" id="c_albert_api_url" placeholder="https://api.albert.etalab.gouv.fr/v1">
+                </div>
+                <div class="form-group">
+                    <label>Clé Albert API</label>
+                    <input type="password" id="c_albert_api_token">
+                </div>
+            </div>
+            <details style="margin-bottom:12px;">
+                <summary style="cursor:pointer; font-weight:500; padding:6px 0;">Clés E2E (chiffrement Tchap) <small>— optionnel</small></summary>
+                <div class="form-row" style="margin-top:8px;">
+                    <div class="form-group">
+                        <label>Fichier de clés exporté</label>
+                        <input type="file" id="c_e2e_keys_file" accept=".txt">
+                    </div>
+                    <div class="form-group">
+                        <label>Phrase secrète des clés</label>
+                        <input type="password" id="c_e2e_keys_passphrase">
+                    </div>
+                </div>
+            </details>
             <div class="actions">
                 <button type="button" class="btn" onclick="document.getElementById('createForm').style.display='none'">Annuler</button>
                 <button type="submit" class="btn btn-primary">Creer</button>
@@ -144,15 +260,89 @@ async function loadInstances() {
             <td>
                 ${inst.status === 'stopped' || inst.status === 'error' ? `<button class="btn btn-success btn-small" onclick="startInstance('${inst.instance_id}')">Demarrer</button>` : ''}
                 ${inst.status === 'running' ? `<button class="btn btn-danger btn-small" onclick="stopInstance('${inst.instance_id}')">Arreter</button>` : ''}
+                ${inst.status !== 'running' ? `<button class="btn btn-small" onclick="showEditForm('${inst.instance_id}')">Modifier</button>` : ''}
                 ${inst.status !== 'running' ? `<button class="btn btn-danger btn-small" onclick="deleteInstance('${inst.instance_id}')">Supprimer</button>` : ''}
             </td>
         </tr>
     `).join('');
 }
 
+async function showEditForm(id) {
+    const { ok, data } = await apiCall('GET', `/api/instances/${id}`);
+    if (!ok) { showAlert(data.error || 'Erreur', 'error'); return; }
+    document.getElementById('e_instance_id').value = id;
+    document.getElementById('e_name').value = data.name || '';
+    document.getElementById('e_description').value = data.description || '';
+    document.getElementById('e_homeserver').value = data.matrix_homeserver || '';
+    document.getElementById('e_username').value = data.matrix_username || '';
+    let domains = data.allowed_domains || [];
+    if (typeof domains === 'string') { try { domains = JSON.parse(domains); } catch(e) { domains = [domains]; } }
+    document.getElementById('e_domains').value = domains.join(',');
+    document.getElementById('e_webdav_url').value = data.webdav_url || '';
+    document.getElementById('e_webdav_user').value = data.webdav_username || '';
+    document.getElementById('e_webdav_root_path').value = data.webdav_root_path || '';
+    document.getElementById('e_albert_api_url').value = data.albert_api_url || '';
+    document.getElementById('e_password').value = '';
+    document.getElementById('e_webdav_password').value = '';
+    document.getElementById('e_albert_api_token').value = '';
+    document.getElementById('editForm').style.display = 'block';
+    document.getElementById('editForm').scrollIntoView({behavior: 'smooth'});
+}
+
+async function updateInstance(e) {
+    e.preventDefault();
+    const id = document.getElementById('e_instance_id').value;
+    const domains = document.getElementById('e_domains').value.trim();
+    const body = {
+        name: document.getElementById('e_name').value,
+        description: document.getElementById('e_description').value,
+        matrix_homeserver: document.getElementById('e_homeserver').value,
+        matrix_username: document.getElementById('e_username').value,
+        allowed_domains: domains ? domains.split(',').map(d => d.trim()) : ['*'],
+        webdav_url: document.getElementById('e_webdav_url').value,
+        webdav_username: document.getElementById('e_webdav_user').value,
+        webdav_root_path: document.getElementById('e_webdav_root_path').value,
+        albert_api_url: document.getElementById('e_albert_api_url').value,
+    };
+    // N'envoyer les mots de passe que s'ils sont renseignés
+    const pwd = document.getElementById('e_password').value;
+    if (pwd) body.matrix_password = pwd;
+    const wdpwd = document.getElementById('e_webdav_password').value;
+    if (wdpwd) body.webdav_password = wdpwd;
+    const albertToken = document.getElementById('e_albert_api_token').value;
+    if (albertToken) body.albert_api_token = albertToken;
+    const e2eKeysData = await readFileAsBase64(document.getElementById('e_e2e_keys_file'));
+    const e2ePassphrase = document.getElementById('e_e2e_keys_passphrase').value;
+    if (e2eKeysData && e2ePassphrase) {
+        body.e2e_keys_data = e2eKeysData;
+        body.e2e_keys_passphrase = e2ePassphrase;
+    }
+
+    const { ok, data } = await apiCall('PUT', `/api/instances/${id}`, body);
+    if (ok) {
+        showAlert('Instance modifiee avec succes', 'success');
+        document.getElementById('editForm').style.display = 'none';
+        loadInstances();
+    } else {
+        showAlert(data.error || 'Erreur', 'error');
+    }
+    return false;
+}
+
 function showCreateForm() {
     document.getElementById('createForm').style.display = 'block';
     document.getElementById('c_name').focus();
+}
+
+async function readFileAsBase64(fileInput) {
+    const file = fileInput.files[0];
+    if (!file) return '';
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(btoa(String.fromCharCode(...new Uint8Array(e.target.result))));
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+    });
 }
 
 async function createInstance(e) {
@@ -166,8 +356,17 @@ async function createInstance(e) {
         matrix_password: document.getElementById('c_password').value,
         webdav_url: document.getElementById('c_webdav_url').value,
         webdav_username: document.getElementById('c_webdav_user').value,
+        webdav_password: document.getElementById('c_webdav_password').value,
+        albert_api_url: document.getElementById('c_albert_api_url').value,
+        albert_api_token: document.getElementById('c_albert_api_token').value,
         allowed_domains: domains ? domains.split(',').map(d => d.trim()) : ['*'],
     };
+    const e2eKeysData = await readFileAsBase64(document.getElementById('c_e2e_keys_file'));
+    const e2ePassphrase = document.getElementById('c_e2e_keys_passphrase').value;
+    if (e2eKeysData && e2ePassphrase) {
+        body.e2e_keys_data = e2eKeysData;
+        body.e2e_keys_passphrase = e2ePassphrase;
+    }
 
     const { ok, data } = await apiCall('POST', '/api/instances', body);
     if (ok) {

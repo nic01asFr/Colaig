@@ -91,14 +91,22 @@ class WebDAVService:
         self.webdav_username = webdav_username or (config.webdav_username if config else None)
         self.webdav_password = webdav_password or (config.webdav_password if config else None)
         webdav_root_path = webdav_root or (config.webdav_root_path if config else "")
-        
+
         # Vérifier que nous avons au moins l'URL, le nom d'utilisateur et le mot de passe
         if not self.base_url or not self.webdav_username or not self.webdav_password:
             raise ValueError("Les paramètres WebDAV sont insuffisants. L'URL, le nom d'utilisateur et le mot de passe sont requis.")
-        
+
+        # Normaliser : base_url sans slash final, root_path sans slash initial ni final
+        self.base_url = self.base_url.rstrip('/')
+        webdav_root_path = webdav_root_path.strip('/')
+
+        # Éviter la duplication si root_path est déjà le dernier segment de base_url
+        if webdav_root_path and self.base_url.endswith('/' + webdav_root_path):
+            self.base_url = self.base_url[:-len(webdav_root_path)].rstrip('/')
+
         self.versions: Dict[str, List[DocumentVersion]] = {}
         self._initialized = False  # Ajout de l'attribut d'initialisation
-        
+
         # Construire les chemins complets
         self.root_path = webdav_root_path
         self.system_root = os.path.join(self.root_path, self.SYSTEM_ROOT)
@@ -106,21 +114,22 @@ class WebDAVService:
         self.versions_path = os.path.join(self.root_path, self.VERSIONS_DIR)
         self.index_path = os.path.join(self.root_path, self.INDEX_DIR)
         self.config_path = os.path.join(self.root_path, self.CONFIG_DIR)
-        
+
         # Configuration du client HTTP
-        self.http_client = httpx.AsyncClient(
-            auth=(self.webdav_username, self.webdav_password),
-            timeout=60.0,
-            headers={
-                'User-Agent': 'AlbertTchap/1.0',
-                'Accept': '*/*'
-            },
-            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
-            http2=True,
-            verify=True  # Vérification SSL
-        )
+        self.http_client = self._build_http_client()
         logger.info("Client WebDAV initialisé")
         # Ne pas lancer la tâche ici, elle sera lancée dans initialize()
+
+    def _build_http_client(self) -> httpx.AsyncClient:
+        """Construit le client HTTP avec Basic auth."""
+        return httpx.AsyncClient(
+            auth=(self.webdav_username, self.webdav_password),
+            timeout=60.0,
+            headers={'User-Agent': 'AlbertTchap/1.0', 'Accept': '*/*'},
+            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
+            http2=True,
+            verify=True,
+        )
 
     async def init_webdav(self) -> None:
         """Initialise le service WebDAV ou réinitialise la connexion si déjà initialisé"""
@@ -133,17 +142,7 @@ class WebDAVService:
                     pass  # Ignorer les erreurs de fermeture
             
             # Recréer un nouveau client HTTP si nécessaire
-            self.http_client = httpx.AsyncClient(
-                auth=(self.webdav_username, self.webdav_password),
-                timeout=60.0,
-                headers={
-                    'User-Agent': 'AlbertTchap/1.0',
-                    'Accept': '*/*'
-                },
-                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
-                http2=True,
-                verify=True  # Vérification SSL
-            )
+            self.http_client = self._build_http_client()
             logger.info("Client WebDAV réinitialisé")
             
             # Vérifier la configuration
@@ -277,7 +276,9 @@ class WebDAVService:
             
         # Construire le chemin complet en ajoutant le chemin de base
         if self.root_path and self.root_path != '/':
-            if not path.startswith(self.root_path):
+            # Comparer sans le slash initial (path a été normalisé avec un '/' en tête)
+            path_stripped = path.lstrip('/')
+            if not path_stripped.startswith(self.root_path):
                 # Si le chemin ne commence pas déjà par le chemin racine, l'ajouter
                 if path == '/':
                     full_path = self.root_path
@@ -467,6 +468,28 @@ class WebDAVService:
                     logger.error(f"Échec définitif de lecture du document {path} après {max_retries} tentatives: {str(e)}")
                     raise
 
+    def _href_to_relative_path(self, href: str) -> str:
+        """Convertit un href absolu de réponse PROPFIND en chemin relatif à la racine WebDAV."""
+        import urllib.parse as _urlparse
+        # Cas Nextcloud/ownCloud
+        if 'remote.php/dav/files/' in href:
+            path = href.split('remote.php/dav/files/')[-1].split('/', 1)[-1]
+        else:
+            # WebDAV standard : extraire le chemin relatif en supprimant le préfixe base_url
+            base_path = _urlparse.urlparse(self.base_url).path.rstrip('/')
+            # Le préfixe attendu dans les hrefs : /dav/Archivist/
+            full_prefix = base_path + '/' + self.root_path + '/'
+            decoded = _urlparse.unquote(href)
+            if decoded.startswith(full_prefix):
+                path = decoded[len(full_prefix):]
+            elif decoded.startswith(base_path + '/'):
+                path = decoded[len(base_path) + 1:].lstrip('/')
+                if path.startswith(self.root_path + '/'):
+                    path = path[len(self.root_path) + 1:]
+            else:
+                path = decoded.lstrip('/')
+        return path.lstrip('/')
+
     async def list_directory(self, path: str = None) -> List[Dict[str, Any]]:
         """Liste tous les fichiers et répertoires dans un chemin WebDAV
         
@@ -513,9 +536,7 @@ class WebDAVService:
                 item_type = 'directory' if is_directory else 'file'
                 
                 # Extraire le chemin relatif
-                item_path = href.split('remote.php/dav/files/')[-1].split('/', 1)[-1]
-                if item_path.startswith(self.root_path):
-                    item_path = item_path[len(self.root_path):].lstrip('/')
+                item_path = self._href_to_relative_path(href)
                 
                 # Extraire le nom
                 name = os.path.basename(item_path.rstrip('/'))
@@ -578,9 +599,7 @@ class WebDAVService:
             for response_elem in root.findall('.//{DAV:}response'):
                 href = response_elem.find('.//{DAV:}href').text
                 if href and not href.endswith('/'):  # Ignorer les répertoires
-                    path = href.split('remote.php/dav/files/')[-1].split('/', 1)[-1]
-                    if path.startswith(self.root_path):
-                        path = path[len(self.root_path):].lstrip('/')
+                    path = self._href_to_relative_path(href)
                     documents.append(path)
             
             # Note: le paramètre pattern est actuellement ignoré

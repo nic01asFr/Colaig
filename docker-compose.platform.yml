@@ -18,6 +18,7 @@ services:
       - "${PLATFORM_PORT:-8080}:8080"
     volumes:
       - platform-data:/code/data
+      - ./app:/code/app
     environment:
       # Platform configuration
       - PLATFORM_SESSION_SECRET=${PLATFORM_SESSION_SECRET}
@@ -31,6 +32,9 @@ services:
       - PROCONNECT_CLIENT_SECRET=${PROCONNECT_CLIENT_SECRET:-}
       - PROCONNECT_REDIRECT_URI=${PROCONNECT_REDIRECT_URI:-}
       - PROCONNECT_ISSUER=${PROCONNECT_ISSUER:-https://auth.proconnect.gouv.fr/api/v2}
+
+      # Matrix bot settings
+      - JOIN_ON_INVITE=true
 
       # Default Albert API (instances inherit these if not overridden)
       - ALBERT_API_URL=${ALBERT_API_URL:-https://api.albert.etalab.gouv.fr/v1}

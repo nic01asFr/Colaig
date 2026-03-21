@@ -347,6 +347,8 @@ async def api_create_instance(request: Request) -> JSONResponse:
         admin_email=request.state.email,
         allowed_domains=body.get("allowed_domains", ["*"]),
         groups_used=body.get("groups_used", "document,web"),
+        e2e_keys_data=body.get("e2e_keys_data", ""),
+        e2e_keys_passphrase=body.get("e2e_keys_passphrase", ""),
     )
 
     await registry.add_instance(instance)
@@ -375,10 +377,12 @@ async def api_get_instance(request: Request) -> JSONResponse:
         return _json_error("Access denied", 403)
 
     data = instance.to_dict()
-    # Never expose passwords in API responses
+    # Never expose passwords/secrets in API responses
     data.pop("matrix_password", None)
     data.pop("webdav_password", None)
     data.pop("albert_api_token", None)
+    data.pop("e2e_keys_data", None)
+    data.pop("e2e_keys_passphrase", None)
 
     return JSONResponse(data)
 
@@ -411,7 +415,7 @@ async def api_update_instance(request: Request) -> JSONResponse:
         "matrix_password", "webdav_url", "webdav_username", "webdav_password",
         "webdav_root_path", "albert_api_url", "albert_api_token",
         "albert_model", "albert_model_embedding", "allowed_domains",
-        "groups_used",
+        "groups_used", "e2e_keys_data", "e2e_keys_passphrase",
     ]
     for field in updatable:
         if field in body:
@@ -490,6 +494,25 @@ async def api_stop_instance(request: Request) -> JSONResponse:
     except Exception as e:
         logger.error(f"Failed to stop instance {instance_id}: {e}")
         return _json_error(f"Failed to stop: {e}", 500)
+
+
+@_require_auth
+async def api_force_stop_instance(request: Request) -> JSONResponse:
+    """Force-stop an orphaned instance by resetting its status in DB."""
+    instance_id = request.path_params["instance_id"]
+    registry: PlatformRegistry = request.app.state.registry
+
+    instance = await registry.get_instance(instance_id)
+    if not instance:
+        return _json_error("Instance not found", 404)
+
+    admin = await registry.get_admin(request.state.email)
+    if admin.role != AdminRole.OPERATOR and instance.admin_email != request.state.email:
+        return _json_error("Access denied", 403)
+
+    await registry.update_instance_status(instance_id, InstanceStatus.STOPPED)
+    logger.info(f"Force-stopped instance {instance_id} (status reset in DB)")
+    return JSONResponse({"ok": True, "status": InstanceStatus.STOPPED})
 
 
 # === Health ===
@@ -572,6 +595,7 @@ def create_app(
         Route("/api/instances/{instance_id}", api_delete_instance, methods=["DELETE"]),
         Route("/api/instances/{instance_id}/start", api_start_instance, methods=["POST"]),
         Route("/api/instances/{instance_id}/stop", api_stop_instance, methods=["POST"]),
+        Route("/api/instances/{instance_id}/force-stop", api_force_stop_instance, methods=["POST"]),
         # Health
         Route("/health", health, methods=["GET"]),
     ]
