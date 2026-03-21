@@ -19,7 +19,7 @@ from nio import RoomMessageText
 from app.core_llm import AlbertApiClient, generate
 from app.services.context.manager import ContextManager
 from app.services.context.types import ContextType
-from app.services.context.models import SessionContext
+from app.services.context.models import SessionContext, ConversationStateKeys
 from app.config import COMMAND_PREFIX
 
 from app.commands.registry import register_feature, only_allowed_user, command_registry, is_event_processed
@@ -186,17 +186,17 @@ async def handle_conversation(ep: EventParser, matrix_client: MatrixClient):
         
         # Vérifier si nous reprenons après une commande terminée
         conversation_state = session_context.conversation_state if hasattr(session_context, 'conversation_state') else {}
-        is_resumable_command = conversation_state.get("command_completed", False)
-        
+        is_resumable_command = conversation_state.get(ConversationStateKeys.COMMAND_COMPLETED, False)
+
         # Ajouter du contexte supplémentaire si nous reprenons après une commande terminée
         if is_resumable_command:
             # Contexte spécifique en fonction de la dernière commande
-            last_command = conversation_state.get("last_command", "")
-            last_file = conversation_state.get("last_file_processed", "")
-            last_path = conversation_state.get("last_target_path", "")
-            last_action = conversation_state.get("last_action", "")
-            final_status = conversation_state.get("final_status", "")
-            error_status = conversation_state.get("error_status", "")
+            last_command = conversation_state.get(ConversationStateKeys.LAST_COMMAND, "")
+            last_file = conversation_state.get(ConversationStateKeys.LAST_FILE_PROCESSED, "")
+            last_path = conversation_state.get(ConversationStateKeys.LAST_TARGET_PATH, "")
+            last_action = conversation_state.get(ConversationStateKeys.LAST_ACTION, "")
+            final_status = conversation_state.get(ConversationStateKeys.FINAL_STATUS, "")
+            error_status = conversation_state.get(ConversationStateKeys.ERROR_STATUS, "")
             
             # Détermine le statut de la dernière commande de manière plus précise
             status_description = ""
@@ -220,7 +220,7 @@ async def handle_conversation(ep: EventParser, matrix_client: MatrixClient):
                     cmd_context += f" dans le dossier \"{last_path}\""
                 cmd_context += "."
             elif last_command == "docquery":
-                query = conversation_state.get("query", "")
+                query = conversation_state.get(ConversationStateKeys.QUERY, "")
                 cmd_context = f"L'utilisateur vient de faire une recherche documentaire (!docquery) sur : \"{query}\""
                 if final_status == "success":
                     cmd_context += " et a obtenu des résultats pertinents."

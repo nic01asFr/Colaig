@@ -590,4 +590,49 @@ class ExecutionContext(BaseContext):
             "temporary_data": self.temporary_data,
             "performance_metrics": self.performance_metrics
         })
-        return data 
+        return data
+
+
+class ConversationStateKeys:
+    """Clés canoniques pour conversation_state dans SessionContext.
+
+    Centralise toutes les clés utilisées dans les dictionnaires conversation_state
+    pour éviter les fautes de frappe et faciliter les refactorisations futures.
+    """
+
+    # --- Thread de commande ---
+    IN_COMMAND_THREAD = "in_command_thread"
+    THREAD_COMMAND = "thread_command"
+    THREAD_START_TIME = "thread_start_time"
+    LAST_ACTIVITY_TIME = "last_activity_time"
+
+    # --- Cycle de vie d'une commande ---
+    COMMAND_COMPLETED = "command_completed"
+    CURRENT_COMMAND = "current_command"
+    COMMAND_START_TIME = "command_start_time"
+    LAST_COMMAND = "last_command"
+    LAST_EXECUTION_TIME = "last_execution_time"
+
+    # --- Statut ---
+    FINAL_STATUS = "final_status"
+    ERROR_STATUS = "error_status"
+
+    # --- Timeout ---
+    TIMEOUT_OCCURRED = "timeout_occurred"
+    TIMEOUT_COMMAND = "timeout_command"
+
+    # --- Données spécifiques aux commandes ---
+    LAST_FILE_PROCESSED = "last_file_processed"
+    LAST_TARGET_PATH = "last_target_path"
+    LAST_ACTION = "last_action"
+    QUERY = "query"
+
+    # --- Flux de commande générique ---
+    ACTION = "action"
+    STAGE = "stage"
+    STATUS = "status"
+
+    # --- Webhook ---
+    WEBHOOK_NAME = "webhook_name"
+    WEBHOOK_URL = "webhook_url"
+    WEBHOOK_METHOD = "webhook_method"

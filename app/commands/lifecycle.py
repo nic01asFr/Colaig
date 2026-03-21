@@ -17,6 +17,7 @@ from app.matrix_bot.eventparser import EventParser
 
 from app.services.context.types import ContextType
 from app.services.context.instance import get_context_manager, ensure_initialized
+from app.services.context.models import ConversationStateKeys
 from app.commands import get_unified_session_context
 from app.commands.registry import mark_event_processed
 
@@ -57,26 +58,26 @@ class CommandLifecycleManager:
             if hasattr(session_context, "conversation_state"):
                 logger.info(f"[LIFECYCLE DEBUG] BEGIN_COMMAND: État de conversation trouvé, vérification des drapeaux")
                 # Nettoyage préventif au début de la commande
-                if "in_command_thread" in session_context.conversation_state:
+                if ConversationStateKeys.IN_COMMAND_THREAD in session_context.conversation_state:
                     logger.info(f"[LIFECYCLE DEBUG] BEGIN_COMMAND: Drapeau in_command_thread détecté, vérification...")
                     # Si déjà dans un thread, vérifier s'il est actif depuis longtemps
-                    thread_start = session_context.conversation_state.get("thread_start_time", 0)
+                    thread_start = session_context.conversation_state.get(ConversationStateKeys.THREAD_START_TIME, 0)
                     thread_age = time.time() - thread_start
                     logger.info(f"[LIFECYCLE DEBUG] BEGIN_COMMAND: Âge du thread: {thread_age:.2f}s")
                     
                     if thread_age > 300:  # 5 minutes
                         logger.warning(f"[COMMAND] Thread actif depuis plus de 5 minutes, nettoyage forcé")
-                        session_context.conversation_state.pop("in_command_thread", None)
-                        session_context.conversation_state.pop("thread_command", None)
+                        session_context.conversation_state.pop(ConversationStateKeys.IN_COMMAND_THREAD, None)
+                        session_context.conversation_state.pop(ConversationStateKeys.THREAD_COMMAND, None)
                         logger.info(f"[LIFECYCLE DEBUG] BEGIN_COMMAND: Thread ancien nettoyé")
                     else:
                         logger.info(f"[LIFECYCLE DEBUG] BEGIN_COMMAND: Thread récent ({thread_age:.2f}s), conservé")
                 
                 # Mise à jour des données de commande
                 logger.info(f"[LIFECYCLE DEBUG] BEGIN_COMMAND: Mise à jour des données de commande")
-                session_context.conversation_state["current_command"] = command_name
-                session_context.conversation_state["command_start_time"] = time.time()
-                session_context.conversation_state["command_completed"] = False
+                session_context.conversation_state[ConversationStateKeys.CURRENT_COMMAND] = command_name
+                session_context.conversation_state[ConversationStateKeys.COMMAND_START_TIME] = time.time()
+                session_context.conversation_state[ConversationStateKeys.COMMAND_COMPLETED] = False
                 
                 # Mise à jour du contexte
                 logger.info(f"[LIFECYCLE DEBUG] BEGIN_COMMAND: Mise à jour du contexte dans le gestionnaire")
@@ -120,20 +121,20 @@ class CommandLifecycleManager:
         # Nettoyage et mise à jour du contexte
         if hasattr(session_context, "conversation_state"):
             # Si la commande est simple (non thread), nettoyer les drapeaux
-            if session_context.conversation_state.get("current_command") == command_name:
-                session_context.conversation_state.pop("in_command_thread", None)
-            
+            if session_context.conversation_state.get(ConversationStateKeys.CURRENT_COMMAND) == command_name:
+                session_context.conversation_state.pop(ConversationStateKeys.IN_COMMAND_THREAD, None)
+
             # Marquer la commande comme terminée
-            session_context.conversation_state["command_completed"] = True
-            session_context.conversation_state["last_command"] = command_name
-            
+            session_context.conversation_state[ConversationStateKeys.COMMAND_COMPLETED] = True
+            session_context.conversation_state[ConversationStateKeys.LAST_COMMAND] = command_name
+
             # Statistiques d'exécution
-            start_time = session_context.conversation_state.get("command_start_time", time.time())
+            start_time = session_context.conversation_state.get(ConversationStateKeys.COMMAND_START_TIME, time.time())
             execution_time = time.time() - start_time
-            session_context.conversation_state["last_execution_time"] = execution_time
-            
+            session_context.conversation_state[ConversationStateKeys.LAST_EXECUTION_TIME] = execution_time
+
             # Stockage du statut
-            session_context.conversation_state["final_status"] = "success" if success else "error"
+            session_context.conversation_state[ConversationStateKeys.FINAL_STATUS] = "success" if success else "error"
             
             # Ajouter les données de résultat au contexte
             for key, value in result_data.items():
@@ -175,10 +176,10 @@ class ThreadedCommandManager:
         # Configuration du thread
         if hasattr(session_context, "conversation_state"):
             # Définir les paramètres du thread
-            session_context.conversation_state["in_command_thread"] = True
-            session_context.conversation_state["thread_command"] = thread_name
-            session_context.conversation_state["thread_start_time"] = time.time()
-            session_context.conversation_state["command_completed"] = False
+            session_context.conversation_state[ConversationStateKeys.IN_COMMAND_THREAD] = True
+            session_context.conversation_state[ConversationStateKeys.THREAD_COMMAND] = thread_name
+            session_context.conversation_state[ConversationStateKeys.THREAD_START_TIME] = time.time()
+            session_context.conversation_state[ConversationStateKeys.COMMAND_COMPLETED] = False
             
             # Ajouter les données initiales
             for key, value in initial_data.items():
@@ -216,20 +217,20 @@ class ThreadedCommandManager:
         # Nettoyage du thread
         if hasattr(session_context, "conversation_state"):
             # Nettoyer les drapeaux du thread
-            session_context.conversation_state.pop("in_command_thread", None)
-            session_context.conversation_state.pop("thread_command", None)
-            
+            session_context.conversation_state.pop(ConversationStateKeys.IN_COMMAND_THREAD, None)
+            session_context.conversation_state.pop(ConversationStateKeys.THREAD_COMMAND, None)
+
             # Marquer la commande comme terminée
-            session_context.conversation_state["command_completed"] = True
+            session_context.conversation_state[ConversationStateKeys.COMMAND_COMPLETED] = True
             session_context.conversation_state["last_thread_command"] = thread_name
-            
+
             # Statistiques d'exécution
-            start_time = session_context.conversation_state.get("thread_start_time", time.time())
+            start_time = session_context.conversation_state.get(ConversationStateKeys.THREAD_START_TIME, time.time())
             execution_time = time.time() - start_time
             session_context.conversation_state["last_thread_duration"] = execution_time
-            
+
             # Ajouter le statut final
-            session_context.conversation_state["final_status"] = "success"
+            session_context.conversation_state[ConversationStateKeys.FINAL_STATUS] = "success"
             
             # Ajouter les données de résultat
             for key, value in result_data.items():

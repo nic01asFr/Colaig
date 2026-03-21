@@ -1298,9 +1298,18 @@ async def extract_structured_web_data(
                 # default_plan supprimé car non supporté dans la nouvelle version de browser-use
             )
             
-            # Exécuter l'agent pour extraire le contenu
+            # Exécuter l'agent pour extraire le contenu (timeout : 90s)
             logger.info(f"Démarrage de l'extraction structurée browser-use pour {url}")
-            result = await agent.run()
+            try:
+                result = await asyncio.wait_for(agent.run(), timeout=90.0)
+            except asyncio.TimeoutError:
+                logger.error(f"Timeout (90s) dépassé lors de l'extraction structurée browser-use pour {url}")
+                return {
+                    "error": "Délai d'extraction dépassé (90s)",
+                    "url": url,
+                    "status": 0,
+                    "extraction_method": "browser-use-timeout"
+                }
             logger.info(f"Extraction structurée terminée pour {url}")
             
             # Vérifier si le résultat est de type AgentHistoryList

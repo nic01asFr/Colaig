@@ -22,6 +22,7 @@ from nio.crypto.attachments import decrypt_attachment
 from app.commands.decorators import albert_thread_command, albert_thread_response
 from app.commands.registry import CommandThread
 from app.commands import get_unified_session_context
+from app.services.context.models import ConversationStateKeys
 from app.tchap_utils import get_decrypted_file, isa_reply_to
 from app.commands.decorators import register_feature, thread_response
 
@@ -950,7 +951,7 @@ async def handle_attachments_adapted_response(ep: EventParser, matrix_client: Ma
     attachment_data = conversation_state.get("attachment_data", {})
     temp_file_path = attachment_data.get("temp_file_path")
     attachment_name = attachment_data.get("attachment_name", "document")
-    current_action = conversation_state.get("action", "")
+    current_action = conversation_state.get(ConversationStateKeys.ACTION, "")
     folder_options = conversation_state.get("folder_options", [])
     all_folder_paths = conversation_state.get("all_folder_paths", [])
     

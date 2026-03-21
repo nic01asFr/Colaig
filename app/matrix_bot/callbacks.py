@@ -17,6 +17,7 @@ from nio import (
 )
 
 from app.bot_msg import AlbertMsg
+from app.services.context.models import ConversationStateKeys
 
 from .client import MatrixClient
 from .config import bot_lib_config, logger
@@ -227,10 +228,10 @@ class Callbacks:
                             
                             if hasattr(session_context, "conversation_state"):
                                 # Nettoyer les drapeaux bloquants
-                                session_context.conversation_state.pop("in_command_thread", None)
-                                session_context.conversation_state["command_completed"] = True
-                                session_context.conversation_state["timeout_occurred"] = True
-                                session_context.conversation_state["timeout_command"] = cmd_name
+                                session_context.conversation_state.pop(ConversationStateKeys.IN_COMMAND_THREAD, None)
+                                session_context.conversation_state[ConversationStateKeys.COMMAND_COMPLETED] = True
+                                session_context.conversation_state[ConversationStateKeys.TIMEOUT_OCCURRED] = True
+                                session_context.conversation_state[ConversationStateKeys.TIMEOUT_COMMAND] = cmd_name
                                 
                                 # Mettre à jour le contexte
                                 session_id = f"{room.room_id}_{event.sender}"

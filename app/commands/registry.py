@@ -35,6 +35,7 @@ from app.bot_msg import AlbertMsg
 from app.config import COMMAND_PREFIX, Config
 from app.iam import TchapIam
 from app.services.context.types import ContextType
+from app.services.context.models import ConversationStateKeys
 
 # Structure de registre des commandes
 @dataclass
@@ -175,11 +176,14 @@ Propulsé par **[{model_short_name}]({model_url})**
 # Créer l'instance du registre
 command_registry = CommandRegistry()
 
-# Ajouter un dictionnaire global pour suivre les messages déjà traités
-# Clé: ID de l'événement, Valeur: timestamp + handler qui l'a traité
+# Dictionnaire global de déduplication des événements
+# Clé: ID de l'événement, Valeur: (timestamp, handler, completed)
 _processed_events = {}
 # Durée de conservation des entrées (en secondes)
 _PROCESSED_EVENT_TTL = 60
+# Set de réservation préliminaire : un handler non-handle_conversation a pris en charge cet event_id
+# avant tout await. Permet à handle_conversation de ne pas traiter un event déjà réservé.
+_claimed_events: set = set()
 
 # Fonction pour nettoyer périodiquement les événements anciens
 def _cleanup_processed_events():
@@ -189,9 +193,10 @@ def _cleanup_processed_events():
     for event_id, (timestamp, handler, _completed) in _processed_events.items():
         if current_time - timestamp > _PROCESSED_EVENT_TTL:
             to_delete.append(event_id)
-    
+
     for event_id in to_delete:
         _processed_events.pop(event_id, None)
+        _claimed_events.discard(event_id)
 
 # Fonction pour vérifier si un événement a déjà été traité
 def is_event_processed(event_id, handler_name=None):
@@ -208,7 +213,12 @@ def is_event_processed(event_id, handler_name=None):
         timestamp, handler, completed = _processed_events[event_id]
         logger.debug(f"Événement {event_id} déjà traité par {handler} (completed={completed}), vérifié par: {handler_name or 'non spécifié'}")
         return True, handler, completed
-        
+
+    # Vérifier aussi la réservation préliminaire (handler en cours de traitement, avant mark définitif)
+    if event_id in _claimed_events:
+        logger.debug(f"Événement {event_id} réservé par un handler en cours, vérifié par: {handler_name or 'non spécifié'}")
+        return True, "claimed", False
+
     logger.debug(f"Événement {event_id} NON traité, vérifié par: {handler_name or 'non spécifié'}")
     return False, None, False
 
@@ -243,8 +253,9 @@ def mark_event_processed(event_id, handler_name, command_completed=False):
         logger.debug(f"Événement {event_id} traité par {handler_name} (sans verrouillage)")
         return
     
-    # Enregistrer l'événement comme traité avec le statut approprié
+    # Enregistrer l'événement comme traité avec le statut approprié et lever la réservation préliminaire
     _processed_events[event_id] = (time.time(), handler_name, command_completed)
+    _claimed_events.discard(event_id)
     logger.debug(f"Événement {event_id} marqué comme traité par {handler_name}, completed={command_completed}")
 
 # Décorateur pour capturer l'historique des conversations
@@ -333,14 +344,14 @@ def register_feature(
                 needs_cleanup = False
                 if hasattr(session_context, "conversation_state"):
                     # Vérifier les drapeaux potentiellement problématiques
-                    if session_context.conversation_state.get("in_command_thread", False):
-                        last_command = session_context.conversation_state.get("last_command", "unknown")
-                        thread_command = session_context.conversation_state.get("thread_command", "unknown")
-                        
+                    if session_context.conversation_state.get(ConversationStateKeys.IN_COMMAND_THREAD, False):
+                        last_command = session_context.conversation_state.get(ConversationStateKeys.LAST_COMMAND, "unknown")
+                        thread_command = session_context.conversation_state.get(ConversationStateKeys.THREAD_COMMAND, "unknown")
+
                         # Utiliser le timestamp d'activité s'il existe, sinon utiliser le timestamp de démarrage
                         last_activity = session_context.conversation_state.get(
-                            "last_activity_time", 
-                            session_context.conversation_state.get("thread_start_time", 0)
+                            ConversationStateKeys.LAST_ACTIVITY_TIME,
+                            session_context.conversation_state.get(ConversationStateKeys.THREAD_START_TIME, 0)
                         )
                         current_time = time.time()
                         idle_time = current_time - last_activity  # Temps d'inactivité depuis la dernière action
@@ -363,11 +374,11 @@ def register_feature(
                     logger.warning(f"[SAFETY] Nettoyage proactif du contexte pour {func.__name__}")
                     
                     # Supprimer les drapeaux liés aux threads
-                    if "in_command_thread" in session_context.conversation_state:
-                        session_context.conversation_state.pop("in_command_thread")
-                    
+                    if ConversationStateKeys.IN_COMMAND_THREAD in session_context.conversation_state:
+                        session_context.conversation_state.pop(ConversationStateKeys.IN_COMMAND_THREAD)
+
                     # Marquer explicitement comme terminé
-                    session_context.conversation_state["command_completed"] = True
+                    session_context.conversation_state[ConversationStateKeys.COMMAND_COMPLETED] = True
                     
                     # Mise à jour du contexte
                     session_id = f"{room_id}_{sender}"
@@ -409,7 +420,11 @@ def register_feature(
                     command_parts = message_text.split()
                     if command_parts and command_parts[0] == f"{prefix}{command}":
                         is_our_command = True
-                
+                        # Réservation préliminaire AVANT tout await : empêche handle_conversation
+                        # de traiter ce message pendant que ce handler est en cours d'exécution
+                        if event_id:
+                            _claimed_events.add(event_id)
+
                 # Si ce n'est pas notre commande, vérifier si c'est une réponse à notre thread
                 if not is_our_command:
                     # Vérifier si l'utilisateur est dans un thread qui nous concerne
@@ -538,8 +553,8 @@ async def is_in_active_command_thread(room_id, user_id, config):
         conversation_state = session_context.conversation_state
         
         # Vérifier si le flag in_command_thread est présent et True
-        if conversation_state.get("in_command_thread", False):
-            thread_command = conversation_state.get("thread_command", "")
+        if conversation_state.get(ConversationStateKeys.IN_COMMAND_THREAD, False):
+            thread_command = conversation_state.get(ConversationStateKeys.THREAD_COMMAND, "")
             
             # Normaliser certains noms de commandes pour compatibilité
             if thread_command == "handle_attachments_command":
@@ -622,12 +637,12 @@ class CommandThread:
             # Marquer le début du thread
             current_time = time.time()
             session_context.conversation_state.update({
-                "in_command_thread": True,
-                "thread_command": command_name,
-                "thread_start_time": current_time,
-                "last_activity_time": current_time,  # Ajout du timestamp d'activité initial pour le heartbeat
-                "command_completed": False,
-                "last_command": command_name,
+                ConversationStateKeys.IN_COMMAND_THREAD: True,
+                ConversationStateKeys.THREAD_COMMAND: command_name,
+                ConversationStateKeys.THREAD_START_TIME: current_time,
+                ConversationStateKeys.LAST_ACTIVITY_TIME: current_time,  # Ajout du timestamp d'activité initial pour le heartbeat
+                ConversationStateKeys.COMMAND_COMPLETED: False,
+                ConversationStateKeys.LAST_COMMAND: command_name,
                 # Ajouter les données supplémentaires
                 **thread_data
             })
@@ -682,7 +697,7 @@ class CommandThread:
                 
             # Marquer la fin du thread tout en conservant des informations importantes
             current_state = session_context.conversation_state
-            thread_command = current_state.get("thread_command", command_name)
+            thread_command = current_state.get(ConversationStateKeys.THREAD_COMMAND, command_name)
             
             # Récupération générique des données importantes
             context_to_preserve = {}
@@ -708,8 +723,8 @@ class CommandThread:
                         break
             
             if filename:
-                context_to_preserve["last_file_processed"] = filename
-            
+                context_to_preserve[ConversationStateKeys.LAST_FILE_PROCESSED] = filename
+
             # 2. Préserver le contexte concernant les chemins et actions
             target_path = None
             for field in ["target_path", "path", "destination"]:
@@ -721,8 +736,8 @@ class CommandThread:
                     break
             
             if target_path:
-                context_to_preserve["last_target_path"] = target_path
-            
+                context_to_preserve[ConversationStateKeys.LAST_TARGET_PATH] = target_path
+
             # 3. Préserver le contexte concernant l'action
             action = None
             for field in ["action", "étape_finale", "status", "operation"]:
@@ -734,8 +749,8 @@ class CommandThread:
                     break
             
             if action:
-                context_to_preserve["last_action"] = action
-            
+                context_to_preserve[ConversationStateKeys.LAST_ACTION] = action
+
             # 4. Préserver tous les statuts d'erreur ou de succès
             error = None
             for field in ["error", "error_status", "erreur"]:
@@ -747,10 +762,10 @@ class CommandThread:
                     break
             
             if error:
-                context_to_preserve["error_status"] = error
-            
+                context_to_preserve[ConversationStateKeys.ERROR_STATUS] = error
+
             # 5. Déterminer le statut final
-            final_status = final_data.get("final_status", "")
+            final_status = final_data.get(ConversationStateKeys.FINAL_STATUS, "")
             if not final_status:
                 if error:
                     final_status = "error"
@@ -759,7 +774,7 @@ class CommandThread:
                 else:
                     final_status = "completed"
             
-            context_to_preserve["final_status"] = final_status
+            context_to_preserve[ConversationStateKeys.FINAL_STATUS] = final_status
             
             # Log détaillé du contexte préservé
             logger.debug(f"[THREAD END] Contexte préservé : {context_to_preserve}")
@@ -767,11 +782,11 @@ class CommandThread:
             # Créer un nouvel état avec les données pertinentes
             new_state = {
                 # IMPORTANT: Marquer explicitement comme terminé
-                "command_completed": True,
+                ConversationStateKeys.COMMAND_COMPLETED: True,
                 # Supprimer in_command_thread pour permettre aux futurs messages d'être traités par handle_conversation
-                # "in_command_thread": False,  # Ce flag est supprimé, pas juste mis à False
+                # ConversationStateKeys.IN_COMMAND_THREAD: False,  # Ce flag est supprimé, pas juste mis à False
                 # Information sur la dernière commande
-                "last_command": thread_command,
+                ConversationStateKeys.LAST_COMMAND: thread_command,
                 "last_command_end_time": time.time(),
                 "previous_thread_command": thread_command,
                 # Ajouter toutes les données contextuelles préservées
@@ -781,8 +796,8 @@ class CommandThread:
             }
             
             # S'assurer que le flag in_command_thread est explicitement supprimé
-            if "in_command_thread" in session_context.conversation_state:
-                session_context.conversation_state.pop("in_command_thread")
+            if ConversationStateKeys.IN_COMMAND_THREAD in session_context.conversation_state:
+                session_context.conversation_state.pop(ConversationStateKeys.IN_COMMAND_THREAD)
             
             # Mettre à jour l'état
             session_context.conversation_state = new_state
@@ -836,20 +851,20 @@ class CommandThread:
             # Logs détaillés sur l'état de la conversation
             if hasattr(logger, 'isEnabledFor') and logger.isEnabledFor(logging.INFO):
                 state_info = {
-                    "in_thread": session_context.conversation_state.get("in_command_thread", False),
-                    "thread_cmd": session_context.conversation_state.get("thread_command", ""),
-                    "completed": session_context.conversation_state.get("command_completed", False),
-                    "action": session_context.conversation_state.get("action", ""),
-                    "stage": session_context.conversation_state.get("stage", "")
+                    "in_thread": session_context.conversation_state.get(ConversationStateKeys.IN_COMMAND_THREAD, False),
+                    "thread_cmd": session_context.conversation_state.get(ConversationStateKeys.THREAD_COMMAND, ""),
+                    "completed": session_context.conversation_state.get(ConversationStateKeys.COMMAND_COMPLETED, False),
+                    "action": session_context.conversation_state.get(ConversationStateKeys.ACTION, ""),
+                    "stage": session_context.conversation_state.get(ConversationStateKeys.STAGE, "")
                 }
                 logger.info(f"[THREAD ACTIVE CHECK] État: {state_info}")
                 
             # Vérifier si le thread est actif
-            is_active = session_context.conversation_state.get("in_command_thread", False)
-            thread_command = session_context.conversation_state.get("thread_command", "")
-            
+            is_active = session_context.conversation_state.get(ConversationStateKeys.IN_COMMAND_THREAD, False)
+            thread_command = session_context.conversation_state.get(ConversationStateKeys.THREAD_COMMAND, "")
+
             # Si le thread est marqué comme terminé, il n'est plus actif
-            if session_context.conversation_state.get("command_completed", False):
+            if session_context.conversation_state.get(ConversationStateKeys.COMMAND_COMPLETED, False):
                 logger.info(f"[THREAD ACTIVE CHECK] Thread '{thread_command}' marqué comme terminé")
                 return False, ""
                 
@@ -876,8 +891,8 @@ class CommandThread:
                 return False
             
             # HEARTBEAT: Mettre à jour le timestamp d'activité
-            if session_context.conversation_state.get("in_command_thread", False):
-                state_data["last_activity_time"] = time.time()
+            if session_context.conversation_state.get(ConversationStateKeys.IN_COMMAND_THREAD, False):
+                state_data[ConversationStateKeys.LAST_ACTIVITY_TIME] = time.time()
             
             # Mettre à jour l'état de conversation avec les nouvelles données
             session_context.conversation_state.update(state_data)
@@ -922,7 +937,7 @@ class CommandThread:
                 return {}
                 
             # Vérifier si le thread est actif
-            is_active = session_context.conversation_state.get("in_command_thread", False)
+            is_active = session_context.conversation_state.get(ConversationStateKeys.IN_COMMAND_THREAD, False)
             if not is_active:
                 logger.debug(f"[THREAD GET_DATA] Aucun thread actif")
                 return {}
@@ -1115,10 +1130,10 @@ def thread_response(command_name: str = None, validate_format=None, timeout: Opt
                 from app.commands import get_context_manager, get_unified_session_context
                 session_context = await get_unified_session_context(config, room_id, sender)
                 
-                if hasattr(session_context, "conversation_state") and session_context.conversation_state.get("in_command_thread"):
+                if hasattr(session_context, "conversation_state") and session_context.conversation_state.get(ConversationStateKeys.IN_COMMAND_THREAD):
                     # Mettre à jour le timestamp d'activité
-                    old_timestamp = session_context.conversation_state.get("last_activity_time", 0)
-                    session_context.conversation_state["last_activity_time"] = time.time()
+                    old_timestamp = session_context.conversation_state.get(ConversationStateKeys.LAST_ACTIVITY_TIME, 0)
+                    session_context.conversation_state[ConversationStateKeys.LAST_ACTIVITY_TIME] = time.time()
                     
                     # Enregistrer la mise à jour
                     session_id = f"{room_id}_{sender}"

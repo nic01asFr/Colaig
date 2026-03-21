@@ -18,6 +18,7 @@ from app.matrix_bot.eventparser import EventParser
 from app.matrix_bot.client import MatrixClient
 from app.commands.decorators import albert_thread_command, register_feature, thread_response
 from app.commands import get_unified_session_context, update_unified_session_context
+from app.services.context.models import ConversationStateKeys
 from app.services.webhook_service import get_webhook_service, WebhookConfig, WebhookEvent, WebhookResult
 from nio import RoomMessageText  # Importer la classe RoomMessageText
 
@@ -110,8 +111,8 @@ async def webhook_command(ep: EventParser, matrix_client: MatrixClient):
         # Mode conversationnel (commande traditionnelle)
         # Démarrer un thread pour créer un webhook sortant
         thread_data = {
-            "action": "create_outgoing",
-            "stage": "name"
+            ConversationStateKeys.ACTION: "create_outgoing",
+            ConversationStateKeys.STAGE: "name"
         }
         
         # Mise à jour du contexte de conversation
@@ -425,8 +426,8 @@ async def webhook_response(ep: EventParser, matrix_client: MatrixClient):
     logger.info(f"[WEBHOOK_RESPONSE] État de la conversation: {context}")
     
     # Extraire l'action et l'étape en cours
-    action = context.conversation_state.get("action", "")
-    stage = context.conversation_state.get("stage", "")
+    action = context.conversation_state.get(ConversationStateKeys.ACTION, "")
+    stage = context.conversation_state.get(ConversationStateKeys.STAGE, "")
     logger.info(f"[WEBHOOK_RESPONSE] Action: {action}, Stage: {stage}")
     
     # Initialiser le service webhook
@@ -452,8 +453,8 @@ async def webhook_response(ep: EventParser, matrix_client: MatrixClient):
                 return None
             
             # Mettre à jour le contexte - modification directe au lieu de copy
-            context.conversation_state["webhook_name"] = webhook_name
-            context.conversation_state["stage"] = "url"
+            context.conversation_state[ConversationStateKeys.WEBHOOK_NAME] = webhook_name
+            context.conversation_state[ConversationStateKeys.STAGE] = "url"
             await update_unified_session_context(room_id, sender, context)
             
             # Demander l'URL
@@ -484,8 +485,8 @@ async def webhook_response(ep: EventParser, matrix_client: MatrixClient):
                 return None
             
             # Mettre à jour le contexte - modification directe au lieu de copy
-            context.conversation_state["webhook_url"] = webhook_url
-            context.conversation_state["stage"] = "method"
+            context.conversation_state[ConversationStateKeys.WEBHOOK_URL] = webhook_url
+            context.conversation_state[ConversationStateKeys.STAGE] = "method"
             await update_unified_session_context(room_id, sender, context)
             
             # Demander la méthode HTTP
@@ -504,8 +505,8 @@ async def webhook_response(ep: EventParser, matrix_client: MatrixClient):
             webhook_method = message_text.strip().upper() if message_text.strip() else "POST"
             
             # Récupérer les informations du webhook
-            webhook_name = context.conversation_state.get("webhook_name", "")
-            webhook_url = context.conversation_state.get("webhook_url", "")
+            webhook_name = context.conversation_state.get(ConversationStateKeys.WEBHOOK_NAME, "")
+            webhook_url = context.conversation_state.get(ConversationStateKeys.WEBHOOK_URL, "")
             
             # Créer le webhook
             webhook_config = WebhookConfig(
@@ -540,11 +541,11 @@ Les données envoyées seront transmises à {webhook_url} avec la méthode {webh
             )
             
             # Terminer le thread de commande
-            context.conversation_state["command_completed"] = True
-            context.conversation_state["last_action"] = "création_terminée"
-            context.conversation_state["action"] = "création_terminée"
-            context.conversation_state["status"] = "success"
-            context.conversation_state["webhook_method"] = webhook_method
+            context.conversation_state[ConversationStateKeys.COMMAND_COMPLETED] = True
+            context.conversation_state[ConversationStateKeys.LAST_ACTION] = "création_terminée"
+            context.conversation_state[ConversationStateKeys.ACTION] = "création_terminée"
+            context.conversation_state[ConversationStateKeys.STATUS] = "success"
+            context.conversation_state[ConversationStateKeys.WEBHOOK_METHOD] = webhook_method
             
             # Fermer explicitement le thread
             from app.commands.lifecycle import ThreadedCommandManager

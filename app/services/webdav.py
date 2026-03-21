@@ -105,7 +105,8 @@ class WebDAVService:
             self.base_url = self.base_url[:-len(webdav_root_path)].rstrip('/')
 
         self.versions: Dict[str, List[DocumentVersion]] = {}
-        self._initialized = False  # Ajout de l'attribut d'initialisation
+        self._initialized = False
+        self._degraded = False  # True si initialisé en mode dégradé (connexion échouée)
 
         # Construire les chemins complets
         self.root_path = webdav_root_path
@@ -186,15 +187,21 @@ class WebDAVService:
                 # Continuer malgré l'erreur
                 
             self._initialized = True
+            self._degraded = False
             logger.info("Service WebDAV initialisé avec succès")
-            
+
         except Exception as e:
             logger.error(f"Erreur initialisation WebDAV: {str(e)}")
             if self.http_client:
-                await self.http_client.aclose()
-            # Même en cas d'erreur, marquer comme initialisé pour éviter les blocages
+                try:
+                    await self.http_client.aclose()
+                except Exception:
+                    pass
+            # Marquer comme initialisé pour permettre le mode dégradé,
+            # mais signaler explicitement l'état via _degraded
             self._initialized = True
-            logger.warning("Service WebDAV initialisé en mode dégradé")
+            self._degraded = True
+            logger.warning("Service WebDAV initialisé en mode dégradé — les opérations fichier seront indisponibles")
             
     # Méthode de compatibilité avec l'ancien code
     async def initialize(self) -> None:

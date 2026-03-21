@@ -17,7 +17,6 @@ from app.matrix_bot.callbacks import Callbacks
 from app.matrix_bot.bot import MatrixBot as BaseMatrixBot
 from app.matrix_bot.config import bot_lib_config
 from app.commands.registry import command_registry
-from app.commands import get_registry
 from app.config import Config, env_config
 from app.commands.exclusions import EXCLUDED_MODULES, INCLUDED_COMMANDS
 
@@ -45,7 +44,6 @@ class TchapBot:
         
         self.callbacks = Callbacks(self.matrix_client)
         self._maintenance_task = None
-        self._context_cleanup_task = None
         self._full_functionality_enabled = False
         self._welcome_sent = set()  # Ensemble de salons où le message de bienvenue a été envoyé
         self._commands_loaded = False  # Flag pour éviter de charger les commandes plusieurs fois
@@ -433,6 +431,14 @@ Pour plus d'informations sur ces commandes, utilisez `!aide`.
                 except Exception as e:
                     logger.error(f"Erreur lors de la fermeture du service d'index global: {str(e)}")
                         
+                # Fermeture propre du behavior manager
+                try:
+                    from app.services.behavior_manager import close_behavior_manager
+                    await close_behavior_manager()
+                    logger.info("Behavior manager fermé")
+                except Exception as e:
+                    logger.error(f"Erreur lors de la fermeture du behavior manager: {str(e)}")
+
                 # Fermeture propre du gestionnaire de contexte
                 logger.info("Fermeture du gestionnaire de contexte...")
                 from app.services.context.instance import close_context_manager
