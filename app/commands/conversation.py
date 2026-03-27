@@ -344,8 +344,15 @@ async def _orchestrate_response(
     mcp_tools = []
     mcp_registry = None
     webdav_svc = None
-    webdav_context = room_dict.get("webdav_context") or {}
-    workspace_root = webdav_context.get("webdav_root", "") or webdav_context.get("path", "")
+    # webdav_context est stocké comme string (chemin WebDAV du workspace)
+    # ex: "/documents/room-123" — c'est directement le workspace_root
+    _wdav_ctx = room_dict.get("webdav_context")
+    if isinstance(_wdav_ctx, str):
+        workspace_root = _wdav_ctx
+    elif isinstance(_wdav_ctx, dict):
+        workspace_root = _wdav_ctx.get("webdav_root", "") or _wdav_ctx.get("path", "")
+    else:
+        workspace_root = ""
     if workspace_root:
         try:
             from app.services.mcp.registry import get_mcp_registry
