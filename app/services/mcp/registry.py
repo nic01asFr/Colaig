@@ -61,18 +61,32 @@ class MCPRegistry:
         self._sampling_callback: Optional[Callable] = None
         # Config applicative (pour generate())
         self._app_config: Any = None
+        # URL de base WebDAV pour construire les roots MCP scopées au workspace
+        # Ex: "https://webdav.host/documents" → root = "{base}/{workspace_root}"
+        self._webdav_base_url: str = ""
 
     # ── Configuration ─────────────────────────────────────────────────────────
 
-    def configure(self, app_config: Any, sampling_callback: Optional[Callable] = None):
+    def configure(
+        self,
+        app_config: Any,
+        sampling_callback: Optional[Callable] = None,
+        webdav_base_url: str = "",
+    ):
         """
         Configure le registre avec la config applicative et le callback de sampling.
 
         sampling_callback : async fn(messages, system_prompt, max_tokens, model_prefs) → str
             Typiquement un wrapper autour de generate() de core_llm.
+
+        webdav_base_url : URL de base WebDAV complète (ex: "https://webdav.host/documents")
+            Utilisée pour construire les URIs de roots MCP scopées au workspace.
+            Format final : "{webdav_base_url}/{workspace_root}"
+            Permet aux serveurs MCP de référencer des ressources fichier du workspace.
         """
         self._app_config = app_config
         self._sampling_callback = sampling_callback
+        self._webdav_base_url = webdav_base_url.rstrip("/")
 
     # ── API tools ─────────────────────────────────────────────────────────────
 
@@ -264,11 +278,23 @@ class MCPRegistry:
 
                 client.sampling_handler = _sampling_handler
 
-            # Câbler roots (retourne le workspace comme racine)
+            # Câbler roots — URI WebDAV complète scopée au workspace
+            # Si webdav_base_url est configuré : "https://host/documents/workspace_root"
+            # Sinon fallback sur le chemin relatif pour ne pas bloquer
             _workspace = workspace_root
+            _base = self._webdav_base_url
 
-            def _roots_provider(_wp=_workspace) -> List[MCPRoot]:
-                return [MCPRoot(uri=f"webdav://{_wp}", name=_wp or "workspace")]
+            def _roots_provider(_wp=_workspace, _base=_base) -> List[MCPRoot]:
+                if _base:
+                    # URI complète et opérable par un serveur MCP accédant aux fichiers
+                    wp_clean = _wp.strip("/")
+                    uri = f"{_base}/{wp_clean}" if wp_clean else _base
+                else:
+                    # Fallback : chemin relatif (serveur MCP ne peut pas l'utiliser
+                    # pour accéder aux fichiers mais identifie le scope du workspace)
+                    uri = f"webdav://{_wp}"
+                name = _wp.rstrip("/").rsplit("/", 1)[-1] or "workspace"
+                return [MCPRoot(uri=uri, name=name)]
 
             client.roots_provider = _roots_provider
 

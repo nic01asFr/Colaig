@@ -314,9 +314,20 @@ Pour plus d'informations sur ces commandes, utilisez `!aide`.
                         llm_messages.append({"role": role, "content": text})
                     return await _llm_generate(config, llm_messages)
 
+                # Construire l'URL WebDAV de base pour les roots MCP
+                # Format : "{webdav_url}{webdav_root_path}" ex: "https://host/documents"
+                _webdav_base = ""
+                if self.config.webdav_url:
+                    _webdav_base = (
+                        self.config.webdav_url.rstrip("/")
+                        + "/"
+                        + self.config.webdav_root_path.strip("/")
+                    )
+
                 get_mcp_registry().configure(
                     app_config=self.config,
                     sampling_callback=_mcp_sampling_handler,
+                    webdav_base_url=_webdav_base,
                 )
                 logger.info("Registre MCP configuré avec sampling handler")
             except Exception as e:
