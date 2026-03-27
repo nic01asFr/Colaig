@@ -765,55 +765,67 @@ class BehaviorManager:
             # Ne pas propager l'erreur, laisser l'application continuer
     
     @with_initialized_services
-    async def detect_intent(self, message: str) -> Tuple[bool, str, float]:
+    async def detect_intent(
+        self,
+        message: str,
+        session_context: Optional[Dict[str, Any]] = None,
+        room_context: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[bool, str, float]:
         """
         Détecte l'intention de l'utilisateur à partir d'un message.
-        
+
         Args:
             message: Message de l'utilisateur
-            
+            session_context: Contexte de session optionnel
+            room_context: Contexte du salon optionnel
+
         Returns:
             Tuple (a_une_intention, nom_intention, score)
         """
-        # S'assurer que le gestionnaire est initialisé
         if not self._initialized:
             await self.initialize()
-        
-        return await self.behavior_index.detect_intent(message)
+
+        result = await self.behavior_index.analyze_intent(message, session_context, room_context)
+        intent = result.get("detected_intent", "standard_rag")
+        confidence = float(result.get("confidence", 0.0))
+        # Une intention est considérée détectée si elle n'est pas le fallback RAG
+        # et que le score dépasse le seuil de confiance de analyze_intent (0.6)
+        has_intent = confidence >= 0.6 and intent != "standard_rag"
+        return (has_intent, intent, confidence)
     
     @with_initialized_services
-    async def execute_action(self, 
-                           intent_name: str, 
-                           query: str, 
-                           context: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def execute_action(
+        self,
+        intent_name: str,
+        query: str,
+        context: Dict[str, Any] = None,
+        action_config: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
         """
         Exécute l'action associée à une intention.
-        
+
         Args:
             intent_name: Nom de l'intention détectée
             query: Requête de l'utilisateur
             context: Contexte de la conversation
-            
+            action_config: Configuration d'action pré-résolue (issue de analyze_intent).
+                           Si absent, analyze_intent est rappelé sur la query.
+
         Returns:
             Résultat de l'action
         """
-        # S'assurer que le gestionnaire est initialisé
         if not self._initialized:
             await self.initialize()
-            
-        # Récupérer le comportement associé à cette intention
-        behavior = self.behavior_index.get_behavior_by_intent(intent_name)
-        
-        if not behavior:
-            return {
-                "success": False,
-                "error": f"Aucun comportement trouvé pour l'intention {intent_name}",
-                "response": "Je ne sais pas comment traiter cette demande."
-            }
-        
-        # Récupérer l'action à exécuter
-        action_config = behavior.get("action", {})
-        action_type = action_config.get("type")
+
+        # Résoudre l'action_config si non fournie
+        if action_config is None:
+            intent_result = await self.behavior_index.analyze_intent(query, context)
+            action_config = intent_result.get("action_config", {})
+
+        action_type = (
+            action_config.get("type")
+            or action_config.get("action", {}).get("type")
+        )
         
         if not action_type:
             return {

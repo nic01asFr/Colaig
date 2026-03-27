@@ -252,8 +252,18 @@ Ce message suivant semble être une réaction ou une nouvelle question après ce
                 # Aucun message système trouvé, ajouter le nôtre
                 messages = [{"role": "system", "content": context_prompt}] + messages
         
-        # Générer la réponse
-        response = await generate(config, messages)
+        # Analyser l'intention et orchestrer les outils disponibles
+        response = await _orchestrate_response(
+            message_text=message_text,
+            messages=messages,
+            behavior_manager=behavior_manager,
+            session_context=session_context,
+            room_context=room_context,
+            config=config,
+            room_id=room_id,
+            matrix_client=matrix_client,
+            ep=ep,
+        )
         
         # Mettre à jour l'historique avec la réponse du bot
         await update_conversation_history(
@@ -280,4 +290,89 @@ Ce message suivant semble être une réaction ou une nouvelle question après ce
         )
     finally:
         # Toujours désactiver l'indicateur de frappe
-        await matrix_client.room_typing(room_id, typing_state=False) 
+        await matrix_client.room_typing(room_id, typing_state=False)
+
+
+async def _orchestrate_response(
+    message_text: str,
+    messages: list,
+    behavior_manager,
+    session_context,
+    room_context,
+    config,
+    room_id: str,
+    matrix_client,
+    ep,
+) -> str:
+    """
+    Orchestre la réponse en fonction de l'intention détectée et des ressources
+    disponibles dans le workspace.
+
+    Flux :
+    1. Analyse de l'intention via BehaviorManager.detect_intent()
+    2. Sélection de la stratégie selon l'intent + ressources disponibles
+    3. Exécution de l'action appropriée (RAG, synthèse, web, LLM direct)
+    4. Fallback sur generate() direct si aucune action ne correspond
+
+    Returns:
+        Réponse textuelle finale
+    """
+    # Préparer les contextes sérialisables
+    session_dict = session_context.to_dict() if hasattr(session_context, "to_dict") else {}
+    room_dict = room_context.to_dict() if room_context and hasattr(room_context, "to_dict") else {}
+
+    # Étape 1 — Détecter l'intention
+    try:
+        has_intent, intent_name, confidence = await behavior_manager.detect_intent(
+            message_text,
+            session_context=session_dict,
+            room_context=room_dict,
+        )
+        logger.info(
+            f"[ORCHESTRATOR] Intent détecté: '{intent_name}' "
+            f"(has_intent={has_intent}, confidence={confidence:.2f})"
+        )
+    except Exception as e:
+        logger.warning(f"[ORCHESTRATOR] Erreur detect_intent, fallback LLM direct: {e}")
+        return await generate(config, messages)
+
+    # Étape 2 — Vérifier les ressources disponibles du workspace
+    has_doc_index = bool(room_dict.get("webdav_context"))
+    has_web_links = False  # TODO: vérifier via web_links_manager quand disponible
+
+    # Étape 3 — Orchestration selon l'intent et les ressources
+    if has_intent and intent_name in ("standard_rag", "rag") and has_doc_index:
+        logger.info("[ORCHESTRATOR] Routage vers RAG documentaire")
+        try:
+            result = await behavior_manager.execute_action(
+                intent_name=intent_name,
+                query=message_text,
+                context={**session_dict, **room_dict},
+            )
+            if result.get("success") and result.get("response"):
+                return result["response"]
+            # Résultat insuffisant → fallback LLM avec contexte enrichi
+            logger.info("[ORCHESTRATOR] Résultat RAG insuffisant, fallback LLM")
+        except Exception as e:
+            logger.warning(f"[ORCHESTRATOR] Erreur execute_action RAG: {e}")
+
+    elif has_intent and intent_name == "synthesis" and has_doc_index:
+        logger.info("[ORCHESTRATOR] Routage vers synthèse documentaire")
+        try:
+            result = await behavior_manager.execute_action(
+                intent_name=intent_name,
+                query=message_text,
+                context={**session_dict, **room_dict},
+            )
+            if result.get("success") and result.get("response"):
+                return result["response"]
+            logger.info("[ORCHESTRATOR] Résultat synthèse insuffisant, fallback LLM")
+        except Exception as e:
+            logger.warning(f"[ORCHESTRATOR] Erreur execute_action synthèse: {e}")
+
+    # Étape 4 — Fallback : LLM direct avec historique
+    logger.info(
+        f"[ORCHESTRATOR] Fallback LLM direct "
+        f"(intent={intent_name}, has_doc_index={has_doc_index})"
+    )
+    return await generate(config, messages)
