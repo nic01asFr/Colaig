@@ -409,13 +409,18 @@ async def doc_query_adapted_command(ep: EventParser, matrix_client: MatrixClient
     # Si le message est uniquement "!chercher" sans arguments
     if len(command_parts) <= 1:
         logger.info(f"[CHERCHER] Pas de question fournie, envoi des instructions")
-        return """❓ **Comment utiliser !chercher**
+        await matrix_client.send_markdown_message(
+            room_id,
+            """❓ **Comment utiliser !chercher**
 
 ```
 !chercher Votre question sur les documents indexés
 ```
 
-Posez une question en langage naturel, et je chercherai des réponses dans les documents indexés."""
+Posez une question en langage naturel, et je chercherai des réponses dans les documents indexés.""",
+            msgtype="m.notice"
+        )
+        return
     
     # Extraire la question (tout ce qui suit après la commande)
     question = command_parts[1]
@@ -476,12 +481,17 @@ Posez une question en langage naturel, et je chercherai des réponses dans les d
         # Si aucun résultat n'est trouvé
         if not search_results:
             logger.warning(f"[CHERCHER] Aucun résultat trouvé pour la question: '{question}'")
-            return f"""⚠️ Je n'ai trouvé aucun document pertinent pour répondre à votre question.
+            await matrix_client.send_markdown_message(
+                room_id,
+                """⚠️ Je n'ai trouvé aucun document pertinent pour répondre à votre question.
 
 Suggestions:
 - Essayez de reformuler votre question
 - Vérifiez si les documents sont bien indexés
-- Utilisez des mots-clés plus généraux"""
+- Utilisez des mots-clés plus généraux""",
+                msgtype="m.notice"
+            )
+            return
         
         # Envoyer un message de réflexion pendant la génération
         await matrix_client.send_markdown_message(
@@ -593,12 +603,17 @@ Suggestions:
         # Si aucun contexte valide n'a été trouvé après le filtrage
         if not contexts:
             logger.warning(f"[CHERCHER] Aucun contexte textuel valide trouvé pour la question: '{question}'")
-            return f"""⚠️ J'ai trouvé des documents potentiellement pertinents, mais je n'ai pas pu en extraire le contenu textuel.
+            await matrix_client.send_markdown_message(
+                room_id,
+                """⚠️ J'ai trouvé des documents potentiellement pertinents, mais je n'ai pas pu en extraire le contenu textuel.
 
 Suggestions:
 - Vérifiez l'indexation des documents avec la commande !index verify
 - Essayez de reconstruire l'index avec !index rebuild
-- Contactez l'administrateur pour vérifier l'extraction de texte"""
+- Contactez l'administrateur pour vérifier l'extraction de texte""",
+                msgtype="m.notice"
+            )
+            return
         
         # Marquer le début de la génération
         generation_start = time.time()

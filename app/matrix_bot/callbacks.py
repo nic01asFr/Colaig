@@ -195,10 +195,15 @@ class Callbacks:
                     logger.info(f"[TIMEOUT DEBUG] Démarrage de la commande {cmd_name} avec timeout de {COMMAND_TIMEOUT}s")
                     try:
                         # Exécuter la commande avec un timeout global
-                        await asyncio.wait_for(
+                        result = await asyncio.wait_for(
                             func(ep=ep, matrix_client=self.matrix_client),
                             timeout=COMMAND_TIMEOUT
                         )
+                        # Envoyer le résultat si la commande retourne une chaîne
+                        if isinstance(result, str) and result.strip():
+                            await self.matrix_client.send_markdown_message(
+                                room.room_id, result, msgtype="m.notice"
+                            )
                         logger.info(f"[TIMEOUT DEBUG] Commande {cmd_name} terminée avec succès dans le délai imparti")
                     except asyncio.TimeoutError:
                         logger.error(f"[TIMEOUT DEBUG] TIMEOUT GLOBAL pour la commande {cmd_name} après {COMMAND_TIMEOUT}s!")

@@ -101,11 +101,11 @@ class Config(BaseSettings):
         return _parse_list(v) if v else []
 
     # === Albert API ===
-    albert_api_url: str = Field("https://api.albert.ai", description="Albert API base URL")
+    albert_api_url: str = Field("https://albert.api.etalab.gouv.fr/v1", description="Albert API base URL")
     albert_api_token: str = Field("", description="Albert API token")
     albert_api_key: str = Field("", description="Albert API key (alias for token)")
     albert_model: str = Field(
-        "meta-llama/Llama-3.1-8B-Instruct", description="Albert LLM model"
+        "openai/gpt-oss-120b", description="Albert LLM model"
     )
     albert_model_embedding: str = Field("BAAI/bge-m3", description="Embedding model")
     albert_mode: str = Field("rag", description="Albert mode (rag/norag)")
