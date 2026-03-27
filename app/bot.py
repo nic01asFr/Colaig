@@ -295,9 +295,36 @@ Pour plus d'informations sur ces commandes, utilisez `!aide`.
             return
             
         try:
+            # Configurer le registre MCP avec le sampling handler
+            try:
+                from app.services.mcp.registry import get_mcp_registry
+                from app.core_llm import generate as _llm_generate
+
+                async def _mcp_sampling_handler(
+                    messages, system_prompt, max_tokens, model_prefs, config
+                ) -> str:
+                    """Sampling handler : délègue au LLM de Colaig."""
+                    llm_messages = []
+                    if system_prompt:
+                        llm_messages.append({"role": "system", "content": system_prompt})
+                    for m in messages:
+                        role = m.get("role", "user")
+                        content = m.get("content", {})
+                        text = content.get("text", "") if isinstance(content, dict) else str(content)
+                        llm_messages.append({"role": role, "content": text})
+                    return await _llm_generate(config, llm_messages)
+
+                get_mcp_registry().configure(
+                    app_config=self.config,
+                    sampling_callback=_mcp_sampling_handler,
+                )
+                logger.info("Registre MCP configuré avec sampling handler")
+            except Exception as e:
+                logger.warning(f"Impossible de configurer le registre MCP: {e}")
+
             # Charger les commandes si ce n'est pas déjà fait
             await self.load_commands()
-            
+
             # Configurer tous les callbacks avancés
             await self.callbacks.setup_callbacks()
             logger.info("Callbacks avancés configurés avec succès")

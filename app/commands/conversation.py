@@ -342,6 +342,8 @@ async def _orchestrate_response(
 
     # Vérifier et charger les outils MCP disponibles pour ce workspace
     mcp_tools = []
+    mcp_registry = None
+    webdav_svc = None
     webdav_context = room_dict.get("webdav_context") or {}
     workspace_root = webdav_context.get("webdav_root", "") or webdav_context.get("path", "")
     if workspace_root:
@@ -391,7 +393,7 @@ async def _orchestrate_response(
             logger.warning(f"[ORCHESTRATOR] Erreur execute_action synthèse: {e}")
 
     # Étape 4 — Outils MCP : injecter les descriptions dans le prompt et laisser le LLM décider
-    if has_mcp_tools:
+    if has_mcp_tools and mcp_registry is not None:
         logger.info("[ORCHESTRATOR] Injection des outils MCP dans le contexte LLM")
         try:
             response = await _orchestrate_with_mcp(
@@ -399,6 +401,7 @@ async def _orchestrate_response(
                 messages=messages,
                 mcp_tools=mcp_tools,
                 workspace_root=workspace_root,
+                mcp_registry=mcp_registry,
                 config=config,
             )
             if response:
@@ -419,6 +422,7 @@ async def _orchestrate_with_mcp(
     messages: list,
     mcp_tools: list,
     workspace_root: str,
+    mcp_registry,
     config,
 ) -> str:
     """
@@ -431,7 +435,6 @@ async def _orchestrate_with_mcp(
     4. Si aucun outil n'est pertinent : retourner None → fallback LLM direct
     """
     from app.core_llm import generate
-    from app.services.mcp.registry import get_mcp_registry
     import json as _json
 
     # Construire la liste des outils pour le prompt
@@ -483,7 +486,6 @@ async def _orchestrate_with_mcp(
 
     logger.info(f"[MCP] LLM sélectionne l'outil: {qualified_name}")
 
-    mcp_registry = get_mcp_registry()
     tool_result = await mcp_registry.call_tool(workspace_root, qualified_name, arguments)
 
     if tool_result.is_error:
