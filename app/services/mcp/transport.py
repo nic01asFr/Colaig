@@ -156,36 +156,36 @@ class StreamableHTTPTransport:
 
         headers = self._build_headers()
         try:
-            response = await self._http.post(
+            async with self._http.stream(
+                "POST",
                 self.url,
                 json=payload,
                 headers=headers,
                 timeout=timeout or self.timeout,
-            )
+            ) as response:
+                # Extraire le session_id si présent
+                sid = response.headers.get("mcp-session-id") or response.headers.get("Mcp-Session-Id")
+                if sid:
+                    self._session_id = sid
+
+                if is_notification:
+                    return {}
+
+                if response.status_code == 202:
+                    return {}
+
+                response.raise_for_status()
+
+                content_type = response.headers.get("content-type", "")
+                if "text/event-stream" in content_type:
+                    return await self._consume_sse_response(response)
+                else:
+                    data = await response.aread()
+                    return self._parse_jsonrpc_response(json.loads(data))
         except httpx.TimeoutException as e:
             raise TimeoutError(f"[MCP] Timeout POST {payload.get('method', '?')}") from e
         except httpx.RequestError as e:
             raise ConnectionError(f"[MCP] Erreur réseau: {e}") from e
-
-        # Extraire le session_id si présent
-        sid = response.headers.get("mcp-session-id") or response.headers.get("Mcp-Session-Id")
-        if sid:
-            self._session_id = sid
-
-        if is_notification:
-            # 202 Accepted ou 200 sans corps — pas de résultat à parser
-            return {}
-
-        if response.status_code == 202:
-            return {}
-
-        response.raise_for_status()
-
-        content_type = response.headers.get("content-type", "")
-        if "text/event-stream" in content_type:
-            return await self._consume_sse_response(response)
-        else:
-            return self._parse_jsonrpc_response(response.json())
 
     def _build_headers(self) -> Dict[str, str]:
         h = {
@@ -212,12 +212,16 @@ class StreamableHTTPTransport:
         """
         Consomme un stream SSE en réponse à un POST.
         Accumule les événements jusqu'à recevoir le résultat correspondant.
+        Gère les séparateurs \r\n\r\n et \n\n.
         """
         buffer = ""
         async for chunk in response.aiter_text():
             buffer += chunk
-            while "\n\n" in buffer:
-                event_raw, buffer = buffer.split("\n\n", 1)
+            # Normaliser les fins de ligne pour simplifier le parsing
+            normalized = buffer.replace("\r\n", "\n")
+            while "\n\n" in normalized:
+                event_raw, normalized = normalized.split("\n\n", 1)
+                buffer = normalized  # poursuivre avec le reste normalisé
                 msg = self._parse_sse_event(event_raw)
                 if msg is None:
                     continue
@@ -290,7 +294,7 @@ class StreamableHTTPTransport:
                 async for chunk in response.aiter_text():
                     if not self._sse_active:
                         break
-                    buffer += chunk
+                    buffer += chunk.replace("\r\n", "\n")
                     while "\n\n" in buffer:
                         event_raw, buffer = buffer.split("\n\n", 1)
                         eid, msg = self._parse_sse_event_with_id(event_raw)
