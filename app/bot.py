@@ -450,6 +450,14 @@ Pour plus d'informations sur ces commandes, utilisez `!aide`.
                 except Exception as e:
                     logger.error(f"Erreur lors de la fermeture du behavior manager: {str(e)}")
 
+                # Fermeture propre du registre MCP
+                try:
+                    from app.services.mcp.registry import close_mcp_registry
+                    await close_mcp_registry()
+                    logger.info("Registre MCP fermé")
+                except Exception as e:
+                    logger.error(f"Erreur lors de la fermeture du registre MCP: {str(e)}")
+
                 # Fermeture propre du gestionnaire de contexte
                 logger.info("Fermeture du gestionnaire de contexte...")
                 from app.services.context.instance import close_context_manager
