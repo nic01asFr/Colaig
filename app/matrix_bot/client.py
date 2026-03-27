@@ -33,6 +33,7 @@ from .markdown_formatter import preprocess_markdown, fix_html_lists
 
 import asyncio
 import traceback
+from collections import OrderedDict
 
 
 def check_valid_homeserver(homeserver: str):
@@ -84,6 +85,11 @@ class MatrixClient(AsyncClient):
             logger.error(f"Erreur lors de la vérification du homeserver: {str(e)}")
             raise
             
+        # Cache des messages envoyés par le bot : event_id → {room_id, body, thread_root}
+        # Utilisé par les handlers de réactions pour retrouver le contexte du message réagi
+        self._sent_messages_cache: OrderedDict = OrderedDict()
+        self._sent_messages_cache_max = 200
+
         self.matrix_config = bot_lib_config
         logger.info(f"Configuration Matrix chargée depuis bot_lib_config, store_path={self.matrix_config.store_path}")
         
@@ -326,6 +332,18 @@ class MatrixClient(AsyncClient):
                 or self.matrix_config.ignore_unverified_devices,
             )
             if isinstance(res, RoomSendResponse):
+                # Mettre en cache si c'est un message du bot (pour les réactions)
+                if message_type == "m.room.message":
+                    event_id = res.event_id
+                    self._sent_messages_cache[event_id] = {
+                        "room_id": room_id,
+                        "body": content.get("body", ""),
+                        "formatted_body": content.get("formatted_body", ""),
+                        "thread_root": thread_root,
+                    }
+                    # Limiter la taille du cache
+                    while len(self._sent_messages_cache) > self._sent_messages_cache_max:
+                        self._sent_messages_cache.popitem(last=False)
                 return res.event_id
         except OlmUnverifiedDeviceError:
             logger.info(

@@ -216,6 +216,17 @@ Pour plus d'informations sur ces commandes, utilisez `!aide`.
         logger.info(f"Total activated commands: {len(self.command_registry.activated_functions)}")
         logger.info(f"Activated command list: {sorted(list(self.command_registry.activated_functions))}")
         
+        # Enregistrer les handlers de réactions emoji
+        logger.info("Enregistrement des handlers de réactions emoji")
+        from app.commands.reactions import handle_reaction as _handle_reaction
+        _mc = self.matrix_client  # référence locale pour la closure
+
+        async def _reaction_dispatch(room, event, emoji):
+            await _handle_reaction(room, event, emoji, _mc)
+
+        self.callbacks.register_on_reaction_event(_reaction_dispatch)
+        logger.info("Handlers de réactions emoji enregistrés (👍 👎 🔄 ➕)")
+
         # Marquer les commandes comme chargées pour éviter les doublons
         self._commands_loaded = True
         
