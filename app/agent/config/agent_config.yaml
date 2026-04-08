@@ -1,0 +1,184 @@
+# Configuration de l'agent Colaig — éditable sans rebuild Docker
+# Le fichier est rechargé à chaque appel _orchestrate_response.
+
+# ─── Filtrage des outils ──────────────────────────────────────────────────────
+
+filtering:
+  # Nombre max d'outils gardés après filtrage (top_k embeddings)
+  top_k: 6
+
+  # Seuil minimum de similarité cosine pour le filtrage par embeddings
+  min_similarity: 0.25
+
+  # Outils "porte d'entrée" toujours présents s'ils sont dans la liste candidate.
+  # Garantit qu'on a toujours au moins un outil de recherche disponible.
+  gateway_tools:
+    - search_documents
+    - datagouv__search_datasets
+
+  # Outils du noyau toujours exposés (jamais filtrés).
+  always_included:
+    - search_documents
+
+# ─── Mots-clés de filtrage par outil ─────────────────────────────────────────
+# Match si un mot-clé apparaît dans le message normalisé (sans accents, lowercase)
+
+tool_keywords:
+  search_documents:
+    - document
+    - "doc "
+    - docs
+    - fichier
+    - fichiers
+    - rapport
+    - note
+    - indexé
+    - indexés
+    - workspace
+    - espace
+    - chercher
+    - trouve
+    - search
+    - find
+
+  synthesize_documents:
+    - synthèse
+    - synthese
+    - résumé
+    - resume
+    - synthétise
+    - synthetise
+    - summarize
+    - summary
+
+  manage_index:
+    - index
+    - réindexe
+    - reindex
+    - rebuild
+    - reconstruire
+    - indexation
+
+  datagouv__search_datasets:
+    - data.gouv
+    - datagouv
+    - data gouv
+    - open data
+    - données ouvertes
+    - donnees ouvertes
+    - jeu de données
+    - jeux de données
+    - dataset
+    - datasets
+    - insee
+    - ministère
+    - publique
+
+  datagouv__search_dataservices:
+    - api
+    - service
+    - data.gouv
+    - datagouv
+    - open data
+
+  datagouv__get_dataservice_info:
+    - data.gouv
+    - datagouv
+    - service
+    - api
+
+  datagouv__get_dataservice_openapi_spec:
+    - openapi
+    - swagger
+    - spec
+    - schema
+
+  datagouv__query_resource_data:
+    - data.gouv
+    - datagouv
+    - interroge
+    - query
+    - ressource
+    - valeurs
+    - tableau
+
+  datagouv__get_dataset_info:
+    - data.gouv
+    - datagouv
+    - dataset
+    - détails
+    - details
+    - info
+
+  datagouv__list_dataset_resources:
+    - data.gouv
+    - datagouv
+    - ressources
+    - fichiers
+
+  datagouv__get_resource_info:
+    - data.gouv
+    - datagouv
+    - ressource
+    - fichier
+
+  datagouv__get_metrics:
+    - data.gouv
+    - datagouv
+    - métriques
+    - metrics
+    - statistiques
+    - stats
+
+# NOTE : les hints/instructions des serveurs MCP ne sont PAS dans ce fichier.
+# Ils vivent avec la déclaration du serveur :
+#   - Instance : champ `instructions` dans Config.mcp_default_servers
+#   - Workspace : champ `instructions` dans .albert/config/mcp_servers.json
+# La SSOT est MCPRegistry.get_server_instructions() qui priorise :
+#   1. Instructions natives MCP (handshake initialize)
+#   2. Champ instructions du MCPServerConfig
+#   3. Vide
+
+# ─── Compaction des résultats ─────────────────────────────────────────────────
+
+compaction:
+  # Taille en chars en dessous de laquelle on injecte le résultat tel quel
+  max_inline: 1500
+
+  # Taille max absolue (hard cap, sécurité)
+  max_hard_cap: 50000
+
+  # Activer le résumé LLM intermédiaire pour les listings longs.
+  # Si True : au-delà de llm_summary_threshold, on appelle un mini-LLM pour
+  # produire un résumé structuré (catégories, total, exemples) plutôt qu'une
+  # troncature aveugle. +1-2 s de latence mais préserve la diversité.
+  llm_summary_enabled: true
+  llm_summary_threshold: 4000
+
+  # Nombre de lignes gardées en tête / queue lors d'une troncature structurée
+  # (utilisée quand le résumé LLM n'est pas applicable)
+  head_lines: 50
+  tail_lines: 3
+
+  # Préfixes/substrings dans le nom d'outil indiquant qu'il retourne une LISTE
+  # (donc compactable). Les outils non listés sont préservés intégralement.
+  list_tool_hints:
+    - "search_"
+    - "list_"
+    - "find_"
+    - "_search"
+    - "_list"
+
+# ─── Cache MCP ────────────────────────────────────────────────────────────────
+# Paramètres TTL/taille du cache d'appels MCP, lus par MCPRegistry.configure().
+# La PORTÉE du cache (workspace vs server vs none) est définie par serveur via
+# le champ cache_scope de MCPServerConfig — pas ici.
+
+cache:
+  ttl_seconds: 300       # 5 min
+  max_size: 200          # nombre max d'entrées (LRU)
+
+# ─── Boucle agent ─────────────────────────────────────────────────────────────
+
+loop:
+  max_turns: 5           # nombre max d'appels d'outils par requête
