@@ -72,14 +72,45 @@ def get_available_modes(config: Config) -> list[str]:
     return ["norag", "rag"]
 
 
+async def generate_with_tools(
+    config: Config,
+    messages: list,
+    tools: list = None,
+) -> dict:
+    """Génère une réponse LLM avec support tool_use natif OpenAI.
+
+    Args:
+        config: Config Colaig
+        messages: Historique [{role, content}, ...]
+        tools: Liste de tools au format OpenAI [{"type": "function", "function": {...}}]
+
+    Returns:
+        {"content": str, "tool_calls": [{name, arguments}, ...], "finish_reason": str}
+    """
+    aclient = AlbertApiClient(base_url=config.albert_api_url, api_key=config.albert_api_token)
+    try:
+        return await aclient.generate_with_tools(
+            model=config.albert_model,
+            messages=messages,
+            tools=tools,
+        )
+    finally:
+        await aclient.close()
+
+
 async def generate(
-    config: Config, 
-    messages: list
+    config: Config,
+    messages: list,
+    *,
+    force_norag: bool = False,
 ) -> str:
     api_key = config.albert_api_token
     url = config.albert_api_url
     model = config.albert_model
-    mode = None if config.albert_mode == "norag" else config.albert_mode
+    if force_norag:
+        mode = None
+    else:
+        mode = None if config.albert_mode == "norag" else config.albert_mode
     collections = list(config.albert_collections_by_id.keys())
     rag_chunks = []
     
@@ -258,21 +289,91 @@ class AlbertApiClient:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        
+
         data = {
             "model": model,
             **sampling_params
         }
-        
+
         async with httpx.AsyncClient(timeout=120.0) as client:
             response = await client.post(url, json=data, headers=headers)
             response.raise_for_status()
             result = response.json()
-            
+
             if "choices" in result and len(result["choices"]) > 0:
-                return result["choices"][0]["message"]["content"]
+                return result["choices"][0]["message"]["content"] or ""
             else:
                 raise ValueError("Réponse inattendue de l'API Albert")
+
+    async def generate_with_tools(
+        self,
+        model: str,
+        messages: list,
+        tools: list = None,
+        **sampling_params,
+    ) -> dict:
+        """Génère avec support des tool_calls (format OpenAI natif).
+
+        Returns:
+            {
+                "content": str,           # Texte de la réponse (peut être vide si tool_calls)
+                "tool_calls": list[dict], # [{name, arguments}, ...] format normalisé
+                "finish_reason": str,
+            }
+        """
+        url = f"{self.base_url}/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+
+        data = {
+            "model": model,
+            "messages": messages,
+            **sampling_params,
+        }
+        if tools:
+            data["tools"] = tools
+            data["tool_choice"] = "auto"
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(url, json=data, headers=headers)
+            if response.status_code >= 400:
+                logger.warning(
+                    f"[LLM] {response.status_code} body: {response.text[:500]}"
+                )
+                logger.debug(f"[LLM] payload sent: {str(data)[:800]}")
+            response.raise_for_status()
+            result = response.json()
+
+            if "choices" not in result or not result["choices"]:
+                raise ValueError("Réponse inattendue de l'API Albert")
+
+            choice = result["choices"][0]
+            msg = choice.get("message", {})
+            content = msg.get("content") or ""
+            finish_reason = choice.get("finish_reason", "stop")
+
+            # Normaliser les tool_calls (format OpenAI)
+            normalized_calls = []
+            raw_calls = msg.get("tool_calls") or []
+            for tc in raw_calls:
+                fn = tc.get("function", {})
+                name = fn.get("name", "")
+                args_str = fn.get("arguments", "{}")
+                try:
+                    import json as _json
+                    args = _json.loads(args_str) if isinstance(args_str, str) else args_str
+                except Exception:
+                    args = {}
+                if name:
+                    normalized_calls.append({"name": name, "arguments": args})
+
+            return {
+                "content": content,
+                "tool_calls": normalized_calls,
+                "finish_reason": finish_reason,
+            }
 
     async def get_embeddings(self, texts: List[str], model: str) -> List[List[float]]:
         """Génère les embeddings pour une liste de textes"""

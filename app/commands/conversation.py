@@ -47,7 +47,7 @@ async def get_session_context(
 async def handle_conversation(ep: EventParser, matrix_client: MatrixClient):
     """
     Gère les conversations générales avec Albert.
-    
+
     Cette fonction traite tous les messages qui ne correspondent pas
     à une commande spécifique.
     """
@@ -57,6 +57,7 @@ async def handle_conversation(ep: EventParser, matrix_client: MatrixClient):
     sender = ep.sender
     event_id = getattr(ep.event, "event_id", None)
     message_text = ep.event.body.strip() if hasattr(ep.event, "body") else ""
+    logger.info(f"[CONVERSATION] entrée: room={room_id} text={message_text[:60]!r}")
     
     # ===== VÉRIFICATION DU CONTEXTE TCHAP =====
     # Vérifier si on doit répondre selon le contexte Tchap (DM, salon avec mention, thread participatif)
@@ -305,47 +306,27 @@ async def _orchestrate_response(
     ep,
 ) -> str:
     """
-    Orchestre la réponse en fonction de l'intention détectée et des ressources
-    disponibles dans le workspace.
+    Orchestre la réponse via la boucle agent.
 
-    Flux :
-    1. Analyse de l'intention via BehaviorManager.detect_intent()
-    2. Sélection de la stratégie selon l'intent + ressources disponibles
-    3. Exécution de l'action appropriée (RAG, synthèse, web, LLM direct)
-    4. Fallback sur generate() direct si aucune action ne correspond
-
-    Returns:
-        Réponse textuelle finale
+    Le LLM décide lui-même quels outils utiliser (RAG, synthèse, MCP, ou aucun).
+    La boucle itère jusqu'à ce que le LLM réponde sans appel d'outil.
     """
+    logger.info(f"[AGENT] _orchestrate_response appelé pour: {message_text[:80]!r}")
+
+    from app.agent.loop import agent_loop
+    from app.agent.tools import build_registry
+    from app.agent.prompt import (
+        build_system_prompt,
+        build_mcp_tools_description,
+        gather_behaviors_summary,
+        gather_workspace_info,
+    )
+
     # Préparer les contextes sérialisables
     session_dict = session_context.to_dict() if hasattr(session_context, "to_dict") else {}
     room_dict = room_context.to_dict() if room_context and hasattr(room_context, "to_dict") else {}
 
-    # Étape 1 — Détecter l'intention
-    try:
-        has_intent, intent_name, confidence = await behavior_manager.detect_intent(
-            message_text,
-            session_context=session_dict,
-            room_context=room_dict,
-        )
-        logger.info(
-            f"[ORCHESTRATOR] Intent détecté: '{intent_name}' "
-            f"(has_intent={has_intent}, confidence={confidence:.2f})"
-        )
-    except Exception as e:
-        logger.warning(f"[ORCHESTRATOR] Erreur detect_intent, fallback LLM direct: {e}")
-        return await generate(config, messages)
-
-    # Étape 2 — Vérifier les ressources disponibles du workspace
-    has_doc_index = bool(room_dict.get("webdav_context"))
-    has_web_links = False  # TODO: vérifier via web_links_manager quand disponible
-
-    # Vérifier et charger les outils MCP disponibles pour ce workspace
-    mcp_tools = []
-    mcp_registry = None
-    webdav_svc = None
-    # webdav_context est stocké comme string (chemin WebDAV du workspace)
-    # ex: "/documents/room-123" — c'est directement le workspace_root
+    # ── Résolution du workspace ──
     _wdav_ctx = room_dict.get("webdav_context")
     if isinstance(_wdav_ctx, str):
         workspace_root = _wdav_ctx
@@ -353,216 +334,116 @@ async def _orchestrate_response(
         workspace_root = _wdav_ctx.get("webdav_root", "") or _wdav_ctx.get("path", "")
     else:
         workspace_root = ""
-    if workspace_root:
-        try:
-            from app.services.mcp.registry import get_mcp_registry
-            from app.services.webdav_context_manager import WebDAVContextManager
-            mcp_registry = get_mcp_registry()
-            webdav_manager = WebDAVContextManager(config)
-            webdav_svc = await webdav_manager.get_webdav_for_context(room_id=room_id)
-            if webdav_svc:
-                mcp_tools = await mcp_registry.get_tools(webdav_svc, workspace_root)
-        except Exception as e:
-            logger.debug(f"[ORCHESTRATOR] MCP tools non disponibles: {e}")
 
-    has_mcp_tools = bool(mcp_tools)
-    if has_mcp_tools:
-        logger.info(f"[ORCHESTRATOR] {len(mcp_tools)} outil(s) MCP disponible(s) pour ce workspace")
-
-    # Étape 3 — Orchestration selon l'intent et les ressources
-    if has_intent and intent_name in ("standard_rag", "rag") and has_doc_index:
-        logger.info("[ORCHESTRATOR] Routage vers RAG documentaire")
-        try:
-            result = await behavior_manager.execute_action(
-                intent_name=intent_name,
-                query=message_text,
-                context={**session_dict, **room_dict},
-            )
-            if result.get("success") and result.get("response"):
-                return result["response"]
-            # Résultat insuffisant → fallback LLM avec contexte enrichi
-            logger.info("[ORCHESTRATOR] Résultat RAG insuffisant, fallback LLM")
-        except Exception as e:
-            logger.warning(f"[ORCHESTRATOR] Erreur execute_action RAG: {e}")
-
-    elif has_intent and intent_name == "synthesis" and has_doc_index:
-        logger.info("[ORCHESTRATOR] Routage vers synthèse documentaire")
-        try:
-            result = await behavior_manager.execute_action(
-                intent_name=intent_name,
-                query=message_text,
-                context={**session_dict, **room_dict},
-            )
-            if result.get("success") and result.get("response"):
-                return result["response"]
-            logger.info("[ORCHESTRATOR] Résultat synthèse insuffisant, fallback LLM")
-        except Exception as e:
-            logger.warning(f"[ORCHESTRATOR] Erreur execute_action synthèse: {e}")
-
-    # Étape 4 — Outils MCP : injecter les descriptions dans le prompt et laisser le LLM décider
-    if has_mcp_tools and mcp_registry is not None:
-        logger.info("[ORCHESTRATOR] Injection des outils MCP dans le contexte LLM")
-        try:
-            response = await _orchestrate_with_mcp(
-                message_text=message_text,
-                messages=messages,
-                mcp_tools=mcp_tools,
-                workspace_root=workspace_root,
-                mcp_registry=mcp_registry,
-                config=config,
-            )
-            if response:
-                return response
-        except Exception as e:
-            logger.warning(f"[ORCHESTRATOR] Erreur orchestration MCP, fallback LLM: {e}")
-
-    # Étape 5 — Fallback : LLM direct avec historique
+    has_doc_index = bool(workspace_root)
     logger.info(
-        f"[ORCHESTRATOR] Fallback LLM direct "
-        f"(intent={intent_name}, has_doc_index={has_doc_index}, mcp={has_mcp_tools})"
+        f"[AGENT] workspace_root={workspace_root!r} has_doc_index={has_doc_index}"
     )
-    return await generate(config, messages)
 
+    # ── Charger les outils MCP (même sans workspace_root pour les defaults globaux) ──
+    mcp_tools = []
+    mcp_registry = None
+    mcp_instructions = {}
+    try:
+        from app.services.mcp.registry import get_mcp_registry
+        from app.services.webdav_context_manager import WebDAVContextManager
+        mcp_registry = get_mcp_registry()
+        webdav_manager = WebDAVContextManager(config)
+        webdav_svc = await webdav_manager.get_webdav_for_context(room_id=room_id)
+        # workspace_root vide = chargement des defaults globaux uniquement
+        mcp_tools = await mcp_registry.get_tools(webdav_svc, workspace_root or "")
+        # get_server_instructions est désormais la SSOT : natif > config > vide.
+        # Plus de fusion avec un YAML global.
+        mcp_instructions = mcp_registry.get_server_instructions(workspace_root or "")
 
-async def _orchestrate_with_mcp(
-    message_text: str,
-    messages: list,
-    mcp_tools: list,
-    workspace_root: str,
-    mcp_registry,
-    config,
-) -> str:
-    """
-    Délègue au LLM la sélection d'un outil MCP et l'exécute.
+        logger.info(
+            f"[AGENT] MCP {len(mcp_tools)} outils, "
+            f"{len(mcp_instructions)} instructions"
+        )
+    except Exception as e:
+        logger.warning(f"[AGENT] MCP non disponible: {e}")
 
-    Stratégie (1 tour) :
-    1. Injecter les server instructions + descriptions d'outils dans le prompt
-    2. Demander au LLM si un outil est pertinent (réponse JSON structurée)
-    3. Si un outil est sélectionné : l'appeler avec progress tracking, puis reformuler
-    4. Si aucun outil n'est pertinent : retourner None → fallback LLM direct
-    """
-    from app.core_llm import generate
-    import json as _json
-    import re as _re
-    import uuid as _uuid
+    # ── Construire le registre d'outils ──
+    registry = build_registry(mcp_tools=mcp_tools, has_doc_index=has_doc_index)
 
-    # ── Server instructions (P0) ──
-    server_instructions = mcp_registry.get_server_instructions(workspace_root)
-    instructions_block = ""
-    if server_instructions:
-        parts = []
-        for srv_name, instr in server_instructions.items():
-            parts.append(f"## Serveur « {srv_name} »\n{instr.strip()}")
-        instructions_block = (
-            "Contexte des serveurs MCP disponibles :\n\n"
-            + "\n\n".join(parts)
-            + "\n\n"
+    # P3 + P4 — Filtrage des outils en deux passes :
+    # 1. Mots-clés rapides (gratuit, 0 ms)
+    # 2. Embeddings sémantiques si encore trop d'outils (~50-100 ms)
+    from app.agent.tool_filter import filter_tools_by_keywords
+    from app.agent.tool_filter_embed import filter_tools_by_embeddings
+
+    all_tool_names = [t.name for t in registry.all_tools]
+    kw_kept = set(filter_tools_by_keywords(message_text, all_tool_names))
+
+    if len(kw_kept) > 6:
+        try:
+            kw_kept_tools = [t for t in registry.all_tools if t.name in kw_kept]
+            embed_kept = await filter_tools_by_embeddings(
+                message_text, kw_kept_tools, config, top_k=6,
+            )
+            kept_names = set(embed_kept)
+            logger.info(
+                f"[AGENT] Filtrage outils: {len(all_tool_names)} "
+                f"→ kw={len(kw_kept)} → embed={len(kept_names)}"
+            )
+        except Exception as e:
+            logger.warning(f"[AGENT] Embeddings échoué ({e}), fallback mots-clés")
+            kept_names = kw_kept
+    else:
+        kept_names = kw_kept
+        logger.info(
+            f"[AGENT] Filtrage outils: {len(all_tool_names)} → {len(kept_names)} (kw)"
         )
 
-    # ── Descriptions de tools avec annotations (P1a) ──
-    tool_lines = []
-    for t in mcp_tools:
-        # Ne pas exposer au LLM les outils destinés uniquement à l'UI
-        if "assistant" not in t.annotations.audience:
-            continue
-        line = f"- `{t.qualified_name}` : {t.description}"
-        hints = []
-        if t.annotations.destructive:
-            hints.append("⚠️ DESTRUCTIF")
-        if t.annotations.read_only:
-            hints.append("lecture seule")
-        if t.annotations.open_world:
-            hints.append("accès externe")
-        if hints:
-            line += f"  [{', '.join(hints)}]"
-        tool_lines.append(line)
+    if len(kept_names) < len(all_tool_names):
+        registry.filter_in_place(kept_names)
 
-    # Trier par priorité si disponible (0 = plus important)
-    tools_with_priority = [
-        (t.annotations.priority if t.annotations.priority is not None else 999, t)
-        for t in mcp_tools
-        if "assistant" in t.annotations.audience
-    ]
-    tools_with_priority.sort(key=lambda x: x[0])
+    # ── Construire le system prompt ──
+    behaviors_summary = await gather_behaviors_summary(behavior_manager)
+    workspace_info = await gather_workspace_info(config, behavior_manager) if has_doc_index else {}
 
-    tools_desc = "\n".join(tool_lines)
-
-    selection_messages = [
-        {
-            "role": "system",
-            "content": (
-                "Tu es un assistant qui doit sélectionner l'outil le plus pertinent "
-                "parmi ceux disponibles pour répondre à la requête.\n\n"
-                f"{instructions_block}"
-                f"Outils disponibles :\n{tools_desc}\n\n"
-                "Règles :\n"
-                "- Les outils marqués ⚠️ DESTRUCTIF modifient des données de manière irréversible.\n"
-                "- Respecte les dépendances entre outils décrites dans les instructions serveur.\n\n"
-                "Réponds UNIQUEMENT avec un objet JSON valide :\n"
-                '{"use_tool": true, "tool": "server__name", "arguments": {...}}\n'
-                "ou\n"
-                '{"use_tool": false}\n'
-                "Ne génère aucun autre texte."
-            ),
-        },
-        {"role": "user", "content": message_text},
-    ]
-
-    raw_decision = await generate(config, selection_messages)
-
-    # Parser la décision
-    try:
-        match = _re.search(r"\{.*\}", raw_decision, _re.DOTALL)
-        if not match:
-            return None
-        decision = _json.loads(match.group())
-    except (_json.JSONDecodeError, AttributeError):
-        logger.debug(f"[MCP] Décision LLM non parseable: {raw_decision!r}")
-        return None
-
-    if not decision.get("use_tool"):
-        logger.info("[MCP] LLM a décidé de ne pas utiliser d'outil MCP")
-        return None
-
-    qualified_name = decision.get("tool", "")
-    arguments = decision.get("arguments", {})
-
-    if not qualified_name:
-        return None
-
-    logger.info(f"[MCP] LLM sélectionne l'outil: {qualified_name}")
-
-    # ── Progress callback (P1b) ──
-    progress_token = f"mcp-{_uuid.uuid4().hex[:8]}"
-
-    async def _on_progress(token, progress, total, message):
-        pct = f"{progress}/{total}" if total else str(progress)
-        logger.info(f"[MCP] Progression {qualified_name}: {pct} — {message}")
-
-    tool_result = await mcp_registry.call_tool(
-        workspace_root, qualified_name, arguments,
-        progress_token=progress_token,
-        on_progress=_on_progress,
+    system_prompt = build_system_prompt(
+        registry,
+        mcp_instructions=mcp_instructions,
+        mcp_tools_desc=build_mcp_tools_description(mcp_tools),
+        workspace_info=workspace_info,
+        behaviors_summary=behaviors_summary,
     )
 
-    if tool_result.is_error:
-        logger.warning(f"[MCP] Outil {qualified_name} a retourné une erreur: {tool_result.text}")
-        return None
+    # ── Contexte partagé pour les handlers d'outils ──
+    tool_context = {
+        "config": config,
+        "behavior_manager": behavior_manager,
+        "session_dict": session_dict,
+        "room_dict": room_dict,
+        "session_context_obj": session_context,
+        "room_context_obj": room_context,
+        "mcp_registry": mcp_registry,
+        "workspace_root": workspace_root,
+        # Question utilisateur originale, pour orienter le résumé LLM des listings
+        "_user_query": message_text,
+    }
 
-    # ── Synthèse avec séparation content/structuredContent (P2) ──
-    # Le LLM reçoit le texte léger (content[]), pas le structuredContent
-    llm_result_text = tool_result.text
+    # ── Callbacks de progression ──
+    async def on_tool_start(tool_name):
+        logger.info(f"[AGENT] Exécution : {tool_name}")
 
-    synthesis_messages = messages + [
-        {
-            "role": "system",
-            "content": (
-                f"L'outil `{qualified_name}` a retourné le résultat suivant :\n\n"
-                f"{llm_result_text}\n\n"
-                "Utilise ce résultat pour répondre à la question de l'utilisateur "
-                "de manière claire et synthétique."
-            ),
-        },
-    ]
+    async def on_tool_end(tool_name, preview):
+        logger.info(f"[AGENT] Résultat {tool_name}: {preview[:80]}...")
 
-    return await generate(config, synthesis_messages)
+    # ── Lancer la boucle agent ──
+    logger.info(
+        f"[AGENT] Démarrage — workspace={workspace_root!r}, "
+        f"outils={len(registry.all_tools)}, mcp={len(mcp_tools)}"
+    )
+
+    return await agent_loop(
+        message=message_text,
+        history=messages,
+        system_prompt=system_prompt,
+        registry=registry,
+        config=config,
+        tool_context=tool_context,
+        on_tool_start=on_tool_start,
+        on_tool_end=on_tool_end,
+    )
