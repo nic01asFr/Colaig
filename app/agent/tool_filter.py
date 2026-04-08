@@ -17,6 +17,8 @@ from __future__ import annotations
 import re
 from typing import List, Set
 
+from app.matrix_bot.config import logger
+
 
 def _get_keywords() -> dict:
     """Charge les mots-clés depuis le YAML config (dynamique)."""
@@ -87,32 +89,53 @@ def _tokenize(text: str) -> Set[str]:
 def filter_tools_by_keywords(
     message: str,
     tool_names: List[str],
+    workspace_config=None,
 ) -> List[str]:
     """Filtre une liste de noms d'outils par pertinence avec le message.
 
     Charge la config (mots-clés + noyau) depuis YAML à chaque appel pour
     permettre la modification à chaud sans restart.
 
+    Si `workspace_config` est fourni, ses `keywords_extra` sont fusionnés
+    avec les mots-clés globaux (additif), et son `tools_always_included`
+    étend le noyau global. Permet à un workspace d'enrichir le matching
+    avec son vocabulaire métier sans toucher aux défauts d'instance.
+
     Args:
         message: Texte utilisateur courant.
         tool_names: Liste exhaustive des outils disponibles.
+        workspace_config: Optionnel, WorkspaceConfig pour extension par workspace.
 
     Returns:
         Liste filtrée. Si le message est une salutation pure, ne retourne que
         le noyau (pas d'outils métier). Sinon, applique le matching mots-clés
-        avec failsafe failsafe (tout retourné si aucun match).
+        avec failsafe (tout retourné si aucun match).
     """
     if not message or not tool_names:
         return tool_names
 
     always_included = _get_always_included()
+    keywords_map = _get_keywords()
+
+    # Phase 2 : enrichir avec workspace.yaml si présent
+    if workspace_config is not None:
+        try:
+            from app.agent.tool_scoping import (
+                merge_keywords_with_workspace,
+                merge_always_included_with_workspace,
+            )
+            keywords_map = merge_keywords_with_workspace(keywords_map, workspace_config)
+            always_included = merge_always_included_with_workspace(
+                always_included, workspace_config,
+            )
+        except Exception as e:
+            logger.debug(f"[FILTER] workspace enrichment failed: {e}")
 
     # Détection prioritaire : salutation/politesse pure
     # → on n'expose que le noyau, le LLM répondra directement.
     if is_pure_greeting(message):
         return [n for n in tool_names if n in always_included]
 
-    keywords_map = _get_keywords()
     msg_normalized = _normalize(message)
     matched: List[str] = []
 

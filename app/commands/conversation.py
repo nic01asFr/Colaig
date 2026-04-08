@@ -385,14 +385,23 @@ async def _orchestrate_response(
     # ── Construire le registre d'outils ──
     registry = build_registry(mcp_tools=mcp_tools, has_doc_index=has_doc_index)
 
+    # ── Phase 2 : Scoping workspace (whitelist/blacklist déterministe) ──
+    # S'applique APRÈS build_registry et AVANT le filtrage par mots-clés.
+    # Permet à un workspace de retirer ou whitelister des outils via workspace.yaml.
+    from app.agent.tool_scoping import apply_workspace_scoping
+    apply_workspace_scoping(registry, ws_config)
+
     # P3 + P4 — Filtrage des outils en deux passes :
-    # 1. Mots-clés rapides (gratuit, 0 ms)
+    # 1. Mots-clés rapides (gratuit, 0 ms) — enrichis par workspace.yaml
     # 2. Embeddings sémantiques si encore trop d'outils (~50-100 ms)
     from app.agent.tool_filter import filter_tools_by_keywords
     from app.agent.tool_filter_embed import filter_tools_by_embeddings
 
     all_tool_names = [t.name for t in registry.all_tools]
-    kw_kept = set(filter_tools_by_keywords(message_text, all_tool_names))
+    kw_kept = set(filter_tools_by_keywords(
+        message_text, all_tool_names,
+        workspace_config=ws_config,
+    ))
 
     if len(kw_kept) > 6:
         try:
