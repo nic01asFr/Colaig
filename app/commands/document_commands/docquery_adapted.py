@@ -187,6 +187,10 @@ async def doc_query_adapted_command(ep: EventParser, matrix_client: MatrixClient
                     base_url = base_url.split("/remote.php/dav/files/")[0]
                 elif "/remote.php/webdav/" in base_url:
                     base_url = base_url.split("/remote.php/webdav/")[0]
+                elif "/dav/" in base_url:
+                    base_url = base_url.split("/dav/")[0]
+                elif base_url.endswith("/dav"):
+                    base_url = base_url[:-4]
                 base_url = base_url.rstrip('/')
                 
                 # Récupérer l'espace de travail depuis le service WebDAV ou la configuration

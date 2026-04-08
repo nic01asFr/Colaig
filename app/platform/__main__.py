@@ -85,6 +85,17 @@ async def setup_and_run(host: str, port: int, log_level: str):
         operator_emails=config.platform_operator_emails,
     )
 
+    # Réconciliation au démarrage : les instances RUNNING/STARTING dans la DB
+    # n'ont plus de subprocess correspondant après un redémarrage de la plateforme.
+    # On les marque STOPPED pour que l'UI reflète l'état réel.
+    from .models import InstanceStatus
+    stale_statuses = {InstanceStatus.RUNNING, InstanceStatus.STARTING}
+    all_instances = await registry.list_instances()
+    for inst in all_instances:
+        if inst.status in stale_statuses:
+            await registry.update_instance_status(inst.instance_id, InstanceStatus.STOPPED)
+            logging.info(f"Startup reconciliation: instance {inst.instance_id} ({inst.name}) reset to STOPPED")
+
     # Create runner
     runner = BotRunner(registry=registry)
 

@@ -229,13 +229,38 @@ class FallbackWebDAVService:
             URL du lien de partage ou WebDAV directe en dernier recours
         """
         logger.warning("[OCS_SHARE] Service en mode dégradé: tentative d'utilisation de l'API OCS")
-        
+
         # Récupérer les configurations depuis les variables d'environnement
         from app.config import env_config
         base_url = env_config.webdav_url if hasattr(env_config, 'webdav_url') else "https://bnum.din.gouv.fr/mdrive"
         webdav_username = env_config.webdav_username if hasattr(env_config, 'webdav_username') else ""
         webdav_password = env_config.webdav_password if hasattr(env_config, 'webdav_password') else ""
         webdav_root_path = env_config.webdav_root_path if hasattr(env_config, 'webdav_root_path') else "/documents"
+
+        # Détection BigFolder : API native si applicable (pas de remote.php dans l'URL)
+        if base_url and "/dav/" in base_url and "/remote.php/" not in base_url:
+            logger.info("[OCS_SHARE] BigFolder détecté (mode dégradé), utilisation de l'API native")
+            bf_base = base_url.split("/dav/")[0].rstrip("/")
+            try:
+                import httpx
+                headers = {"x-api-key": webdav_password, "Content-Type": "application/json"}
+                virtual_path = "/" + path.lstrip("/")
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    resp = await client.get(f"{bf_base}/documents/", params={"virtual_path": virtual_path, "limit": 5}, headers=headers)
+                    if resp.status_code == 200:
+                        docs = resp.json()
+                        doc = next((d for d in docs if d.get("status") != "deleted"), docs[0] if docs else None)
+                        if doc:
+                            share_resp = await client.post(f"{bf_base}/documents/{doc['id']}/share", json={"permission": "read"}, headers=headers)
+                            if share_resp.status_code in (200, 201):
+                                token = share_resp.json().get("token")
+                                if token:
+                                    share_url = f"{bf_base}/shared/{token}"
+                                    logger.info(f"[OCS_SHARE] ✅ BigFolder share créé (dégradé): {share_url}")
+                                    return share_url
+            except Exception as e:
+                logger.error(f"[OCS_SHARE] Erreur BigFolder share (dégradé): {e}")
+            return ""
         
         # Nettoyer et normaliser le chemin racine
         webdav_root_path = webdav_root_path.strip('/')
@@ -247,8 +272,12 @@ class FallbackWebDAVService:
             base_url = base_url.split("/remote.php/dav/files/")[0]
         elif "/remote.php/webdav/" in base_url:
             base_url = base_url.split("/remote.php/webdav/")[0]
+        elif "/dav/" in base_url:
+            base_url = base_url.split("/dav/")[0]
+        elif base_url.endswith("/dav"):
+            base_url = base_url[:-4]
         base_url = base_url.rstrip('/')
-        
+
         logger.info(f"[OCS_SHARE] FallbackWebDAVService: URL base={base_url}, username={webdav_username}, root_path={webdav_root_path}")
         
         # Si les informations de base sont manquantes, revenir au comportement par défaut
@@ -462,6 +491,10 @@ class FallbackWebDAVService:
                 base_url = base_url.split("/remote.php/dav/files/")[0]
             elif "/remote.php/webdav/" in base_url:
                 base_url = base_url.split("/remote.php/webdav/")[0]
+            elif "/dav/" in base_url:
+                base_url = base_url.split("/dav/")[0]
+            elif base_url.endswith("/dav"):
+                base_url = base_url[:-4]
             base_url = base_url.rstrip('/')
             
             # Récupérer l'espace de travail depuis le contexte WebDAV sans appel asynchrone

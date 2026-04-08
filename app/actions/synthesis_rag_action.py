@@ -10,29 +10,23 @@ from app.services.index_service import IndexService
 from app.services.webdav import WebDAVService
 from app.services.context.models import SessionContext, RoomContext
 
-SYNTHESIS_SYSTEM_PROMPT = '''
-Tu es Colaig, un assistant automatique de l'État français spécialisé dans la synthèse d'information pour les agents publics.
+SYNTHESIS_SYSTEM_PROMPT = '''Tu es Colaig, un assistant de l'État français spécialisé dans la synthèse documentaire pour les agents publics.
 
-OBJECTIF DE SYNTHÈSE :
-- Créer une synthèse complète et structurée sur le sujet demandé
-- Organiser l'information par thèmes et sous-thèmes pertinents
-- Présenter une vue d'ensemble exhaustive et cohérente
-- Identifier les concepts clés et leurs relations
+MISSION : Produire une synthèse structurée, factuelle et exploitable à partir des extraits documentaires fournis.
 
-PRINCIPES DE STRUCTURATION :
-- Hiérarchiser l'information de manière logique et progressive
-- Distinguer clairement les différentes sections thématiques
-- Mettre en évidence les points essentiels et consensus
-- Présenter les nuances et divergences éventuelles
+RÈGLES :
+- Base-toi UNIQUEMENT sur les extraits fournis, ne fabrique pas d'information
+- Cite les documents sources entre parenthèses quand tu présentes une information spécifique (ex: "selon [nom du document]")
+- Si les extraits sont insuffisants ou hors sujet, dis-le clairement
+- Adapte la longueur au volume d'information disponible : pas de remplissage
 
-FORMAT DE RÉPONSE :
-- Introduction contextualisant le sujet
-- Corps structuré en sections thématiques
-- Conclusion synthétique
-- Citations précises des sources avec références
+FORMAT :
+- **Introduction** : contexte et périmètre couvert (2-3 phrases)
+- **Sections thématiques** : avec titres en ### et contenu structuré en points si approprié
+- **Points clés** : encadré récapitulatif des éléments essentiels
+- **Références** : liste des documents utilisés
 
-Tu dois être factuel, précis et exhaustif dans ta synthèse. Utilise toutes les informations fournies pour créer un panorama complet du sujet.
-'''
+Style : professionnel, concis, orienté action. Privilégie les informations concrètes (chiffres, dates, procédures) aux généralités.'''
 
 class SynthesisRagAction:
     """Action RAG optimisée pour la synthèse globale d'un sujet avec reranking"""
@@ -43,8 +37,8 @@ class SynthesisRagAction:
         self.webdav_service = None
         self.albert_client = None
         self._initialized = False
-        self.max_chunks_initial = 50  # Nombre de chunks initial à récupérer
-        self.max_chunks_final = 25   # Nombre de chunks après reranking
+        self.max_chunks_initial = 30  # Nombre de chunks initial à récupérer
+        self.max_chunks_final = 15   # Nombre de chunks après reranking (éviter surcharge contexte LLM)
         
     async def initialize(self) -> None:
         """Initialise le service avec les dépendances nécessaires"""
@@ -375,26 +369,27 @@ class SynthesisRagAction:
         session_context: Optional[SessionContext] = None
     ) -> str:
         """
-        Améliore la requête pour une recherche plus exhaustive
-        
-        Args:
-            query: Requête originale
-            session_context: Contexte de session
-            
-        Returns:
-            Requête améliorée
+        Améliore la requête pour une recherche plus exhaustive.
+        Utilise le contexte de session pour enrichir la recherche.
         """
-        # Identifier le sujet principal
-        if "synthèse" in query.lower() or "résumé" in query.lower():
-            # Extraire le sujet après les mots clés
-            for keyword in ["synthèse sur", "synthèse de", "résumé sur", "résumé de"]:
-                if keyword in query.lower():
-                    subject = query.lower().split(keyword, 1)[1].strip()
-                    if subject:
-                        return f"information complète et exhaustive sur {subject}"
-        
-        # Si pas de mot-clé spécifique, utiliser la requête complète
-        return f"information complète et détaillée sur {query}"
+        # Extraire le sujet si enveloppé dans des mots-clés
+        subject = query
+        for keyword in ["synthèse sur", "synthèse de", "résumé sur", "résumé de"]:
+            if keyword in query.lower():
+                extracted = query.lower().split(keyword, 1)[1].strip()
+                if extracted:
+                    subject = extracted
+                    break
+
+        # Enrichir avec le contexte conversationnel si disponible
+        context_hint = ""
+        if session_context and hasattr(session_context, 'conversation_history'):
+            recent = session_context.conversation_history[-3:] if session_context.conversation_history else []
+            topics = [msg.get("content", "")[:80] for msg in recent if msg.get("role") == "user"]
+            if topics:
+                context_hint = f" (contexte: {', '.join(topics)})"
+
+        return f"information complète, exhaustive et détaillée sur {subject}{context_hint}"
 
     async def generate_synthesis(
         self,
@@ -428,7 +423,7 @@ class SynthesisRagAction:
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.3,  # Température réduite pour favoriser la cohérence
-                max_tokens=2000    # Limite assez large pour une synthèse complète
+                max_tokens=4000    # Limite large pour une synthèse complète et détaillée
             )
             
             return synthesis
@@ -438,58 +433,62 @@ class SynthesisRagAction:
             return "Une erreur est survenue lors de la génération de la synthèse. Veuillez réessayer ultérieurement."
 
     def _format_synthesis_prompt(self, query: str, chunks: List[Dict[str, Any]]) -> str:
-        """
-        Formate le prompt pour la génération de la synthèse
-        
-        Args:
-            query: Requête ou sujet
-            chunks: Liste de chunks organisés
-            
-        Returns:
-            Prompt structuré pour la synthèse
-        """
-        # Extraire le sujet principal
+        """Formate le prompt pour la génération de la synthèse."""
         subject = query
         for prefix in ["synthèse sur", "synthèse de", "résumé sur", "résumé de"]:
             if prefix in query.lower():
                 subject = query.lower().split(prefix, 1)[1].strip()
                 break
-        
-        # En-tête du prompt
-        prompt = f"""Réalise une synthèse complète et structurée sur le sujet suivant : {subject}
 
-CONTEXTE DOCUMENTAIRE :
-Voici les informations pertinentes extraites de la base documentaire :
+        # Collecter les noms de documents uniques pour le résumé
+        doc_names = set()
+        for chunk in chunks:
+            doc_names.add(chunk.get("metadata", {}).get("document_name", "Document inconnu"))
 
+        prompt = f"""Sujet de la synthèse : **{subject}**
+
+Documents analysés ({len(doc_names)}) : {', '.join(doc_names)}
+
+--- EXTRAITS DOCUMENTAIRES ---
 """
-        
-        # Ajouter les chunks de manière organisée
+        # Limiter la taille totale du contexte (~12000 chars max pour rester dans les limites LLM)
+        total_chars = 0
+        max_context_chars = 12000
+
         for i, chunk in enumerate(chunks):
             metadata = chunk.get("metadata", {})
             doc_name = metadata.get("document_name", "Document inconnu")
             section = metadata.get("section_title", "")
             page = metadata.get("page", "")
-            score = metadata.get("rerank_score", metadata.get("similarity_score", ""))
-            
-            prompt += f"--- EXTRAIT {i+1} ---\n"
-            prompt += f"Source: {doc_name}\n"
-            if section:
-                prompt += f"Section: {section}\n"
-            if page:
-                prompt += f"Page: {page}\n"
-            prompt += f"\n{chunk['content']}\n\n"
-        
-        # Instructions de synthèse
-        prompt += """
-INSTRUCTIONS POUR LA SYNTHÈSE :
-1. Structure ta réponse en sections thématiques clairement définies
-2. Commence par une introduction qui présente le sujet et son importance
-3. Organise le contenu de manière logique et progressive
-4. Termine par une conclusion qui résume les points essentiels
-5. Cite précisément les sources quand tu présentes des informations spécifiques
 
-Ta synthèse doit être exhaustive et couvrir tous les aspects du sujet présents dans les documents fournis.
-"""
+            # Extraire le contenu utile (sans métadonnées dupliquées)
+            content = chunk.get("content", "")
+            if "Contenu:" in content:
+                content = content.split("Contenu:", 1)[1].strip()
+
+            # Tronquer si on approche la limite
+            remaining = max_context_chars - total_chars
+            if remaining <= 0:
+                prompt += f"\n[{len(chunks) - i} extraits supplémentaires non inclus par manque d'espace]\n"
+                break
+            if len(content) > remaining:
+                content = content[:remaining] + "..."
+
+            header = f"[{doc_name}"
+            if section:
+                header += f" > {section}"
+            if page:
+                header += f", p.{page}"
+            header += "]"
+
+            prompt += f"\n{header}\n{content}\n"
+            total_chars += len(content) + len(header)
+
+        prompt += f"""
+--- FIN DES EXTRAITS ---
+
+Génère une synthèse sur « {subject} » en te basant exclusivement sur les extraits ci-dessus.
+Cite les documents sources entre parenthèses. Termine par une section « Références » listant les documents utilisés."""
 
         return prompt
 
