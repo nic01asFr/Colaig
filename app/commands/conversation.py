@@ -417,11 +417,15 @@ async def _orchestrate_response(
             for t in s.prefers_tools:
                 skills_preferred_tools.add(t)
 
-    # P3 + P4 — Filtrage des outils en deux passes :
-    # 1. Mots-clés rapides (gratuit, 0 ms) — enrichis par workspace.yaml
-    # 2. Embeddings sémantiques si encore trop d'outils (~50-100 ms)
+    # ── Phase 4 : Pipeline hybride de filtrage en 2 niveaux ──
+    # Niveau 1 : déterministe et gratuit (mots-clés + détection salutation)
+    # Niveau 2 : sémantique unifié via WorkspaceResourceIndex (si ambigu)
+    #
+    # Le WorkspaceResourceIndex unifie les descriptions d'outils + skills
+    # dans un seul index sémantique par workspace, partagé avec les skills
+    # déjà chargées plus haut. Remplace l'ancien tool_filter_embed.py.
     from app.agent.tool_filter import filter_tools_by_keywords
-    from app.agent.tool_filter_embed import filter_tools_by_embeddings
+    from app.agent.workspace_resources import populate_index
 
     all_tool_names = [t.name for t in registry.all_tools]
     kw_kept = set(filter_tools_by_keywords(
@@ -430,19 +434,41 @@ async def _orchestrate_response(
     ))
 
     if len(kw_kept) > 6:
+        # Trop d'outils : on tranche par sémantique unifiée
         try:
-            kw_kept_tools = [t for t in registry.all_tools if t.name in kw_kept]
-            embed_kept = await filter_tools_by_embeddings(
-                message_text, kw_kept_tools, config, top_k=6,
+            # Construire/maj l'index unifié du workspace
+            ws_idx = populate_index(
+                workspace_root or "_global",
+                internal_tools=[t for t in registry.all_tools if t.name in kw_kept],
+                mcp_tools=None,  # déjà inclus via internal_tools (registre filtré)
+                skills=workspace_skills,  # pour boost sémantique des skills
             )
-            kept_names = set(embed_kept)
+            results = await ws_idx.search(
+                query=message_text,
+                config=config,
+                top_k=6,
+                kinds=["tool_internal", "tool_mcp"],  # on cherche des outils ici
+            )
+            embed_kept = {entry.name for entry, _ in results}
+            # Garder uniquement les outils qui étaient déjà candidats (intersect kw_kept)
+            kept_names = embed_kept & kw_kept if embed_kept else kw_kept
             logger.info(
                 f"[AGENT] Filtrage outils: {len(all_tool_names)} "
-                f"→ kw={len(kw_kept)} → embed={len(kept_names)}"
+                f"→ kw={len(kw_kept)} → ws-res={len(kept_names)}"
             )
         except Exception as e:
-            logger.warning(f"[AGENT] Embeddings échoué ({e}), fallback mots-clés")
-            kept_names = kw_kept
+            # Fallback gracieux sur l'ancien tool_filter_embed (compat)
+            logger.warning(f"[AGENT] WS-RES échoué ({e}), fallback tool_filter_embed")
+            try:
+                from app.agent.tool_filter_embed import filter_tools_by_embeddings
+                kw_kept_tools = [t for t in registry.all_tools if t.name in kw_kept]
+                embed_kept = await filter_tools_by_embeddings(
+                    message_text, kw_kept_tools, config, top_k=6,
+                )
+                kept_names = set(embed_kept)
+            except Exception as e2:
+                logger.warning(f"[AGENT] tool_filter_embed aussi échoué ({e2})")
+                kept_names = kw_kept
     else:
         kept_names = kw_kept
         logger.info(
