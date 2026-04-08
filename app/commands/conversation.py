@@ -340,26 +340,45 @@ async def _orchestrate_response(
         f"[AGENT] workspace_root={workspace_root!r} has_doc_index={has_doc_index}"
     )
 
+    # ── Résoudre le service WebDAV scopé au workspace ──
+    # Utilisé pour charger MCP, workspace.yaml, behaviors.
+    # Grâce au fix d'isolation phase 0, ce service propage workspace_path/BEHAVIOR_DIR.
+    webdav_svc = None
+    try:
+        from app.services.webdav_context_manager import get_webdav_context_manager
+        webdav_manager = await get_webdav_context_manager(config)
+        webdav_svc = await webdav_manager.get_webdav_for_context(room_id=room_id)
+    except Exception as e:
+        logger.warning(f"[AGENT] WebDAV indisponible pour ce contexte: {e}")
+
+    # ── Charger la config workspace (workspace.yaml) ──
+    # Optionnelle : si absente, on utilise les défauts d'instance.
+    # Hot-reload via cache mtime opportuniste, isolé par workspace_root.
+    from app.agent.workspace_config import load_workspace_config, WorkspaceConfig
+    ws_config = WorkspaceConfig.empty()
+    if webdav_svc and workspace_root:
+        try:
+            ws_config = await load_workspace_config(webdav_svc, workspace_root)
+        except Exception as e:
+            logger.warning(f"[AGENT] workspace.yaml indisponible: {e}")
+
     # ── Charger les outils MCP (même sans workspace_root pour les defaults globaux) ──
     mcp_tools = []
     mcp_registry = None
     mcp_instructions = {}
     try:
         from app.services.mcp.registry import get_mcp_registry
-        from app.services.webdav_context_manager import WebDAVContextManager
         mcp_registry = get_mcp_registry()
-        webdav_manager = WebDAVContextManager(config)
-        webdav_svc = await webdav_manager.get_webdav_for_context(room_id=room_id)
-        # workspace_root vide = chargement des defaults globaux uniquement
-        mcp_tools = await mcp_registry.get_tools(webdav_svc, workspace_root or "")
-        # get_server_instructions est désormais la SSOT : natif > config > vide.
-        # Plus de fusion avec un YAML global.
-        mcp_instructions = mcp_registry.get_server_instructions(workspace_root or "")
+        if webdav_svc:
+            # workspace_root vide = chargement des defaults globaux uniquement
+            mcp_tools = await mcp_registry.get_tools(webdav_svc, workspace_root or "")
+            # get_server_instructions est la SSOT : natif > config > vide
+            mcp_instructions = mcp_registry.get_server_instructions(workspace_root or "")
 
-        logger.info(
-            f"[AGENT] MCP {len(mcp_tools)} outils, "
-            f"{len(mcp_instructions)} instructions"
-        )
+            logger.info(
+                f"[AGENT] MCP {len(mcp_tools)} outils, "
+                f"{len(mcp_instructions)} instructions"
+            )
     except Exception as e:
         logger.warning(f"[AGENT] MCP non disponible: {e}")
 
@@ -408,6 +427,7 @@ async def _orchestrate_response(
         mcp_tools_desc=build_mcp_tools_description(mcp_tools),
         workspace_info=workspace_info,
         behaviors_summary=behaviors_summary,
+        persona_override=ws_config.persona_override,
     )
 
     # ── Contexte partagé pour les handlers d'outils ──

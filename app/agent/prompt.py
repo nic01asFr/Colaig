@@ -25,6 +25,7 @@ def build_system_prompt(
     workspace_info: Dict[str, Any] = None,
     behaviors_summary: str = "",
     max_turns: int = 5,
+    persona_override: str = "",
 ) -> str:
     """Construit le system prompt complet pour la boucle agent.
 
@@ -35,8 +36,12 @@ def build_system_prompt(
         workspace_info: Infos sur le workspace (nom, docs indexés, etc.).
         behaviors_summary: Résumé des behaviors .albert du workspace.
         max_turns: Limite d'appels d'outils par requête.
+        persona_override: Identité custom du workspace (issue de
+            workspace.yaml/identity.persona_override). Si non vide, remplace
+            la section d'identité Colaig par défaut. Permet à chaque
+            préfecture/DREAL de personnaliser le ton et les missions.
     """
-    sections = [_identity_section()]
+    sections = [_identity_section(persona_override)]
 
     # Outils internes
     tools_prompt = registry.to_prompt()
@@ -67,7 +72,14 @@ def build_system_prompt(
     return "\n\n---\n\n".join(sections)
 
 
-def _identity_section() -> str:
+def _identity_section(persona_override: str = "") -> str:
+    """Construit la section d'identité du system prompt.
+
+    Si `persona_override` est fourni (depuis .albert/config/workspace.yaml),
+    c'est lui qui définit le ton et la mission. Sinon, identité Colaig par défaut.
+    """
+    if persona_override:
+        return persona_override.strip()
     return (
         "Tu es **Colaig**, l'assistant IA de l'État français, déployé sur Tchap.\n\n"
         "Tu aides les agents publics en exploitant les documents de leur espace de travail, "

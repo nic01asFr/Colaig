@@ -1,0 +1,74 @@
+# Exemple de configuration workspace pour Colaig
+#
+# Emplacement attendu : {workspace}/.albert/config/workspace.yaml
+#
+# Ce fichier est OPTIONNEL. S'il est absent, le workspace utilise les
+# défauts d'instance. Tout ce qui est défini ici override les défauts.
+#
+# Le fichier est rechargé automatiquement (cache mtime opportuniste de 30 s),
+# pas besoin de redémarrer le bot après modification.
+
+# ─── Identité du bot pour ce workspace ──────────────────────────────────────
+identity:
+  # Persona override : remplace l'identité par défaut "Colaig, assistant IA
+  # de l'État français" par un texte custom. Permet à chaque préfecture/DREAL
+  # de personnaliser le ton, le périmètre et la mission de l'agent.
+  #
+  # Le texte est injecté tel quel en début de system prompt.
+  persona_override: |
+    Tu es l'assistant IA de la **Préfecture de Mayenne**.
+
+    Tu réponds aux agents du Service Habitat et de la DDT 53 sur les
+    procédures d'urbanisme, d'aménagement et de logement.
+
+    Style : précis, concis, références réglementaires obligatoires.
+    Tu cites toujours les articles de loi/code/circulaire quand c'est pertinent.
+
+# ─── Scoping des outils ─────────────────────────────────────────────────────
+# Permet de restreindre ou d'étendre les outils visibles par l'agent dans
+# ce workspace. Tous les champs sont additifs : ce qui n'est pas défini
+# hérite des défauts.
+#
+# IMPORTANT : ce scoping s'applique APRÈS le chargement des outils MCP et
+# AVANT le filtrage par mots-clés/embeddings. C'est une couche déterministe
+# de premier niveau.
+tools:
+  # Whitelist : si présent et non vide, seuls ces outils sont activés.
+  # Supporte les patterns glob (*).
+  # Vide → tous les outils du registre sont candidats.
+  enabled:
+    - search_documents
+    - synthesize_documents
+    - "datagouv__*"
+
+  # Blacklist : retire ces outils, même s'ils sont dans enabled.
+  # Utile pour désactiver un outil MCP par défaut sans toucher à l'instance.
+  disabled:
+    - datagouv__get_metrics
+
+  # Outils du noyau toujours présents (jamais filtrés par mots-clés/embeddings).
+  # S'ajoutent aux always_included définis dans agent_config.yaml global.
+  always_included:
+    - search_documents
+
+  # Mots-clés additionnels par outil. S'ajoutent aux mots-clés définis dans
+  # agent_config.yaml global. Permet d'enrichir le matching avec le vocabulaire
+  # métier propre au workspace.
+  keywords_extra:
+    search_documents:
+      - OPAH
+      - OPAH-RU
+      - PLU
+      - PLUi
+      - DPE
+      - rénovation thermique
+    datagouv__search_datasets:
+      - INSEE
+      - foncier
+      - cadastre
+
+# ─── Limites ────────────────────────────────────────────────────────────────
+limits:
+  # Nombre max de tours d'outils par requête utilisateur.
+  # Override la valeur loop.max_turns de agent_config.yaml.
+  max_turns: 7
