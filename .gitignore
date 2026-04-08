@@ -97,3 +97,6 @@ pdm.lock
 *.lock
 
 .reuse/
+
+# WikiChat overlay (auto-added)
+.wikichat/
