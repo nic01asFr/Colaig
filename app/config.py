@@ -204,11 +204,27 @@ class Config(BaseSettings):
                 "name": "datagouv",
                 "url": "https://mcp.data.gouv.fr/mcp",
                 "description": "Données ouvertes françaises — data.gouv.fr",
+                # Hints injectés au LLM si le serveur ne fournit pas
+                # d'instructions natives via initialize.
+                "instructions": (
+                    "Serveur officiel des données ouvertes françaises (data.gouv.fr).\n"
+                    "Workflow recommandé :\n"
+                    "1. search_datasets(query) pour identifier des jeux pertinents (retourne ID + titre).\n"
+                    "2. get_dataset_info(dataset_id) pour les détails complets d'un jeu identifié.\n"
+                    "3. list_dataset_resources(dataset_id) pour les fichiers téléchargeables.\n"
+                    "4. query_resource_data(resource_id, ...) pour interroger les données tabulaires.\n"
+                    "Le résultat de search_datasets peut être très long (centaines de jeux) — "
+                    "affiner la requête plutôt que de tout lister. Privilégier les requêtes "
+                    "en français, courtes (2-4 mots-clés)."
+                ),
+                # Donnée publique stateless → cache partagé entre workspaces
+                "cache_scope": "server",
             },
         ],
         description=(
             "Pool de serveurs MCP par défaut pour cette instance. "
-            "JSON list. Chaque entrée : {name, url, token?, description?, timeout?}. "
+            "JSON list. Chaque entrée : "
+            "{name, url, token?, description?, instructions?, cache_scope?, timeout?}. "
             "Les workspaces peuvent override ou désactiver un serveur par nom."
         ),
     )

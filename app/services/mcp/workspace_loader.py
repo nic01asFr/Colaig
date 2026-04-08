@@ -36,13 +36,28 @@ MCP_CONFIG_PATH = ".albert/config/mcp_servers.json"
 
 @dataclass
 class MCPServerConfig:
-    """Configuration d'un serveur MCP déclaré dans un workspace."""
+    """Configuration d'un serveur MCP déclaré dans un workspace ou par défaut.
+
+    Champs étendus :
+    - instructions : hints à injecter au LLM si le serveur ne fournit pas
+      d'instructions natives via initialize. Permet de documenter le workflow
+      recommandé là où le serveur est déclaré (cohérent avec la déclaration).
+    - cache_scope : portée du cache des résultats d'outils :
+        * "server" : cache partagé entre tous les workspaces (donnée publique
+          stateless, ex: data.gouv.fr). Une seule entrée par (server, args).
+        * "workspace" (défaut) : cache isolé par workspace_root. Pour les
+          serveurs qui peuvent rendre des résultats différents selon le
+          contexte workspace (via roots, tokens spécifiques, etc.).
+        * "none" : pas de cache du tout (résultats jamais mémorisés).
+    """
     name: str
     url: str
     token: Optional[str] = None
     description: str = ""
     enabled: bool = True
     timeout: float = 30.0
+    instructions: str = ""
+    cache_scope: str = "workspace"
 
     @classmethod
     def from_dict(cls, data: dict) -> "MCPServerConfig":
@@ -53,6 +68,8 @@ class MCPServerConfig:
             description=data.get("description", ""),
             enabled=data.get("enabled", True),
             timeout=float(data.get("timeout", 30.0)),
+            instructions=data.get("instructions", ""),
+            cache_scope=data.get("cache_scope", "workspace"),
         )
 
 

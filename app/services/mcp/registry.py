@@ -14,7 +14,11 @@ Point d'entrée global : get_mcp_registry()
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import time
+from collections import OrderedDict
+from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from app.services.mcp.client import MCPClient
@@ -40,6 +44,14 @@ logger = logging.getLogger("colaig.mcp.registry")
 TOOL_NAME_SEP = "__"
 
 
+@dataclass
+class _CacheEntry:
+    """Entrée du cache d'appels MCP : valeur + timestamp + scope d'origine."""
+    value: str
+    ts: float
+    workspace_root: str  # workspace concerné (vide si scope=server)
+
+
 class MCPRegistry:
     """
     Gère les clients MCP pour tous les workspaces actifs.
@@ -56,6 +68,13 @@ class MCPRegistry:
         self._clients: Dict[str, Dict[str, MCPClient]] = {}
         # Caches d'outils agrégés par workspace
         self._tools_cache: Dict[str, List[MCPTool]] = {}
+        # Configuration de chaque serveur initialisé : workspace_root → {server_name: MCPServerConfig}
+        # Permet de retrouver le cache_scope et les instructions sans relire les fichiers.
+        self._server_configs: Dict[str, Dict[str, MCPServerConfig]] = {}
+        # Cache des résultats d'appels d'outils MCP. Clé construite selon
+        # le cache_scope du serveur (server : partagée, workspace : isolée).
+        # Cette structure remplace l'ancien singleton app/agent/cache.py.
+        self._call_cache: Dict[str, "_CacheEntry"] = {}
         self._lock = asyncio.Lock()
 
         # Callback global pour le sampling — injecté par l'application
@@ -68,6 +87,12 @@ class MCPRegistry:
         self._webdav_base_url: str = ""
         # Pool de serveurs MCP par défaut de l'instance (depuis Config.mcp_default_servers)
         self._default_servers: List[MCPServerConfig] = []
+        # Paramètres du cache d'appels (modifiables via configure())
+        self._call_cache_ttl: float = 300.0
+        self._call_cache_max: int = 200
+        # Stats globales (hits/misses)
+        self._cache_hits: int = 0
+        self._cache_misses: int = 0
 
     # ── Configuration ─────────────────────────────────────────────────────────
 
@@ -94,6 +119,17 @@ class MCPRegistry:
         # Construire le pool de défauts depuis la config applicative
         raw_defaults = getattr(app_config, "mcp_default_servers", []) or []
         self._default_servers = build_default_servers(raw_defaults)
+
+        # Lire les paramètres du cache depuis le YAML agent (optionnel).
+        # Ne dépend pas du loader pour rester sans dépendance circulaire.
+        try:
+            from app.agent.config_loader import get_cache_config
+            cache_cfg = get_cache_config() or {}
+            self._call_cache_ttl = float(cache_cfg.get("ttl_seconds", 300))
+            self._call_cache_max = int(cache_cfg.get("max_size", 200))
+        except Exception:
+            # config_loader peut être indisponible (tests, etc.) — on garde les défauts
+            pass
 
     # ── API tools ─────────────────────────────────────────────────────────────
 
@@ -138,16 +174,111 @@ class MCPRegistry:
     def get_server_instructions(self, workspace_root: str) -> Dict[str, str]:
         """Retourne les instructions serveur pour chaque serveur initialisé.
 
+        Source unique de vérité pour les hints injectés au LLM.
+        Priorité (du plus fort au plus faible) :
+          1. Instructions natives du serveur (champ initialize.instructions)
+          2. Champ instructions du MCPServerConfig (déclaré localement)
+          3. Pas d'entrée si aucune des deux
+
         Returns:
-            Dict[server_name, instructions] — seuls les serveurs ayant fourni
-            des instructions non vides sont inclus.
+            Dict[server_name, instructions]
         """
-        instructions: Dict[str, str] = {}
-        for name, client in self._clients.get(workspace_root, {}).items():
+        result: Dict[str, str] = {}
+        clients = self._clients.get(workspace_root, {})
+        configs = self._server_configs.get(workspace_root, {})
+
+        for name, client in clients.items():
+            # 1. Natif depuis le handshake initialize
             caps = client.server_capabilities
             if caps and caps.instructions:
-                instructions[name] = caps.instructions
-        return instructions
+                result[name] = caps.instructions
+                continue
+            # 2. Fallback : instructions déclarées dans MCPServerConfig
+            cfg = configs.get(name)
+            if cfg and cfg.instructions:
+                result[name] = cfg.instructions
+        return result
+
+    # ── Cache d'appels d'outils (scopé par cache_scope du serveur) ───────────
+
+    def _build_cache_key(
+        self,
+        server_name: str,
+        workspace_root: str,
+        tool_name: str,
+        arguments: Dict[str, Any],
+    ) -> Optional[str]:
+        """Construit la clé de cache selon le cache_scope du serveur.
+
+        Returns:
+            Clé string si le serveur est cacheable, None si cache_scope='none'.
+        """
+        # Trouver la config du serveur (peut être dans n'importe quel workspace
+        # initialisé, on cherche dans le workspace courant en priorité)
+        cfg = self._server_configs.get(workspace_root, {}).get(server_name)
+        if cfg is None:
+            for ws_configs in self._server_configs.values():
+                if server_name in ws_configs:
+                    cfg = ws_configs[server_name]
+                    break
+        if cfg is None:
+            # Inconnu : pas de cache
+            return None
+
+        scope = (cfg.cache_scope or "workspace").lower()
+        if scope == "none":
+            return None
+
+        try:
+            args_str = json.dumps(arguments, sort_keys=True, ensure_ascii=False)
+        except (TypeError, ValueError):
+            args_str = str(arguments)
+
+        if scope == "server":
+            # Partagé entre tous les workspaces
+            return f"server::{server_name}::{tool_name}::{args_str}"
+        # Défaut : workspace
+        return f"ws::{workspace_root}::{server_name}::{tool_name}::{args_str}"
+
+    def _cache_get(self, key: str) -> Optional[str]:
+        entry = self._call_cache.get(key)
+        if entry is None:
+            self._cache_misses += 1
+            return None
+        if time.time() - entry.ts > self._call_cache_ttl:
+            del self._call_cache[key]
+            self._cache_misses += 1
+            return None
+        # LRU : remettre en fin
+        if isinstance(self._call_cache, OrderedDict):
+            self._call_cache.move_to_end(key)
+        self._cache_hits += 1
+        return entry.value
+
+    def _cache_set(self, key: str, value: str, workspace_root: str) -> None:
+        # Migrer vers OrderedDict à la première écriture pour bénéficier du LRU
+        if not isinstance(self._call_cache, OrderedDict):
+            self._call_cache = OrderedDict(self._call_cache)
+        self._call_cache[key] = _CacheEntry(
+            value=value, ts=time.time(), workspace_root=workspace_root,
+        )
+        self._call_cache.move_to_end(key)
+        # Éviction LRU
+        while len(self._call_cache) > self._call_cache_max:
+            self._call_cache.popitem(last=False)
+
+    def cache_stats(self) -> dict:
+        """Retourne les statistiques d'usage du cache d'appels."""
+        total = self._cache_hits + self._cache_misses
+        ratio = (self._cache_hits / total) if total > 0 else 0.0
+        return {
+            "size": len(self._call_cache),
+            "max_size": self._call_cache_max,
+            "ttl_seconds": self._call_cache_ttl,
+            "hits": self._cache_hits,
+            "misses": self._cache_misses,
+            "hit_ratio": round(ratio, 3),
+        }
 
     async def call_tool(
         self,
@@ -156,25 +287,54 @@ class MCPRegistry:
         arguments: Dict[str, Any],
         progress_token: Optional[str] = None,
         on_progress: Optional[Callable] = None,
+        use_cache: bool = True,
     ) -> MCPToolResult:
         """Appelle un outil MCP par son nom qualifié 'server__tool'.
 
-        on_progress : callback optionnel async fn(token, progress, total, message)
-            installé le temps de l'appel puis retiré.
+        Args:
+            workspace_root: Workspace courant (clé du registry de clients).
+            qualified_name: 'server__tool'.
+            arguments: Arguments de l'outil.
+            progress_token: ID de progression optionnel.
+            on_progress: Callback optionnel installé le temps de l'appel.
+            use_cache: Si True, utilise le cache d'appels selon le cache_scope
+                du serveur (défaut : True). Le scope est défini dans
+                MCPServerConfig.cache_scope.
         """
         server_name, tool_name = _split_qualified(qualified_name)
         client = self._get_client(workspace_root, server_name)
 
-        # Installer temporairement le callback de progression
+        # Cache hit ?
+        cache_key = None
+        if use_cache:
+            cache_key = self._build_cache_key(
+                server_name, workspace_root, tool_name, arguments,
+            )
+            if cache_key is not None:
+                cached = self._cache_get(cache_key)
+                if cached is not None:
+                    logger.info(f"[MCP-CACHE] hit: {qualified_name}")
+                    return MCPToolResult.from_dict(
+                        tool_name,
+                        {"content": [{"type": "text", "text": cached}], "isError": False},
+                    )
+
+        # Appel réel
         prev_progress = client.on_progress
         if on_progress:
             client.on_progress = on_progress
         try:
-            return await client.call_tool(
+            result = await client.call_tool(
                 tool_name, arguments, progress_token=progress_token,
             )
         finally:
             client.on_progress = prev_progress
+
+        # Cache set si applicable et pas une erreur
+        if cache_key is not None and not result.is_error:
+            self._cache_set(cache_key, result.text or "", workspace_root)
+
+        return result
 
     # ── API resources ─────────────────────────────────────────────────────────
 
@@ -358,6 +518,13 @@ class MCPRegistry:
                     pass
 
         self._clients[workspace_root] = new_clients
+
+        # Mémoriser les configs des serveurs initialisés (pour résolution
+        # cache_scope et instructions sans relire les fichiers).
+        self._server_configs[workspace_root] = {
+            cfg.name: cfg for cfg in servers if cfg.name in new_clients
+        }
+
         return new_clients
 
     def _get_client(self, workspace_root: str, server_name: str) -> MCPClient:
@@ -373,14 +540,34 @@ class MCPRegistry:
     # ── Fermeture ─────────────────────────────────────────────────────────────
 
     async def close_workspace(self, workspace_root: str) -> None:
+        """Ferme un workspace : ferme ses clients, vide ses caches scopés workspace.
+
+        Le cache d'appels avec scope='server' (donnée publique partagée) est
+        préservé car il est valide pour les autres workspaces actifs.
+        """
         async with self._lock:
             clients = self._clients.pop(workspace_root, {})
             self._tools_cache.pop(workspace_root, None)
+            self._server_configs.pop(workspace_root, None)
             for client in clients.values():
                 try:
                     await client.close()
                 except Exception:
                     pass
+
+            # Purger les entrées du cache d'appels scopées à ce workspace.
+            # Les entrées scope='server' (donnée partagée) sont conservées.
+            keys_to_remove = [
+                k for k, v in self._call_cache.items()
+                if v.workspace_root == workspace_root
+            ]
+            for k in keys_to_remove:
+                del self._call_cache[k]
+            if keys_to_remove:
+                logger.info(
+                    f"[MCP] close_workspace {workspace_root!r}: "
+                    f"{len(keys_to_remove)} entrée(s) de cache purgée(s)"
+                )
 
     async def close_all(self) -> None:
         async with self._lock:
@@ -392,6 +579,8 @@ class MCPRegistry:
                         pass
             self._clients.clear()
             self._tools_cache.clear()
+            self._server_configs.clear()
+            self._call_cache.clear()
 
 
 # ─── Singleton global ─────────────────────────────────────────────────────────
