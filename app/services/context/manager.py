@@ -227,25 +227,52 @@ class ContextManager:
             raise
 
     async def get_or_create_room_context(self, room_id: str, room_name: str, is_direct: bool) -> RoomContext:
-        """Récupère ou crée le contexte d'un salon"""
+        """Récupère ou crée le contexte d'un salon.
+
+        Garantit que `webdav_context` (chemin du workspace WebDAV) est peuplé,
+        soit avec la valeur déjà persistée (via !space link ou usage antérieur),
+        soit via la convention de mapping `Config.workspace_path_template`.
+
+        Cette auto-population est essentielle pour l'isolation par workspace :
+        sans elle, tous les rooms tombent sur le BehaviorManager global.
+        """
         if room_id in self._room_contexts:
-            return self._room_contexts[room_id]
-            
-        # Essayer de charger depuis le stockage
-        room_context = await self.get_context(room_id, ContextType.ROOM)
-        if not room_context:
-            # Créer un nouveau contexte de salon
-            room_context = await self.create_context(
-                room_id,
-                ContextType.ROOM,
-                {
-                    "room_id": room_id,
-                    "name": room_name,
-                    "is_direct": is_direct
-                }
-            )
-            
-        self._room_contexts[room_id] = room_context
+            room_context = self._room_contexts[room_id]
+        else:
+            # Essayer de charger depuis le stockage
+            room_context = await self.get_context(room_id, ContextType.ROOM)
+            if not room_context:
+                # Créer un nouveau contexte de salon
+                room_context = await self.create_context(
+                    room_id,
+                    ContextType.ROOM,
+                    {
+                        "room_id": room_id,
+                        "name": room_name,
+                        "is_direct": is_direct
+                    }
+                )
+            self._room_contexts[room_id] = room_context
+
+        # Auto-population du webdav_context si absent et template configuré.
+        # Ne touche pas aux rooms déjà associées à un workspace via !space link.
+        if not getattr(room_context, "webdav_context", None):
+            template = getattr(self.config, "workspace_path_template", "")
+            if template:
+                workspace_path = template.format(room_id=room_id)
+                room_context.set_documentation_space(workspace_path)
+                logger.info(
+                    f"[ROOM] Auto-mapping workspace pour {room_id}: {workspace_path}"
+                )
+                # Persister immédiatement pour que les prochains messages le voient
+                try:
+                    await self.update_context(
+                        room_id, ContextType.ROOM,
+                        room_context.to_dict(), immediate_save=True,
+                    )
+                except Exception as e:
+                    logger.warning(f"[ROOM] Impossible de persister webdav_context: {e}")
+
         return room_context
 
     async def get_room_participants(self, room_id: str) -> List[str]:

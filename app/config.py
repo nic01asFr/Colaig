@@ -130,6 +130,18 @@ class Config(BaseSettings):
     webdav_root_dir: str = Field(".albert", description="WebDAV root directory")
     webdav_index_name: str = Field("index.json", description="WebDAV index filename")
 
+    # Convention de mapping room → workspace WebDAV.
+    # Utilisé pour peupler automatiquement room_context.webdav_context si vide,
+    # garantissant que chaque room dispose d'un workspace isolé pour ses
+    # behaviors, skills, index, configs MCP. Variable {room_id} substituée
+    # à la résolution. Mettre à "" pour désactiver l'auto-mapping (les rooms
+    # devront alors utiliser !space link pour s'associer à un workspace).
+    workspace_path_template: str = Field(
+        "rooms/{room_id}",
+        description="Template pour mapper un room_id vers son workspace WebDAV. "
+                    "Placeholder : {room_id}. Vide = pas d'auto-mapping.",
+    )
+
     # === Embeddings & Index ===
     embedding_dimension: int = Field(1024, description="Embedding dimension (1024 for BAAI/bge-m3)")
     embedding_cache_duration: int = Field(24, description="Embedding cache TTL in hours")

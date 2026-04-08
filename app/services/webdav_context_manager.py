@@ -166,58 +166,89 @@ class WebDAVContextManager:
             logger.error(f"Erreur lors de la création du service WebDAV pour le contexte {context_path}: {str(e)}")
             return None
         
-    async def get_webdav_for_context(self, room_id: Optional[str] = None, 
+    async def _resolve_room_workspace_path(self, room_id: str) -> Optional[str]:
+        """Résout le chemin workspace WebDAV d'une room.
+
+        Source unique de vérité :
+        1. RoomContext.webdav_context si déjà peuplé (via !space link ou auto-mapping)
+        2. None sinon (pas de fallback ici, le caller décide)
+
+        Cette méthode lit le ContextManager mais ne le crée pas (zero side-effect).
+        """
+        try:
+            from app.services.context.instance import get_context_manager
+            from app.services.context.types import ContextType
+            ctx_manager = await get_context_manager(self._config)
+            room_ctx = await ctx_manager.get_context(room_id, ContextType.ROOM)
+            if room_ctx and getattr(room_ctx, "webdav_context", None):
+                return room_ctx.webdav_context
+        except Exception as e:
+            logger.debug(f"Résolution workspace pour {room_id} échouée: {e}")
+        return None
+
+    async def get_webdav_for_context(self, room_id: Optional[str] = None,
                                      user_id: Optional[str] = None) -> WebDAVService:
         """
         Récupère ou crée un service WebDAV pour le contexte spécifié.
-        
-        Utilise la fonction centralisée select_webdav_config pour déterminer
-        quelle configuration utiliser.
-        
+
+        Logique de résolution :
+        1. Aucun contexte → service par défaut
+        2. room_id avec workspace_path résolu (via room_context.webdav_context) →
+           service scopé qui propage workspace_path / BEHAVIOR_DIR / INDEX_DIR.
+           C'est ce qui permet l'isolation par workspace effective.
+        3. Configuration spécifique room/user (set_room_webdav_context) →
+           service avec credentials dédiés
+        4. Sinon → service par défaut
+
         Args:
             room_id: ID du salon Matrix (optionnel)
             user_id: ID de l'utilisateur Matrix (optionnel)
-            
+
         Returns:
             Le service WebDAV approprié pour ce contexte
         """
         try:
-            # Si aucun contexte spécifié, retourner la configuration par défaut
+            # Cas 1 : aucun contexte spécifié
             if not room_id and not user_id:
                 default_service = await self.get_default_service()
                 if not default_service:
                     raise ValueError("Impossible d'initialiser le service WebDAV par défaut")
                 return default_service
-                
-            # Clé combinée pour le cache
+
             combined_key = f"{room_id or ''}_{user_id or ''}"
-            
-            # Vérifier si nous avons déjà une instance pour ce contexte
+
             async with self._lock:
                 if combined_key in self._webdav_instances:
                     return self._webdav_instances[combined_key]
-                
-                # Utiliser la fonction centralisée pour déterminer la configuration
+
+                # Cas 2 : si la room a un webdav_context défini (workspace path),
+                # créer un service scopé qui propage workspace_path et les
+                # constantes de chemins (.albert/behavior, .albert/index, etc.).
+                # C'est essentiel pour l'isolation effective des behaviors et de l'index.
+                if room_id:
+                    workspace_path = await self._resolve_room_workspace_path(room_id)
+                    if workspace_path:
+                        scoped_service = await self.get_service_for_context(workspace_path)
+                        if scoped_service:
+                            self._webdav_instances[combined_key] = scoped_service
+                            return scoped_service
+
+                # Cas 3 : configuration spécifique room/user (credentials dédiés)
                 config_to_use = await self.select_webdav_config(room_id, user_id)
-                
-                # Si aucune configuration spécifique n'est trouvée, utiliser le service par défaut
                 if config_to_use == self._default_webdav_config:
                     default_service = await self.get_default_service()
                     if not default_service:
                         raise ValueError("Impossible d'initialiser le service WebDAV par défaut")
                     return default_service
-                
-                # Créer une nouvelle instance avec la configuration trouvée
+
                 service = WebDAVService(
                     webdav_url=config_to_use['webdav_url'],
                     webdav_username=config_to_use['webdav_username'],
                     webdav_password=config_to_use['webdav_password'],
                     webdav_root=config_to_use.get('webdav_root', self._config.webdav_root_path)
                 )
-                
                 await service.init_webdav()
-                
-                # Mettre en cache pour utilisation future
+
                 self._webdav_instances[combined_key] = service
                 return service
         except Exception as e:
