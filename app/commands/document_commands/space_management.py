@@ -51,55 +51,46 @@ async def space_management_command(ep: EventParser, matrix_client: MatrixClient)
     if len(command_parts) > 1:
         action = command_parts[1].lower()
     
-    # Activer l'indicateur de frappe
-    await matrix_client.room_typing(room_id, typing_state=True)
-    
-    try:
-        # Récupérer le gestionnaire WebDAV
-        webdav_manager = await get_webdav_context_manager(config)
-        
-        # Traiter les différentes actions
-        if action == "list":
-            await list_spaces(matrix_client, room_id, webdav_manager)
-        elif action == "link":
-            space_id = command_parts[2] if len(command_parts) > 2 else None
-            await link_space(matrix_client, room_id, space_id, webdav_manager)
-        elif action == "unlink":
-            await unlink_space(matrix_client, room_id, webdav_manager)
-        elif action == "info":
-            await show_space_info(matrix_client, room_id, config)
-        elif action == "index":
-            space_id = command_parts[2] if len(command_parts) > 2 else None
-            await index_space(matrix_client, room_id, space_id, webdav_manager, config)
-        else:
-            # Action inconnue, afficher l'aide
-            help_text = """
-## Gestion des espaces documentaires
+    from app.matrix_bot.typing import typing_indicator
+    from app.matrix_bot.message_templates import fmt_help, fmt_error
 
-**Usage:**
-```
-!space list                  # Liste tous les espaces documentaires
-!space link <ID>             # Associe le salon à l'espace spécifié
-!space unlink                # Supprime l'association du salon
-!space info                  # Affiche les informations sur l'espace associé
-!space index [ID]            # Force l'indexation d'un espace spécifique
-```
+    async with typing_indicator(matrix_client, room_id):
+        try:
+            webdav_manager = await get_webdav_context_manager(config)
 
-Les espaces documentaires sont des dossiers WebDAV contenant un répertoire `.colaig`.
-Chaque salon peut être associé à un espace documentaire spécifique.
-"""
-            await matrix_client.send_markdown_message(room_id, help_text)
-    except Exception as e:
-        logger.error(f"Erreur dans la commande space: {str(e)}")
-        await matrix_client.send_markdown_message(
-            room_id,
-            f"❌ Erreur lors de l'exécution de la commande: {str(e)}",
-            msgtype="m.notice",
-            reply_to=event_id
-        )
-    finally:
-        # Désactiver l'indicateur de frappe
-        await matrix_client.room_typing(room_id, typing_state=False)
+            if action == "list":
+                await list_spaces(matrix_client, room_id, webdav_manager)
+            elif action == "link":
+                space_id = command_parts[2] if len(command_parts) > 2 else None
+                await link_space(matrix_client, room_id, space_id, webdav_manager)
+            elif action == "unlink":
+                await unlink_space(matrix_client, room_id, webdav_manager)
+            elif action == "info":
+                await show_space_info(matrix_client, room_id, config)
+            elif action == "index":
+                space_id = command_parts[2] if len(command_parts) > 2 else None
+                await index_space(matrix_client, room_id, space_id, webdav_manager, config)
+            else:
+                help_text = fmt_help(
+                    command="!space",
+                    description="Gestion des espaces documentaires",
+                    usage="!space <action> [arguments]",
+                    examples=[
+                        ("!space list", "Liste les espaces documentaires"),
+                        ("!space link <ID>", "Associe le salon à un espace"),
+                        ("!space unlink", "Supprime l'association"),
+                        ("!space info", "Infos sur l'espace associé"),
+                        ("!space index [ID]", "Force l'indexation"),
+                    ],
+                )
+                await matrix_client.send_markdown_message(room_id, help_text, msgtype="m.notice")
+        except Exception as e:
+            logger.error(f"Erreur dans la commande space: {str(e)}")
+            await matrix_client.send_markdown_message(
+                room_id,
+                fmt_error("Erreur espace", str(e)),
+                msgtype="m.notice", reply_to=event_id,
+            )
 
 async def list_spaces(matrix_client: MatrixClient, room_id: str, webdav_manager):
     """Liste tous les espaces documentaires disponibles"""

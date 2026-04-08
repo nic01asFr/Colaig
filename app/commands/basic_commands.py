@@ -62,35 +62,22 @@ async def help(ep: EventParser, matrix_client: MatrixClient):
     # Si le message contient plus qu'un mot et que le deuxième est "all", on affiche l'aide détaillée
     verbose = len(command_parts) > 1 and command_parts[1] == "all"
     
-    # Activer l'indicateur de frappe
-    await matrix_client.room_typing(room_id, typing_state=True)
-    
-    try:
-        # Utiliser le registre importé directement
+    from app.matrix_bot.typing import typing_indicator
+
+    async with typing_indicator(matrix_client, room_id):
         cmd_registry = command_registry
-        
-        # Générer le message d'aide
         help_msg = cmd_registry.get_help(config, verbose)
-        
-        # Envoyer le message d'aide
+
         await matrix_client.send_markdown_message(
-            room_id,
-            help_msg,
-            msgtype="m.notice",
-            reply_to=event_id
+            room_id, help_msg, msgtype="m.notice", reply_to=event_id,
         )
-        
-        # Si l'utilisateur a demandé l'aide détaillée, on lui montre comment
-        # retourner à l'aide simplifiée
+
         if verbose:
             await matrix_client.send_markdown_message(
                 room_id,
-                "Tapez !aide pour afficher l'aide simplifiée.",
-                msgtype="m.notice"
+                "Tapez `!aide` pour l'aide simplifiée.",
+                msgtype="m.notice",
             )
-    finally:
-        # Désactiver l'indicateur de frappe
-        await matrix_client.room_typing(room_id, typing_state=False)
 
 @register_feature(
     group="admin",

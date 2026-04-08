@@ -339,21 +339,49 @@ class WebDAVService:
         
         return url
 
-    async def write_file(self, path: str, content: Union[str, bytes]) -> None:
-        """Écrit le contenu dans un fichier WebDAV"""
+    async def write_file(self, path: str, content: Union[str, bytes], ensure_parents: bool = False) -> None:
+        """Écrit le contenu dans un fichier WebDAV.
+
+        Args:
+            path: Chemin du fichier à écrire
+            content: Contenu à écrire (str ou bytes)
+            ensure_parents: Si True, crée les répertoires parents avant d'écrire.
+                Utile pour les serveurs WebDAV qui ne persistent pas les
+                répertoires vides (BigFolder, stockage objet).
+        """
         try:
             # Vérifier et réinitialiser le client si nécessaire
             if hasattr(self.http_client, 'is_closed') and self.http_client.is_closed:
                 await self.reinitialize_client()
-                
+
             logger.info(f"Écriture du fichier WebDAV: {path}")
             url = self._get_url(path)
-            
+
             # Convertir en bytes si nécessaire
             if isinstance(content, str):
                 content = content.encode('utf-8')
-                
+
+            if ensure_parents:
+                parent_dir = os.path.dirname(path)
+                if parent_dir and parent_dir != '/':
+                    await self.create_directory(parent_dir)
+
             response = await self.http_client.put(url, content=content)
+
+            # 409 Conflict : soit le parent manque, soit le fichier existe (BigFolder)
+            if response.status_code == 409:
+                # Stratégie 1 : créer les parents et réessayer
+                parent_dir = os.path.dirname(path)
+                if parent_dir and parent_dir != '/':
+                    await self.create_directory(parent_dir)
+                response = await self.http_client.put(url, content=content)
+
+                # Stratégie 2 : supprimer le fichier existant et réessayer
+                if response.status_code == 409:
+                    logger.info(f"409 persistant, suppression avant réécriture: {path}")
+                    await self.http_client.request("DELETE", url)
+                    response = await self.http_client.put(url, content=content)
+
             response.raise_for_status()
             logger.info(f"Fichier écrit avec succès: {path} ({len(content)} octets)")
         except Exception as e:
@@ -1058,18 +1086,27 @@ class WebDAVService:
         """
         try:
             logger.info(f"[OCS_SHARE] Tentative de création d'un lien pour: {path}")
-            
+
             # Validation initiale
             if not path or path.strip() == "":
                 logger.error("[OCS_SHARE] Chemin vide fourni")
                 return ""
-            
+
+            # Détection BigFolder : utiliser l'API native si applicable
+            if self._is_bigfolder():
+                logger.info("[OCS_SHARE] BigFolder détecté, utilisation de l'API native")
+                return await self._create_bigfolder_share_link(path)
+
             # Extraire la base de l'URL Nextcloud (sans remote.php/dav/files/user)
             base_url = self.base_url
             if "/remote.php/dav/files/" in base_url:
                 base_url = base_url.split("/remote.php/dav/files/")[0]
             elif "/remote.php/webdav/" in base_url:
                 base_url = base_url.split("/remote.php/webdav/")[0]
+            elif "/dav/" in base_url:
+                base_url = base_url.split("/dav/")[0]
+            elif base_url.endswith("/dav"):
+                base_url = base_url[:-4]
             
             # S'assurer que la base URL n'a pas de slash final
             base_url = base_url.rstrip('/')
@@ -1316,6 +1353,97 @@ class WebDAVService:
             logger.error(f"[OCS_SHARE] Traceback: {traceback.format_exc()}")
             # En cas d'erreur, fallback vers WebDAV direct
             return self._create_webdav_fallback_link(base_url, path, target_user)
+
+    def _is_bigfolder(self) -> bool:
+        """Détecte si le serveur WebDAV est BigFolder (pas Nextcloud)."""
+        return "/dav/" in self.base_url and "/remote.php/" not in self.base_url
+
+    def _bigfolder_base_url(self) -> str:
+        """Extrait l'URL de base BigFolder depuis l'URL WebDAV."""
+        base = self.base_url
+        if "/dav/" in base:
+            base = base.split("/dav/")[0]
+        elif base.endswith("/dav"):
+            base = base[:-4]
+        return base.rstrip("/")
+
+    async def _create_bigfolder_share_link(self, path: str) -> str:
+        """
+        Crée un lien de partage via l'API native BigFolder.
+
+        Args:
+            path: Chemin virtuel du document (ex: "Archivist/mon_fichier.pdf")
+
+        Returns:
+            URL de partage BigFolder ou chaîne vide en cas d'erreur
+        """
+        try:
+            base_url = self._bigfolder_base_url()
+            api_key = self.webdav_password
+            headers = {"x-api-key": api_key, "Content-Type": "application/json"}
+
+            # Normaliser le chemin : s'assurer qu'il commence par /
+            virtual_path = "/" + path.lstrip("/")
+            logger.info(f"[BIGFOLDER_SHARE] Recherche document par virtual_path: {virtual_path}")
+
+            # Trouver le document par son chemin virtuel
+            search_url = f"{base_url}/documents/"
+            resp = await self.http_client.get(
+                search_url,
+                params={"virtual_path": virtual_path, "limit": 5},
+                headers=headers,
+            )
+            logger.info(f"[BIGFOLDER_SHARE] Recherche status={resp.status_code}")
+
+            if resp.status_code != 200:
+                logger.error(f"[BIGFOLDER_SHARE] Erreur recherche document: {resp.status_code} {resp.text[:200]}")
+                return ""
+
+            docs = resp.json()
+            if not isinstance(docs, list) or not docs:
+                logger.warning(f"[BIGFOLDER_SHARE] Aucun document trouvé pour: {virtual_path}")
+                return ""
+
+            # Prendre le premier document non supprimé
+            doc = None
+            for d in docs:
+                if d.get("status") != "deleted":
+                    doc = d
+                    break
+            if doc is None:
+                doc = docs[0]
+
+            doc_id = doc.get("id")
+            logger.info(f"[BIGFOLDER_SHARE] Document trouvé: id={doc_id}, status={doc.get('status')}")
+
+            # Créer le lien de partage
+            share_resp = await self.http_client.post(
+                f"{base_url}/documents/{doc_id}/share",
+                json={"permission": "read"},
+                headers=headers,
+            )
+            logger.info(f"[BIGFOLDER_SHARE] Création share status={share_resp.status_code}")
+
+            if share_resp.status_code not in (200, 201):
+                logger.error(f"[BIGFOLDER_SHARE] Erreur création share: {share_resp.status_code} {share_resp.text[:200]}")
+                return ""
+
+            share_data = share_resp.json()
+            token = share_data.get("token")
+            if not token:
+                logger.error(f"[BIGFOLDER_SHARE] Pas de token dans la réponse: {share_data}")
+                return ""
+
+            # Construire l'URL publique à partir de la base WebDAV
+            share_url = f"{base_url}/shared/{token}"
+            logger.info(f"[BIGFOLDER_SHARE] ✅ Lien créé: {share_url}")
+            return share_url
+
+        except Exception as e:
+            import traceback
+            logger.error(f"[BIGFOLDER_SHARE] Erreur: {e}")
+            logger.error(traceback.format_exc())
+            return ""
 
     def _create_webdav_fallback_link(self, base_url: str, path: str, target_user: Optional[str] = None) -> str:
         """

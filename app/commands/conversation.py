@@ -143,7 +143,7 @@ async def handle_conversation(ep: EventParser, matrix_client: MatrixClient):
         # Récupérer l'historique de conversation
         history = session_context.history
         
-        # Indiquer que le bot est en train d'écrire
+        # Indicateur de frappe (désactivé dans le finally)
         await matrix_client.room_typing(room_id, typing_state=True)
         
         # Récupérer le contexte de session après la mise à jour
@@ -435,20 +435,57 @@ async def _orchestrate_with_mcp(
     """
     Délègue au LLM la sélection d'un outil MCP et l'exécute.
 
-    Stratégie simple (1 tour) :
-    1. Injecter les descriptions d'outils dans le prompt système
+    Stratégie (1 tour) :
+    1. Injecter les server instructions + descriptions d'outils dans le prompt
     2. Demander au LLM si un outil est pertinent (réponse JSON structurée)
-    3. Si un outil est sélectionné : l'appeler, puis reformuler avec le résultat
+    3. Si un outil est sélectionné : l'appeler avec progress tracking, puis reformuler
     4. Si aucun outil n'est pertinent : retourner None → fallback LLM direct
     """
     from app.core_llm import generate
     import json as _json
+    import re as _re
+    import uuid as _uuid
 
-    # Construire la liste des outils pour le prompt
-    tools_desc = "\n".join(
-        f"- `{t.server_name}__{t.name}` : {t.description}"
+    # ── Server instructions (P0) ──
+    server_instructions = mcp_registry.get_server_instructions(workspace_root)
+    instructions_block = ""
+    if server_instructions:
+        parts = []
+        for srv_name, instr in server_instructions.items():
+            parts.append(f"## Serveur « {srv_name} »\n{instr.strip()}")
+        instructions_block = (
+            "Contexte des serveurs MCP disponibles :\n\n"
+            + "\n\n".join(parts)
+            + "\n\n"
+        )
+
+    # ── Descriptions de tools avec annotations (P1a) ──
+    tool_lines = []
+    for t in mcp_tools:
+        # Ne pas exposer au LLM les outils destinés uniquement à l'UI
+        if "assistant" not in t.annotations.audience:
+            continue
+        line = f"- `{t.qualified_name}` : {t.description}"
+        hints = []
+        if t.annotations.destructive:
+            hints.append("⚠️ DESTRUCTIF")
+        if t.annotations.read_only:
+            hints.append("lecture seule")
+        if t.annotations.open_world:
+            hints.append("accès externe")
+        if hints:
+            line += f"  [{', '.join(hints)}]"
+        tool_lines.append(line)
+
+    # Trier par priorité si disponible (0 = plus important)
+    tools_with_priority = [
+        (t.annotations.priority if t.annotations.priority is not None else 999, t)
         for t in mcp_tools
-    )
+        if "assistant" in t.annotations.audience
+    ]
+    tools_with_priority.sort(key=lambda x: x[0])
+
+    tools_desc = "\n".join(tool_lines)
 
     selection_messages = [
         {
@@ -456,7 +493,11 @@ async def _orchestrate_with_mcp(
             "content": (
                 "Tu es un assistant qui doit sélectionner l'outil le plus pertinent "
                 "parmi ceux disponibles pour répondre à la requête.\n\n"
+                f"{instructions_block}"
                 f"Outils disponibles :\n{tools_desc}\n\n"
+                "Règles :\n"
+                "- Les outils marqués ⚠️ DESTRUCTIF modifient des données de manière irréversible.\n"
+                "- Respecte les dépendances entre outils décrites dans les instructions serveur.\n\n"
                 "Réponds UNIQUEMENT avec un objet JSON valide :\n"
                 '{"use_tool": true, "tool": "server__name", "arguments": {...}}\n'
                 "ou\n"
@@ -471,8 +512,6 @@ async def _orchestrate_with_mcp(
 
     # Parser la décision
     try:
-        # Extraire le JSON même si le LLM a ajouté du texte autour
-        import re as _re
         match = _re.search(r"\{.*\}", raw_decision, _re.DOTALL)
         if not match:
             return None
@@ -493,19 +532,33 @@ async def _orchestrate_with_mcp(
 
     logger.info(f"[MCP] LLM sélectionne l'outil: {qualified_name}")
 
-    tool_result = await mcp_registry.call_tool(workspace_root, qualified_name, arguments)
+    # ── Progress callback (P1b) ──
+    progress_token = f"mcp-{_uuid.uuid4().hex[:8]}"
+
+    async def _on_progress(token, progress, total, message):
+        pct = f"{progress}/{total}" if total else str(progress)
+        logger.info(f"[MCP] Progression {qualified_name}: {pct} — {message}")
+
+    tool_result = await mcp_registry.call_tool(
+        workspace_root, qualified_name, arguments,
+        progress_token=progress_token,
+        on_progress=_on_progress,
+    )
 
     if tool_result.is_error:
-        logger.warning(f"[MCP] Outil {qualified_name} a retourné une erreur: {tool_result.content}")
+        logger.warning(f"[MCP] Outil {qualified_name} a retourné une erreur: {tool_result.text}")
         return None
 
-    # Reformuler la réponse finale avec le résultat de l'outil
+    # ── Synthèse avec séparation content/structuredContent (P2) ──
+    # Le LLM reçoit le texte léger (content[]), pas le structuredContent
+    llm_result_text = tool_result.text
+
     synthesis_messages = messages + [
         {
             "role": "system",
             "content": (
                 f"L'outil `{qualified_name}` a retourné le résultat suivant :\n\n"
-                f"{tool_result.content}\n\n"
+                f"{llm_result_text}\n\n"
                 "Utilise ce résultat pour répondre à la question de l'utilisateur "
                 "de manière claire et synthétique."
             ),

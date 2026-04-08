@@ -79,32 +79,22 @@ async def webhook_command(ep: EventParser, matrix_client: MatrixClient):
     
     # Traiter les différentes sous-commandes
     if sub_command in ["aide", "help"]:
+        from app.matrix_bot.message_templates import fmt_help
+        help_text = fmt_help(
+            command="!webhook",
+            description="Gestion des webhooks (intégration n8n)",
+            usage="!webhook <sous-commande> [arguments]",
+            examples=[
+                ("!webhook créer", "Crée un webhook sortant (interactif)"),
+                ("!webhook liste", "Liste les webhooks configurés"),
+                ("!webhook info <nom>", "Détails d'un webhook"),
+                ("!webhook supprimer <nom>", "Supprime un webhook"),
+                ("!webhook envoyer <nom> {json}", "Envoie des données"),
+                ("!webhook entrants", "Liste les webhooks entrants"),
+            ],
+        )
         await matrix_client.send_markdown_message(
-            room_id,
-            """## 🔌 Aide pour la commande !webhook
-
-**Utilisation:**
-```
-!webhook <sous-commande> [arguments]
-```
-
-**Sous-commandes disponibles:**
-- `!webhook créer` - Crée un webhook sortant (mode interactif)
-- `!webhook liste` - Liste tous les webhooks configurés
-- `!webhook supprimer <nom>` - Supprime un webhook
-- `!webhook info <nom>` - Affiche les détails d'un webhook
-- `!webhook entrants` - Liste les webhooks entrants
-- `!webhook envoyer <nom> <données_json>` - Envoie des données au webhook spécifié
-
-**Exemples:**
-```
-!webhook créer
-!webhook liste
-!webhook info notification_trello
-!webhook supprimer notification_trello
-!webhook envoyer notification_trello {"message": "Nouvelle tâche créée", "priority": "high"}
-```""",
-            msgtype="m.notice"
+            room_id, help_text, msgtype="m.notice",
         )
         
     elif sub_command in ["créer", "creer", "create"]:
@@ -127,11 +117,12 @@ async def webhook_command(ep: EventParser, matrix_client: MatrixClient):
         from app.commands.lifecycle import ThreadedCommandManager
         await ThreadedCommandManager.start_thread(room_id, sender, "webhook", config, **thread_data)
         
-        # Envoyer un message pour demander le nom
         await matrix_client.send_markdown_message(
             room_id,
-            "## 🔌 Création d'un Webhook Sortant (Colaig → n8n)\n\nVeuillez indiquer un **nom** pour ce webhook (utilisé pour l'identifier dans les commandes) :\n\n*Astuce: Vous pouvez annuler à tout moment en répondant `annuler`.*",
-            msgtype="m.notice"
+            "🔗 **Création d'un webhook sortant**\n\n"
+            "Indiquez un **nom** pour ce webhook :\n\n"
+            "*Annulez à tout moment en répondant `annuler`.*",
+            msgtype="m.notice",
         )
         
     elif sub_command in ["liste", "list"]:
@@ -139,22 +130,19 @@ async def webhook_command(ep: EventParser, matrix_client: MatrixClient):
         webhooks = await webhook_service.list_webhooks(room_id)
         
         if not webhooks:
+            from app.matrix_bot.message_templates import fmt_empty
             await matrix_client.send_markdown_message(
                 room_id,
-                "🔍 Aucun webhook configuré pour le moment.",
-                msgtype="m.notice"
+                fmt_empty("webhook", "Créez-en un avec `!webhook créer`."),
+                msgtype="m.notice",
             )
             return
-            
-        # Construire la liste des webhooks
-        webhook_list = "## 🔌 Webhooks configurés\n\n"
-        for name, config in webhooks.items():
-            webhook_list += f"- **{name}**: {config.url} ({config.method})\n"
-            
+
+        lines = ["🔗 **Webhooks configurés**\n"]
+        for name, cfg in webhooks.items():
+            lines.append(f"- **{name}** : `{cfg.method}` → {cfg.url}")
         await matrix_client.send_markdown_message(
-            room_id,
-            webhook_list,
-            msgtype="m.notice"
+            room_id, "\n".join(lines), msgtype="m.notice",
         )
         
     elif sub_command in ["supprimer", "delete", "remove"]:
@@ -442,29 +430,21 @@ async def webhook_response(ep: EventParser, matrix_client: MatrixClient):
             # Vérifier si le webhook existe déjà
             webhooks = await webhook_service.list_webhooks(room_id)
             if webhook_name in webhooks:
-                await matrix_client.room_send(
+                await matrix_client.send_markdown_message(
                     room_id,
-                    "m.room.message",
-                    {
-                        "msgtype": "m.notice",
-                        "body": f"⚠️ Un webhook avec le nom '{webhook_name}' existe déjà. Veuillez choisir un autre nom."
-                    }
+                    f"⚠️ Un webhook « {webhook_name} » existe déjà. Choisissez un autre nom.",
+                    msgtype="m.notice",
                 )
                 return None
-            
-            # Mettre à jour le contexte - modification directe au lieu de copy
+
             context.conversation_state[ConversationStateKeys.WEBHOOK_NAME] = webhook_name
             context.conversation_state[ConversationStateKeys.STAGE] = "url"
             await update_unified_session_context(room_id, sender, context)
-            
-            # Demander l'URL
-            await matrix_client.room_send(
+
+            await matrix_client.send_markdown_message(
                 room_id,
-                "m.room.message",
-                {
-                    "msgtype": "m.notice",
-                    "body": f"Nom du webhook : {webhook_name}\n\nVeuillez indiquer l'URL du webhook n8n (ex: https://n8n.example.com/webhook/123) :"
-                }
+                f"Nom : **{webhook_name}**\n\nIndiquez l'URL du webhook (ex : `https://n8n.example.com/webhook/123`) :",
+                msgtype="m.notice",
             )
             return None
             
@@ -472,31 +452,22 @@ async def webhook_response(ep: EventParser, matrix_client: MatrixClient):
             # Étape 2: URL du webhook
             webhook_url = message_text.strip()
             
-            # Valider l'URL
             if not re.match(URL_PATTERN, webhook_url):
-                await matrix_client.room_send(
+                await matrix_client.send_markdown_message(
                     room_id,
-                    "m.room.message",
-                    {
-                        "msgtype": "m.notice",
-                        "body": "⚠️ URL invalide. Veuillez fournir une URL valide (ex: https://n8n.example.com/webhook/123)."
-                    }
+                    "⚠️ URL invalide. Exemple : `https://n8n.example.com/webhook/123`",
+                    msgtype="m.notice",
                 )
                 return None
-            
-            # Mettre à jour le contexte - modification directe au lieu de copy
+
             context.conversation_state[ConversationStateKeys.WEBHOOK_URL] = webhook_url
             context.conversation_state[ConversationStateKeys.STAGE] = "method"
             await update_unified_session_context(room_id, sender, context)
-            
-            # Demander la méthode HTTP
-            await matrix_client.room_send(
+
+            await matrix_client.send_markdown_message(
                 room_id,
-                "m.room.message",
-                {
-                    "msgtype": "m.notice",
-                    "body": f"URL du webhook : {webhook_url}\n\nVeuillez indiquer la méthode HTTP à utiliser (POST, GET, PUT, etc.) ou appuyez sur Entrée pour utiliser POST :"
-                }
+                f"URL : **{webhook_url}**\n\nMéthode HTTP (POST, GET, PUT…) ou Entrée pour POST :",
+                msgtype="m.notice",
             )
             return None
             
@@ -517,27 +488,15 @@ async def webhook_response(ep: EventParser, matrix_client: MatrixClient):
             )
             
             await webhook_service.add_webhook(webhook_name, webhook_config, room_id)
-            
-            # Message de confirmation
-            usage_instructions = f"""
-🔌 Webhook '{webhook_name}' créé avec succès!
 
-Pour l'utiliser:
-- Envoyer des données: `!webhook envoyer {webhook_name} {{"message": "Votre message"}}`
-- Voir les détails: `!webhook info {webhook_name}`
-- Supprimer: `!webhook supprimer {webhook_name}`
-- Lister tous les webhooks: `!webhook liste`
-
-Les données envoyées seront transmises à {webhook_url} avec la méthode {webhook_method}.
-            """.strip()
-            
-            await matrix_client.room_send(
+            await matrix_client.send_markdown_message(
                 room_id,
-                "m.room.message",
-                {
-                    "msgtype": "m.notice",
-                    "body": usage_instructions
-                }
+                f"✅ Webhook **{webhook_name}** créé.\n\n"
+                f"- Envoyer : `!webhook envoyer {webhook_name} {{\"message\": \"…\"}}`\n"
+                f"- Détails : `!webhook info {webhook_name}`\n"
+                f"- Supprimer : `!webhook supprimer {webhook_name}`\n\n"
+                f"→ `{webhook_method}` {webhook_url}",
+                msgtype="m.notice",
             )
             
             # Terminer le thread de commande

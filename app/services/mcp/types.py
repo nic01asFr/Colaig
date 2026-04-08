@@ -112,11 +112,36 @@ class ServerCapabilities:
 # ─── Tools ───────────────────────────────────────────────────────────────────
 
 @dataclass
+class MCPToolAnnotations:
+    """Métadonnées comportementales d'un outil (spec MCP annotations)."""
+    read_only: bool = False
+    destructive: bool = False
+    idempotent: bool = False
+    open_world: bool = False
+    audience: List[str] = field(default_factory=lambda: ["assistant"])
+    priority: Optional[float] = None
+
+    @classmethod
+    def from_dict(cls, d: Optional[Dict[str, Any]]) -> "MCPToolAnnotations":
+        if not d:
+            return cls()
+        return cls(
+            read_only=bool(d.get("readOnlyHint", False)),
+            destructive=bool(d.get("destructiveHint", False)),
+            idempotent=bool(d.get("idempotentHint", False)),
+            open_world=bool(d.get("openWorldHint", False)),
+            audience=d.get("audience", ["assistant"]),
+            priority=d.get("priority"),
+        )
+
+
+@dataclass
 class MCPTool:
     name: str
     description: str
     input_schema: Dict[str, Any] = field(default_factory=dict)
     server_name: str = ""
+    annotations: MCPToolAnnotations = field(default_factory=MCPToolAnnotations)
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any], server_name: str = "") -> "MCPTool":
@@ -125,6 +150,7 @@ class MCPTool:
             description=d.get("description", ""),
             input_schema=d.get("inputSchema", {}),
             server_name=server_name,
+            annotations=MCPToolAnnotations.from_dict(d.get("annotations")),
         )
 
     @property
@@ -144,10 +170,12 @@ class MCPTool:
 class MCPToolResult:
     tool_name: str
     contents: List[MCPContent] = field(default_factory=list)
+    structured_content: Optional[Dict[str, Any]] = None
     is_error: bool = False
 
     @property
     def text(self) -> str:
+        """Texte consolidé pour injection LLM (issu de content[])."""
         return "\n".join(c.as_text() for c in self.contents)
 
     @classmethod
@@ -155,6 +183,7 @@ class MCPToolResult:
         return cls(
             tool_name=tool_name,
             contents=[MCPContent.from_dict(c) for c in d.get("content", [])],
+            structured_content=d.get("structuredContent"),
             is_error=bool(d.get("isError", False)),
         )
 

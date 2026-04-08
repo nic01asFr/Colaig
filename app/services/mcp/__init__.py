@@ -25,18 +25,20 @@ from app.services.mcp.types import (
     MCPResourceContent,
     MCPRoot,
     MCPTool,
+    MCPToolAnnotations,
     MCPToolResult,
     ServerCapabilities,
 )
 from app.services.mcp.transport import StreamableHTTPTransport
 from app.services.mcp.client import MCPClient
-from app.services.mcp.workspace_loader import MCPServerConfig, load_mcp_servers_from_webdav
+from app.services.mcp.workspace_loader import MCPServerConfig, build_default_servers, load_mcp_servers_from_webdav
 from app.services.mcp.registry import MCPRegistry, get_mcp_registry, close_mcp_registry
 
 __all__ = [
     # Types
     "MCPContent",
     "MCPTool",
+    "MCPToolAnnotations",
     "MCPToolResult",
     "MCPResource",
     "MCPResourceContent",
@@ -51,6 +53,7 @@ __all__ = [
     "MCPClient",
     # Workspace
     "MCPServerConfig",
+    "build_default_servers",
     "load_mcp_servers_from_webdav",
     # Registry
     "MCPRegistry",

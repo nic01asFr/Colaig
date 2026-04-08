@@ -159,11 +159,10 @@ async def _handle_rephrase(
             },
         ]
 
-        await matrix_client.room_typing(room_id, typing_state=True)
-        try:
+        from app.matrix_bot.typing import typing_indicator
+
+        async with typing_indicator(matrix_client, room_id):
             response = await generate(config, messages)
-        finally:
-            await matrix_client.room_typing(room_id, typing_state=False)
 
         await matrix_client.send_markdown_message(
             room_id,

@@ -27,9 +27,11 @@ from app.services.mcp.types import (
     MCPRoot,
     MCPTool,
     MCPToolResult,
+    ServerCapabilities,
 )
 from app.services.mcp.workspace_loader import (
     MCPServerConfig,
+    build_default_servers,
     load_mcp_servers_from_webdav,
 )
 
@@ -64,6 +66,8 @@ class MCPRegistry:
         # URL de base WebDAV pour construire les roots MCP scopées au workspace
         # Ex: "https://webdav.host/documents" → root = "{base}/{workspace_root}"
         self._webdav_base_url: str = ""
+        # Pool de serveurs MCP par défaut de l'instance (depuis Config.mcp_default_servers)
+        self._default_servers: List[MCPServerConfig] = []
 
     # ── Configuration ─────────────────────────────────────────────────────────
 
@@ -87,6 +91,9 @@ class MCPRegistry:
         self._app_config = app_config
         self._sampling_callback = sampling_callback
         self._webdav_base_url = webdav_base_url.rstrip("/")
+        # Construire le pool de défauts depuis la config applicative
+        raw_defaults = getattr(app_config, "mcp_default_servers", []) or []
+        self._default_servers = build_default_servers(raw_defaults)
 
     # ── API tools ─────────────────────────────────────────────────────────────
 
@@ -104,7 +111,10 @@ class MCPRegistry:
             if not force_refresh and workspace_root in self._tools_cache:
                 return self._tools_cache[workspace_root]
 
-            servers = await load_mcp_servers_from_webdav(webdav_service, workspace_root)
+            servers = await load_mcp_servers_from_webdav(
+                webdav_service, workspace_root,
+                default_servers=self._default_servers,
+            )
             if not servers:
                 self._tools_cache[workspace_root] = []
                 return []
@@ -125,17 +135,46 @@ class MCPRegistry:
             )
             return all_tools
 
+    def get_server_instructions(self, workspace_root: str) -> Dict[str, str]:
+        """Retourne les instructions serveur pour chaque serveur initialisé.
+
+        Returns:
+            Dict[server_name, instructions] — seuls les serveurs ayant fourni
+            des instructions non vides sont inclus.
+        """
+        instructions: Dict[str, str] = {}
+        for name, client in self._clients.get(workspace_root, {}).items():
+            caps = client.server_capabilities
+            if caps and caps.instructions:
+                instructions[name] = caps.instructions
+        return instructions
+
     async def call_tool(
         self,
         workspace_root: str,
         qualified_name: str,
         arguments: Dict[str, Any],
         progress_token: Optional[str] = None,
+        on_progress: Optional[Callable] = None,
     ) -> MCPToolResult:
-        """Appelle un outil MCP par son nom qualifié 'server__tool'."""
+        """Appelle un outil MCP par son nom qualifié 'server__tool'.
+
+        on_progress : callback optionnel async fn(token, progress, total, message)
+            installé le temps de l'appel puis retiré.
+        """
         server_name, tool_name = _split_qualified(qualified_name)
         client = self._get_client(workspace_root, server_name)
-        return await client.call_tool(tool_name, arguments, progress_token=progress_token)
+
+        # Installer temporairement le callback de progression
+        prev_progress = client.on_progress
+        if on_progress:
+            client.on_progress = on_progress
+        try:
+            return await client.call_tool(
+                tool_name, arguments, progress_token=progress_token,
+            )
+        finally:
+            client.on_progress = prev_progress
 
     # ── API resources ─────────────────────────────────────────────────────────
 
@@ -233,7 +272,8 @@ class MCPRegistry:
             async with self._lock:
                 if workspace_root not in self._clients:
                     servers = await load_mcp_servers_from_webdav(
-                        webdav_service, workspace_root
+                        webdav_service, workspace_root,
+                        default_servers=self._default_servers,
                     )
                     await self._get_or_init_clients(workspace_root, servers)
         return self._clients.get(workspace_root, {})

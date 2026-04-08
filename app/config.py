@@ -197,6 +197,37 @@ class Config(BaseSettings):
     )
     platform_db_path: str = Field("/app/data/platform.db", description="Platform SQLite DB path")
 
+    # === MCP ===
+    mcp_default_servers: list[dict] = Field(
+        default=[
+            {
+                "name": "datagouv",
+                "url": "https://mcp.data.gouv.fr/mcp",
+                "description": "Données ouvertes françaises — data.gouv.fr",
+            },
+        ],
+        description=(
+            "Pool de serveurs MCP par défaut pour cette instance. "
+            "JSON list. Chaque entrée : {name, url, token?, description?, timeout?}. "
+            "Les workspaces peuvent override ou désactiver un serveur par nom."
+        ),
+    )
+
+    @field_validator("mcp_default_servers", mode="before")
+    @classmethod
+    def parse_mcp_default_servers(cls, v: Any) -> list[dict]:
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("["):
+                try:
+                    return json.loads(v)
+                except json.JSONDecodeError:
+                    pass
+            return []
+        return []
+
     # === ProConnect OIDC (new) ===
     proconnect_client_id: str = Field("", description="ProConnect OIDC client ID")
     proconnect_client_secret: str = Field("", description="ProConnect OIDC client secret")

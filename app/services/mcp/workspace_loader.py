@@ -16,8 +16,10 @@ Format du fichier `.albert/config/mcp_servers.json` dans chaque workspace :
       ]
     }
 
-Chaque workspace déclare ses propres serveurs MCP — la résolution reste
-toujours scoped au workspace (room_id / webdav_context).
+Les serveurs par défaut (DEFAULT_MCP_SERVERS) sont toujours inclus, sauf
+si le workspace déclare un serveur portant le même nom (override explicite).
+Un workspace peut désactiver un serveur par défaut en le déclarant avec
+``"enabled": false``.
 """
 from __future__ import annotations
 
@@ -54,21 +56,63 @@ class MCPServerConfig:
         )
 
 
+def build_default_servers(raw_list: List[dict]) -> List[MCPServerConfig]:
+    """Convertit la liste brute de dicts (depuis Config.mcp_default_servers) en MCPServerConfig."""
+    servers = []
+    for entry in raw_list:
+        if isinstance(entry, dict) and entry.get("name") and entry.get("url"):
+            servers.append(MCPServerConfig.from_dict(entry))
+    return servers
+
+
 async def load_mcp_servers_from_webdav(
     webdav_service,
     workspace_root: str = "",
+    default_servers: Optional[List[MCPServerConfig]] = None,
 ) -> List[MCPServerConfig]:
     """
-    Lit `.albert/config/mcp_servers.json` depuis le WebDAV du workspace.
+    Charge les serveurs MCP pour un workspace.
+
+    Fusionne les serveurs par défaut (``default_servers``, issus de
+    ``Config.mcp_default_servers``) avec ceux déclarés dans
+    ``.albert/config/mcp_servers.json`` du workspace WebDAV.  Si le
+    workspace déclare un serveur portant le même ``name`` qu'un serveur par
+    défaut, la déclaration workspace l'emporte (override).  Un workspace peut
+    désactiver un défaut en le déclarant avec ``"enabled": false``.
 
     Args:
         webdav_service: instance WebDAVService (doit avoir download_file() et exists())
         workspace_root: chemin racine du workspace sur le WebDAV (peut être vide)
+        default_servers: pool de serveurs par défaut de l'instance (peut être vide)
 
     Returns:
-        Liste de MCPServerConfig actifs (enabled=True). Vide si fichier absent.
+        Liste de MCPServerConfig actifs (enabled=True).
     """
-    # Construction du chemin absolu selon la racine du workspace
+    defaults = default_servers or []
+
+    # Charger la config workspace
+    workspace_servers = await _load_workspace_config(webdav_service, workspace_root)
+
+    # Fusionner : defaults + workspace (workspace gagne en cas de doublon)
+    by_name = {s.name: s for s in defaults}
+    for s in workspace_servers:
+        by_name[s.name] = s
+
+    active = [s for s in by_name.values() if s.enabled]
+
+    logger.info(
+        f"[MCP] Workspace {workspace_root!r}: "
+        f"{len(active)} serveur(s) MCP actif(s) "
+        f"({len(defaults)} défaut + {len(workspace_servers)} workspace)"
+    )
+    return active
+
+
+async def _load_workspace_config(
+    webdav_service,
+    workspace_root: str,
+) -> List[MCPServerConfig]:
+    """Lit .albert/config/mcp_servers.json depuis le WebDAV. Vide si absent."""
     if workspace_root and not workspace_root.endswith("/"):
         workspace_root += "/"
     config_path = f"{workspace_root}{MCP_CONFIG_PATH}"
@@ -84,18 +128,11 @@ async def load_mcp_servers_from_webdav(
         data = json.loads(raw_text)
 
         servers_raw = data.get("servers", [])
-        servers = [
+        return [
             MCPServerConfig.from_dict(s)
             for s in servers_raw
             if isinstance(s, dict) and s.get("name") and s.get("url")
         ]
-        active = [s for s in servers if s.enabled]
-
-        logger.info(
-            f"[MCP] Workspace {workspace_root!r}: "
-            f"{len(active)}/{len(servers)} serveur(s) MCP actif(s)"
-        )
-        return active
 
     except (json.JSONDecodeError, KeyError, ValueError) as e:
         logger.warning(f"[MCP] Fichier mcp_servers.json malformé dans {config_path}: {e}")

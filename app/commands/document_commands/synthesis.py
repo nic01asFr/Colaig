@@ -13,7 +13,6 @@ from app.commands.registry import register_feature
 from app.commands import update_conversation_history, get_unified_session_context, get_context_manager
 from app.actions.synthesis_rag_action import SynthesisRagAction
 from app.services.context.models import SessionContext, RoomContext
-from app.services.webdav import WebDAVService
 
 DEFAULT_SYNTHESIS_CONTEXT = 'Le message "!synthese [sujet]" permet de générer une synthèse complète sur un sujet à partir de la base documentaire. Cette commande utilise un système de reranking pour sélectionner les informations les plus pertinentes et les organiser de manière cohérente.'
 
@@ -28,172 +27,36 @@ Exemples:
 La synthèse s'appuie sur l'ensemble des documents disponibles dans la base documentaire.
 '''
 
-# Fonction utilitaire pour construire l'URL WebDAV correctement avec améliorations
-async def build_document_link(base_url: str, username: str, doc_path: str, webdav_service=None) -> str:
+async def build_document_link(doc_path: str, webdav_service=None) -> str:
     """
-    Tente de créer un lien de partage pour le document, ou construit une URL WebDAV standard.
-    Améliorations: gestion des caractères spéciaux, URL encoding correct.
-    
+    Crée un lien de partage pour un document via le service WebDAV.
+    Délègue à create_share_link qui gère BigFolder et Nextcloud.
+
     Args:
-        base_url: L'URL de base du serveur WebDAV
-        username: Nom d'utilisateur pour l'accès WebDAV
-        doc_path: Chemin du document dans le serveur WebDAV
-        webdav_service: Instance de WebDAVService pour créer des liens de partage
-        
+        doc_path: Chemin du document
+        webdav_service: Instance de WebDAVService
+
     Returns:
-        URL du document (lien de partage ou WebDAV)
+        URL du lien de partage ou chaîne vide
     """
-    if not base_url or not doc_path:
+    if not doc_path or not webdav_service:
         return ""
-    
-    logger.info(f"[SYNTHESE] Construction URL pour: base={base_url}, user={username}, path={doc_path}")
-    
-    # Si nous avons un service WebDAV, tenter de créer un lien de partage
-    if webdav_service:
-        try:
-            # Normaliser le chemin pour l'API OCS avec validation améliorée
-            real_path = doc_path.lstrip('/')
-            
-            # Extraire le nom d'utilisateur simple (sans domaine) si présent
-            user_local = username.split('@')[0] if username and '@' in username else username
-            
-            # Stratégie de nettoyage du chemin pour l'API OCS
-            # L'API OCS attend un chemin relatif à partir du dossier racine utilisateur
-            
-            # Cas 1: Le chemin contient déjà la structure WebDAV complète 
-            if f"remote.php/dav/files/{username}" in real_path:
-                # Extraire seulement la partie après le nom d'utilisateur
-                parts = real_path.split(f"remote.php/dav/files/{username}/")
-                if len(parts) > 1:
-                    real_path = parts[1]
-            elif f"remote.php/dav/files/{user_local}" in real_path:
-                # Même chose avec le nom d'utilisateur local
-                parts = real_path.split(f"remote.php/dav/files/{user_local}/")
-                if len(parts) > 1:
-                    real_path = parts[1]
-            # Cas 2: Le chemin commence par le nom d'utilisateur
-            elif user_local and real_path.startswith(f"{user_local}/"):
-                real_path = real_path[len(user_local)+1:]
-            elif username and real_path.startswith(f"{username}/"):
-                real_path = real_path[len(username)+1:]
-            
-            # Décoder les caractères URL encodés pour l'API OCS
-            real_path = urllib.parse.unquote(real_path)
-            
-            # Vérifier que le chemin nettoyé n'est pas vide
-            if not real_path or real_path == '/':
-                logger.warning(f"[SYNTHESE] Chemin vide après nettoyage: {doc_path}")
-                # Fallback vers WebDAV direct
-            else:
-                # Optionnel: Vérifier l'existence du fichier avant de créer le lien
-                try:
-                    # Tester l'existence du fichier (seulement si la méthode exists est disponible)
-                    if hasattr(webdav_service, 'exists'):
-                        file_exists = await webdav_service.exists(real_path)
-                        if not file_exists:
-                            logger.warning(f"[SYNTHESE] Fichier non trouvé sur le serveur: {real_path}")
-                            # Continuer quand même car le fichier peut exister mais être mal détecté
-                except Exception as check_error:
-                    logger.debug(f"[SYNTHESE] Impossible de vérifier l'existence: {str(check_error)}")
-                    # Continuer quand même
-                
-                # Tenter de créer un lien de partage (sans mot de passe, validité 7 jours)
-                share_link = await webdav_service.create_share_link(real_path, expiration_days=7)
-                
-                if share_link:
-                    logger.info(f"[SYNTHESE] Lien de partage créé avec succès: {share_link}")
-                    return share_link
-                else:
-                    logger.warning(f"[SYNTHESE] Impossible de créer un lien de partage pour: {real_path}")
-                    
-        except Exception as e:
-            logger.error(f"[SYNTHESE] Erreur lors de la création du lien de partage: {str(e)}")
-            logger.debug(f"[SYNTHESE] Détails de l'erreur: doc_path={doc_path}, username={username}")
-            # Continuer vers le fallback WebDAV
-    
-    # Fallback: construire une URL WebDAV standard avec gestion améliorée des caractères spéciaux
-    def build_webdav_url(base_url, username, doc_path):
-        # Nettoyer les URLs
-        base_url = base_url.rstrip('/')
-        doc_path = doc_path.lstrip('/')
-        
-        # Extraire le nom d'utilisateur simple (sans domaine) si présent
-        user_local = username.split('@')[0] if username and '@' in username else username
-        
-        # Pattern WebDAV
-        webdav_pattern = r'remote\.php/dav/files/'
-        
-        # Cas 1: Le chemin contient déjà la partie WebDAV complète
-        if re.search(webdav_pattern, doc_path):
-            # Extraire uniquement le domaine de base_url
-            domain_part = re.match(r'(https?://[^/]+)', base_url)
-            if domain_part:
-                base_url = domain_part.group(1)
-            
-            logger.info(f"[SYNTHESE] Cas 1: Chemin contient déjà WebDAV pattern: {doc_path}")
-            url = f"{base_url}/{doc_path}"
-            # Ajouter le paramètre de téléchargement
-            return f"{url}?download=1"
-        
-        # Cas 2: Extraire le vrai chemin du document en supprimant l'utilisateur s'il est au début
-        real_doc_path = doc_path
-        
-        # Vérifier si le chemin commence par le nom d'utilisateur
-        if user_local and doc_path.startswith(f"{user_local}/"):
-            # Supprimer le préfixe utilisateur
-            real_doc_path = doc_path[len(user_local)+1:]
-            logger.info(f"[SYNTHESE] Cas 2: Suppression préfixe utilisateur: {real_doc_path}")
-        
-        # Vérifier également si le chemin complet commence par le nom d'utilisateur
-        elif username and doc_path.startswith(f"{username}/"):
-            # Supprimer le préfixe utilisateur complet
-            real_doc_path = doc_path[len(username)+1:]
-            logger.info(f"[SYNTHESE] Cas 2: Suppression préfixe email: {real_doc_path}")
-            
-        # Décoder d'abord si le chemin contient des caractères encodés
-        if "%" in real_doc_path:
-            decoded_path = urllib.parse.unquote(real_doc_path)
-            logger.info(f"[SYNTHESE] Décodage avant encodage: '{real_doc_path}' -> '{decoded_path}'")
-            real_doc_path = decoded_path
-        
-        # Normaliser les caractères Unicode pour assurer la compatibilité
-        import unicodedata
-        normalized_path = unicodedata.normalize('NFC', real_doc_path)
-        if normalized_path != real_doc_path:
-            logger.info(f"[SYNTHESE] Normalisation Unicode: '{real_doc_path}' -> '{normalized_path}'")
-            real_doc_path = normalized_path
-        
-        # Encoder correctement le chemin pour les caractères spéciaux
-        # Séparer le chemin en parties et encoder chaque partie
-        path_parts = real_doc_path.split('/')
-        encoded_parts = []
-        for part in path_parts:
-            # Ne pas encoder à nouveau si le segment semble déjà encodé
-            if "%" in part and all(c in "0123456789ABCDEFabcdef%" for c in part if c not in "0123456789ABCDEFabcdef%"):
-                # Cette partie semble déjà encodée correctement
-                encoded_parts.append(part)
-                logger.info(f"[SYNTHESE] Partie déjà encodée préservée: '{part}'")
-            else:
-                # Encoder la partie tout en gardant les caractères sûrs
-                encoded_part = urllib.parse.quote(part, safe='')
-                encoded_parts.append(encoded_part)
-                
-        encoded_path = '/'.join(encoded_parts)
-        
-        logger.info(f"[SYNTHESE] Encodage URL: '{real_doc_path}' -> '{encoded_path}'")
-        
-        # Cas 3: Construire l'URL WebDAV correcte
-        # Vérifier si base_url contient déjà le pattern WebDAV
-        if re.search(webdav_pattern, base_url):
-            webdav_url = f"{base_url}/{encoded_path}"
-        else:
-            webdav_url = f"{base_url}/remote.php/dav/files/{username}/{encoded_path}"
-        
-        logger.info(f"[SYNTHESE] URL WebDAV construite: {webdav_url}")
-        return f"{webdav_url}?download=1"
-    
-    # Construire l'URL WebDAV standard
-    return build_webdav_url(base_url, username, doc_path)
+
+    try:
+        real_path = urllib.parse.unquote(doc_path.lstrip('/'))
+        logger.info(f"[SYNTHESE] Création lien pour: {real_path}")
+
+        share_link = await webdav_service.create_share_link(real_path, expiration_days=7)
+        if share_link:
+            logger.info(f"[SYNTHESE] Lien créé: {share_link}")
+            return share_link
+
+        logger.warning(f"[SYNTHESE] Impossible de créer un lien pour: {real_path}")
+        return ""
+
+    except Exception as e:
+        logger.error(f"[SYNTHESE] Erreur création lien: {e}")
+        return ""
 
 # Fonction utilitaire pour nettoyer les noms de documents pour l'affichage
 def clean_document_name(name: str) -> str:
@@ -291,34 +154,6 @@ def get_file_icon(file_path: str) -> str:
     return icon_map.get(extension, '📄')
 
 
-def extract_username_for_webdav(tchap_user_id: str) -> str:
-    """
-    Extrait le nom d'utilisateur utilisable pour WebDAV depuis un identifiant Tchap.
-    
-    Args:
-        tchap_user_id: Identifiant Tchap (ex: @nicolas.laval-developpement-durable.gouv.fr1:agent.dev-durable.tchap.gouv.fr)
-        
-    Returns:
-        Nom d'utilisateur pour WebDAV (ex: nicolas.laval-developpement-durable.gouv.fr1 ou nicolas.laval)
-    """
-    if not tchap_user_id:
-        return ""
-    
-    # Extraire la partie utilisateur de l'identifiant Tchap
-    # Format: @user:domain -> user
-    username = tchap_user_id
-    if username.startswith('@') and ':' in username:
-        username = username.split(':')[0][1:]  # Enlever @ et prendre avant :
-    
-    # Si vous avez besoin seulement du prénom.nom, décommentez ces lignes :
-    # if '.' in username and '-' in username:
-    #     # Extraire seulement prénom.nom (ex: nicolas.laval-developpement-durable.gouv.fr1 -> nicolas.laval)
-    #     parts = username.split('-')
-    #     if len(parts) > 0 and '.' in parts[0]:
-    #         username = parts[0]  # Prendre seulement la première partie (prénom.nom)
-    
-    return username
-
 @register_feature(
     group="document",
     onEvent=RoomMessageText,
@@ -388,25 +223,22 @@ async def handle_synthesis_command(
     try:
         # Initialiser le service de synthèse
         async with SynthesisRagAction(config) as synthesis_service:
-            # Activer l'indicateur de frappe
-            await matrix_client.room_typing(room_id, True)
-            
-            # Indiquer que la génération est en cours
-            await matrix_client.send_markdown_message(
-                room_id,
-                f"💭 Génération d'une synthèse sur '*{subject}*'...",
-                msgtype="m.notice"
-            )
-            
-            # Traiter la demande de synthèse
-            synthesis_result = await synthesis_service.process_synthesis_request(
-                query=subject,
-                session_context=session_context,
-                room_context=room_context
-            )
-            
-            # Désactiver l'indicateur de frappe
-            await matrix_client.room_typing(room_id, False)
+            from app.matrix_bot.typing import typing_indicator
+
+            async with typing_indicator(matrix_client, room_id):
+                # Indiquer que la génération est en cours
+                await matrix_client.send_markdown_message(
+                    room_id,
+                    f"🔄 Génération de la synthèse sur « {subject} »...",
+                    msgtype="m.notice"
+                )
+
+                # Traiter la demande de synthèse
+                synthesis_result = await synthesis_service.process_synthesis_request(
+                    query=subject,
+                    session_context=session_context,
+                    room_context=room_context
+                )
             
             if isinstance(synthesis_result, dict):
                 synthesis_text = synthesis_result.get("synthesis", "")
@@ -431,64 +263,23 @@ async def handle_synthesis_command(
                 
                 # Préparer le message formaté avec références intégrées
                 formatted_synthesis = synthesis_text
-                
-                # Configuration pour WebDAV
-                base_webdav_url = getattr(config, "webdav_url", "")
-                
-                # Extraire l'identifiant utilisateur réel depuis Tchap
-                sender_user = ep.event.sender if hasattr(ep.event, 'sender') else None
-                actual_user_id = None
-                
-                if sender_user:
-                    # Extraire le nom d'utilisateur utilisable depuis l'identifiant Tchap
-                    # Format: @nicolas.laval-developpement-durable.gouv.fr1:agent.dev-durable.tchap.gouv.fr
-                    # -> nicolas.laval-developpement-durable.gouv.fr1
-                    actual_user_id = extract_username_for_webdav(sender_user)
-                    logger.info(f"[SYNTHESE] Utilisateur extrait: {sender_user} -> {actual_user_id}")
-                else:
-                    # Fallback vers la configuration si impossible d'extraire l'utilisateur
-                    actual_user_id = getattr(config, "webdav_username", "")
-                    logger.warning(f"[SYNTHESE] Fallback vers config webdav_username: {actual_user_id}")
-                
-                # Construire la base URL WebDAV avec l'utilisateur réel
-                if base_webdav_url and actual_user_id:
-                    # Remplacer l'utilisateur dans l'URL de base si présent
-                    if "/dav/files/" in base_webdav_url:
-                        # Extraire la partie base et reconstruire avec le bon utilisateur
-                        base_parts = base_webdav_url.split("/dav/files/")
-                        if len(base_parts) >= 2:
-                            webdav_base_url = f"{base_parts[0]}/dav/files/{actual_user_id}"
-                        else:
-                            webdav_base_url = base_webdav_url
-                    else:
-                        # Ajouter la structure WebDAV complète
-                        webdav_base_url = f"{base_webdav_url.rstrip('/')}/remote.php/dav/files/{actual_user_id}"
-                else:
-                    webdav_base_url = base_webdav_url
-                
-                webdav_service = WebDAVService(config) if webdav_base_url and actual_user_id else None
-                
+
+                # Réutiliser le WebDAV service déjà initialisé par SynthesisRagAction
+                webdav_service = synthesis_service.webdav_service
+
                 # Vérifier si une section Références existe déjà dans le texte
                 references_already_present = re.search(r"\n#+\s*Références", formatted_synthesis) is not None
-                
+
                 # Préparation des liens pour chaque source
                 document_links = {}
                 for source in sources:
                     doc_name = source.get("name", "Document inconnu")
                     doc_path = source.get("path", "")
-                    
-                    # Construire l'URL WebDAV ou lien de partage si possible
-                    webdav_url = ""
+
                     if webdav_service and doc_path:
-                        webdav_url = await build_document_link(
-                            webdav_base_url, 
-                            actual_user_id,  # Utiliser l'identifiant utilisateur réel
-                            doc_path, 
-                            webdav_service=webdav_service
-                        )
-                    
-                    if webdav_url:
-                        document_links[doc_name] = webdav_url
+                        link = await build_document_link(doc_path, webdav_service=webdav_service)
+                        if link:
+                            document_links[doc_name] = link
                 
                 # Traitement selon la présence ou non d'une section Références
                 if references_already_present and document_links:
@@ -564,11 +355,8 @@ async def handle_synthesis_command(
                 return None
     
     except Exception as e:
-        # Désactiver l'indicateur de frappe en cas d'erreur
-        await matrix_client.room_typing(room_id, False)
-        
         logger.error(f"Erreur lors de la génération de la synthèse: {str(e)}")
-        error_message = f"❌ Une erreur est survenue lors de la génération de la synthèse: {str(e)}"
+        error_message = f"❌ **Erreur de synthèse** — {str(e)}"
         await matrix_client.send_markdown_message(
             room_id,
             error_message,

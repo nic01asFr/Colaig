@@ -105,22 +105,10 @@ class WebhookService:
         
         if not webdav_path:
             logger.info(f"Aucun contexte WebDAV trouvé pour la salle {room_id}, utilisation du service par défaut")
-            
-            # Utiliser un chemin par défaut basé sur l'ID de la salle pour stocker les webhooks
-            # Format compatible avec le reste du système
+            # Chemin par défaut basé sur l'ID de la salle — pas de create_directory ici
+            # car le serveur BigFolder ne persiste pas les répertoires vides.
+            # Les répertoires seront créés à la demande lors de write_file(ensure_parents=True).
             default_path = f"rooms/{room_id}"
-            
-            # Créer le répertoire par défaut si nécessaire
-            default_webhook_dir = f"{default_path}/.albert/webhooks"
-            try:
-                # La méthode create_directory gère déjà la création des répertoires parents
-                await default_service.create_directory(default_webhook_dir)
-                logger.info(f"Répertoire WebDAV par défaut créé pour la salle {room_id}: {default_webhook_dir}")
-            except Exception as e:
-                logger.warning(f"Erreur lors de la création du répertoire par défaut: {str(e)}")
-                # Même en cas d'erreur, on continue avec le service et le chemin par défaut
-                # car les opérations suivantes vérifieront l'existence des fichiers/dossiers
-            
             return default_service, default_path
         
         # Obtenir le service WebDAV pour ce chemin
@@ -202,19 +190,14 @@ class WebhookService:
             
             # Ajouter le nouveau webhook
             webhooks[name] = webhook_config.model_dump()
-            
-            # Créer le répertoire si nécessaire
+
+            # Sauvegarder le fichier (ensure_parents crée les répertoires si absents)
             try:
-                # La méthode create_directory gère déjà la création des répertoires parents
-                await webdav_service.create_directory(webhook_dir)
-                logger.info(f"Répertoire webhooks créé: {webhook_dir}")
-            except Exception as e:
-                logger.error(f"Erreur lors de la création du répertoire webhooks {webhook_dir}: {str(e)}")
-                return False
-            
-            # Sauvegarder le fichier
-            try:
-                await webdav_service.write_file(webhook_file, json.dumps(webhooks, ensure_ascii=False, indent=2))
+                await webdav_service.write_file(
+                    webhook_file,
+                    json.dumps(webhooks, ensure_ascii=False, indent=2),
+                    ensure_parents=True,
+                )
                 logger.info(f"Configuration de webhook '{name}' ajoutée avec succès dans {webdav_path}")
                 return True
             except Exception as e:
@@ -386,13 +369,6 @@ class WebhookService:
             webhook_dir = f"{webdav_path}/.albert/webhooks"
             registry_file = f"{webhook_dir}/registry.json"
             
-            # Créer le répertoire si nécessaire
-            try:
-                await webdav_service.create_directory(webhook_dir)
-            except Exception as e:
-                logger.error(f"Erreur lors de la création du répertoire webhooks: {str(e)}")
-                return None
-            
             # Charger les webhooks existants
             registry = []
             try:
@@ -401,11 +377,10 @@ class WebhookService:
                     registry = json.loads(content)
             except Exception as e:
                 logger.warning(f"Erreur lors du chargement du registre de webhooks: {str(e)}, création d'un nouveau registre")
-                # Continuer avec une liste vide
-            
+
             # Générer un nouveau token
             token = secrets.token_hex(16)
-            
+
             # Créer le webhook entrant
             webhook = {
                 'token': token,
@@ -413,13 +388,15 @@ class WebhookService:
                 'room_id': room_id,
                 'created_at': datetime.now().isoformat()
             }
-            
-            # Ajouter à la liste
             registry.append(webhook)
-            
-            # Enregistrer le fichier mis à jour
+
+            # Enregistrer (ensure_parents crée les répertoires si absents)
             try:
-                await webdav_service.write_file(registry_file, json.dumps(registry, ensure_ascii=False, indent=2))
+                await webdav_service.write_file(
+                    registry_file,
+                    json.dumps(registry, ensure_ascii=False, indent=2),
+                    ensure_parents=True,
+                )
                 logger.info(f"Webhook entrant enregistré avec succès: {token}")
                 return webhook
             except Exception as e:
