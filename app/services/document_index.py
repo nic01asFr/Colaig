@@ -446,9 +446,9 @@ class DocumentIndex:
             self.index_dir = os.path.join(self.workspace_path, self.SYSTEM_DIR, "index")
             self.is_workspace_specific = True
         else:
-            # Index global (comportement actuel)
+            # Index global : toujours sous .albert/index/ (cohérent avec workspace)
             logger.info("Utilisation de l'index global")
-            self.index_dir = os.path.join(config.webdav_root_path, self.SYSTEM_DIR)
+            self.index_dir = os.path.join(config.webdav_root_path, self.SYSTEM_DIR, "index")
             self.is_workspace_specific = False
             
         # Chemins des fichiers d'index
@@ -801,34 +801,34 @@ class DocumentIndex:
                 webdav_map_path = os.path.join(index_dir, "document_map.json")
                 webdav_cache_path = os.path.join(index_dir, "embedding_cache.json")
             else:
-                # Pour l'index global
+                # Index global : .albert/index/ (cohérent avec workspace)
                 system_dir = os.path.join(self.config.webdav_root_path, self.SYSTEM_DIR)
-                await self.webdav.create_directory(system_dir)
-                
-                # Chemins WebDAV absolus
-                webdav_index_path = os.path.join(self.config.webdav_root_path, self.SYSTEM_DIR, "faiss.index")
-                webdav_map_path = os.path.join(self.config.webdav_root_path, self.SYSTEM_DIR, "document_map.json")
-                webdav_cache_path = os.path.join(self.config.webdav_root_path, self.SYSTEM_DIR, "embedding_cache.json")
-            
+                index_dir_remote = os.path.join(system_dir, "index")
+
+                # Chemins WebDAV absolus dans .albert/index/
+                webdav_index_path = os.path.join(index_dir_remote, "faiss.index")
+                webdav_map_path = os.path.join(index_dir_remote, "document_map.json")
+                webdav_cache_path = os.path.join(index_dir_remote, "embedding_cache.json")
+
             # Sauvegarder l'index FAISS et la map localement
             self.faiss_index.save(index_path, map_path)
-            
+
             # Sauvegarder le cache des embeddings
             self.embedding_service.save_cache(cache_path)
-            
-            # Uploader vers WebDAV
+
+            # Uploader vers WebDAV (ensure_parents crée .albert/index/ si absent)
             logger.info(f"Sauvegarde de l'index avec {self.faiss_index.index.ntotal} vecteurs")
-            
+
             with open(index_path, 'rb') as f:
-                await self.webdav.write_file(webdav_index_path, f.read())
+                await self.webdav.write_file(webdav_index_path, f.read(), ensure_parents=True)
                 logger.info(f"Écriture du fichier WebDAV: {webdav_index_path}")
-                
+
             with open(map_path, 'rb') as f:
-                await self.webdav.write_file(webdav_map_path, f.read())
+                await self.webdav.write_file(webdav_map_path, f.read(), ensure_parents=True)
                 logger.info(f"Écriture du fichier WebDAV: {webdav_map_path}")
-                
+
             with open(cache_path, 'rb') as f:
-                await self.webdav.write_file(webdav_cache_path, f.read())
+                await self.webdav.write_file(webdav_cache_path, f.read(), ensure_parents=True)
                 logger.info(f"Écriture du fichier WebDAV: {webdav_cache_path}")
             
             logger.info("Index sauvegardé avec succès")
