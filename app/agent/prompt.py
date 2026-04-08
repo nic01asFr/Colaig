@@ -26,6 +26,7 @@ def build_system_prompt(
     behaviors_summary: str = "",
     max_turns: int = 5,
     persona_override: str = "",
+    active_skills: List[Any] = None,
 ) -> str:
     """Construit le system prompt complet pour la boucle agent.
 
@@ -36,12 +37,18 @@ def build_system_prompt(
         workspace_info: Infos sur le workspace (nom, docs indexés, etc.).
         behaviors_summary: Résumé des behaviors .albert du workspace.
         max_turns: Limite d'appels d'outils par requête.
-        persona_override: Identité custom du workspace (issue de
-            workspace.yaml/identity.persona_override). Si non vide, remplace
-            la section d'identité Colaig par défaut. Permet à chaque
-            préfecture/DREAL de personnaliser le ton et les missions.
+        persona_override: Identité custom du workspace.
+        active_skills: Liste de Skill activées par triggers regex.
+            Leur body Markdown est injecté en section "Procédure recommandée".
     """
     sections = [_identity_section(persona_override)]
+
+    # Skills actives : injectées en haut, juste après l'identité
+    # (priorité maximale dans le contexte LLM)
+    if active_skills:
+        skills_section = _skills_section(active_skills)
+        if skills_section:
+            sections.append(skills_section)
 
     # Outils internes
     tools_prompt = registry.to_prompt()
@@ -70,6 +77,27 @@ def build_system_prompt(
     sections.append(_rules_section(max_turns))
 
     return "\n\n---\n\n".join(sections)
+
+
+def _skills_section(active_skills: List[Any]) -> str:
+    """Construit la section des skills actives à injecter dans le system prompt.
+
+    Chaque skill apporte sa procédure (body Markdown). Les skills sont
+    triées par priority décroissante en amont. On les sépare par un titre
+    explicite pour que le LLM comprenne qu'il s'agit de procédures à suivre.
+    """
+    if not active_skills:
+        return ""
+
+    parts = ["## Procédures applicables à cette requête\n"]
+    for skill in active_skills:
+        name = getattr(skill, "name", "skill")
+        body = getattr(skill, "body", "").strip()
+        if not body:
+            continue
+        parts.append(f"### Skill : {name}\n\n{body}")
+
+    return "\n\n".join(parts)
 
 
 def _identity_section(persona_override: str = "") -> str:

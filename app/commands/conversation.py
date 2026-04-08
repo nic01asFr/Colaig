@@ -362,6 +362,23 @@ async def _orchestrate_response(
         except Exception as e:
             logger.warning(f"[AGENT] workspace.yaml indisponible: {e}")
 
+    # ── Charger les skills déclaratives du workspace ──
+    # .albert/skills/*.md activées par triggers regex sur le message courant.
+    from app.agent.skills import load_workspace_skills, find_matching_skills
+    workspace_skills = []
+    active_skills = []
+    if webdav_svc and workspace_root:
+        try:
+            workspace_skills = await load_workspace_skills(webdav_svc, workspace_root)
+            active_skills = find_matching_skills(workspace_skills, message_text)
+            if active_skills:
+                logger.info(
+                    f"[AGENT] Skills actives ({len(active_skills)}/{len(workspace_skills)}) : "
+                    f"{[s.name for s in active_skills]}"
+                )
+        except Exception as e:
+            logger.warning(f"[AGENT] Skills indisponibles: {e}")
+
     # ── Charger les outils MCP (même sans workspace_root pour les defaults globaux) ──
     mcp_tools = []
     mcp_registry = None
@@ -390,6 +407,15 @@ async def _orchestrate_response(
     # Permet à un workspace de retirer ou whitelister des outils via workspace.yaml.
     from app.agent.tool_scoping import apply_workspace_scoping
     apply_workspace_scoping(registry, ws_config)
+
+    # ── Phase 3 : Skills actives → prefers_tools garantis ──
+    # Quand une skill matche, ses outils préférés doivent rester dans le registre
+    # (override le filtrage à venir). On les ajoute au noyau implicite.
+    skills_preferred_tools: set = set()
+    if active_skills:
+        for s in active_skills:
+            for t in s.prefers_tools:
+                skills_preferred_tools.add(t)
 
     # P3 + P4 — Filtrage des outils en deux passes :
     # 1. Mots-clés rapides (gratuit, 0 ms) — enrichis par workspace.yaml
@@ -423,6 +449,13 @@ async def _orchestrate_response(
             f"[AGENT] Filtrage outils: {len(all_tool_names)} → {len(kept_names)} (kw)"
         )
 
+    # Phase 3 : forcer la présence des prefers_tools des skills actives
+    if skills_preferred_tools:
+        existing_in_reg = set(all_tool_names)
+        for tool in skills_preferred_tools:
+            if tool in existing_in_reg:
+                kept_names.add(tool)
+
     if len(kept_names) < len(all_tool_names):
         registry.filter_in_place(kept_names)
 
@@ -437,6 +470,7 @@ async def _orchestrate_response(
         workspace_info=workspace_info,
         behaviors_summary=behaviors_summary,
         persona_override=ws_config.persona_override,
+        active_skills=active_skills,
     )
 
     # ── Contexte partagé pour les handlers d'outils ──

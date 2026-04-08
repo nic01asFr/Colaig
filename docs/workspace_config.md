@@ -81,9 +81,36 @@ les défauts d'instance.
 | `workspace.yaml` | **Comment** le bot se présente et **quels outils** il a |
 | `mcp_servers.json` | **Quels serveurs MCP** sont déclarés pour ce workspace |
 | `behavior/` | **Quels intents RAG** sont reconnus (recherche sémantique) |
-| `skills/` (à venir) | **Quelles procédures** sont activées par regex trigger |
+| `skills/*.md` | **Quelles procédures** sont activées par regex trigger |
 | `index/` | **Index FAISS** des documents et des behaviors |
 | `contexts/` | **État de session** persistant par utilisateur |
+
+## Skills déclaratives
+
+Voir [exemple complet](exemples/skill_opah.md).
+
+Une skill est un fichier Markdown avec frontmatter YAML déposé dans
+`{workspace}/.albert/skills/`. Quand un trigger regex matche le message
+utilisateur, la procédure (corps Markdown) est automatiquement injectée
+dans le system prompt du LLM, et les outils déclarés en `prefers_tools`
+sont garantis présents dans le registre.
+
+```yaml
+---
+name: instruction_opah
+description: Procédure d'instruction d'un dossier OPAH
+priority: 50
+triggers:
+  - "(?i)\\bOPAH\\b"
+prefers_tools:
+  - search_documents
+---
+
+## Procédure...
+```
+
+Les skills sont rechargées automatiquement (cache mtime de 30 s),
+isolées par workspace, triées par `priority` décroissante.
 
 ## Quand utiliser quoi ?
 
