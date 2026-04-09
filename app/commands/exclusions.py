@@ -45,7 +45,8 @@ INCLUDED_COMMANDS = [
     "handle_attachments_adapted_command", # Commande !classer
     "handle_attachments_adapted_response",# Réponse pour !classer
     "handle_synthesis_command",           # Commande !synthese
-    
+    "space_management_command",           # Commande !space (link/unlink/list/info/index)
+
     # Commandes web (nouvelles)
     "web_search_command",                # Commande !recherche_web
     "add_link_command",                  # Commande !ajouter_lien

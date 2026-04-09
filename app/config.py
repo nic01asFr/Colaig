@@ -130,16 +130,18 @@ class Config(BaseSettings):
     webdav_root_dir: str = Field(".albert", description="WebDAV root directory")
     webdav_index_name: str = Field("index.json", description="WebDAV index filename")
 
-    # Convention de mapping room → workspace WebDAV.
-    # Utilisé pour peupler automatiquement room_context.webdav_context si vide,
-    # garantissant que chaque room dispose d'un workspace isolé pour ses
-    # behaviors, skills, index, configs MCP. Variable {room_id} substituée
-    # à la résolution. Mettre à "" pour désactiver l'auto-mapping (les rooms
-    # devront alors utiliser !space link pour s'associer à un workspace).
-    workspace_path_template: str = Field(
-        "rooms/{room_id}",
-        description="Template pour mapper un room_id vers son workspace WebDAV. "
-                    "Placeholder : {room_id}. Vide = pas d'auto-mapping.",
+    # Workspace WebDAV par défaut pour les rooms non explicitement rattachées.
+    # Un workspace est un dossier de premier niveau dans le stockage BigFolder
+    # de Colaig (ex: "Archivist", "Prefectures_Mayenne", etc.).
+    # Chaque workspace contient un .albert/ avec sa config, ses behaviors, son index.
+    # Plusieurs rooms peuvent partager le même workspace.
+    # Le rattachement explicite se fait par !space link <workspace>.
+    # Si vide ET webdav_root_path est aussi vide : désactivé (pas de workspace par défaut).
+    # Si vide ET webdav_root_path non vide : le root_path lui-même est le workspace.
+    default_workspace: str = Field(
+        "",
+        description="Workspace par défaut (dossier de 1er niveau dans BigFolder). "
+                    "Vide + root_path non vide = root_path est le workspace.",
     )
 
     # === Embeddings & Index ===

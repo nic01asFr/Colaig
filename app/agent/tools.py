@@ -85,16 +85,40 @@ class ToolRegistry:
 # Cette séparation évite les collisions de noms entre args LLM et contexte.
 
 async def _handle_search_documents(args: dict, ctx: dict) -> str:
-    """Recherche sémantique dans les documents indexés."""
+    """Recherche sémantique dans les documents indexés.
+
+    Vérifie que l'index FAISS est prêt avant de lancer une recherche.
+    Si pas d'index : retourne un message clair plutôt que de déclencher
+    une réindexation synchrone (qui prendrait 30-60 secondes et bloquerait
+    la boucle agent).
+    """
     query = args.get("query", "")
     behavior_manager = ctx.get("behavior_manager")
     session_dict = ctx.get("session_dict", {})
     room_dict = ctx.get("room_dict", {})
+    config = ctx.get("config")
 
     if not query:
         return "Erreur : paramètre 'query' requis."
     if not behavior_manager:
         return "Erreur : aucun gestionnaire de comportement disponible."
+
+    # Vérifier si l'index documentaire est prêt avant de chercher.
+    # Évite de déclencher un rebuild synchrone (téléchargement de tous les
+    # documents WebDAV) qui bloquerait l'agent pendant 30-60 secondes.
+    try:
+        from app.services.index_service import get_index_service
+        if config:
+            index_svc = await get_index_service(config)
+            if (not hasattr(index_svc, 'document_index')
+                    or index_svc.document_index is None
+                    or index_svc.document_index.faiss_index.index.ntotal == 0):
+                return (
+                    "Aucun document n'est indexé dans cet espace de travail. "
+                    "Utilisez la commande !index rebuild pour indexer les documents."
+                )
+    except Exception:
+        pass  # En cas d'erreur, on tente quand même la recherche
 
     try:
         result = await behavior_manager.execute_action(

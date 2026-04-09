@@ -160,23 +160,30 @@ class WebDAVService:
                 logger.error(f"Erreur de connexion au serveur WebDAV: {str(conn_err)}")
                 # Continuer malgré l'erreur, pour permettre le fonctionnement en mode dégradé
                 
-            # Créer les dossiers système s'ils n'existent pas
-            system_paths = [
-                self.system_root,
-                self.contexts_path,
-                self.versions_path,
-                self.index_path,
-                self.config_path
-            ]
-            
-            for path in system_paths:
-                try:
-                    if not await self.exists(path):
-                        success = await self.create_directory(path)
-                        if not success:
-                            logger.warning(f"Impossible de créer le dossier {path}, mais on continue")
-                except Exception as e:
-                    logger.warning(f"Erreur lors de la création du dossier {path}: {str(e)}")
+            # Créer les dossiers système s'ils n'existent pas.
+            # SAUF si on est à la racine du WebDAV (root_path vide) :
+            # la racine est un listing de workspaces (BigFolder), on ne peut
+            # pas y écrire. Les dossiers système seront créés dans chaque
+            # workspace quand un salon y sera rattaché.
+            if self.root_path and self.root_path != "/":
+                system_paths = [
+                    self.system_root,
+                    self.contexts_path,
+                    self.versions_path,
+                    self.index_path,
+                    self.config_path
+                ]
+
+                for path in system_paths:
+                    try:
+                        if not await self.exists(path):
+                            success = await self.create_directory(path)
+                            if not success:
+                                logger.warning(f"Impossible de créer le dossier {path}, mais on continue")
+                    except Exception as e:
+                        logger.warning(f"Erreur lors de la création du dossier {path}: {str(e)}")
+            else:
+                logger.info("WebDAV root = racine du stockage, skip création dossiers système")
                     # Continuer malgré l'erreur
                         
             # Charger les versions
@@ -368,21 +375,37 @@ class WebDAVService:
 
             response = await self.http_client.put(url, content=content)
 
-            # 409 Conflict : soit le parent manque, soit le fichier existe (BigFolder)
+            # 409 Conflict : BigFolder peut retourner 409 pour plusieurs raisons :
+            # - Parent manquant (classique WebDAV)
+            # - Fichier existant en conflit de version
+            # - Bug BigFolder/WsgiDAV : 409 avec body "201 Created" quand le
+            #   path contient des caractères URL-encodés (room_ids avec !:).
+            #   Dans ce cas le fichier EST créé malgré le 409.
             if response.status_code == 409:
-                # Stratégie 1 : créer les parents et réessayer
-                parent_dir = os.path.dirname(path)
-                if parent_dir and parent_dir != '/':
-                    await self.create_directory(parent_dir)
-                response = await self.http_client.put(url, content=content)
-
-                # Stratégie 2 : supprimer le fichier existant et réessayer
-                if response.status_code == 409:
-                    logger.info(f"409 persistant, suppression avant réécriture: {path}")
-                    await self.http_client.request("DELETE", url)
+                # Vérifier si c'est un faux-409 BigFolder (body dit "201 Created")
+                body_text = response.text if hasattr(response, 'text') else ""
+                if "201 Created" in body_text:
+                    logger.info(f"409 faux positif (body=201), fichier créé: {path}")
+                else:
+                    # Stratégie 1 : créer les parents et réessayer
+                    parent_dir = os.path.dirname(path)
+                    if parent_dir and parent_dir != '/':
+                        await self.create_directory(parent_dir)
                     response = await self.http_client.put(url, content=content)
 
-            response.raise_for_status()
+                    # Stratégie 2 : supprimer le fichier existant et réessayer
+                    if response.status_code == 409:
+                        body2 = response.text if hasattr(response, 'text') else ""
+                        if "201 Created" not in body2:
+                            logger.info(f"409 persistant, suppression avant réécriture: {path}")
+                            await self.http_client.request("DELETE", url)
+                            response = await self.http_client.put(url, content=content)
+
+            if response.status_code not in (200, 201, 204) and not (
+                response.status_code == 409
+                and "201 Created" in (response.text if hasattr(response, 'text') else "")
+            ):
+                response.raise_for_status()
             logger.info(f"Fichier écrit avec succès: {path} ({len(content)} octets)")
         except Exception as e:
             logger.error(f"Erreur lors de l'écriture du fichier WebDAV {path}: {str(e)}")

@@ -254,24 +254,58 @@ class ContextManager:
                 )
             self._room_contexts[room_id] = room_context
 
-        # Auto-population du webdav_context si absent et template configuré.
-        # Ne touche pas aux rooms déjà associées à un workspace via !space link.
-        if not getattr(room_context, "webdav_context", None):
-            template = getattr(self.config, "workspace_path_template", "")
-            if template:
-                workspace_path = template.format(room_id=room_id)
-                room_context.set_documentation_space(workspace_path)
+        # Rattachement au workspace.
+        # Un workspace est un dossier de premier niveau dans le stockage
+        # BigFolder de Colaig (ex: "Archivist", "Prefectures_Mayenne").
+        # Chaque workspace contient un .albert/ avec sa config agent.
+        # Le rattachement se fait via :
+        #   - !space link <workspace> (explicite)
+        #   - Config.default_workspace (implicite)
+        #   - Config.webdav_root_path (si non vide, c'est lui le workspace)
+        #
+        # Les données par room vivent dans {workspace}/.albert/rooms/{room_id}/.
+        current_ws = getattr(room_context, "webdav_context", None)
+
+        # Migration : nettoyer les webdav_context au format obsolète
+        # "rooms/{room_id}" (ancien auto-mapping par room, incorrect).
+        needs_reset = (
+            current_ws is None
+            or (isinstance(current_ws, str) and current_ws.startswith("rooms/"))
+        )
+
+        if needs_reset:
+            # Déterminer le workspace par défaut :
+            # 1. Config.default_workspace si défini (ex: "Archivist")
+            # 2. Sinon, si webdav_root_path est non vide, c'est le workspace
+            #    (mode mono-workspace : root_path = le workspace)
+            #    → webdav_context="" signifie "racine du service"
+            # 3. Sinon (root_path vide = multi-workspace BigFolder),
+            #    pas de rattachement automatique. La room devra faire
+            #    !space link <workspace> pour choisir son workspace.
+            default_ws = getattr(self.config, "default_workspace", "") or ""
+            if not default_ws:
+                root_path = getattr(self.config, "webdav_root_path", "")
+                if root_path and root_path != "/":
+                    default_ws = ""  # racine du service = le workspace
+
+            room_context.set_documentation_space(default_ws)
+            if current_ws is not None and current_ws.startswith("rooms/"):
                 logger.info(
-                    f"[ROOM] Auto-mapping workspace pour {room_id}: {workspace_path}"
+                    f"[ROOM] Migration webdav_context pour {room_id}: "
+                    f"{current_ws!r} → {default_ws!r}"
                 )
-                # Persister immédiatement pour que les prochains messages le voient
-                try:
-                    await self.update_context(
-                        room_id, ContextType.ROOM,
-                        room_context.to_dict(), immediate_save=True,
-                    )
-                except Exception as e:
-                    logger.warning(f"[ROOM] Impossible de persister webdav_context: {e}")
+            else:
+                logger.info(
+                    f"[ROOM] Rattachement au workspace par défaut: "
+                    f"{room_id} → {default_ws!r}"
+                )
+            try:
+                await self.update_context(
+                    room_id, ContextType.ROOM,
+                    room_context.to_dict(), immediate_save=True,
+                )
+            except Exception as e:
+                logger.warning(f"[ROOM] Impossible de persister webdav_context: {e}")
 
         return room_context
 

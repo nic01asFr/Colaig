@@ -508,7 +508,9 @@ class BehaviorIndex:
                     
                     # Créer le fichier de comportement
                     if self.webdav:
-                        await self.webdav.write_file(file_path, behavior_json)
+                        await self.webdav.write_file(
+                            file_path, behavior_json, ensure_parents=True,
+                        )
                     else:
                         os.makedirs(os.path.dirname(file_path), exist_ok=True)
                         with open(file_path, "w", encoding="utf-8") as f:
@@ -953,8 +955,10 @@ class BehaviorIndex:
             temp_index = "temp_behavior.faiss"
             faiss.write_index(self._index._index, temp_index)
             with open(temp_index, "rb") as f:
-                await self.webdav.write_file(self.faiss_index_path, f.read())
-                
+                await self.webdav.write_file(
+                    self.faiss_index_path, f.read(), ensure_parents=True,
+                )
+
             # Sauvegarder la map
             map_data = {}
             for idx, chunk in self._index.behavior_map.items():
@@ -970,7 +974,8 @@ class BehaviorIndex:
                 
             await self.webdav.write_file(
                 self.map_path,
-                json.dumps(map_data, indent=2)
+                json.dumps(map_data, indent=2),
+                ensure_parents=True,
             )
             
             # Nettoyage

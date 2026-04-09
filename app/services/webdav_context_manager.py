@@ -703,14 +703,13 @@ class WebDAVContextManager:
                 logger.error(f"Erreur lors du listage des dossiers: {str(e)}")
                 return spaces
             
-            # Vérifier chaque dossier pour la présence de .colaig
+            # Vérifier chaque dossier pour la présence de .albert
             for item in items:
                 if item.get("is_dir", False):
                     path = item.get("path", "")
                     try:
-                        # Vérifier si le dossier contient .colaig
-                        colaig_path = f"{path}/.colaig"
-                        has_marker = await webdav.exists(colaig_path)
+                        # Un workspace Colaig contient un .albert/
+                        has_marker = await webdav.exists(f"{path}/.albert")
                         if has_marker:
                             # Normaliser le chemin et créer un ID unique
                             norm_path = path.rstrip("/")
