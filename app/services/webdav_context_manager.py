@@ -683,51 +683,72 @@ class WebDAVContextManager:
 
     async def discover_documentation_spaces(self) -> Dict[str, Dict[str, Any]]:
         """
-        Détecte les espaces documentaires (dossiers avec .colaig).
-        
+        Détecte les espaces documentaires (dossiers avec .albert/).
+
+        Cherche à deux niveaux :
+        1. La racine du service elle-même (mode mono-workspace : root_path
+           pointe déjà vers un workspace comme 'Archivist')
+        2. Les sous-dossiers de premier niveau (mode multi-workspace :
+           root_path vide, les workspaces sont des dossiers partagés)
+
         Returns:
-            Un dictionnaire des espaces documentaires trouvés avec leurs métadonnées
+            Dict {space_id: {path, id, name, last_indexed}}
         """
         spaces = {}
         try:
-            # Utiliser le service WebDAV par défaut pour la découverte
             webdav = await self.get_default_service()
             if not webdav:
                 logger.error("Service WebDAV non disponible pour la découverte des espaces")
                 return spaces
-                
-            # Liste récursive des dossiers
+
+            # 1. Vérifier si la racine elle-même est un workspace
+            #    (mode mono-workspace : root_path = "Archivist", qui contient .albert/)
+            try:
+                if await webdav.exists(".albert"):
+                    root_name = getattr(webdav, "root_path", "").strip("/")
+                    space_id = root_name.replace("/", "_") if root_name else "root"
+                    spaces[space_id] = {
+                        "path": "",  # relatif au service = racine
+                        "id": space_id,
+                        "name": os.path.basename(root_name) if root_name else "Racine",
+                        "last_indexed": None,
+                    }
+                    logger.info(f"Workspace racine détecté: {root_name or '/'}")
+            except Exception as e:
+                logger.debug(f"Vérification workspace racine échouée: {e}")
+
+            # 2. Scanner les sous-dossiers de premier niveau
             try:
                 items = await webdav.list_directory("/")
             except Exception as e:
-                logger.error(f"Erreur lors du listage des dossiers: {str(e)}")
-                return spaces
-            
-            # Vérifier chaque dossier pour la présence de .albert
+                logger.debug(f"Listage des sous-dossiers échoué: {e}")
+                items = []
+
             for item in items:
                 if item.get("is_dir", False):
                     path = item.get("path", "")
                     try:
-                        # Un workspace Colaig contient un .albert/
                         has_marker = await webdav.exists(f"{path}/.albert")
                         if has_marker:
-                            # Normaliser le chemin et créer un ID unique
                             norm_path = path.rstrip("/")
                             space_id = norm_path.strip("/").replace("/", "_")
                             if not space_id:
                                 space_id = "root"
-                            
-                            spaces[space_id] = {
-                                "path": norm_path,
-                                "id": space_id,
-                                "name": os.path.basename(norm_path) or "Racine",
-                                "last_indexed": None
-                            }
-                            logger.info(f"Espace documentaire détecté: {norm_path}")
+                            if space_id not in spaces:
+                                spaces[space_id] = {
+                                    "path": norm_path,
+                                    "id": space_id,
+                                    "name": os.path.basename(norm_path) or "Racine",
+                                    "last_indexed": None,
+                                }
+                                logger.info(f"Workspace détecté: {norm_path}")
                     except Exception as e:
-                        logger.warning(f"Erreur lors de la vérification de l'espace {path}: {str(e)}")
-            
-            logger.info(f"Découverte des espaces documentaires terminée: {len(spaces)} espaces trouvés")
+                        logger.warning(f"Erreur vérification espace {path}: {e}")
+
+            logger.info(
+                f"Découverte terminée: {len(spaces)} workspace(s) "
+                f"({', '.join(s['name'] for s in spaces.values())})"
+            )
             return spaces
         except Exception as e:
             logger.error(f"Erreur lors de la découverte des espaces documentaires: {str(e)}")

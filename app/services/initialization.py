@@ -245,6 +245,64 @@ def register_essential_services():
         priority=40
     )
 
+    # Découverte et pré-initialisation des workspaces
+    # Chaque instance Colaig est nativement multi-workspace.
+    # Au démarrage, on scanne les dossiers contenant .albert/ et on
+    # pré-initialise un BehaviorManager scopé pour chacun.
+    # Le DocumentIndex reste lazy (chargé au premier message du workspace).
+    async def init_workspace_discovery(config):
+        """Découvre les workspaces et pré-initialise les services par workspace."""
+        try:
+            from app.services.webdav_context_manager import get_webdav_context_manager
+            from app.services.behavior_manager import get_behavior_manager
+
+            webdav_manager = await get_webdav_context_manager(config)
+            workspaces = await webdav_manager.discover_documentation_spaces()
+
+            if not workspaces:
+                logger.info("[WORKSPACES] Aucun workspace découvert (pas de .albert/)")
+                return None
+
+            logger.info(
+                f"[WORKSPACES] {len(workspaces)} workspace(s) découvert(s) : "
+                f"{', '.join(ws['name'] for ws in workspaces.values())}"
+            )
+
+            # Pré-initialiser un BehaviorManager par workspace
+            for ws_id, ws_info in workspaces.items():
+                ws_path = ws_info.get("path", "")
+                if not ws_path:
+                    continue
+                try:
+                    bm = await asyncio.wait_for(
+                        get_behavior_manager(config, context_path=ws_path),
+                        timeout=30.0,
+                    )
+                    logger.info(
+                        f"[WORKSPACES] BehaviorManager initialisé pour {ws_path!r}"
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        f"[WORKSPACES] Timeout init BehaviorManager pour {ws_path!r}"
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"[WORKSPACES] Erreur init workspace {ws_path!r}: {e}"
+                    )
+
+            return workspaces
+        except Exception as e:
+            logger.warning(f"[WORKSPACES] Découverte échouée: {e}")
+            return None
+
+    register_service(
+        name="workspace_discovery",
+        init_func=init_workspace_discovery,
+        shutdown_func=None,  # Pas de shutdown spécifique, les BehaviorManagers
+                             # sont fermés via shutdown_behavior_manager
+        priority=50  # Après behavior_manager global (qui sert de fallback)
+    )
+
 # Configuration des gestionnaires de signaux pour fermeture propre
 def setup_signal_handlers():
     """Configure les gestionnaires de signaux pour fermer proprement les services."""
