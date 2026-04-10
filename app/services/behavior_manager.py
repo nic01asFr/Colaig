@@ -327,21 +327,18 @@ class BehaviorManager:
             raise
             
     async def _ensure_webdav_directories(self) -> None:
-        """S'assure que les dossiers nécessaires existent sur WebDAV"""
+        """S'assure que les dossiers nécessaires existent sur WebDAV.
+
+        create_directory() gère déjà le cas « existe déjà » et crée
+        les parents récursivement — pas besoin de vérifier avec exists().
+        """
         try:
-            # Créer le dossier racine
             root_dir = self.config.behavior_path
-            if not await self.webdav_service.exists(root_dir):
-                if not await self.webdav_service.create_directory(root_dir):
-                    raise RuntimeError(f"Impossible de créer le dossier {root_dir}")
-                    
-            # Créer les sous-dossiers par type
             for behavior_type in self.behavior_types:
                 type_dir = os.path.join(root_dir, behavior_type)
-                if not await self.webdav_service.exists(type_dir):
-                    if not await self.webdav_service.create_directory(type_dir):
-                        raise RuntimeError(f"Impossible de créer le dossier {type_dir}")
-                        
+                if not await self.webdav_service.create_directory(type_dir):
+                    raise RuntimeError(f"Impossible de créer le dossier {type_dir}")
+
         except Exception as e:
             logger.error(f"Erreur création dossiers WebDAV: {str(e)}")
             raise
@@ -553,14 +550,13 @@ class BehaviorManager:
                 f"{behavior_id}.json"
             )
             
-            # Vérifier l'existence
-            if not await self.webdav_service.exists(behavior_path):
+            # Lire directement — read_document lève FileNotFoundError si absent
+            try:
+                content = await self.webdav_service.read_document(behavior_path)
+                return json.loads(content)
+            except FileNotFoundError:
                 return None
-                
-            # Lire le contenu
-            content = await self.webdav_service.read_document(behavior_path)
-            return json.loads(content)
-            
+
         except Exception as e:
             logger.error(f"Erreur lecture comportement {behavior_id}: {str(e)}")
             return None
@@ -613,12 +609,15 @@ class BehaviorManager:
             
             for btype in types_to_check:
                 type_dir = os.path.join(self.config.behavior_path, btype)
-                if await self.webdav_service.exists(type_dir):
+                try:
                     files = await self.webdav_service.list_documents(type_dir)
                     behaviors.extend([
                         os.path.splitext(os.path.basename(f))[0]
                         for f in files if f.endswith('.json')
                     ])
+                except Exception:
+                    # Dossier inexistant ou inaccessible — on skip
+                    continue
                     
             return behaviors
             
@@ -642,12 +641,8 @@ class BehaviorManager:
                 f"{behavior_id}.json"
             )
             
-            if await self.webdav_service.exists(behavior_path):
-                await self.webdav_service.delete_file(behavior_path)
-                return True
-                
-            return False
-            
+            return await self.webdav_service.delete_file(behavior_path)
+
         except Exception as e:
             logger.error(f"Erreur suppression comportement {behavior_id}: {str(e)}")
             return False

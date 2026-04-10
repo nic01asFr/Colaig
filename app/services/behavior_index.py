@@ -150,32 +150,16 @@ class BehaviorIndex:
         """Initialise l'index des behaviors"""
         async with self._init_lock:
             try:
-                # Vérifier/créer le dossier système
-                if self.webdav:
-                    # Mode WebDAV
-                    if not await self.webdav.exists(str(self.index_dir)):
-                        logger.info(f"Création du répertoire WebDAV {self.index_dir}")
-                        success = await self.webdav.create_directory(str(self.index_dir))
-                        if not success:
-                            logger.warning(f"Impossible de créer le répertoire {self.index_dir} sur WebDAV")
-                            logger.info("Continuation en mode dégradé avec des valeurs par défaut")
-                else:
-                    # Mode local
-                    logger.info(f"Mode local: vérification du répertoire {self.index_dir}")
-                    os.makedirs(str(self.index_dir), exist_ok=True)
-                    logger.info(f"Répertoire local vérifié/créé: {self.index_dir}")
-                    
-                # Créer les sous-répertoires pour les différents types de comportements
+                # Créer les sous-répertoires pour les différents types de comportements.
+                # create_directory gère déjà « existe déjà » et crée les parents.
                 behavior_types = ["actions", "tools", "prompts", "rules"]
                 for behavior_type in behavior_types:
                     dir_path = os.path.join(str(self.index_dir), behavior_type)
                     if self.webdav:
-                        if not await self.webdav.exists(dir_path):
-                            logger.info(f"Création du sous-répertoire {behavior_type}")
-                            await self.webdav.create_directory(dir_path)
+                        if not await self.webdav.create_directory(dir_path):
+                            logger.warning(f"Impossible de créer {dir_path} sur WebDAV, continuation en mode dégradé")
                     else:
                         os.makedirs(dir_path, exist_ok=True)
-                        logger.info(f"Sous-répertoire local vérifié/créé: {behavior_type}")
                     
                 # Charger l'index existant ou en créer un nouveau
                 index_exists = False
@@ -289,11 +273,9 @@ class BehaviorIndex:
             for behavior_type in ["actions", "tools", "prompts", "rules"]:
                 type_dir = os.path.join(str(self.index_dir), behavior_type)
                 if self.webdav:
-                    if not await self.webdav.exists(type_dir):
-                        logger.info(f"Création du dossier manquant: {type_dir}")
-                        await self.webdav.create_directory(type_dir)
-                        continue
-                    
+                    # create_directory gère « existe déjà » sans PROPFIND
+                    await self.webdav.create_directory(type_dir)
+
                     # Lister les fichiers de configuration
                     files = await self.webdav.list_documents(type_dir)
                     for file_path in files:

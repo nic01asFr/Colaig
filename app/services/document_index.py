@@ -832,10 +832,15 @@ class DocumentIndex:
                 logger.info(f"Écriture du fichier WebDAV: {webdav_cache_path}")
             
             logger.info("Index sauvegardé avec succès")
-            
+
         except Exception as e:
-            logger.error(f"Erreur sauvegarde index: {str(e)}")
-            raise
+            # Ne pas crasher si la persistance WebDAV échoue (409 BigFolder, etc.)
+            # L'index reste en mémoire et fonctionnel. La persistance est un bonus
+            # pour ne pas re-indexer au prochain démarrage, pas une nécessité critique.
+            logger.warning(
+                f"Persistance index WebDAV échouée ({e}), "
+                f"l'index reste fonctionnel en mémoire"
+            )
     
     async def load_index(self, index_path: Optional[str] = None, map_path: Optional[str] = None) -> None:
         """

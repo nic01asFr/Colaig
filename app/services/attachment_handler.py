@@ -24,25 +24,12 @@ class AttachmentHandler:
     async def save_attachment(self, file_content: bytes, file_name: str, target_path: str) -> bool:
         """Sauvegarde une pièce jointe sur le WebDAV de manière sécurisée"""
         try:
-            # Créer les dossiers nécessaires
-            path_parts = Path(target_path).parts
-            current_path = ""
-            for part in path_parts[:-1]:
-                current_path = os.path.join(current_path, part)
-                await self.webdav.create_directory(current_path)
-            
-            # Écrire le fichier
-            await self.webdav.write_file(target_path, file_content)
-            
-            # Vérifier que le fichier a bien été écrit
-            try:
-                await self.webdav.read_document(target_path)
-                logger.info(f"Fichier sauvegardé avec succès: {target_path}")
-                return True
-            except Exception as e:
-                logger.error(f"Erreur lors de la vérification du fichier: {str(e)}")
-                return False
-                
+            # write_file avec ensure_parents crée les dossiers parents automatiquement.
+            # Le PUT retourne 201/204 en cas de succès — pas besoin de relire pour vérifier.
+            await self.webdav.write_file(target_path, file_content, ensure_parents=True)
+            logger.info(f"Fichier sauvegardé avec succès: {target_path}")
+            return True
+
         except Exception as e:
             logger.error(f"Erreur lors de la sauvegarde du fichier: {str(e)}")
             return False

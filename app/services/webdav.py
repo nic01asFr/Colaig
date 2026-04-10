@@ -166,20 +166,21 @@ class WebDAVService:
             # pas y écrire. Les dossiers système seront créés dans chaque
             # workspace quand un salon y sera rattaché.
             if self.root_path and self.root_path != "/":
-                system_paths = [
-                    self.system_root,
+                # create_directory gère déjà le cas "existe déjà" (405/301)
+                # et crée les parents récursivement si nécessaire.
+                # On crée uniquement les feuilles — les parents sont créés automatiquement.
+                leaf_paths = [
                     self.contexts_path,
                     self.versions_path,
                     self.index_path,
                     self.config_path
                 ]
 
-                for path in system_paths:
+                for path in leaf_paths:
                     try:
-                        if not await self.exists(path):
-                            success = await self.create_directory(path)
-                            if not success:
-                                logger.warning(f"Impossible de créer le dossier {path}, mais on continue")
+                        success = await self.create_directory(path)
+                        if not success:
+                            logger.warning(f"Impossible de créer le dossier {path}, mais on continue")
                     except Exception as e:
                         logger.warning(f"Erreur lors de la création du dossier {path}: {str(e)}")
             else:
@@ -626,45 +627,70 @@ class WebDAVService:
             logger.error(f"Erreur lors de la liste du répertoire {path}: {str(e)}")
             return []  # Retourner une liste vide en cas d'erreur au lieu de lever une exception
 
-    async def list_documents(self, path: str = None, pattern: str = None) -> List[str]:
-        """Liste tous les documents dans le répertoire WebDAV
-        
+    async def list_documents(self, path: str = None, pattern: str = None,
+                             max_depth: int = 10) -> List[str]:
+        """Liste tous les documents dans le répertoire WebDAV.
+
+        Utilise PROPFIND Depth:1 avec récursion côté client au lieu de
+        Depth:infinity, qui est interdit par certains serveurs WebDAV et
+        très coûteux sur les gros arbres.
+
         Args:
             path: Chemin du répertoire à lister (relatif à la racine)
             pattern: Motif de filtrage (glob pattern) - Actuellement ignoré
-            
+            max_depth: Profondeur maximale de récursion (défaut: 10)
+
         Returns:
             Liste des chemins de documents
         """
         try:
-            # Vérifier et réinitialiser le client si nécessaire
             if hasattr(self.http_client, 'is_closed') and self.http_client.is_closed:
                 await self.reinitialize_client()
-                
-            url = self._get_url(path or self.root_path)
-            response = await self.http_client.request(
-                "PROPFIND",
-                url,
-                headers={"Depth": "infinity"}
-            )
-            response.raise_for_status()
-            
-            # Parser la réponse XML
-            root = ET.fromstring(response.content)
-            
-            # Extraire les chemins des documents
+
             documents = []
-            for response_elem in root.findall('.//{DAV:}response'):
-                href = response_elem.find('.//{DAV:}href').text
-                if href and not href.endswith('/'):  # Ignorer les répertoires
-                    path = self._href_to_relative_path(href)
-                    documents.append(path)
-            
-            # Note: le paramètre pattern est actuellement ignoré
-            # TODO: Implémenter le filtrage par motif si nécessaire
-            
+            dirs_to_visit = [path or self.root_path]
+            depth = 0
+
+            while dirs_to_visit and depth < max_depth:
+                next_dirs = []
+                for dir_path in dirs_to_visit:
+                    url = self._get_url(dir_path)
+                    response = await self.http_client.request(
+                        "PROPFIND", url, headers={"Depth": "1"}
+                    )
+                    if response.status_code == 404:
+                        continue
+                    response.raise_for_status()
+
+                    root = ET.fromstring(response.content)
+                    for response_elem in root.findall('.//{DAV:}response'):
+                        href_elem = response_elem.find('.//{DAV:}href')
+                        if href_elem is None or not href_elem.text:
+                            continue
+                        href = href_elem.text
+
+                        # Ignorer l'entrée du répertoire lui-même
+                        if href.rstrip('/') == url.rstrip('/'):
+                            continue
+
+                        rel_path = self._href_to_relative_path(href)
+
+                        # Skip les dossiers/fichiers cachés (commençant par .)
+                        # pour ne pas scanner .albert/, .colaig/, .git/, etc.
+                        basename = rel_path.rstrip('/').rsplit('/', 1)[-1]
+                        if basename.startswith('.'):
+                            continue
+
+                        if href.endswith('/'):
+                            next_dirs.append(rel_path)
+                        else:
+                            documents.append(rel_path)
+
+                dirs_to_visit = next_dirs
+                depth += 1
+
             return documents
-            
+
         except Exception as e:
             logger.error(f"Erreur lors de la liste des documents: {str(e)}")
             raise
@@ -673,7 +699,9 @@ class WebDAVService:
         """Charge l'historique des versions depuis le fichier versions.json"""
         try:
             versions_path = os.path.join(self.versions_path, "versions.json")
-            if not await self.exists(versions_path):
+            try:
+                content = await self.read_document(versions_path)
+            except FileNotFoundError:
                 self.versions = {
                     "last_update": get_current_time().isoformat(),
                     "documents": {}
@@ -682,7 +710,6 @@ class WebDAVService:
                 logger.info("Nouveau fichier de versions créé")
                 return
 
-            content = await self.read_document(versions_path)
             if not content.strip():
                 self.versions = {
                     "last_update": get_current_time().isoformat(),
@@ -775,69 +802,68 @@ class WebDAVService:
         return content, version_info
 
     async def create_directory(self, path: str) -> bool:
-        """Crée un répertoire sur le serveur WebDAV
-        
+        """Crée un répertoire sur le serveur WebDAV (avec création récursive des parents).
+
+        Utilise directement MKCOL sans vérification préalable via PROPFIND.
+        Les codes 405 (Method Not Allowed) et 301 indiquent que le dossier
+        existe déjà — c'est le comportement idiomatique WebDAV.
+
         Args:
             path: Chemin du répertoire à créer
-            
+
         Returns:
-            bool: True si la création a réussi, False sinon
+            bool: True si la création a réussi ou si le dossier existe déjà
         """
         try:
-            # Vérifier et réinitialiser le client si nécessaire
             if hasattr(self.http_client, 'is_closed') and self.http_client.is_closed:
                 await self.reinitialize_client()
-                
-            # Vérifier si le chemin existe déjà
-            exists = await self.exists(path)
-            if exists:
-                logger.info(f"Dossier déjà existant: {path}")
-                return True
-                
-            # Normaliser le chemin
+
             if path.endswith('/'):
                 path = path[:-1]
-                
-            # Vérifier si le chemin parent existe et le créer si nécessaire
-            parent_path = os.path.dirname(path)
-            if parent_path and parent_path != '/':
-                parent_exists = await self.exists(parent_path)
-                if not parent_exists:
-                    parent_created = await self.create_directory(parent_path)
-                    if not parent_created:
+
+            url = self._get_url(path)
+            response = await self.http_client.request("MKCOL", url)
+
+            # 201 Created / 200 OK → succès
+            if response.status_code in (200, 201):
+                logger.info(f"Dossier créé: {path}")
+                return True
+
+            # 405 Method Not Allowed / 301 Redirect → dossier existe déjà
+            if response.status_code in (405, 301):
+                logger.debug(f"Dossier déjà existant: {path}")
+                return True
+
+            # 409 Conflict → parent manquant ou faux-409 BigFolder
+            if response.status_code == 409:
+                body_text = response.text if hasattr(response, 'text') else ""
+                if "201 Created" in body_text:
+                    logger.info(f"409 faux positif (body=201), dossier créé: {path}")
+                    return True
+
+                # Créer le parent récursivement puis réessayer
+                parent_path = os.path.dirname(path)
+                if parent_path and parent_path != '/' and parent_path != path:
+                    if not await self.create_directory(parent_path):
                         logger.error(f"Échec création dossier parent: {parent_path}")
                         return False
-                        
-            # Créer le dossier
-            url = self._get_url(path)
-            try:
-                response = await self.http_client.request("MKCOL", url)
-                
-                # Si statut 201 Created ou 200 OK, c'est un succès
-                if response.status_code in [200, 201]:
-                    logger.info(f"Dossier créé: {path}")
-                    return True
-                    
-                # Si statut 409 Conflict, vérifier si le dossier existe déjà
-                elif response.status_code == 409:
-                    # Vérifier si le dossier existe malgré le conflit
-                    exists_after_conflict = await self.exists(path)
-                    if exists_after_conflict:
-                        logger.info(f"Dossier existe malgré conflit: {path}")
+                    # Réessayer après création du parent
+                    response = await self.http_client.request("MKCOL", url)
+                    if response.status_code in (200, 201, 405, 301):
+                        logger.info(f"Dossier créé après création parent: {path}")
                         return True
-                    else:
-                        logger.error(f"Échec création dossier: {path} (status=409, conflit sans existence)")
-                        return False
-                else:
-                    logger.error(f"Échec création dossier: {path} (status={response.status_code})")
-                    return False
-                    
-            except Exception as e:
-                logger.error(f"Erreur lors de la création du dossier {path}: {str(e)}")
+                    body2 = response.text if hasattr(response, 'text') else ""
+                    if response.status_code == 409 and "201 Created" in body2:
+                        return True
+
+                logger.error(f"Échec création dossier: {path} (status=409)")
                 return False
-                
+
+            logger.error(f"Échec création dossier: {path} (status={response.status_code})")
+            return False
+
         except Exception as e:
-            logger.error(f"Erreur générale lors de la création du dossier {path}: {str(e)}")
+            logger.error(f"Erreur création dossier {path}: {str(e)}")
             return False
 
     def _validate_filename(self, filename: str) -> bool:
@@ -962,21 +988,11 @@ class WebDAVService:
             if not path.startswith('/'):
                 path = '/' + path
             
-            # Vérifier et créer le dossier parent si nécessaire
+            # Créer le dossier parent si nécessaire (create_directory gère déjà le cas "existe déjà")
             parent_dir = os.path.dirname(path)
             if parent_dir and parent_dir != '/':
-                parent_exists = await self.exists(parent_dir)
-                if not parent_exists:
-                    logger.info(f"Création du dossier parent pour le téléversement: {parent_dir}")
-                    parent_created = await self.create_directory(parent_dir)
-                    if not parent_created:
-                        logger.error(f"Impossible de créer le dossier parent {parent_dir}")
-                        return False
-                    
-                # Double vérification que le dossier parent existe
-                parent_exists = await self.exists(parent_dir)
-                if not parent_exists:
-                    logger.error(f"Le dossier parent {parent_dir} n'existe pas, impossible de téléverser le fichier")
+                if not await self.create_directory(parent_dir):
+                    logger.error(f"Impossible de créer le dossier parent {parent_dir}")
                     return False
             
             # Construire l'URL pour le téléversement
