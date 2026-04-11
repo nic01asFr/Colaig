@@ -85,7 +85,9 @@ class BehaviorFAISSIndex:
         
         # Traiter les résultats
         results = []
-        similarities = 1 - (D[0] ** 2) / 2
+        # Clip les distances pour éviter overflow (embeddings aléatoires en mode dégradé)
+        distances = np.clip(D[0], 0, 1e6)
+        similarities = 1 - (distances ** 2) / 2
         
         for idx, score in zip(I[0], similarities):
             try:

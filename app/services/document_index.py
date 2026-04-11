@@ -446,9 +446,10 @@ class DocumentIndex:
             self.index_dir = os.path.join(self.workspace_path, self.SYSTEM_DIR, "index")
             self.is_workspace_specific = True
         else:
-            # Index global : toujours sous .albert/index/ (cohérent avec workspace)
+            # Index global : .albert/index/ relatif au root du service WebDAV.
+            # Ne PAS préfixer par webdav_root_path (déjà dans l'URL de base).
             logger.info("Utilisation de l'index global")
-            self.index_dir = os.path.join(config.webdav_root_path, self.SYSTEM_DIR, "index")
+            self.index_dir = os.path.join(self.SYSTEM_DIR, "index")
             self.is_workspace_specific = False
             
         # Chemins des fichiers d'index
@@ -488,27 +489,14 @@ class DocumentIndex:
                     logger.error(f"Échec du redimensionnement: {str(e)}")
                     raise ValueError("Dimension de l'index incompatible. Utilisez !index rebuild")
                 
-            # 2. Charger ou créer l'index
+            # 2. Charger l'index depuis WebDAV (source de vérité unique).
+            import sys as _sys
+            print(f"[INDEX-DEBUG] Tentative load_index depuis WebDAV...", flush=True, file=_sys.stderr)
             try:
                 await self.load_index()
-                logger.info("Index chargé avec succès")
+                print(f"[INDEX-DEBUG] Index chargé : {self.faiss_index.index.ntotal} vecteurs", flush=True, file=_sys.stderr)
             except Exception as e:
-                logger.warning(f"Impossible de charger l'index: {str(e)}")
-                logger.info("Création d'un nouvel index...")
-                await self.build_index()
-                await self.save_index()
-                logger.info("Nouvel index créé avec succès")
-            
-            # 3. Vérifier la fraîcheur
-            is_fresh, missing_docs, extra_docs = await self.verify_index_freshness()
-            if not is_fresh:
-                if len(missing_docs) + len(extra_docs) < 10:  # Mise à jour incrémentale si peu de changements
-                    logger.info("Mise à jour incrémentale de l'index...")
-                    await self.update_index(missing_docs, extra_docs)
-                    await self.save_index()
-                else:
-                    logger.warning("Index obsolète avec trop de changements")
-                    raise ValueError("Index obsolète. Utilisez !index rebuild")
+                print(f"[INDEX-DEBUG] Pas d'index persisté : {e}", flush=True, file=_sys.stderr)
                 
         except Exception as e:
             logger.error(f"Erreur initialisation index: {str(e)}")
@@ -722,11 +710,9 @@ class DocumentIndex:
                         raise RuntimeError(f"Impossible de créer le dossier {index_dir}")
             else:
                 # Pour l'index global
-                system_dir = os.path.join(self.config.webdav_root_path, self.SYSTEM_DIR)
-                if not await self.webdav.exists(system_dir):
-                    logger.info(f"Création du dossier système global {system_dir}")
-                    if not await self.webdav.create_directory(system_dir):
-                        raise RuntimeError(f"Impossible de créer le dossier {system_dir}")
+                # Chemin relatif au root du service (pas de préfixe root_path)
+                system_dir = self.SYSTEM_DIR
+                await self.webdav.create_directory(os.path.join(system_dir, "index"))
             
             # Réinitialiser l'index
             self.faiss_index = FAISSIndex(dimension=self.embedding_service.embedding_dimension)
@@ -801,45 +787,47 @@ class DocumentIndex:
                 webdav_map_path = os.path.join(index_dir, "document_map.json")
                 webdav_cache_path = os.path.join(index_dir, "embedding_cache.json")
             else:
-                # Index global : .albert/index/ (cohérent avec workspace)
-                system_dir = os.path.join(self.config.webdav_root_path, self.SYSTEM_DIR)
-                index_dir_remote = os.path.join(system_dir, "index")
+                # Index global : .albert/index/ (relatif au root du service WebDAV,
+                # PAS préfixé par webdav_root_path qui est déjà dans l'URL de base)
+                index_dir_remote = os.path.join(self.SYSTEM_DIR, "index")
 
-                # Chemins WebDAV absolus dans .albert/index/
                 webdav_index_path = os.path.join(index_dir_remote, "faiss.index")
                 webdav_map_path = os.path.join(index_dir_remote, "document_map.json")
                 webdav_cache_path = os.path.join(index_dir_remote, "embedding_cache.json")
 
             # Sauvegarder l'index FAISS et la map localement
+            # C'est la sauvegarde PRINCIPALE : le fichier local persiste dans le
+            # volume Docker (platform-data:/code/data) entre les restarts.
             self.faiss_index.save(index_path, map_path)
 
             # Sauvegarder le cache des embeddings
             self.embedding_service.save_cache(cache_path)
 
-            # Uploader vers WebDAV (ensure_parents crée .albert/index/ si absent)
-            logger.info(f"Sauvegarde de l'index avec {self.faiss_index.index.ntotal} vecteurs")
+            logger.info(
+                f"Index sauvegardé localement ({self.faiss_index.index.ntotal} vecteurs, "
+                f"{os.path.getsize(index_path)} octets)"
+            )
 
-            with open(index_path, 'rb') as f:
-                await self.webdav.write_file(webdav_index_path, f.read(), ensure_parents=True)
-                logger.info(f"Écriture du fichier WebDAV: {webdav_index_path}")
-
-            with open(map_path, 'rb') as f:
-                await self.webdav.write_file(webdav_map_path, f.read(), ensure_parents=True)
-                logger.info(f"Écriture du fichier WebDAV: {webdav_map_path}")
-
-            with open(cache_path, 'rb') as f:
-                await self.webdav.write_file(webdav_cache_path, f.read(), ensure_parents=True)
-                logger.info(f"Écriture du fichier WebDAV: {webdav_cache_path}")
-            
-            logger.info("Index sauvegardé avec succès")
+            # Tentative d'upload vers WebDAV (optionnel, pour partage entre instances).
+            # BigFolder a une limite de taille (~5 MB) qui bloque les gros index FAISS.
+            # En cas d'échec, l'index local reste la source de vérité.
+            try:
+                with open(index_path, 'rb') as f:
+                    await self.webdav.write_file(webdav_index_path, f.read(), ensure_parents=True)
+                with open(map_path, 'rb') as f:
+                    await self.webdav.write_file(webdav_map_path, f.read(), ensure_parents=True)
+                with open(cache_path, 'rb') as f:
+                    await self.webdav.write_file(webdav_cache_path, f.read(), ensure_parents=True)
+                logger.info("Index aussi sauvegardé sur WebDAV")
+            except Exception as webdav_err:
+                logger.info(
+                    f"Upload WebDAV optionnel échoué ({webdav_err}), "
+                    f"index local OK"
+                )
 
         except Exception as e:
-            # Ne pas crasher si la persistance WebDAV échoue (409 BigFolder, etc.)
-            # L'index reste en mémoire et fonctionnel. La persistance est un bonus
-            # pour ne pas re-indexer au prochain démarrage, pas une nécessité critique.
             logger.warning(
-                f"Persistance index WebDAV échouée ({e}), "
-                f"l'index reste fonctionnel en mémoire"
+                f"Erreur sauvegarde index ({e}), l'index reste en mémoire"
             )
     
     async def load_index(self, index_path: Optional[str] = None, map_path: Optional[str] = None) -> None:
@@ -861,9 +849,9 @@ class DocumentIndex:
                 webdav_index_path = os.path.join(self.workspace_path, self.SYSTEM_DIR, "index", "faiss.index")
                 webdav_map_path = os.path.join(self.workspace_path, self.SYSTEM_DIR, "index", "document_map.json")
             else:
-                # Pour l'index global
-                webdav_index_path = os.path.join(self.config.webdav_root_path, self.SYSTEM_DIR, "faiss.index")
-                webdav_map_path = os.path.join(self.config.webdav_root_path, self.SYSTEM_DIR, "document_map.json")
+                # Index global : .albert/index/ relatif au root du service
+                webdav_index_path = os.path.join(self.SYSTEM_DIR, "index", "faiss.index")
+                webdav_map_path = os.path.join(self.SYSTEM_DIR, "index", "document_map.json")
             
             # Vérifier si l'index existe
             index_exists = await self.webdav.exists(webdav_index_path)

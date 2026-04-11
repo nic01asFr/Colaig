@@ -159,14 +159,23 @@ async def _action_verify(index_service) -> str:
 
 
 async def _action_rebuild(index_service, matrix_client, room_id, event_id) -> str:
-    await matrix_client.send_markdown_message(
-        room_id,
-        "🔄 Reconstruction de l'index en cours (peut prendre plusieurs minutes)...",
-        msgtype="m.notice", reply_to=event_id,
-    )
-    try:
-        await index_service.webdav_service.create_directory("documents")
-    except Exception:
-        pass
-    await index_service.rebuild()
-    return "✅ Index reconstruit avec succès."
+    import asyncio
+
+    async def _do_rebuild():
+        try:
+            try:
+                await index_service.webdav_service.create_directory("documents")
+            except Exception:
+                pass
+            await index_service.rebuild()
+            await matrix_client.send_markdown_message(
+                room_id, "✅ Index reconstruit avec succès.", msgtype="m.notice",
+            )
+        except Exception as e:
+            await matrix_client.send_markdown_message(
+                room_id, f"❌ Erreur rebuild : {e}", msgtype="m.notice",
+            )
+
+    # Lancer en tâche de fond pour ne pas bloquer le bot
+    asyncio.create_task(_do_rebuild())
+    return "🔄 Reconstruction lancée en arrière-plan. Vous serez notifié à la fin."

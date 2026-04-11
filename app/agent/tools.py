@@ -87,48 +87,49 @@ class ToolRegistry:
 async def _handle_search_documents(args: dict, ctx: dict) -> str:
     """Recherche sémantique dans les documents indexés.
 
-    Vérifie que l'index FAISS est prêt avant de lancer une recherche.
-    Si pas d'index : retourne un message clair plutôt que de déclencher
-    une réindexation synchrone (qui prendrait 30-60 secondes et bloquerait
-    la boucle agent).
+    Utilise directement IndexService.search() (qui interroge le FAISS
+    en mémoire) au lieu de passer par behavior_manager.execute_action
+    (qui déclenche verify_index_freshness → re-scan → timeout).
     """
     query = args.get("query", "")
-    behavior_manager = ctx.get("behavior_manager")
-    session_dict = ctx.get("session_dict", {})
-    room_dict = ctx.get("room_dict", {})
     config = ctx.get("config")
 
     if not query:
         return "Erreur : paramètre 'query' requis."
-    if not behavior_manager:
-        return "Erreur : aucun gestionnaire de comportement disponible."
+    if not config:
+        return "Erreur : configuration manquante."
 
-    # Vérifier si l'index documentaire est prêt avant de chercher.
-    # Évite de déclencher un rebuild synchrone (téléchargement de tous les
-    # documents WebDAV) qui bloquerait l'agent pendant 30-60 secondes.
     try:
         from app.services.index_service import get_index_service
-        if config:
-            index_svc = await get_index_service(config)
-            if (not hasattr(index_svc, 'document_index')
-                    or index_svc.document_index is None
-                    or index_svc.document_index.faiss_index.index.ntotal == 0):
-                return (
-                    "Aucun document n'est indexé dans cet espace de travail. "
-                    "Utilisez la commande !index rebuild pour indexer les documents."
-                )
-    except Exception:
-        pass  # En cas d'erreur, on tente quand même la recherche
+        index_svc = await get_index_service(config)
 
-    try:
-        result = await behavior_manager.execute_action(
-            intent_name="standard_rag",
-            query=query,
-            context={**session_dict, **room_dict},
+        if (not hasattr(index_svc, 'document_index')
+                or index_svc.document_index is None
+                or index_svc.document_index.faiss_index.index.ntotal == 0):
+            return (
+                "Aucun document n'est indexé dans cet espace de travail. "
+                "Utilisez la commande !index rebuild pour indexer les documents."
+            )
+
+        # Recherche directe dans l'index FAISS en mémoire (rapide, pas de rescan)
+        results = await index_svc.document_index.search(
+            query=query, limit=7, threshold=0.3,
         )
-        if result.get("success") and result.get("response"):
-            return result["response"]
-        return "Aucun résultat pertinent trouvé dans les documents indexés."
+
+        if not results:
+            return "Aucun résultat pertinent trouvé dans les documents indexés."
+
+        # Formater les résultats pour le LLM
+        parts = []
+        for r in results:
+            text = r.get("text", "")
+            meta = r.get("metadata", {})
+            source = meta.get("source", meta.get("document_path", "?"))
+            score = r.get("similarity_score", 0)
+            parts.append(f"[{source} (score: {score:.2f})]\n{text}")
+
+        return "\n\n---\n\n".join(parts)
+
     except Exception as e:
         logger.warning(f"search_documents error: {e}")
         return f"Erreur lors de la recherche : {e}"

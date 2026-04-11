@@ -122,13 +122,17 @@ class WebDAVService:
         # Ne pas lancer la tâche ici, elle sera lancée dans initialize()
 
     def _build_http_client(self) -> httpx.AsyncClient:
-        """Construit le client HTTP avec Basic auth."""
+        """Construit le client HTTP avec Basic auth.
+
+        HTTP/2 désactivé : BigFolder/WsgiDAV retourne 409 Conflict sur
+        les PUT binaires en HTTP/2 (frames incompatibles). HTTP/1.1 fonctionne.
+        """
         return httpx.AsyncClient(
             auth=(self.webdav_username, self.webdav_password),
             timeout=60.0,
             headers={'User-Agent': 'AlbertTchap/1.0', 'Accept': '*/*'},
             limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
-            http2=True,
+            http2=False,
             verify=True,
         )
 
@@ -375,6 +379,14 @@ class WebDAVService:
                     await self.create_directory(parent_dir)
 
             response = await self.http_client.put(url, content=content)
+
+            if response.status_code >= 400:
+                import sys
+                print(
+                    f"[WEBDAV-DEBUG] PUT {response.status_code} url={url} "
+                    f"size={len(content)} body={response.text[:300] if hasattr(response, 'text') else '?'}",
+                    flush=True, file=sys.stderr,
+                )
 
             # 409 Conflict : BigFolder peut retourner 409 pour plusieurs raisons :
             # - Parent manquant (classique WebDAV)
