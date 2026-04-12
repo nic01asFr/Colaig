@@ -183,7 +183,7 @@ async def load_workspace_skills(
     Returns:
         Liste de Skill triées par priority décroissante.
     """
-    if not workspace_root:
+    if workspace_root is None:
         return []
 
     now = time.time()
@@ -255,29 +255,27 @@ async def load_workspace_skills(
 
 
 async def _list_md_files(webdav_service, skills_dir: str) -> List[str]:
-    """Liste les fichiers .md dans un dossier WebDAV.
+    """Liste les fichiers .md dans un dossier skills (1 niveau, pas de récursion).
 
-    Utilise list_documents si disponible, sinon retourne vide proprement.
+    Utilise list_directory (PROPFIND Depth:1) au lieu de list_documents
+    (récursion profonde) car le dossier skills est plat.
     """
-    if not hasattr(webdav_service, "list_documents") and not hasattr(webdav_service, "list_directory"):
-        return []
-
     try:
-        # Essayer list_documents (API standard de WebDAVService)
-        if hasattr(webdav_service, "list_documents"):
-            entries = await webdav_service.list_documents(skills_dir)
-        else:
+        if hasattr(webdav_service, "list_directory"):
             entries = await webdav_service.list_directory(skills_dir)
+        elif hasattr(webdav_service, "list_documents"):
+            # Fallback avec max_depth=1 pour éviter la récursion
+            entries = await webdav_service.list_documents(skills_dir, max_depth=1)
+        else:
+            return []
     except Exception:
         return []
 
     if not entries:
         return []
 
-    # Filtrer les .md
     md_paths = []
     for e in entries:
-        # entries peut être [str] ou [{path: ...}] selon l'implem
         if isinstance(e, str):
             path = e
         elif isinstance(e, dict):
@@ -286,7 +284,6 @@ async def _list_md_files(webdav_service, skills_dir: str) -> List[str]:
             path = str(e)
 
         if path.endswith(".md"):
-            # S'assurer que le chemin est complet
             if not path.startswith(skills_dir):
                 path = f"{skills_dir.rstrip('/')}/{path.lstrip('/')}"
             md_paths.append(path)

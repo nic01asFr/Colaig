@@ -133,7 +133,7 @@ async def load_workspace_config(
     Returns:
         WorkspaceConfig (vide si yaml absent).
     """
-    if not workspace_root:
+    if workspace_root is None:
         return WorkspaceConfig.empty()
 
     # 1. Vérifier si on a un cache récent

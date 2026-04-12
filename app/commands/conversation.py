@@ -352,11 +352,11 @@ async def _orchestrate_response(
         logger.warning(f"[AGENT] WebDAV indisponible pour ce contexte: {e}")
 
     # ── Charger la config workspace (workspace.yaml) ──
-    # Optionnelle : si absente, on utilise les défauts d'instance.
-    # Hot-reload via cache mtime opportuniste, isolé par workspace_root.
+    import sys as _sys
+    print(f"[AGENT-DEBUG] webdav_svc={webdav_svc is not None} workspace_root={workspace_root!r}", flush=True, file=_sys.stderr)
     from app.agent.workspace_config import load_workspace_config, WorkspaceConfig
     ws_config = WorkspaceConfig.empty()
-    if webdav_svc and workspace_root:
+    if webdav_svc is not None and workspace_root is not None:
         try:
             ws_config = await load_workspace_config(webdav_svc, workspace_root)
         except Exception as e:
@@ -367,7 +367,7 @@ async def _orchestrate_response(
     from app.agent.skills import load_workspace_skills, find_matching_skills
     workspace_skills = []
     active_skills = []
-    if webdav_svc and workspace_root:
+    if webdav_svc is not None and workspace_root is not None:
         try:
             workspace_skills = await load_workspace_skills(webdav_svc, workspace_root)
             active_skills = find_matching_skills(workspace_skills, message_text)
