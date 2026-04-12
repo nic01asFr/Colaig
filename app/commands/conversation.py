@@ -254,7 +254,10 @@ Ce message suivant semble être une réaction ou une nouvelle question après ce
                 messages = [{"role": "system", "content": context_prompt}] + messages
         
         # Analyser l'intention et orchestrer les outils disponibles
-        response = await _orchestrate_response(
+        from app.agent.result import AgentResult
+        from app.matrix_bot.response_formatter import format_agent_response
+
+        agent_result = await _orchestrate_response(
             message_text=message_text,
             messages=messages,
             behavior_manager=behavior_manager,
@@ -265,21 +268,35 @@ Ce message suivant semble être une réaction ou une nouvelle question après ce
             matrix_client=matrix_client,
             ep=ep,
         )
-        
-        # Mettre à jour l'historique avec la réponse du bot
+
+        # Formater la réponse avec sources et références
+        if isinstance(agent_result, AgentResult):
+            # Injecter les skills activées pour le bloc références
+            formatted_response = format_agent_response(
+                agent_result,
+                active_skills=getattr(agent_result, '_active_skills', None),
+            )
+            raw_text = agent_result.text
+        else:
+            # Fallback si _orchestrate_response retourne un str (compatibilité)
+            formatted_response = str(agent_result)
+            raw_text = formatted_response
+
+        # Mettre à jour l'historique avec le texte brut (pas les métadonnées)
         await update_conversation_history(
-            config, room_id, sender, role="assistant", user_message=response
+            config, room_id, sender, role="assistant", user_message=raw_text
         )
-        
+
         # Obtenir le thread_id pour la réponse depuis le contexte Tchap
         thread_root = await ep.get_response_thread_id()
-        
-        # Envoyer la réponse dans le thread approprié
+
+        # Envoyer la réponse formatée — msgtype m.text pour les réponses
+        # conversationnelles (notifiantes), m.notice pour les statuts système.
         await matrix_client.send_markdown_message(
             room_id,
-            response,
-            msgtype="m.notice",
-            thread_root=thread_root  # Utiliser le thread_root du contexte Tchap
+            formatted_response,
+            msgtype="m.text",
+            thread_root=thread_root,
         )
         
     except Exception as e:
@@ -526,7 +543,7 @@ async def _orchestrate_response(
         f"outils={len(registry.all_tools)}, mcp={len(mcp_tools)}"
     )
 
-    return await agent_loop(
+    result = await agent_loop(
         message=message_text,
         history=messages,
         system_prompt=system_prompt,
@@ -536,3 +553,10 @@ async def _orchestrate_response(
         on_tool_start=on_tool_start,
         on_tool_end=on_tool_end,
     )
+
+    # Enrichir le résultat avec les skills activées (pour le formateur)
+    if active_skills:
+        result.skills_used = [s.name for s in active_skills]
+        result._active_skills = active_skills  # référence complète pour format_skills_ref
+
+    return result

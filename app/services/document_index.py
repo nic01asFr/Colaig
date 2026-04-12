@@ -1231,6 +1231,8 @@ class DocumentIndex:
                         "text": chunk.content,
                         "metadata": {
                             **chunk.metadata,
+                            "document_path": chunk.document_path,
+                            "chunk_number": chunk.chunk_number,
                             "similarity_score": similarity,
                         }
                     }

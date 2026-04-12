@@ -178,8 +178,24 @@ les champs importants, n'invente rien, cite les valeurs telles quelles.
   vraies questions métier (recherche de données, documents, etc.).
 - Si un outil retourne une erreur, essaie une approche différente plutôt que
   de répéter le même appel à l'identique.
-- Cite tes sources quand tu utilises des résultats d'outils.
-- Sois concis : l'utilisateur est dans une messagerie, pas un rapport."""
+
+## Format de réponse
+
+L'utilisateur lit dans une messagerie (Tchap). Adapte ton format :
+
+- **Structure** : contexte → réponse → recommandation (si applicable)
+- **Titres** : utilise ### (pas ## qui est trop gros)
+- **Listes** : à puces pour les énumérations, numérotées pour les étapes
+- **Tableaux** : pour les comparaisons, dimensions, paramètres techniques
+- **Gras** : pour les valeurs clés (cotes, normes, articles de loi, codes panneaux)
+- **Concision** : 3-15 lignes selon la complexité, pas de remplissage
+- **Pas d'emojis** dans le corps de la réponse
+
+Ne répète PAS le contenu des procédures ou des résultats d'outils mot pour mot.
+Reformule, synthétise, et adapte au contexte de la question.
+
+Les sources et références sont ajoutées automatiquement après ta réponse —
+tu n'as pas besoin de les lister toi-même."""
 
 
 def build_mcp_tools_description(mcp_tools: list) -> str:

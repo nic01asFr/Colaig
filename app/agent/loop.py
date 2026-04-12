@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from app.matrix_bot.config import logger
 from app.agent.parser import ToolCall
+from app.agent.result import AgentResult
 from app.agent.tools import ToolRegistry
 from app.agent.llm_transport import LLMTransport
 
@@ -87,6 +88,9 @@ async def agent_loop(
         f"max_turns={max_turns}, message={message[:80]!r}"
     )
 
+    # Accumulateur de métadonnées pour le formatage final
+    agent_result = AgentResult()
+
     for turn in range(max_turns):
         result = await transport.call(messages, openai_tools=openai_tools or None)
 
@@ -97,14 +101,15 @@ async def agent_loop(
 
         # Pas d'appel d'outil → réponse finale
         if not result.tool_calls:
-            return result.content
+            agent_result.text = result.content
+            agent_result.turns = turn + 1
+            _collect_sources_from_ctx(agent_result, ctx)
+            return agent_result
 
         # Ajouter le message assistant (avec tool_calls éventuels)
         messages.append(result.assistant_message)
 
-        # Exécution des outils — dédup intra-tour pour éviter les appels
-        # redondants dans un même tour (le LLM ne devrait pas le faire mais
-        # certains modèles répètent par maladresse)
+        # Exécution des outils — dédup intra-tour
         executed_in_turn: Set[Tuple[str, str]] = set()
 
         for i, tc in enumerate(result.tool_calls):
@@ -123,6 +128,14 @@ async def agent_loop(
                     on_start=on_tool_start, on_end=on_tool_end,
                 )
 
+            # Tracer l'appel pour le formatage final
+            agent_result.add_tool_trace(
+                name=tc.name,
+                arguments=tc.arguments,
+                result_preview=tool_result,
+                success="Erreur" not in tool_result[:50],
+            )
+
             # Construire le message de résultat au bon format (natif vs fallback)
             tool_call_id = result.call_ids[i] if i < len(result.call_ids) else ""
             messages.append(
@@ -137,7 +150,24 @@ async def agent_loop(
     # Max turns atteint — forcer une réponse finale sans tools
     logger.warning(f"[AGENT] Limite de {max_turns} tours atteinte, réponse forcée")
     final = await transport.call(messages, openai_tools=None)
-    return final.content or "Désolé, je n'ai pas pu traiter votre demande."
+    agent_result.text = final.content or "Désolé, je n'ai pas pu traiter votre demande."
+    agent_result.turns = max_turns
+    _collect_sources_from_ctx(agent_result, ctx)
+    return agent_result
+
+
+def _collect_sources_from_ctx(agent_result: AgentResult, ctx: Dict[str, Any]) -> None:
+    """Transfère les sources collectées par les tools depuis le contexte partagé."""
+    collected = ctx.get("_collected_sources", [])
+    for src in collected:
+        agent_result.add_source(
+            type=src.get("type", "unknown"),
+            name=src.get("name", ""),
+            path=src.get("path", ""),
+            url=src.get("url", ""),
+            score=src.get("score", 0.0),
+            **(src.get("extra", {})),
+        )
 
 
 async def _execute_tool_call(

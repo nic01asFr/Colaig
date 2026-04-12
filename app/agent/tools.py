@@ -119,14 +119,26 @@ async def _handle_search_documents(args: dict, ctx: dict) -> str:
         if not results:
             return "Aucun résultat pertinent trouvé dans les documents indexés."
 
-        # Formater les résultats pour le LLM
+        # Collecter les sources pour le formatage final (AgentResult)
+        # Le contexte partagé `ctx` est mutable — on y ajoute les sources.
+        sources_list = ctx.setdefault("_collected_sources", [])
+
         parts = []
         for r in results:
             text = r.get("text", "")
             meta = r.get("metadata", {})
-            source = meta.get("source", meta.get("document_path", "?"))
-            score = r.get("similarity_score", 0)
+            source = meta.get("document_path", meta.get("source", "document"))
+            score = meta.get("similarity_score", 0)
             parts.append(f"[{source} (score: {score:.2f})]\n{text}")
+
+            # Enrichir les sources collectées (dédupliquées par path)
+            if not any(s.get("path") == source for s in sources_list):
+                sources_list.append({
+                    "type": "document",
+                    "name": source.rsplit("/", 1)[-1] if "/" in source else source,
+                    "path": source,
+                    "score": score,
+                })
 
         return "\n\n---\n\n".join(parts)
 
@@ -345,6 +357,22 @@ def _make_mcp_tool_wrapper(mcp_tool) -> ToolDef:
                 return f"Erreur MCP : {result.text}"
 
             raw_text = result.text or "Résultat vide."
+
+            # Collecter les sources MCP pour le formatage final
+            sources_list = ctx.setdefault("_collected_sources", [])
+            server_name = qualified.split("__", 1)[0] if "__" in qualified else ""
+            tool_short = qualified.split("__", 1)[-1] if "__" in qualified else qualified
+            # Nom lisible : "search_datasets" → "Recherche datasets (datagouv)"
+            display_name = tool_short.replace("_", " ").capitalize()
+            if server_name:
+                display_name += f" ({server_name})"
+            if not any(s.get("path") == qualified for s in sources_list):
+                sources_list.append({
+                    "type": "mcp_dataset" if "search" in qualified else "mcp_resource",
+                    "name": display_name,
+                    "path": qualified,
+                    "extra": {"arguments": args},
+                })
 
             # P1 — Compaction conditionnelle :
             # - get_* / query_* (data ciblée) : préservés intégralement
