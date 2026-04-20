@@ -1,0 +1,30 @@
+# Colaig — Image Docker pour tests
+# Usage: docker build -f Dockerfile.test -t colaig-test . && docker run --rm colaig-test
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Dépendances système pour matrix-nio
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libolm-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Dépendances Python (prod + dev)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt \
+    pytest pytest-asyncio pytest-cov
+
+# Cache-bust pour forcer la re-copie du code
+ARG CACHEBUST=1
+
+# Code applicatif
+COPY colaig/ colaig/
+COPY config/ config/
+COPY tests/ tests/
+COPY pyproject.toml .
+
+# Répertoire de données
+RUN mkdir -p /app/data/faiss_cache /app/data/logs
+
+CMD ["pytest", "-v", "--tb=short"]

@@ -1,0 +1,99 @@
+{% if backend == "webdav" %}
+<div class="form-row">
+    <div class="form-group">
+        <label>URL WebDAV</label>
+        <input type="text" name="url" placeholder="https://nextcloud.org.fr/remote.php/dav/files/colaig/">
+    </div>
+    <div class="form-group">
+        <label>Nom d'utilisateur</label>
+        <input type="text" name="username" placeholder="colaig">
+    </div>
+</div>
+<div class="form-group">
+    <label>Mot de passe</label>
+    <input type="password" name="password">
+</div>
+
+{% elif backend == "bigfolder" %}
+<div class="form-row">
+    <div class="form-group">
+        <label>URL API Archivist</label>
+        <input type="text" name="bigfolder_api_url" placeholder="http://archivist:8002">
+    </div>
+    <div class="form-group">
+        <label>Service token</label>
+        <input type="password" name="bigfolder_service_token" placeholder="svc_xxxxx">
+    </div>
+</div>
+<div class="form-group">
+    <label>Chemin racine Bigfolder</label>
+    <input type="text" name="bigfolder_root" placeholder="/" value="/">
+</div>
+
+{% elif backend == "s3" %}
+<div class="form-row">
+    <div class="form-group">
+        <label>Endpoint URL</label>
+        <input type="text" name="endpoint_url" placeholder="https://s3.fr-par.scw.cloud">
+    </div>
+    <div class="form-group">
+        <label>Bucket</label>
+        <input type="text" name="bucket" placeholder="colaig-data">
+    </div>
+</div>
+<div class="form-row">
+    <div class="form-group">
+        <label>Access Key</label>
+        <input type="text" name="access_key">
+    </div>
+    <div class="form-group">
+        <label>Secret Key</label>
+        <input type="password" name="secret_key">
+    </div>
+</div>
+
+{% elif backend == "msgraph" %}
+<div class="form-row">
+    <div class="form-group">
+        <label>Tenant ID</label>
+        <input type="text" name="tenant_id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+    </div>
+    <div class="form-group">
+        <label>Client ID</label>
+        <input type="text" name="client_id">
+    </div>
+</div>
+<div class="form-row">
+    <div class="form-group">
+        <label>Client Secret</label>
+        <input type="password" name="client_secret">
+    </div>
+    <div class="form-group">
+        <label>Drive User (UPN)</label>
+        <input type="text" name="drive_user_id" placeholder="colaig@organisation.fr">
+    </div>
+</div>
+
+{% elif backend == "box" %}
+<div class="form-group">
+    <label>Chemin fichier config Box (JSON)</label>
+    <input type="text" name="box_config_file" placeholder="/app/secrets/box_config.json">
+    <div class="form-hint">Exporté depuis Box Developer Console → App Settings → Generate Key Pair.</div>
+</div>
+
+{% elif backend == "gdrive" %}
+<div class="form-group">
+    <label>Service Account JSON</label>
+    <textarea name="service_account_json" rows="3" placeholder='{"type":"service_account","project_id":"..."}'></textarea>
+</div>
+<div class="form-group">
+    <label>ID dossier racine</label>
+    <input type="text" name="root_folder_id" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms">
+</div>
+
+{% else %}{# local #}
+<div class="form-group">
+    <label>Chemin local</label>
+    <input type="text" name="path" placeholder="/app/data/storage">
+</div>
+{% endif %}

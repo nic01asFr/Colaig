@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<!-- Stats -->
+<div class="stats">
+    <div class="stat">
+        <div class="stat-value">{{ workspaces|length }}</div>
+        <div class="stat-label">Workspaces</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value">{{ uptime_min }}&thinsp;<span style="font-size:1rem;font-weight:400">min</span></div>
+        <div class="stat-label">Uptime</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value" style="font-size:1rem;color:var(--green)">●&nbsp;OK</div>
+        <div class="stat-label">Statut</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value" style="font-size:1rem">{{ storage_backend }}</div>
+        <div class="stat-label">Storage</div>
+    </div>
+    <div class="stat">
+        <div class="stat-value" style="font-size:1rem">{{ messaging_backend }}</div>
+        <div class="stat-label">Messaging</div>
+    </div>
+</div>
+
+<!-- Workspaces -->
+<div class="card">
+    <div class="card-header">
+        <h2>Workspaces</h2>
+        {% if show_platform %}
+        <a href="/platform" class="btn btn-secondary btn-sm">Gérer les clients →</a>
+        {% endif %}
+    </div>
+    <div class="card-body" style="padding:0">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>ID</th>
+                    <th>Conversations</th>
+                    <th>RAG</th>
+                    <th>Agents</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ws in workspaces %}
+                <tr>
+                    <td><strong>{{ ws.name }}</strong></td>
+                    <td><code>{{ ws.workspace_id }}</code></td>
+                    <td>{{ ws.conversations|length }}</td>
+                    <td>
+                        {% if ws.rag_enabled %}
+                        <span class="badge-ok">RAG</span>
+                        {% else %}
+                        <span class="badge-gray">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if agents_enabled %}
+                        <span class="badge-ok">Phase 2</span>
+                        {% else %}
+                        <span class="badge-gray">Phase 1</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form method="post" action="/workspaces/{{ ws.workspace_id }}/reindex" style="margin:0">
+                            <button type="submit" class="btn btn-secondary btn-sm">Ré-indexer</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr class="empty-row">
+                    <td colspan="6">Aucun workspace configuré.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Infos système -->
+<div class="card">
+    <div class="card-header"><h2>Système</h2></div>
+    <div class="card-body">
+        <table>
+            <tbody>
+                <tr><td style="width:200px;color:var(--gray-600)">Démarré le</td><td>{{ started_at }} UTC</td></tr>
+                <tr><td>MCP</td><td>{% if mcp_enabled %}<span class="badge-ok">Activé</span>{% else %}<span class="badge-gray">Désactivé</span>{% endif %}</td></tr>
+                <tr><td>Agents (Phase 2)</td><td>{% if agents_enabled %}<span class="badge-ok">Activé</span>{% else %}<span class="badge-gray">Phase 1 uniquement</span>{% endif %}</td></tr>
+                {% if show_chat %}
+                <tr><td>WebChat</td><td><span class="badge-ok">Actif</span> — <a href="/chat" target="_blank">/chat ↗</a></td></tr>
+                {% endif %}
+                {% if show_platform %}
+                <tr><td>Plateforme multi-client</td><td><span class="badge-ok">Activée</span> — <a href="/platform">Gérer les clients →</a></td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

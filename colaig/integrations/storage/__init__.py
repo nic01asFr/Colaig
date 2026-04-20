@@ -1,0 +1,1 @@
+"""Implémentations StorageProtocol."""

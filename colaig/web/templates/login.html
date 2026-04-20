@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Connexion{% endblock %}
+
+{% block head %}
+<style>
+    body { display: flex; align-items: center; justify-content: center; }
+    main { width: 100%; max-width: 380px; padding: 1rem; }
+    .login-card { background: #fff; border: 1px solid var(--gray-200); border-radius: var(--radius); box-shadow: 0 4px 16px rgba(0,0,0,.1); padding: 2rem; }
+    .login-logo { text-align: center; font-size: 2rem; font-weight: 700; color: var(--blue); margin-bottom: .25rem; }
+    .login-subtitle { text-align: center; color: var(--gray-400); font-size: .85rem; margin-bottom: 1.75rem; }
+    .login-card .btn { width: 100%; justify-content: center; padding: .65rem; font-size: 1rem; margin-top: .5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-card">
+    <div class="login-logo">Colaig</div>
+    <div class="login-subtitle">Interface d'administration</div>
+
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/login">
+        <input type="hidden" name="next" value="{{ next }}">
+        <div class="form-group">
+            <label for="password">Clé d'administration</label>
+            <input type="password" id="password" name="password" autofocus placeholder="COLAIG_PLATFORM_API_KEY">
+        </div>
+        <button type="submit" class="btn btn-primary">Se connecter</button>
+    </form>
+</div>
+{% endblock %}

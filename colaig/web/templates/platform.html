@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+{% block title %}Plateforme{% endblock %}
+
+{% block head %}
+<style>
+    .client-backend { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .provision-form { display: none; }
+    .provision-form.open { display: block; }
+    #form-result { min-height: 2rem; }
+    #backend-fields { min-height: 1rem; }
+    #messaging-fields { min-height: 1rem; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--gray-200); border-top-color: var(--blue); border-radius: 50%; animation: spin .6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .actions-row { display: flex; gap: .5rem; align-items: center; }
+</style>
+{% endblock %}
+
+{% block content %}
+<h1>Plateforme — Clients</h1>
+
+{% if restart_notice %}
+<div class="alert alert-info">
+    ⚠️ Un ou plusieurs clients ont été modifiés. <strong>Redémarrez Colaig</strong> pour appliquer les changements.
+</div>
+{% endif %}
+
+<!-- Liste des clients -->
+<div class="card">
+    <div class="card-header">
+        <h2>Clients actifs ({{ clients|length }})</h2>
+        <button class="btn btn-primary btn-sm" onclick="toggleForm()">+ Nouveau client</button>
+    </div>
+    <div class="card-body" style="padding:0">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Storage</th>
+                    <th>Messaging</th>
+                    <th>LLM</th>
+                    <th>MCP Auth</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="clients-table">
+                {% for c in clients %}
+                <tr id="row-{{ c.id }}">
+                    <td><code>{{ c.id }}</code></td>
+                    <td>
+                        {% if c.storage %}
+                        <span class="badge-ok">{{ c.storage.get('backend', '?') }}</span>
+                        {% else %}
+                        <span class="badge-gray">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if c.messaging %}
+                        <span class="badge-ok">{{ c.messaging.get('backend', '?') }}</span>
+                        {% else %}
+                        <span class="badge-gray">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if c.llm %}
+                        <span class="badge-warn">{{ c.llm.get('backend', '?') }}</span>
+                        {% else %}
+                        <span class="badge-gray">global</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if c.mcp_auth %}
+                        <span class="badge-warn">{{ c.mcp_auth.get('mode', 'token') }}</span>
+                        {% else %}
+                        <span class="badge-gray">token</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="actions-row">
+                            <a href="/api/platform/provision/{{ c.id }}/package"
+                               class="btn btn-secondary btn-sm" title="Télécharger le package self-hosted">
+                                ZIP ↓
+                            </a>
+                            <button class="btn btn-danger btn-sm"
+                                    hx-delete="/api/platform/provision/{{ c.id }}"
+                                    hx-headers='{"Authorization": "Bearer {{ api_key }}"}'
+                                    hx-confirm="Supprimer le client {{ c.id }} ?"
+                                    hx-target="#row-{{ c.id }}"
+                                    hx-swap="outerHTML"
+                                    hx-on::after-request="showRestartNotice()">
+                                Supprimer
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr class="empty-row">
+                    <td colspan="6">Aucun client configuré — créez le premier ci-dessous.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Formulaire nouveau client -->
+<div class="card provision-form" id="provision-form">
+    <div class="card-header">
+        <h2>Nouveau client</h2>
+        <button class="btn btn-secondary btn-sm" onclick="toggleForm()">✕ Fermer</button>
+    </div>
+    <div class="card-body">
+        <div id="form-result"></div>
+
+        <div class="form-group">
+            <label for="client_id">Identifiant client <span style="color:var(--red)">*</span></label>
+            <input type="text" id="client_id" placeholder="ex: org-rh, ministere-x" autocomplete="off">
+            <div class="form-hint">Identifiant unique, lettres minuscules et tirets uniquement.</div>
+        </div>
+
+        <!-- Storage -->
+        <details open>
+            <summary>Storage</summary>
+            <div class="details-body">
+                <div class="form-group">
+                    <label for="storage_backend">Backend</label>
+                    <select id="storage_backend"
+                            hx-get="/platform/fields/storage"
+                            hx-trigger="change"
+                            hx-target="#backend-fields"
+                            hx-include="[id='storage_backend']">
+                        <option value="local">Local (filesystem)</option>
+                        <option value="webdav">WebDAV / Nextcloud</option>
+                        <option value="bigfolder">Bigfolder (Archivist)</option>
+                        <option value="s3">S3 / MinIO</option>
+                        <option value="msgraph">Microsoft Graph / OneDrive</option>
+                        <option value="box">Box</option>
+                        <option value="gdrive">Google Drive</option>
+                    </select>
+                </div>
+                <div id="backend-fields">
+                    <!-- Champs injectés par HTMX selon le backend choisi -->
+                    <div class="form-group">
+                        <label for="storage_path">Chemin local</label>
+                        <input type="text" id="storage_path" name="storage_path" placeholder="/app/data/storage">
+                    </div>
+                </div>
+            </div>
+        </details>
+
+        <!-- Messaging -->
+        <details>
+            <summary>Messaging</summary>
+            <div class="details-body">
+                <div class="form-group">
+                    <label for="messaging_backend">Backend</label>
+                    <select id="messaging_backend"
+                            hx-get="/platform/fields/messaging"
+                            hx-trigger="change"
+                            hx-target="#messaging-fields"
+                            hx-include="[id='messaging_backend']">
+                        <option value="webchat">WebChat (WebSocket intégré)</option>
+                        <option value="matrix">Matrix / Tchap</option>
+                        <option value="telegram">Telegram</option>
+                    </select>
+                </div>
+                <div id="messaging-fields">
+                    <div class="alert alert-info" style="font-size:.85rem">
+                        WebChat ne nécessite aucune configuration externe.
+                    </div>
+                </div>
+            </div>
+        </details>
+
+        <!-- LLM (optionnel) -->
+        <details>
+            <summary>LLM <span class="badge-gray" style="margin-left:.5rem">optionnel — hérite du global</span></summary>
+            <div class="details-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="llm_backend">Backend</label>
+                        <select id="llm_backend">
+                            <option value="">— hériter du global —</option>
+                            <option value="albert">Albert API</option>
+                            <option value="openai">OpenAI / compatible</option>
+                            <option value="azure">Azure OpenAI</option>
+                            <option value="ollama">Ollama (local)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="llm_api_url">URL API</label>
+                        <input type="text" id="llm_api_url" placeholder="https://albert-api.etalab.gouv.fr">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="llm_api_key">Clé API</label>
+                        <input type="password" id="llm_api_key" placeholder="sk-...">
+                    </div>
+                    <div class="form-group">
+                        <label for="llm_model_chat">Modèle chat</label>
+                        <input type="text" id="llm_model_chat" placeholder="openai/gpt-oss-120b">
+                    </div>
+                </div>
+            </div>
+        </details>
+
+        <!-- Options -->
+        <details>
+            <summary>Options avancées</summary>
+            <div class="details-body">
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="test_backends" checked style="width:auto;margin-right:.4rem">
+                        Tester les backends avant de sauvegarder
+                    </label>
+                    <div class="form-hint">Vérifie la connexion storage et messaging avant d'écrire dans clients.yml.</div>
+                </div>
+            </div>
+        </details>
+
+        <div style="margin-top:1.25rem;display:flex;gap:.75rem;align-items:center">
+            <button class="btn btn-primary" onclick="submitProvision()">
+                Créer le client
+            </button>
+            <span class="htmx-indicator spinner" id="provision-spinner"></span>
+            <span id="provision-status" style="font-size:.85rem;color:var(--gray-600)"></span>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleForm() {
+    const f = document.getElementById('provision-form');
+    f.classList.toggle('open');
+    if (f.classList.contains('open')) f.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function showRestartNotice() {
+    let n = document.querySelector('.alert-info');
+    if (!n) {
+        n = document.createElement('div');
+        n.className = 'alert alert-info';
+        n.innerHTML = '⚠️ Des clients ont été modifiés. <strong>Redémarrez Colaig</strong> pour appliquer les changements.';
+        document.querySelector('main').prepend(n);
+    }
+}
+
+async function submitProvision() {
+    const result = document.getElementById('form-result');
+    const status = document.getElementById('provision-status');
+    const spinner = document.getElementById('provision-spinner');
+
+    const clientId = document.getElementById('client_id').value.trim();
+    if (!clientId) { result.innerHTML = '<div class="alert alert-error">L\'identifiant client est requis.</div>'; return; }
+
+    // Construire le body
+    const storageBackend = document.getElementById('storage_backend').value;
+    const storage = { backend: storageBackend };
+    // Collecter les champs storage dynamiques
+    document.querySelectorAll('#backend-fields input, #backend-fields select').forEach(el => {
+        if (el.name && el.value) storage[el.name] = el.value;
+    });
+
+    const messagingBackend = document.getElementById('messaging_backend').value;
+    const messaging = { backend: messagingBackend };
+    document.querySelectorAll('#messaging-fields input, #messaging-fields select').forEach(el => {
+        if (el.name && el.value) messaging[el.name] = el.value;
+    });
+
+    let llm = null;
+    const llmBackend = document.getElementById('llm_backend').value;
+    if (llmBackend) {
+        llm = { backend: llmBackend };
+        ['llm_api_url','llm_api_key','llm_model_chat'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el && el.value) llm[id.replace('llm_', '')] = el.value;
+        });
+    }
+
+    const testBackends = document.getElementById('test_backends').checked;
+
+    spinner.style.opacity = '1';
+    status.textContent = 'Provisionnement en cours…';
+    result.innerHTML = '';
+
+    try {
+        const resp = await fetch('/api/platform/provision', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer {{ api_key }}'
+            },
+            body: JSON.stringify({ client_id: clientId, storage, messaging, llm, test_backends: testBackends })
+        });
+        const data = await resp.json();
+        spinner.style.opacity = '0';
+
+        if (resp.ok) {
+            result.innerHTML = `<div class="alert alert-success">✓ Client <strong>${clientId}</strong> ${data.action === 'created' ? 'créé' : 'mis à jour'}. Redémarrage requis.</div>`;
+            status.textContent = '';
+            // Recharger la page pour afficher le nouveau client dans la liste
+            setTimeout(() => location.reload(), 1200);
+        } else {
+            const step = data.step ? ` (${data.step})` : '';
+            result.innerHTML = `<div class="alert alert-error">Erreur${step} : ${data.error || data.detail || JSON.stringify(data)}</div>`;
+            status.textContent = '';
+        }
+    } catch(e) {
+        spinner.style.opacity = '0';
+        result.innerHTML = `<div class="alert alert-error">Erreur réseau : ${e.message}</div>`;
+        status.textContent = '';
+    }
+}
+</script>
+{% endblock %}

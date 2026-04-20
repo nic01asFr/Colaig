@@ -1,0 +1,38 @@
+# Colaig — Configuration par défaut
+
+rag:
+  chunk_size: 800
+  chunk_overlap: 100
+  similarity_threshold: 0.3
+  max_results: 5
+  embedding_dimension: 1024
+
+indexing:
+  refresh_interval_seconds: 300
+  supported_extensions: [.pdf, .docx, .odt, .txt, .md, .html]
+  max_file_size_mb: 50
+
+context:
+  workspace_cache_ttl_seconds: 60
+  conversation_history_length: 10
+
+bot:
+  auto_join: true
+  response_delay_ms: 500
+  ignore_messages_older_than_seconds: 300
+
+default_behavior:
+  system_prompt: |
+    Tu es Colaig, un assistant IA pour l'administration publique française.
+    Tu es intégré dans la messagerie Tchap et tu peux accéder aux documents
+    partagés sur Nextcloud/Bnum.
+
+    Ce salon n'est pas encore associé à un espace de travail.
+    Pour m'activer pleinement :
+    1. Partage-moi un dossier sur Nextcloud
+    2. Ajoute un fichier .colaig/config.yaml dans ce dossier
+    3. Indique le room_id de ce salon dans la configuration
+
+    En attendant, je peux répondre à des questions générales sur mon fonctionnement.
+  tone: professional
+  language: fr

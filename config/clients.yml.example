@@ -1,0 +1,126 @@
+# Colaig — Configuration multi-client
+#
+# Renommer ce fichier en clients.yml pour activer le mode multi-client.
+# Si ce fichier est absent, Colaig fonctionne en mode single-client
+# (configuration via variables d'environnement, comportement par défaut).
+#
+# Chaque entrée décrit une paire storage + messaging (un "client/tenant").
+# Le LLM est partagé par défaut ; la section `llm` permet un override par client.
+
+# ── Politique plateforme (optionnel) ─────────────────────────────────────────
+# Contraintes imposées par l'opérateur sur TOUTES les instances déclarées.
+# Violation au démarrage = erreur fatale.
+# Listes vides ou section absente = aucune contrainte (tout autorisé).
+#
+# Cas d'usage : plateforme souveraine qui interdit les LLM non-souverains
+# et impose l'auth SSO pour les instances org.
+#
+# platform_policy:
+#   # Backends storage autorisés (vide = tous)
+#   allowed_storage_backends: [webdav, bigfolder, msgraph]
+#   # Endpoints LLM autorisés — comparaison préfixe (vide = tous)
+#   allowed_llm_endpoints:
+#     - https://albert-api.etalab.gouv.fr
+#   # Modes auth MCP autorisés (vide = tous)
+#   allowed_mcp_auth_modes: [token, oidc]
+#   # true = 401 si pas de token (désactive le chatbot public)
+#   enforce_mcp_auth: false
+
+clients:
+
+  # --- Client 1 : ministère via Nextcloud + Tchap ---
+  - id: ministry-agriculture
+    storage:
+      backend: webdav
+      url: https://nextcloud.agriculture.gouv.fr/remote.php/dav/files/colaig/
+      username: colaig-agri
+      password: "secret"
+    messaging:
+      backend: matrix
+      homeserver: https://matrix.agent.tchap.gouv.fr
+      username: "@colaig-agri:agent.tchap.gouv.fr"
+      password: "secret"
+    # llm: absent → hérite de la configuration globale (variables d'env ALBERT_*)
+
+  # --- Client 2 : entreprise via S3 + Matrix + OpenAI ---
+  - id: startup-acme
+    storage:
+      backend: s3
+      endpoint_url: https://minio.acme.com
+      access_key: "AKIAXXXXXXXX"
+      secret_key: "secretkey"
+      bucket: colaig-acme
+      prefix: ""
+      region: "eu-west-1"
+    messaging:
+      backend: matrix
+      homeserver: https://matrix.acme.com
+      username: "@colaig:acme.com"
+      password: "secret"
+    llm:
+      backend: openai
+      api_url: https://api.openai.com
+      api_key: "sk-xxxxx"
+      model_chat: gpt-4o
+      model_embed: text-embedding-3-small
+
+  # --- Client 3 : collectivité via Nextcloud + Telegram + Ollama local ---
+  - id: commune-example
+    storage:
+      backend: webdav
+      url: https://cloud.commune.fr/remote.php/dav/files/colaig/
+      username: colaig
+      password: "secret"
+    messaging:
+      backend: telegram
+      bot_token: "123456789:AAFxxxxxxxxxxxxxxxx"
+      webhook_url: ""   # vide = polling (développement)
+    llm:
+      backend: ollama
+      api_url: http://ollama.commune.fr:11434
+      model_chat: mistral
+      model_embed: nomic-embed-text
+
+  # --- Client 4 : organisation via OneDrive + Tchap + Azure OpenAI ---
+  - id: agency-gov
+    storage:
+      backend: msgraph
+      tenant_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+      client_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+      client_secret: "secret"
+      drive_user_id: "colaig@agency.gouv.fr"
+      drive_id: ""       # vide = OneDrive personnel du drive_user_id
+      root_path: "/Colaig"
+    messaging:
+      backend: matrix
+      homeserver: https://matrix.agent.tchap.gouv.fr
+      username: "@colaig-agency:agent.tchap.gouv.fr"
+      password: "secret"
+    llm:
+      backend: azure
+      api_key: "azure-api-key"
+      azure_resource: my-azure-resource
+      azure_deployment_chat: gpt-4o
+      azure_deployment_embed: text-embedding-3-small
+      azure_api_version: "2024-02-01"
+
+  # --- Client 5 : instance org avec SSO OIDC enterprise (Keycloak / Azure AD) ---
+  # Les users se connectent avec leur compte entreprise — aucun token statique à gérer.
+  # Requis : pip install 'colaig[oidc]'
+  - id: org-sso-example
+    storage:
+      backend: webdav
+      url: https://nextcloud.org.fr/remote.php/dav/files/colaig/
+      username: colaig-bot
+      password: "secret"
+    messaging:
+      backend: matrix
+      homeserver: https://matrix.agent.tchap.gouv.fr
+      username: "@colaig-org:agent.tchap.gouv.fr"
+      password: "secret"
+    # llm: absent → hérite de la configuration globale
+    mcp_auth:
+      mode: oidc                          # "token" (défaut) | "oidc"
+      oidc_issuer: https://sso.org.fr/realms/org
+      oidc_audience: colaig-instance-org  # doit correspondre au client déclaré dans l'IdP
+      oidc_jwks_uri: https://sso.org.fr/realms/org/protocol/openid-connect/certs

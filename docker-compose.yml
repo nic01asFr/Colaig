@@ -1,0 +1,36 @@
+# Colaig — Déploiement
+# UN SEUL container. Pas de base de données. Pas de Redis.
+# Source de vérité = Storage provider (WebDAV, Box, S3…)
+
+version: '3.8'
+
+services:
+  colaig:
+    build: .
+    container_name: colaig
+    ports:
+      - "${COLAIG_WEB_PORT:-8000}:8000"
+    env_file:
+      - .env
+    environment:
+      # Écrase les valeurs du .env incompatibles avec le container
+      LOCAL_STORAGE_PATH: /app/data/storage
+    volumes:
+      - ./data:/app/data              # Cache local
+      - colaig_home:/root/.colaig     # Token Matrix persistant entre restarts
+      - ./colaig:/app/colaig          # Code source monté en live (pas de rebuild nécessaire)
+      - ./config:/app/config          # Configuration multi-client (clients.yml, etc.)
+      - ./secrets:/app/secrets:ro     # Fichiers secrets (Box JWT config, etc.) — lecture seule
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  colaig_home:
+
+# PAS de service postgres, redis, qdrant, chroma, etc.
+# Colaig est STATELESS : tout est sur le provider storage configuré.
+# Ce container peut être détruit et recréé sans perte de données.

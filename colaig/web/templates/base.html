@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Colaig{% endblock %} — Admin</title>
+    <script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --blue: #1a73e8; --blue-dark: #1557b0; --blue-light: #e8f0fe;
+            --green: #188038; --green-light: #e6f4ea;
+            --red: #c5221f; --red-light: #fce8e6;
+            --yellow-light: #fef7e0;
+            --gray-50: #f8f9fa; --gray-100: #f1f3f4; --gray-200: #e8eaed;
+            --gray-400: #9aa0a6; --gray-600: #5f6368; --gray-900: #202124;
+            --radius: 8px; --shadow: 0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.08);
+        }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--gray-50); color: var(--gray-900); min-height: 100vh; }
+
+        /* Nav */
+        nav { background: #fff; border-bottom: 1px solid var(--gray-200); padding: 0 1.5rem; display: flex; align-items: center; gap: 1.5rem; height: 56px; position: sticky; top: 0; z-index: 10; box-shadow: var(--shadow); }
+        nav .brand { font-weight: 700; font-size: 1.1rem; color: var(--blue); text-decoration: none; letter-spacing: -.01em; }
+        nav a { color: var(--gray-600); text-decoration: none; font-size: .9rem; padding: .3rem .5rem; border-radius: 4px; }
+        nav a:hover { background: var(--gray-100); color: var(--gray-900); }
+        nav a.active { color: var(--blue); font-weight: 500; }
+        nav .spacer { flex: 1; }
+        nav .badge { font-size: .75rem; background: var(--blue-light); color: var(--blue); padding: .15rem .5rem; border-radius: 20px; font-weight: 500; }
+
+        /* Layout */
+        main { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+        h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 1.5rem; }
+        h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; color: var(--gray-600); text-transform: uppercase; letter-spacing: .04em; font-size: .8rem; }
+
+        /* Cards */
+        .card { background: #fff; border: 1px solid var(--gray-200); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 1.5rem; }
+        .card-header { padding: .875rem 1.25rem; border-bottom: 1px solid var(--gray-200); display: flex; align-items: center; justify-content: space-between; }
+        .card-header h2 { margin: 0; }
+        .card-body { padding: 1.25rem; }
+
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+        th { text-align: left; padding: .6rem .75rem; background: var(--gray-50); border-bottom: 2px solid var(--gray-200); font-weight: 600; font-size: .8rem; color: var(--gray-600); text-transform: uppercase; letter-spacing: .04em; }
+        td { padding: .6rem .75rem; border-bottom: 1px solid var(--gray-100); vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: var(--gray-50); }
+        .empty-row td { text-align: center; color: var(--gray-400); padding: 2rem; font-style: italic; }
+
+        /* Buttons */
+        .btn { display: inline-flex; align-items: center; gap: .35rem; padding: .45rem 1rem; border-radius: 6px; border: none; cursor: pointer; font-size: .875rem; font-weight: 500; text-decoration: none; transition: background .15s, box-shadow .15s; }
+        .btn:disabled { opacity: .5; cursor: default; }
+        .btn-primary { background: var(--blue); color: #fff; }
+        .btn-primary:hover:not(:disabled) { background: var(--blue-dark); }
+        .btn-secondary { background: var(--gray-100); color: var(--gray-900); border: 1px solid var(--gray-200); }
+        .btn-secondary:hover:not(:disabled) { background: var(--gray-200); }
+        .btn-danger { background: var(--red-light); color: var(--red); }
+        .btn-danger:hover:not(:disabled) { background: #fad3d3; }
+        .btn-sm { padding: .3rem .7rem; font-size: .8rem; }
+
+        /* Badges */
+        .badge-ok { display: inline-block; background: var(--green-light); color: var(--green); font-size: .75rem; font-weight: 600; padding: .15rem .5rem; border-radius: 20px; }
+        .badge-warn { display: inline-block; background: var(--yellow-light); color: #b06000; font-size: .75rem; font-weight: 600; padding: .15rem .5rem; border-radius: 20px; }
+        .badge-gray { display: inline-block; background: var(--gray-100); color: var(--gray-600); font-size: .75rem; font-weight: 600; padding: .15rem .5rem; border-radius: 20px; }
+
+        /* Forms */
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; font-size: .85rem; font-weight: 500; margin-bottom: .35rem; color: var(--gray-600); }
+        input[type=text], input[type=password], input[type=email], select, textarea {
+            width: 100%; padding: .5rem .75rem; border: 1px solid var(--gray-200); border-radius: 6px;
+            font-size: .9rem; background: #fff; color: var(--gray-900); transition: border .15s;
+        }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,115,232,.15); }
+        .form-hint { font-size: .78rem; color: var(--gray-400); margin-top: .25rem; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+        /* Alerts */
+        .alert { padding: .75rem 1rem; border-radius: 6px; font-size: .875rem; margin-bottom: 1rem; }
+        .alert-error { background: var(--red-light); color: var(--red); border-left: 3px solid var(--red); }
+        .alert-success { background: var(--green-light); color: var(--green); border-left: 3px solid var(--green); }
+        .alert-info { background: var(--blue-light); color: var(--blue-dark); border-left: 3px solid var(--blue); }
+
+        /* Stats */
+        .stats { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+        .stat { background: #fff; border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 1rem 1.25rem; min-width: 140px; box-shadow: var(--shadow); }
+        .stat-value { font-size: 1.75rem; font-weight: 700; color: var(--blue); line-height: 1; }
+        .stat-label { font-size: .8rem; color: var(--gray-400); margin-top: .25rem; text-transform: uppercase; letter-spacing: .04em; }
+
+        /* Code */
+        code { font-family: 'JetBrains Mono', 'Fira Code', monospace; background: var(--gray-100); padding: .1rem .35rem; border-radius: 3px; font-size: .85em; max-width: 260px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+
+        /* HTMX loading */
+        .htmx-indicator { opacity: 0; transition: opacity .2s; }
+        .htmx-request .htmx-indicator { opacity: 1; }
+        .htmx-request.htmx-indicator { opacity: 1; }
+
+        /* Accordion (formulaire provision) */
+        details { border: 1px solid var(--gray-200); border-radius: var(--radius); margin-bottom: .75rem; }
+        details[open] { border-color: var(--blue); }
+        summary { padding: .75rem 1rem; cursor: pointer; font-weight: 500; font-size: .9rem; list-style: none; display: flex; align-items: center; gap: .5rem; }
+        summary::-webkit-details-marker { display: none; }
+        summary::before { content: "▶"; font-size: .65rem; color: var(--gray-400); transition: transform .2s; }
+        details[open] summary::before { transform: rotate(90deg); }
+        .details-body { padding: 1rem; border-top: 1px solid var(--gray-100); }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            nav { gap: .75rem; }
+            .form-row { grid-template-columns: 1fr; }
+            .stats { flex-direction: column; }
+        }
+    </style>
+    {% block head %}{% endblock %}
+</head>
+<body>
+<nav>
+    <a href="/" class="brand">Colaig</a>
+    <a href="/" {% if active == 'dashboard' %}class="active"{% endif %}>Dashboard</a>
+    {% if show_platform %}
+    <a href="/platform" {% if active == 'platform' %}class="active"{% endif %}>Plateforme</a>
+    {% endif %}
+    {% if show_chat %}
+    <a href="/chat" target="_blank">Chat ↗</a>
+    {% endif %}
+    <span class="spacer"></span>
+    {% if logged_in %}
+    <span class="badge">Admin</span>
+    <a href="/logout">Déconnexion</a>
+    {% endif %}
+</nav>
+<main>
+    {% block content %}{% endblock %}
+</main>
+</body>
+</html>

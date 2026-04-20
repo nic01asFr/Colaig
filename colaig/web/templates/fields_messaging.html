@@ -1,0 +1,33 @@
+{% if backend == "matrix" %}
+<div class="form-row">
+    <div class="form-group">
+        <label>Homeserver</label>
+        <input type="text" name="homeserver" placeholder="https://matrix.agent.tchap.gouv.fr">
+    </div>
+    <div class="form-group">
+        <label>Nom d'utilisateur</label>
+        <input type="text" name="username" placeholder="@colaig:agent.tchap.gouv.fr">
+    </div>
+</div>
+<div class="form-group">
+    <label>Mot de passe</label>
+    <input type="password" name="password">
+</div>
+
+{% elif backend == "telegram" %}
+<div class="form-group">
+    <label>Bot Token</label>
+    <input type="password" name="bot_token" placeholder="123456789:AAFxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+    <div class="form-hint">Obtenu via @BotFather sur Telegram.</div>
+</div>
+<div class="form-group">
+    <label>Webhook URL (optionnel)</label>
+    <input type="text" name="webhook_url" placeholder="https://colaig.org.fr/webhooks/telegram">
+    <div class="form-hint">Laisser vide pour utiliser le mode polling.</div>
+</div>
+
+{% else %}{# webchat #}
+<div class="alert alert-info" style="font-size:.85rem">
+    WebChat ne nécessite aucune configuration externe. Les conversations sont accessibles via <code>/chat/{conv_id}</code>.
+</div>
+{% endif %}
