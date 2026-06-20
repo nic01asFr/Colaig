@@ -70,6 +70,8 @@ spec:
               value: {{ .Values.embeddings.baseUrl | quote }}
             - name: EMBEDDINGS_MODEL
               value: {{ .Values.embeddings.model | quote }}
+            - name: EMBEDDING_DIMENSION
+              value: {{ .Values.embeddings.dimension | quote }}
             # --- Albert (fallback optionnel) ---
             - name: ALBERT_API_URL
               value: {{ .Values.albert.apiUrl | quote }}

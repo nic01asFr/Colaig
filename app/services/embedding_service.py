@@ -117,8 +117,10 @@ class EmbeddingService:
         self.http_client = None
         self._batch_lock = asyncio.Lock()
         
-        # Validation de la dimension
-        if self._embedding_dimension <= 0 or self._embedding_dimension > 1024:
+        # Validation de la dimension.
+        # Plafond relevé à 8192 : les modèles tiers (ex: SSPCloud
+        # qwen3-embedding-8b = 4096) dépassent les 1024 de bge-m3.
+        if self._embedding_dimension <= 0 or self._embedding_dimension > 8192:
             raise ValueError(f"Dimension d'embedding invalide: {self._embedding_dimension}")
             
     async def _init_http_client(self):

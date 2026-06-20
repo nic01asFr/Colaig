@@ -42,10 +42,12 @@ llm:
 
 # Embeddings : par défaut sur le même endpoint que le chat. Renseigner un
 # fournisseur dédié (ex: Albert) si l'endpoint LLM ne sert pas d'embeddings.
+# Modèle SSPCloud validé : qwen3-embedding-8b (dimension 4096).
 embeddings:
   baseUrl: ""
-  model: "BAAI/bge-m3"
+  model: "qwen3-embedding-8b"
   apiKey: ""
+  dimension: 4096
 
 # === Albert (optionnel — fallback si on n'utilise pas le LLM SSPCloud) ===
 albert:

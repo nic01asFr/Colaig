@@ -55,7 +55,12 @@
         "model": {
           "type": "string",
           "title": "Modèle d'embeddings",
-          "default": "BAAI/bge-m3"
+          "default": "qwen3-embedding-8b"
+        },
+        "dimension": {
+          "type": "integer",
+          "title": "Dimension des embeddings",
+          "default": 4096
         },
         "apiKey": {
           "type": "string",

@@ -49,8 +49,19 @@ La résolution des endpoints est centralisée dans `Config` (voir
 | `LLM_MODEL` | Modèle de chat | `qwen3-6-35b-moe` |
 | `LLM_API_KEY` | Clé chat | auto (`secretassistant`) |
 | `EMBEDDINGS_BASE_URL` | Base API embeddings (vide = même que chat) | — |
-| `EMBEDDINGS_MODEL` | Modèle embeddings | `BAAI/bge-m3` |
+| `EMBEDDINGS_MODEL` | Modèle embeddings | `qwen3-embedding-8b` |
+| `EMBEDDING_DIMENSION` | Dimension des vecteurs | `4096` |
 | `EMBEDDINGS_API_KEY` | Clé embeddings (vide = clé chat) | auto |
+
+> **Validé en réel sur le cluster SSPCloud (2026-06-21)** depuis un pod du
+> namespace `user-nic01asfr` :
+> - Tchap `matrix.agent.tchap.gouv.fr` joignable → HTTP 200 ;
+> - LLM `llm.lab.sspcloud.fr` joignable ;
+> - auto-clé lue dans `*-secretassistant` ;
+> - chat + **tool-calling natif** OK (`gemma4-26b-moe`, `qwen3-6-35b-moe`) ;
+> - embeddings OK (`qwen3-embedding-8b`, **dimension 4096**).
+> Modèles servis : `gemma4-26b-moe`, `qwen3-6-35b-moe`, `qwen3-vl`,
+> `qwen3-embedding-8b`, `agent`.
 
 Si tous les champs `LLM_*`/`EMBEDDINGS_*` sont vides, le comportement
 historique basé sur `ALBERT_API_URL`/`ALBERT_API_TOKEN` est conservé
