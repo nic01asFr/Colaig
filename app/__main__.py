@@ -31,9 +31,17 @@ async def main():
         )
         logger.info("Démarrage de ColaIG...")
         
+        # SSPCloud : auto-récupération de la clé LLM depuis le Secret du
+        # namespace (no-op hors cluster / si une clé est déjà fournie).
+        try:
+            from app.platform.sspcloud import bootstrap_llm_config
+            await bootstrap_llm_config(env_config)
+        except Exception as e:
+            logger.warning(f"SSPCloud LLM bootstrap ignoré: {e}")
+
         # Initialiser tous les services enregistrés
         await initialize_services(env_config)
-        
+
         # Importer et utiliser la fonction main de bot.py pour éviter les doublons d'instance
         from app.bot import main as bot_main
         await bot_main()

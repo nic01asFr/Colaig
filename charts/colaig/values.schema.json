@@ -1,0 +1,271 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "COLAIG — Assistant Tchap",
+  "type": "object",
+  "properties": {
+    "image": {
+      "type": "object",
+      "title": "Image",
+      "properties": {
+        "repository": {
+          "type": "string",
+          "title": "Dépôt de l'image",
+          "default": "ghcr.io/nic01asfr/colaig-platform"
+        },
+        "tag": {
+          "type": "string",
+          "title": "Tag de l'image",
+          "default": "latest"
+        }
+      }
+    },
+    "llm": {
+      "type": "object",
+      "title": "LLM (inférence)",
+      "description": "La clé d'API est récupérée automatiquement depuis votre compte SSPCloud (Mon compte → AI Assistant). Ne renseigner apiKey que pour forcer une clé.",
+      "properties": {
+        "baseUrl": {
+          "type": "string",
+          "title": "Base URL (OpenAI-compatible)",
+          "default": "https://llm.lab.sspcloud.fr/api"
+        },
+        "model": {
+          "type": "string",
+          "title": "Modèle de chat",
+          "default": "qwen3-6-35b-moe"
+        },
+        "apiKey": {
+          "type": "string",
+          "title": "Clé d'API (optionnel, sinon auto)",
+          "default": "",
+          "render": "password"
+        }
+      }
+    },
+    "embeddings": {
+      "type": "object",
+      "title": "Embeddings",
+      "description": "Vide = même endpoint que le chat. Renseigner pour utiliser un fournisseur dédié (ex: Albert).",
+      "properties": {
+        "baseUrl": {
+          "type": "string",
+          "title": "Base URL embeddings",
+          "default": ""
+        },
+        "model": {
+          "type": "string",
+          "title": "Modèle d'embeddings",
+          "default": "BAAI/bge-m3"
+        },
+        "apiKey": {
+          "type": "string",
+          "title": "Clé d'API embeddings (optionnel)",
+          "default": "",
+          "render": "password"
+        }
+      }
+    },
+    "matrix": {
+      "type": "object",
+      "title": "Matrix / Tchap",
+      "properties": {
+        "homeServer": {
+          "type": "string",
+          "title": "Home server Tchap",
+          "default": "https://matrix.agent.tchap.gouv.fr"
+        },
+        "botUsername": {
+          "type": "string",
+          "title": "Identifiant du bot",
+          "default": ""
+        },
+        "botPassword": {
+          "type": "string",
+          "title": "Mot de passe du bot",
+          "default": "",
+          "render": "password"
+        },
+        "accessToken": {
+          "type": "string",
+          "title": "Access token (alternative au mot de passe)",
+          "default": "",
+          "render": "password"
+        },
+        "displayName": {
+          "type": "string",
+          "title": "Nom affiché",
+          "default": "COLAIG - Assistant Tchap"
+        },
+        "joinOnInvite": {
+          "type": "boolean",
+          "title": "Rejoindre les salons sur invitation",
+          "default": true
+        }
+      }
+    },
+    "webdav": {
+      "type": "object",
+      "title": "WebDAV (documents)",
+      "properties": {
+        "url": {
+          "type": "string",
+          "title": "URL du serveur WebDAV",
+          "default": ""
+        },
+        "username": {
+          "type": "string",
+          "title": "Utilisateur WebDAV",
+          "default": ""
+        },
+        "password": {
+          "type": "string",
+          "title": "Mot de passe WebDAV",
+          "default": "",
+          "render": "password"
+        },
+        "rootPath": {
+          "type": "string",
+          "title": "Chemin racine",
+          "default": "/documents"
+        },
+        "defaultWorkspace": {
+          "type": "string",
+          "title": "Workspace par défaut",
+          "default": ""
+        }
+      }
+    },
+    "platform": {
+      "type": "object",
+      "title": "Plateforme (admin)",
+      "properties": {
+        "adminPassword": {
+          "type": "string",
+          "title": "Mot de passe administrateur",
+          "default": "",
+          "render": "password"
+        },
+        "operatorEmails": {
+          "type": "string",
+          "title": "Emails opérateurs (séparés par virgule)",
+          "default": "",
+          "x-onyxia": {
+            "overwriteDefaultWith": "user.email"
+          }
+        },
+        "sessionSecret": {
+          "type": "string",
+          "title": "Secret de session (vide = aléatoire)",
+          "default": "",
+          "render": "password"
+        }
+      }
+    },
+    "persistence": {
+      "type": "object",
+      "title": "Persistance",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "title": "Activer la persistance",
+          "default": true
+        },
+        "size": {
+          "type": "string",
+          "title": "Taille du volume",
+          "default": "5Gi"
+        }
+      }
+    },
+    "kubernetes": {
+      "type": "object",
+      "title": "Kubernetes",
+      "properties": {
+        "role": {
+          "type": "string",
+          "title": "Rôle du ServiceAccount",
+          "description": "edit requis pour l'auto-découverte de la clé LLM.",
+          "default": "edit",
+          "enum": ["view", "edit", "admin"]
+        }
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "title": "Ingress",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "hostname": {
+          "type": "string",
+          "title": "Hostname",
+          "default": "",
+          "x-onyxia": {
+            "overwriteDefaultWith": "{{project.id}}-colaig.{{region.defaultIngressClassName}}"
+          }
+        }
+      }
+    },
+    "oidc": {
+      "type": "object",
+      "title": "OIDC (injecté par Onyxia)",
+      "properties": {
+        "username": {
+          "type": "string",
+          "default": "",
+          "x-onyxia": {
+            "overwriteDefaultWith": "user.idep"
+          }
+        }
+      }
+    },
+    "s3": {
+      "type": "object",
+      "title": "S3 / MinIO (injecté par Onyxia)",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "accessKeyId": {
+          "type": "string",
+          "default": "",
+          "x-onyxia": { "overwriteDefaultWith": "s3.AWS_ACCESS_KEY_ID" }
+        },
+        "secretAccessKey": {
+          "type": "string",
+          "default": "",
+          "render": "password",
+          "x-onyxia": { "overwriteDefaultWith": "s3.AWS_SECRET_ACCESS_KEY" }
+        },
+        "sessionToken": {
+          "type": "string",
+          "default": "",
+          "render": "password",
+          "x-onyxia": { "overwriteDefaultWith": "s3.AWS_SESSION_TOKEN" }
+        },
+        "defaultRegion": {
+          "type": "string",
+          "default": "us-east-1",
+          "x-onyxia": { "overwriteDefaultWith": "s3.AWS_DEFAULT_REGION" }
+        },
+        "endpoint": {
+          "type": "string",
+          "default": "minio.lab.sspcloud.fr",
+          "x-onyxia": { "overwriteDefaultWith": "s3.AWS_S3_ENDPOINT" }
+        }
+      }
+    },
+    "global": {
+      "type": "object",
+      "properties": {
+        "suspend": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    }
+  }
+}

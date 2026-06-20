@@ -122,6 +122,28 @@ class Config(BaseSettings):
         default_factory=dict, description="Collections for RAG"
     )
 
+    # === LLM override (backend tiers, ex: SSPCloud Open WebUI / Ollama) ===
+    # Permet de découpler le backend d'inférence d'Albert sans réécrire le code.
+    # Si vide, tout retombe sur les valeurs albert_* (rétro-compatible).
+    # Le chemin de l'API est explicite et N'EST PAS suffixé par /v1 :
+    #   - Albert      : laisser vide (dérivé d'albert_api_url)
+    #   - Open WebUI  : https://llm.lab.sspcloud.fr/api      (ou .../openai, .../ollama/v1)
+    llm_base_url: str = Field(
+        "",
+        description="Base URL complète de l'API chat (préfixe inclus, sans /chat/completions). "
+                    "Vide = dérivé d'albert_api_url.",
+    )
+    llm_api_key: str = Field("", description="Clé API chat. Vide = albert_api_token.")
+    llm_model: str = Field("", description="Modèle chat. Vide = albert_model.")
+    # Embeddings : peuvent pointer vers un autre fournisseur que le chat
+    # (ex: chat sur SSPCloud, embeddings sur Albert).
+    embeddings_base_url: str = Field(
+        "",
+        description="Base URL complète de l'API embeddings. Vide = llm_base_url puis albert.",
+    )
+    embeddings_api_key: str = Field("", description="Clé API embeddings. Vide = clé chat effective.")
+    embeddings_model: str = Field("", description="Modèle embeddings. Vide = albert_model_embedding.")
+
     # === WebDAV ===
     webdav_url: str = Field("", description="WebDAV server URL")
     webdav_username: str = Field("", description="WebDAV username")
@@ -284,6 +306,60 @@ class Config(BaseSettings):
     @property
     def is_conversation_obsolete(self) -> bool:
         return int(time.time()) - self.last_activity > self.conversation_obsolescence
+
+    # --- Résolution des endpoints LLM (chat + embeddings) ---
+    # Centralise la logique d'URL pour que core_llm et embedding_service ne
+    # dupliquent plus le bricolage "/v1". Rétro-compatible : si les champs
+    # llm_*/embeddings_* sont vides, on reproduit exactement l'ancien
+    # comportement basé sur albert_api_url.
+
+    @property
+    def _albert_api_root(self) -> str:
+        """Racine de l'API Albert sans le suffixe /v1."""
+        root = (self.albert_api_url or "").rstrip("/")
+        if root.endswith("/v1"):
+            root = root[: -len("/v1")]
+        return root.rstrip("/")
+
+    @property
+    def chat_api_base(self) -> str:
+        """Base de l'API chat, préfixe inclus, sans /chat/completions."""
+        if self.llm_base_url:
+            return self.llm_base_url.rstrip("/")
+        return f"{self._albert_api_root}/v1"
+
+    @property
+    def embeddings_api_base(self) -> str:
+        """Base de l'API embeddings, préfixe inclus, sans /embeddings."""
+        if self.embeddings_base_url:
+            return self.embeddings_base_url.rstrip("/")
+        if self.llm_base_url:
+            return self.llm_base_url.rstrip("/")
+        return f"{self._albert_api_root}/v1"
+
+    @property
+    def chat_completions_url(self) -> str:
+        return f"{self.chat_api_base}/chat/completions"
+
+    @property
+    def embeddings_url(self) -> str:
+        return f"{self.embeddings_api_base}/embeddings"
+
+    @property
+    def effective_llm_api_key(self) -> str:
+        return self.llm_api_key or self.albert_api_token
+
+    @property
+    def effective_llm_model(self) -> str:
+        return self.llm_model or self.albert_model
+
+    @property
+    def effective_embeddings_api_key(self) -> str:
+        return self.embeddings_api_key or self.effective_llm_api_key
+
+    @property
+    def effective_embeddings_model(self) -> str:
+        return self.embeddings_model or self.albert_model_embedding
 
     def update_last_activity(self) -> None:
         self.last_activity = int(time.time())

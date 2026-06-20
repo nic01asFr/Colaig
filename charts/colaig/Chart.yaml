@@ -1,0 +1,16 @@
+apiVersion: v2
+name: colaig
+description: Assistant Tchap COLAIG (agent Albert/LLM) pour SSPCloud / Onyxia
+type: application
+version: 1.0.0
+appVersion: "0.2.1"
+home: https://github.com/etalab-ia/albert-tchap
+keywords:
+  - tchap
+  - matrix
+  - albert
+  - llm
+  - agent
+  - rag
+maintainers:
+  - name: colaig

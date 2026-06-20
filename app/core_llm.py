@@ -87,10 +87,14 @@ async def generate_with_tools(
     Returns:
         {"content": str, "tool_calls": [{name, arguments}, ...], "finish_reason": str}
     """
-    aclient = AlbertApiClient(base_url=config.albert_api_url, api_key=config.albert_api_token)
+    aclient = AlbertApiClient(
+        base_url=config.albert_api_url,
+        api_key=config.effective_llm_api_key,
+        api_base=config.chat_api_base,
+    )
     try:
         return await aclient.generate_with_tools(
-            model=config.albert_model,
+            model=config.effective_llm_model,
             messages=messages,
             tools=tools,
         )
@@ -104,23 +108,25 @@ async def generate(
     *,
     force_norag: bool = False,
 ) -> str:
-    api_key = config.albert_api_token
+    api_key = config.effective_llm_api_key
     url = config.albert_api_url
-    model = config.albert_model
+    model = config.effective_llm_model
     if force_norag:
         mode = None
     else:
         mode = None if config.albert_mode == "norag" else config.albert_mode
     collections = list(config.albert_collections_by_id.keys())
     rag_chunks = []
-    
+
     # Utiliser toujours l'historique complet des messages
     # La condition config.albert_with_history est supprimée car nous voulons
     # systématiquement utiliser l'historique des conversations
 
     # Build prompt
     sampling_params: dict = {}
-    aclient = AlbertApiClient(base_url=url, api_key=api_key)
+    aclient = AlbertApiClient(
+        base_url=url, api_key=api_key, api_base=config.chat_api_base,
+    )
     
     if mode == "rag":
         try:
@@ -248,18 +254,32 @@ def get_documents(config: Config, collection_id: str) -> list[dict]:
 
 
 class AlbertApiClient:
-    def __init__(self, base_url: str, api_key: str):
+    def __init__(self, base_url: str, api_key: str, api_base: str = None):
+        """Client API.
+
+        Args:
+            base_url: URL Albert (le /v1 est retiré puis ré-appliqué pour les
+                endpoints spécifiques Albert : collections, search, rerank...).
+            api_key: clé d'API.
+            api_base: base explicite (préfixe inclus, SANS /v1 forcé) utilisée
+                pour les endpoints OpenAI-standard (chat/completions, embeddings).
+                Permet de cibler un backend tiers (ex: Open WebUI SSPCloud
+                `https://llm.lab.sspcloud.fr/api`). Si None, on retombe sur
+                `{base_url}/v1` (comportement historique Albert).
+        """
         from openai import OpenAI
         import httpx
-        
+
         # Retirer le /v1 de l'URL de base s'il est présent
         self.base_url = base_url.rstrip('/').replace('/v1', '')
         self.api_key = api_key
-        
+        # Base pour les endpoints OpenAI-standard (chat, embeddings).
+        self.api_base = api_base.rstrip('/') if api_base else f"{self.base_url}/v1"
+
         # Client OpenAI pour les complétion
         self.openai_client = OpenAI(
             api_key=api_key,
-            base_url=f"{self.base_url}/v1"
+            base_url=self.api_base
         )
         
         # Client HTTP pour les autres opérations
@@ -284,7 +304,7 @@ class AlbertApiClient:
 
     async def generate(self, model: str, **sampling_params) -> str:
         """Génère du texte avec le modèle spécifié"""
-        url = f"{self.base_url}/v1/chat/completions"
+        url = f"{self.api_base}/chat/completions"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -321,7 +341,7 @@ class AlbertApiClient:
                 "finish_reason": str,
             }
         """
-        url = f"{self.base_url}/v1/chat/completions"
+        url = f"{self.api_base}/chat/completions"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -377,7 +397,7 @@ class AlbertApiClient:
 
     async def get_embeddings(self, texts: List[str], model: str) -> List[List[float]]:
         """Génère les embeddings pour une liste de textes"""
-        url = f"{self.base_url}/v1/embeddings"
+        url = f"{self.api_base}/embeddings"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -713,7 +733,7 @@ Réponse :
             
             async with httpx.AsyncClient(timeout=60.0) as client:
                 response = await client.post(
-                    f"{self.base_url}/v1/chat/completions",
+                    f"{self.api_base}/chat/completions",
                     headers={
                         "Authorization": f"Bearer {self.api_key}",
                         "Content-Type": "application/json"

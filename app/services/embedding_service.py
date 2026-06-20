@@ -125,7 +125,7 @@ class EmbeddingService:
         """Initialise le client HTTP si nécessaire"""
         if not self.http_client:
             headers = {
-                "Authorization": f"Bearer {self.config.albert_api_token}",
+                "Authorization": f"Bearer {self.config.effective_embeddings_api_key}",
                 "Content-Type": "application/json"
             }
             self.http_client = httpx.AsyncClient(
@@ -234,16 +234,16 @@ class EmbeddingService:
                 base_url = base_url[:base_url.index('/v1')]
             
             # Ajouter des logs de diagnostic pour l'API
-            logger.debug(f"Envoi de requête embedding à {base_url}/v1/embeddings")
-            logger.debug(f"Modèle d'embedding: {self.config.albert_model_embedding}")
+            logger.debug(f"Envoi de requête embedding à {self.config.embeddings_url}")
+            logger.debug(f"Modèle d'embedding: {self.config.effective_embeddings_model}")
             logger.debug(f"Dimension demandée: {self.embedding_dimension}")
             
             try:
                 response = await self.http_client.post(
-                    f"{base_url}/v1/embeddings",
+                    f"{self.config.embeddings_url}",
                     json={
                         "input": [text],
-                        "model": self.config.albert_model_embedding,
+                        "model": self.config.effective_embeddings_model,
                         "dimensions": self.embedding_dimension,
                         "encoding_format": "float"
                     }
@@ -253,8 +253,8 @@ class EmbeddingService:
                 if e.response.status_code == 403:
                     # Log détaillé pour le problème d'autorisation
                     logger.error(f"Erreur 403 Forbidden lors de l'appel à l'API d'embeddings")
-                    logger.error(f"URL: {base_url}/v1/embeddings")
-                    logger.error(f"Modèle demandé: {self.config.albert_model_embedding}")
+                    logger.error(f"URL: {self.config.embeddings_url}")
+                    logger.error(f"Modèle demandé: {self.config.effective_embeddings_model}")
                     logger.error(f"Vérifiez que votre token API est valide et actif")
                     
                     # Utiliser un modèle fallback ou embedding aléatoire
@@ -430,10 +430,10 @@ class EmbeddingService:
             # Envoi de la requête
             try:
                 response = await self.http_client.post(
-                    f"{base_url}/v1/embeddings",
+                    f"{self.config.embeddings_url}",
                     json={
                         "input": truncated_batch,
-                        "model": self.config.albert_model_embedding,
+                        "model": self.config.effective_embeddings_model,
                         "dimensions": self.embedding_dimension,
                         "encoding_format": "float"
                     }
@@ -443,8 +443,8 @@ class EmbeddingService:
                 # Si erreur 403 (Forbidden), utiliser des embeddings aléatoires
                 if e.response.status_code == 403:
                     logger.error(f"Erreur 403 Forbidden lors de l'appel API batch d'embeddings")
-                    logger.error(f"URL: {base_url}/v1/embeddings")
-                    logger.error(f"Modèle demandé: {self.config.albert_model_embedding}")
+                    logger.error(f"URL: {self.config.embeddings_url}")
+                    logger.error(f"Modèle demandé: {self.config.effective_embeddings_model}")
                     logger.error(f"Vérifiez que votre token API est valide et actif")
                     
                     # Générer des embeddings aléatoires pour tous les textes du batch
@@ -472,10 +472,10 @@ class EmbeddingService:
                         truncated_batch = [more_truncated]
                         # Réessayer avec le texte plus court
                         response = await self.http_client.post(
-                            f"{base_url}/v1/embeddings",
+                            f"{self.config.embeddings_url}",
                             json={
                                 "input": truncated_batch,
-                                "model": self.config.albert_model_embedding,
+                                "model": self.config.effective_embeddings_model,
                                 "dimensions": self.embedding_dimension,
                                 "encoding_format": "float"
                             }

@@ -192,16 +192,17 @@ async def _compute_embeddings(texts: List[str], config) -> List[List[float]]:
     except Exception:
         pass
 
-    # Fallback : appel direct à AlbertApiClient
+    # Fallback : appel direct à AlbertApiClient (endpoint embeddings configurable)
     from app.core_llm import AlbertApiClient
     aclient = AlbertApiClient(
         base_url=config.albert_api_url,
-        api_key=config.albert_api_token,
+        api_key=config.effective_embeddings_api_key,
+        api_base=config.embeddings_api_base,
     )
     try:
         return await aclient.get_embeddings(
             texts=texts,
-            model=config.albert_model_embedding,
+            model=config.effective_embeddings_model,
         )
     finally:
         await aclient.close()

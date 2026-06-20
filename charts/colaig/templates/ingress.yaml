@@ -1,0 +1,28 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "colaig.fullname" . }}
+  labels:
+    {{- include "colaig.labels" . | nindent 4 }}
+  annotations:
+    # Timeouts longs : la boucle agent (LLM + outils + WebDAV) peut dépasser
+    # le défaut nginx de 60s. Sans ces annotations → 504 Gateway Timeout.
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+spec:
+  ingressClassName: {{ .Values.ingress.ingressClassName }}
+  rules:
+    - host: {{ .Values.ingress.hostname }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "colaig.fullname" . }}
+                port:
+                  number: {{ .Values.service.port }}
+{{- end }}

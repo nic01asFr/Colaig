@@ -43,6 +43,16 @@ async def setup_and_run(host: str, port: int, log_level: str):
 
     config = get_config()
 
+    # SSPCloud : récupérer automatiquement la clé LLM de l'utilisateur depuis
+    # le Secret `*-secretassistant` du namespace (no-op hors cluster ou si une
+    # clé est déjà fournie). Exporte aussi LLM_API_KEY/LLM_BASE_URL dans l'env
+    # pour que les bots lancés en sous-process en héritent.
+    try:
+        from .sspcloud import bootstrap_llm_config
+        await bootstrap_llm_config(config)
+    except Exception as exc:
+        logging.warning(f"SSPCloud LLM bootstrap ignoré: {exc}")
+
     # Ensure session secret exists
     session_secret = config.platform_session_secret
     if not session_secret:

@@ -1,0 +1,133 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "colaig.fullname" . }}
+  labels:
+    {{- include "colaig.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  serviceName: {{ include "colaig.fullname" . }}
+  selector:
+    matchLabels:
+      {{- include "colaig.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "colaig.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "colaig.fullname" . }}
+      securityContext:
+        fsGroup: 100
+      {{- if .Values.persistence.enabled }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "colaig.fullname" . }}
+      {{- end }}
+      containers:
+        - name: colaig
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - >
+              mkdir -p /home/onyxia/work/colaig &&
+              exec python -m app.platform --host 0.0.0.0 --port {{ .Values.service.port }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: {{ include "colaig.fullname" . }}
+          env:
+            - name: KUBERNETES_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: ONYXIA_USER
+              value: {{ .Values.oidc.username | quote }}
+            # --- Logging ---
+            - name: LOGLEVEL
+              value: {{ .Values.logging.level | quote }}
+            - name: CONSOLE_LOGGING
+              value: "true"
+            - name: SYSTEMD_LOGGING
+              value: "false"
+            # --- Plateforme ---
+            - name: PLATFORM_DB_PATH
+              value: /home/onyxia/work/colaig/platform.db
+            - name: PLATFORM_OPERATOR_EMAILS
+              value: {{ .Values.platform.operatorEmails | quote }}
+            - name: SESSION_PATH
+              value: /home/onyxia/work/colaig/session.txt
+            # --- LLM (clé via Secret/auto-découverte ; base + modèle ici) ---
+            - name: LLM_BASE_URL
+              value: {{ .Values.llm.baseUrl | quote }}
+            - name: LLM_MODEL
+              value: {{ .Values.llm.model | quote }}
+            - name: EMBEDDINGS_BASE_URL
+              value: {{ .Values.embeddings.baseUrl | quote }}
+            - name: EMBEDDINGS_MODEL
+              value: {{ .Values.embeddings.model | quote }}
+            # --- Albert (fallback optionnel) ---
+            - name: ALBERT_API_URL
+              value: {{ .Values.albert.apiUrl | quote }}
+            # --- Matrix / Tchap ---
+            - name: MATRIX_HOME_SERVER
+              value: {{ .Values.matrix.homeServer | quote }}
+            - name: MATRIX_BOT_USERNAME
+              value: {{ .Values.matrix.botUsername | quote }}
+            - name: MATRIX_BOT_DISPLAY_NAME
+              value: {{ .Values.matrix.displayName | quote }}
+            - name: JOIN_ON_INVITE
+              value: {{ .Values.matrix.joinOnInvite | quote }}
+            # --- WebDAV ---
+            - name: WEBDAV_URL
+              value: {{ .Values.webdav.url | quote }}
+            - name: WEBDAV_ROOT_PATH
+              value: {{ .Values.webdav.rootPath | quote }}
+            - name: DEFAULT_WORKSPACE
+              value: {{ .Values.webdav.defaultWorkspace | quote }}
+            # --- ProConnect ---
+            - name: PROCONNECT_ENABLED
+              value: {{ .Values.proconnect.enabled | quote }}
+            - name: PROCONNECT_ISSUER
+              value: {{ .Values.proconnect.issuer | quote }}
+            - name: PROCONNECT_CLIENT_ID
+              value: {{ .Values.proconnect.clientId | quote }}
+            - name: PROCONNECT_REDIRECT_URI
+              value: {{ .Values.proconnect.redirectUri | quote }}
+            {{- if .Values.s3.enabled }}
+            # --- S3 / MinIO (injecté par Onyxia) ---
+            - name: AWS_ACCESS_KEY_ID
+              value: {{ .Values.s3.accessKeyId | quote }}
+            - name: AWS_SECRET_ACCESS_KEY
+              value: {{ .Values.s3.secretAccessKey | quote }}
+            - name: AWS_SESSION_TOKEN
+              value: {{ .Values.s3.sessionToken | quote }}
+            - name: AWS_DEFAULT_REGION
+              value: {{ .Values.s3.defaultRegion | quote }}
+            - name: AWS_S3_ENDPOINT
+              value: {{ .Values.s3.endpoint | quote }}
+            {{- end }}
+          {{- if .Values.persistence.enabled }}
+          volumeMounts:
+            - name: data
+              mountPath: /home/onyxia/work
+          {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            failureThreshold: 60
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

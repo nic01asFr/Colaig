@@ -1,0 +1,110 @@
+image:
+  repository: ghcr.io/nic01asfr/colaig-platform
+  tag: latest
+  pullPolicy: Always
+
+service:
+  port: 8080
+
+ingress:
+  enabled: true
+  # Onyxia injecte le hostname automatiquement
+  hostname: ""
+  ingressClassName: onyxia
+
+persistence:
+  enabled: true
+  size: 5Gi
+
+kubernetes:
+  # `edit` est requis : la plateforme lit le Secret `*-secretassistant` du
+  # namespace pour récupérer automatiquement la clé LLM de l'utilisateur.
+  role: edit
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 1Gi
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+
+# === LLM (inférence) ===
+# La clé d'API est récupérée AUTOMATIQUEMENT depuis le compte SSPCloud de
+# l'utilisateur (Mon compte → AI Assistant → Secret `*-secretassistant`).
+# On ne configure ici que la base URL et le modèle.
+llm:
+  # Endpoint OpenAI-compatible. Open WebUI SSPCloud : /api (ou /openai, /ollama/v1)
+  baseUrl: "https://llm.lab.sspcloud.fr/api"
+  model: "qwen3-6-35b-moe"
+  # Clé d'API explicite (laisser vide pour auto-découverte SSPCloud)
+  apiKey: ""
+
+# Embeddings : par défaut sur le même endpoint que le chat. Renseigner un
+# fournisseur dédié (ex: Albert) si l'endpoint LLM ne sert pas d'embeddings.
+embeddings:
+  baseUrl: ""
+  model: "BAAI/bge-m3"
+  apiKey: ""
+
+# === Albert (optionnel — fallback si on n'utilise pas le LLM SSPCloud) ===
+albert:
+  apiUrl: "https://albert.api.etalab.gouv.fr/v1"
+  apiToken: ""
+
+# === Matrix / Tchap ===
+matrix:
+  homeServer: "https://matrix.agent.tchap.gouv.fr"
+  botUsername: ""
+  botPassword: ""
+  accessToken: ""
+  displayName: "COLAIG - Assistant Tchap"
+  joinOnInvite: true
+
+# === WebDAV (stockage documentaire BigFolder, externe) ===
+webdav:
+  url: ""
+  username: ""
+  password: ""
+  rootPath: "/documents"
+  # Workspace par défaut (dossier de 1er niveau). Vide + rootPath non vide =
+  # le rootPath est le workspace.
+  defaultWorkspace: ""
+
+# === Plateforme (UI admin multi-instances) ===
+platform:
+  # Laisser vide pour générer un secret aléatoire au démarrage (sessions non
+  # persistantes entre redémarrages).
+  sessionSecret: ""
+  adminPassword: ""
+  operatorEmails: ""
+
+# === ProConnect (OIDC) — désactivé par défaut sur SSPCloud ===
+proconnect:
+  enabled: false
+  clientId: ""
+  clientSecret: ""
+  redirectUri: ""
+  issuer: "https://auth.proconnect.gouv.fr/api/v2"
+
+# === Onyxia : valeurs injectées automatiquement ===
+oidc:
+  username: ""
+
+s3:
+  enabled: true
+  endpoint: minio.lab.sspcloud.fr
+  defaultRegion: us-east-1
+  accessKeyId: ""
+  secretAccessKey: ""
+  sessionToken: ""
+
+logging:
+  level: "INFO"
+
+global:
+  suspend: false
+
+message:
+  fr: "**NB:** ce service peut être supprimé après plusieurs jours d'inactivité (datalab)."
+  en: "**Warning:** this service may be deleted after several days of inactivity (datalab)."
