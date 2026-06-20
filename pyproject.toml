@@ -47,12 +47,19 @@ build-backend = "setuptools.build_meta"
 packages = ["app", "app.platform"]
 package-dir = {""="."}
 
+# Tests
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
 # Linter
 
 [tool.ruff]
 line-length = 100
 src = ["app"]
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 known-third-party = ["nio", "matrix_bot"]
 

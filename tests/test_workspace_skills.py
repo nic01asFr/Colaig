@@ -66,8 +66,13 @@ Body
 
 
 def _make_webdav_mock(file_contents: dict, dir_listings: dict = None):
-    """Mock WebDAVService avec exists, download_file, list_documents."""
-    svc = MagicMock()
+    """Mock WebDAVService avec exists, download_file, list_directory.
+
+    `spec` restreint les attributs au strict nécessaire : sans cela, MagicMock
+    auto-crée `list_directory` (méthode primaire du loader) et le `await` dessus
+    échoue silencieusement, masquant le vrai chemin de code.
+    """
+    svc = MagicMock(spec=["exists", "download_file", "list_directory"])
 
     async def fake_exists(path):
         return path in file_contents
@@ -83,7 +88,7 @@ def _make_webdav_mock(file_contents: dict, dir_listings: dict = None):
 
     svc.exists = fake_exists
     svc.download_file = fake_download
-    svc.list_documents = fake_list
+    svc.list_directory = fake_list
     return svc
 
 
@@ -233,8 +238,8 @@ async def test_skills_cache_mtime():
     async def fake_download(path):
         return SKILL_OPAH.encode("utf-8")
 
-    svc = MagicMock()
-    svc.list_documents = fake_list
+    svc = MagicMock(spec=["list_directory", "download_file"])
+    svc.list_directory = fake_list
     svc.download_file = fake_download
 
     # 1er appel

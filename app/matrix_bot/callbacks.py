@@ -50,7 +50,7 @@ def properly_fail(client):
                     # Journaliser l'erreur complète pour le débogage
                     tb = traceback.format_exc()
                     logger.error(f"Détails de l'erreur: \n{tb}")
-                    
+
                     # Si possible, informer le salon qu'une erreur s'est produite
                     if hasattr(room, 'room_id'):
                         try:
@@ -162,7 +162,7 @@ class Callbacks:
                 # Continuer malgré l'erreur
             
             # MÉCANISME ANTI-BLOCAGE: Utiliser asyncio.wait_for avec timeout
-            COMMAND_TIMEOUT = 60.0  # Timeout de 60 secondes pour toutes les commandes
+            COMMAND_TIMEOUT = 180.0  # Timeout de 180 secondes (agent loop + WebDAV + LLM)
             
             cmd_name = feature.get('name', 'unknown')
             

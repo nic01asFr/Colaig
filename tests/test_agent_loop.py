@@ -1,16 +1,19 @@
 """
 Test unitaire de la boucle agent Colaig.
 
-Simule des réponses LLM via generate_fn injectable pour vérifier :
+La boucle utilise désormais le function-calling natif (OpenAI tool_use) via
+`LLMTransport`, qui délègue à `app.core_llm.generate_with_tools`. On simule donc
+les réponses LLM en monkeypatchant `generate_with_tools` pour vérifier :
 - Réponse directe (sans outil)
 - Appel d'un outil -> résultat -> réponse
-- Multi-tour (outil inconnu -> fallback)
-- Limite de tours
+- Multi-tour (limite de tours)
+- Outil inconnu -> message d'erreur sans crash
 """
-import asyncio
-from app.agent.parser import parse_tool_calls, ToolCall
+import app.core_llm as core_llm
+from app.agent.parser import parse_tool_calls
 from app.agent.tools import ToolDef, ToolRegistry
 from app.agent.loop import agent_loop
+from app.agent.result import AgentResult
 from app.agent.prompt import build_system_prompt
 
 
@@ -49,7 +52,8 @@ def test_parse_invalid_json():
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 def _make_registry():
-    async def mock_search(query: str, **ctx):
+    async def mock_search(args, ctx):
+        query = args.get("query", "")
         return f"Résultat pour '{query}': Document A, Document B."
 
     reg = ToolRegistry()
@@ -62,14 +66,36 @@ def _make_registry():
     return reg
 
 
+def _llm(content="", tool_calls=None):
+    """Construit une réponse au format `generate_with_tools`."""
+    return {"content": content, "tool_calls": tool_calls or []}
+
+
+def _patch_generate(monkeypatch, responses):
+    """Monkeypatch `generate_with_tools` pour renvoyer `responses` à la suite.
+
+    Retourne un dict mutable exposant le compteur d'appels et les messages
+    du dernier appel, pour les assertions.
+    """
+    state = {"count": 0, "last_messages": None}
+
+    async def fake_generate_with_tools(config, messages, tools=None):
+        state["last_messages"] = messages
+        idx = min(state["count"], len(responses) - 1)
+        state["count"] += 1
+        resp = responses[idx]
+        return resp(messages) if callable(resp) else resp
+
+    monkeypatch.setattr(core_llm, "generate_with_tools", fake_generate_with_tools)
+    return state
+
+
 # ─── Tests de la boucle agent ────────────────────────────────────────────────
 
-async def test_direct_response():
+async def test_direct_response(monkeypatch):
     """Le LLM répond directement sans appeler d'outil."""
     registry = _make_registry()
-
-    async def mock_gen(config, messages):
-        return "Voici ma réponse directe."
+    _patch_generate(monkeypatch, [_llm(content="Voici ma réponse directe.")])
 
     result = await agent_loop(
         message="Bonjour",
@@ -77,25 +103,24 @@ async def test_direct_response():
         system_prompt="Tu es Colaig.",
         registry=registry,
         config=None,
-        generate_fn=mock_gen,
     )
-    assert result == "Voici ma réponse directe."
+    assert isinstance(result, AgentResult)
+    assert result.text == "Voici ma réponse directe."
 
 
-async def test_one_tool_call():
+async def test_one_tool_call(monkeypatch):
     """Le LLM appelle un outil, puis répond avec le résultat."""
     registry = _make_registry()
-    call_count = 0
 
-    async def mock_gen(config, messages):
-        nonlocal call_count
-        call_count += 1
-        if call_count == 1:
-            return '<tool_call>{"name": "search_documents", "arguments": {"query": "recrutement"}}</tool_call>'
-        else:
-            last_msg = messages[-1]["content"]
-            assert "Résultat pour" in last_msg
-            return "Selon les documents, le recrutement fonctionne ainsi..."
+    def second_turn(messages):
+        # Le résultat de l'outil doit être présent dans l'historique
+        assert any("Résultat pour" in (m.get("content") or "") for m in messages)
+        return _llm(content="Selon les documents, le recrutement fonctionne ainsi...")
+
+    state = _patch_generate(monkeypatch, [
+        _llm(tool_calls=[{"name": "search_documents", "arguments": {"query": "recrutement"}}]),
+        second_turn,
+    ])
 
     result = await agent_loop(
         message="procédures de recrutement ?",
@@ -103,23 +128,22 @@ async def test_one_tool_call():
         system_prompt="Tu es Colaig.",
         registry=registry,
         config=None,
-        generate_fn=mock_gen,
     )
-    assert "recrutement" in result
-    assert call_count == 2
+    assert "recrutement" in result.text
+    assert state["count"] == 2
 
 
-async def test_max_turns_reached():
-    """La boucle s'arrête après max_turns."""
+async def test_max_turns_reached(monkeypatch):
+    """La boucle s'arrête après max_turns et force une réponse finale."""
     registry = _make_registry()
-    call_count = 0
 
-    async def mock_gen(config, messages):
-        nonlocal call_count
-        call_count += 1
-        if call_count <= 3:
-            return '<tool_call>{"name": "search_documents", "arguments": {"query": "boucle"}}</tool_call>'
-        return "Réponse forcée après limite."
+    # Toujours rappeler un outil : la boucle doit finir par forcer une réponse.
+    _patch_generate(monkeypatch, [
+        _llm(tool_calls=[{"name": "search_documents", "arguments": {"query": "boucle"}}]),
+        _llm(tool_calls=[{"name": "search_documents", "arguments": {"query": "boucle"}}]),
+        _llm(tool_calls=[{"name": "search_documents", "arguments": {"query": "boucle"}}]),
+        _llm(content="Réponse forcée après limite."),
+    ])
 
     result = await agent_loop(
         message="test boucle",
@@ -127,23 +151,24 @@ async def test_max_turns_reached():
         system_prompt="Tu es Colaig.",
         registry=registry,
         config=None,
-        generate_fn=mock_gen,
         max_turns=3,
     )
-    assert "Réponse forcée" in result
+    assert "Réponse forcée" in result.text
 
 
-async def test_unknown_tool():
+async def test_unknown_tool(monkeypatch):
     """Un outil inconnu retourne un message d'erreur sans crasher."""
     registry = _make_registry()
-    call_count = 0
 
-    async def mock_gen(config, messages):
-        nonlocal call_count
-        call_count += 1
-        if call_count == 1:
-            return '<tool_call>{"name": "outil_inexistant", "arguments": {}}</tool_call>'
-        return "Je n'ai pas pu utiliser cet outil."
+    def second_turn(messages):
+        # Le message d'erreur "Outil inconnu" doit être remonté au LLM
+        assert any("inconnu" in (m.get("content") or "").lower() for m in messages)
+        return _llm(content="Je n'ai pas pu utiliser cet outil.")
+
+    state = _patch_generate(monkeypatch, [
+        _llm(tool_calls=[{"name": "outil_inexistant", "arguments": {}}]),
+        second_turn,
+    ])
 
     result = await agent_loop(
         message="test",
@@ -151,9 +176,9 @@ async def test_unknown_tool():
         system_prompt="Tu es Colaig.",
         registry=registry,
         config=None,
-        generate_fn=mock_gen,
     )
-    assert call_count == 2
+    assert state["count"] == 2
+    assert "cet outil" in result.text
 
 
 # ─── Tests du prompt ─────────────────────────────────────────────────────────
@@ -163,7 +188,9 @@ def test_system_prompt_contains_tools():
     prompt = build_system_prompt(registry)
     assert "Colaig" in prompt
     assert "search_documents" in prompt
-    assert "tool_call" in prompt
+    # Le function-calling est natif : le prompt décrit les outils sans balise
+    # textuelle, mais doit bien mentionner la notion d'outil.
+    assert "outil" in prompt.lower()
 
 
 def test_system_prompt_with_workspace():
@@ -188,14 +215,4 @@ if __name__ == "__main__":
     test_system_prompt_contains_tools()
     test_system_prompt_with_workspace()
     print("Tests synchrones OK")
-
-    asyncio.run(test_direct_response())
-    print("test_direct_response OK")
-    asyncio.run(test_one_tool_call())
-    print("test_one_tool_call OK")
-    asyncio.run(test_max_turns_reached())
-    print("test_max_turns_reached OK")
-    asyncio.run(test_unknown_tool())
-    print("test_unknown_tool OK")
-
-    print("\nTous les tests agent passent.")
+    print("Lancez `pytest tests/test_agent_loop.py` pour les tests async.")

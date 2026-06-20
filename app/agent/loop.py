@@ -51,7 +51,7 @@ async def agent_loop(
     max_turns: int = DEFAULT_MAX_TURNS,
     on_tool_start: Optional[Any] = None,
     on_tool_end: Optional[Any] = None,
-) -> str:
+) -> AgentResult:
     """Boucle agent principale.
 
     Args:
@@ -66,7 +66,8 @@ async def agent_loop(
         on_tool_end: async callback(tool_name, result_preview) appelé après.
 
     Returns:
-        Réponse textuelle finale du LLM.
+        AgentResult — réponse finale du LLM (`.text`) enrichie des traces
+        d'outils et des sources collectées pendant la boucle.
     """
     # Charger max_turns depuis le YAML si valeur par défaut
     if max_turns == DEFAULT_MAX_TURNS:
@@ -117,8 +118,8 @@ async def agent_loop(
 
             if call_key in executed_in_turn:
                 tool_result = (
-                    f"⚠️ Cet outil a déjà été appelé avec ces mêmes arguments "
-                    f"dans ce tour. Ne le rappelle pas — utilise le résultat précédent."
+                    "⚠️ Cet outil a déjà été appelé avec ces mêmes arguments "
+                    "dans ce tour. Ne le rappelle pas — utilise le résultat précédent."
                 )
                 logger.info(f"[AGENT] Dédup intra-tour: {tc.name}")
             else:

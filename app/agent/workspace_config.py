@@ -41,7 +41,7 @@ from app.matrix_bot.config import logger
 WORKSPACE_CONFIG_PATH = ".albert/config/workspace.yaml"
 
 # TTL minimal entre deux re-vérifications WebDAV (anti-spam PROPFIND)
-_REFRESH_INTERVAL_SECONDS = 30.0
+_REFRESH_INTERVAL_SECONDS = 300.0  # 5 min — workspace.yaml change rarement
 
 
 @dataclass

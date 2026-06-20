@@ -44,8 +44,10 @@ from app.matrix_bot.config import logger
 
 SKILLS_SUBDIR = ".albert/skills"
 
-# TTL minimal entre deux re-listings WebDAV (anti-spam PROPFIND)
-_REFRESH_INTERVAL_SECONDS = 30.0
+# TTL minimal entre deux re-listings WebDAV.
+# Les skills changent rarement — 5 min est suffisant.
+# Un !skills reload ou invalidate_skills_cache() force le rechargement.
+_REFRESH_INTERVAL_SECONDS = 300.0
 
 
 @dataclass
@@ -163,6 +165,7 @@ class _SkillsCacheEntry:
     last_check_ts: float
     skills: List[Skill]
     files_etags: Dict[str, str]  # file path → etag
+    dir_listing: Set[str] = field(default_factory=set)  # paths from last listing
 
 
 _cache: Dict[str, _SkillsCacheEntry] = {}
@@ -203,13 +206,25 @@ async def load_workspace_skills(
         files = []
 
     if not files:
-        # Pas de skills : mémoriser pour ne pas re-checker à chaque message
         _cache[workspace_root] = _SkillsCacheEntry(
-            last_check_ts=now, skills=[], files_etags={},
+            last_check_ts=now, skills=[], files_etags={}, dir_listing=set(),
         )
         return []
 
-    # Charger / recharger chaque fichier
+    file_set = set(files)
+
+    # Si le listing du dossier n'a pas changé, réutiliser le cache
+    # sans re-télécharger les fichiers (0 GET WebDAV).
+    if entry and entry.dir_listing == file_set and entry.skills:
+        _cache[workspace_root] = _SkillsCacheEntry(
+            last_check_ts=now,
+            skills=entry.skills,
+            files_etags=entry.files_etags,
+            dir_listing=file_set,
+        )
+        return entry.skills
+
+    # Le listing a changé (ou premier chargement) → télécharger les fichiers
     skills: List[Skill] = []
     new_etags: Dict[str, str] = {}
     old_etags = entry.files_etags if entry else {}
@@ -243,6 +258,7 @@ async def load_workspace_skills(
 
     _cache[workspace_root] = _SkillsCacheEntry(
         last_check_ts=now, skills=skills, files_etags=new_etags,
+        dir_listing=file_set,
     )
 
     if skills:

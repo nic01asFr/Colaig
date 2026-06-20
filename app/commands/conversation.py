@@ -82,6 +82,7 @@ async def handle_conversation(ep: EventParser, matrix_client: MatrixClient):
             # Vérifier si nous sommes au début d'une nouvelle synchronisation
             # (ceci est une heuristique basée sur le fait que l'état de synchronisation est réinitialisé)
             # Nous pouvons vérifier si le thread de commande est actif maintenant
+            from app.commands.registry import is_in_active_command_thread
             is_in_thread, _ = await is_in_active_command_thread(room_id, sender, config)
             
             # Si la commande est terminée (thread inactif) mais que le message a déjà été traité,
@@ -135,11 +136,11 @@ async def handle_conversation(ep: EventParser, matrix_client: MatrixClient):
             logger.warning(f"Erreur mise à jour activité salon: {str(e)}")
         
         # Récupérer le BehaviorManager spécifique au contexte
+        # NOTE: On ne charge PAS les behaviors ici (ensure_behaviors_loaded)
+        # car _orchestrate_response utilise l'agent loop avec workspace_config/skills
+        # et n'a pas besoin du behavior_index (qui fait ~40 requêtes WebDAV).
         from app.commands import get_behavior_manager_for_context
         behavior_manager = await get_behavior_manager_for_context(config, room_id=room_id, user_id=sender)
-        
-        # S'assurer que les comportements sont chargés (important en mode lazy loading)
-        await behavior_manager.ensure_behaviors_loaded()
         
         # Récupérer l'historique de conversation
         history = session_context.history
@@ -166,14 +167,21 @@ async def handle_conversation(ep: EventParser, matrix_client: MatrixClient):
         # Construire la liste des messages pour préserver le contexte de la conversation
         messages = []
         
-        # MODIFICATION: Augmenter la limite de messages d'historique de 10 à 20
-        history = session_context.history[-20:] if session_context.history else []
-        
+        # Historique récent : 6 derniers messages (3 échanges user/assistant).
+        # Les réponses assistant sont tronquées pour éviter que le LLM ne
+        # les recopie dans sa prochaine réponse.
+        history = session_context.history[-6:] if session_context.history else []
+
         for msg in history:
             if "role" in msg and "content" in msg:
+                content = msg["content"]
+                # Tronquer les longues réponses assistant pour économiser le contexte
+                # et éviter la re-citation par le LLM
+                if msg["role"] == "assistant" and len(content) > 300:
+                    content = content[:300] + "…"
                 messages.append({
                     "role": msg["role"],
-                    "content": msg["content"]
+                    "content": content,
                 })
         
         # Si aucun message d'historique n'a été ajouté, ajouter un message système
@@ -352,7 +360,7 @@ async def _orchestrate_response(
     else:
         workspace_root = ""
 
-    has_doc_index = bool(workspace_root)
+    has_doc_index = workspace_root is not None
     logger.info(
         f"[AGENT] workspace_root={workspace_root!r} has_doc_index={has_doc_index}"
     )
@@ -369,8 +377,6 @@ async def _orchestrate_response(
         logger.warning(f"[AGENT] WebDAV indisponible pour ce contexte: {e}")
 
     # ── Charger la config workspace (workspace.yaml) ──
-    import sys as _sys
-    print(f"[AGENT-DEBUG] webdav_svc={webdav_svc is not None} workspace_root={workspace_root!r}", flush=True, file=_sys.stderr)
     from app.agent.workspace_config import load_workspace_config, WorkspaceConfig
     ws_config = WorkspaceConfig.empty()
     if webdav_svc is not None and workspace_root is not None:
@@ -491,6 +497,14 @@ async def _orchestrate_response(
         logger.info(
             f"[AGENT] Filtrage outils: {len(all_tool_names)} → {len(kept_names)} (kw)"
         )
+
+    # Phase 2b : réinjecter les outils always_included du noyau
+    # (le filtrage sémantique top_k peut les avoir retirés)
+    from app.agent.tool_filter import _get_always_included
+    _always = _get_always_included()
+    for tool in _always:
+        if tool in set(all_tool_names):
+            kept_names.add(tool)
 
     # Phase 3 : forcer la présence des prefers_tools des skills actives
     if skills_preferred_tools:

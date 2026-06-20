@@ -481,9 +481,9 @@ class MatrixClient(AsyncClient):
             The event id of the message acting as a thread root for the message.
         """
         message = preprocess_markdown(message)
-        message = markdown.markdown(message, extensions=["fenced_code", "nl2br"])
+        message = markdown.markdown(message, extensions=["fenced_code"])
         message = fix_html_lists(message)
-        
+
         if bot_lib_config.message_prefix:
             message = bot_lib_config.message_prefix + "\n\n" + message
 

@@ -174,8 +174,11 @@ les champs importants, n'invente rien, cite les valeurs telles quelles.
 
 - **Salutations et conversations** : si l'utilisateur dit bonjour, te demande
   comment tu vas, ou pose une question simple sur tes capacités, **réponds
-  directement sans appeler d'outils**. Les outils ne servent que pour les
-  vraies questions métier (recherche de données, documents, etc.).
+  directement sans appeler d'outils**.
+- **Questions métier / techniques** : pour toute question portant sur un sujet
+  technique, réglementaire, ou professionnel, **appelle toujours `search_documents`
+  en premier** pour vérifier si l'espace documentaire contient des informations
+  pertinentes. Ne te fie pas uniquement à tes connaissances générales.
 - Si un outil retourne une erreur, essaie une approche différente plutôt que
   de répéter le même appel à l'identique.
 
@@ -185,7 +188,10 @@ L'utilisateur lit dans une messagerie (Tchap). Adapte ton format :
 
 - **Structure** : contexte → réponse → recommandation (si applicable)
 - **Titres** : utilise ### (pas ## qui est trop gros)
-- **Listes** : à puces pour les énumérations, numérotées pour les étapes
+- **Listes** : à puces pour les énumérations, numérotées pour les étapes.
+  Format strict : `1. Texte complet sur la même ligne`. Ne jamais écrire un
+  numéro seul sur une ligne (`3.` sans texte). Le contenu de chaque item doit
+  être sur la même ligne que son numéro.
 - **Tableaux** : pour les comparaisons, dimensions, paramètres techniques
 - **Gras** : pour les valeurs clés (cotes, normes, articles de loi, codes panneaux)
 - **Concision** : 3-15 lignes selon la complexité, pas de remplissage
@@ -248,7 +254,8 @@ async def gather_behaviors_summary(behavior_manager) -> str:
         return ""
 
     try:
-        await behavior_manager.ensure_behaviors_loaded()
+        # Ne pas appeler ensure_behaviors_loaded() — trop lent (~40 requêtes WebDAV).
+        # Les skills déclaratives remplacent les behaviors dans l'agent loop.
         behaviors = getattr(behavior_manager, "_behaviors", {})
         if not behaviors:
             return ""
