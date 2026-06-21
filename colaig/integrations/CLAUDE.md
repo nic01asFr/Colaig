@@ -76,3 +76,9 @@ Format API OpenAI-compatible :
 - Header : `Authorization: Bearer {api_key}`
 - Streaming : `"stream": true` → SSE, parser ligne par ligne
 - Batch embeddings : découper en lots de 32, respecter rate limits
+
+## Ajouts
+
+- `s3.py` : `session_token` (credentials STS temporaires — SSP Cloud/MinIO).
+- `albert.py` : `ping()` (GET /v1/models, readiness sans tokens) ; capture du bloc
+  `usage` (chat/embed) vers un `UsageTracker` (param `usage_tracker` + `client_id`).

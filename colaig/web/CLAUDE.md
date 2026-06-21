@@ -70,3 +70,17 @@ def create_app(
 - `ProvisionMessagingConfig` — backend + homeserver/username/password/bot_token/webhook_url
 - `ProvisionLLMConfig` — backend + api_url/api_key/model_chat/model_embed/azure_*
 - `ProvisionMCPAuthConfig` — mode, oidc_issuer, oidc_audience, oidc_jwks_uri
+
+## Ops & probes (ajout)
+
+```
+GET /live                → liveness (process up)
+GET /ready               → readiness : teste storage.exists + llm.ping() → 503 si KO
+GET /metrics             → JSON (workspaces, uptime, llm_usage par tenant)
+GET /metrics/prometheus  → format texte Prometheus (usage LLM par client)
+```
+
+- Middleware `request_id` : lit `x-request-id` / `traceparent` (W3C) ou génère un uuid,
+  bind via `structlog.contextvars`, renvoyé en header. Ajouté après SessionMiddleware.
+- `create_app(..., llm_client=, usage_tracker=)` : `llm_client` pour la probe /ready
+  (AlbertClient.ping), `usage_tracker` (UsageTracker) pour /metrics.

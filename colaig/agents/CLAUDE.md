@@ -334,3 +334,16 @@ handler = MessageHandler(
 - **Backward compat** : Phase 1 / Phase 2 sans Phase 5 fonctionnent sans modification
 - **Tool calling** : Albert API (gpt-oss-120b, Mistral) supporte nativement le format OpenAI `tools`
 - **Mémoire sémantique** : dégradation gracieuse si pas d'embedding service → last-N classique
+
+## Administration réflexive (tools/admin_tools.py)
+
+L'orchestrateur agentique injecte des méta-outils si le contexte l'autorise
+(`WorkspaceACL.can_manage(context, admin_user_ids, workspaces)` — DM admin/owner) :
+`manage_workspace` (create/update), `link_conversation`, `set_workspace_prompt`,
+`list_manageable_workspaces`, et `manage_workspace_owners` (admin global only).
+
+- Garde fine par cible : `WorkspaceACL.can_manage_workspace(user_id, ws, admin_user_ids)`.
+- `Orchestrator(admin_user_ids=...)` ; injection miroir de `ask_workspace`.
+- Owners : `WorkspaceConfig.owners` (créateur = owner) ; modifiables seulement via
+  `manage_workspace_owners` / `set_workspace_owners` (hors `_UPDATABLE` — anti-escalade).
+Détails : docs/REFLEXIF_ET_OPS.md.

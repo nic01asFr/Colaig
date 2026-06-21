@@ -379,3 +379,10 @@ Persisté dans `/.colaig/federation/workspaces.faiss` + `.pkl` (via `ColaigIndex
 
 ## generator.py (Agent CERVEAU)
 Construit le prompt avec system_prompt + documents RAG + historique, appelle Albert, formate la réponse avec sources.
+
+## specializer.py — Auto-spécialisation (opt-in)
+
+`WorkspaceSpecializer` dérive domaine/vocabulaire/ton/expertise/system_prompt depuis
+un échantillon du corpus indexé (LLM léger). Hook post-indexation dans main.py si
+`COLAIG_AUTO_SPECIALIZE_ENABLED`. Dry-run par défaut (écrit `workspace_knowledge.json`) ;
+écrit la config si `COLAIG_AUTO_SPECIALIZE_APPLY` et n'écrase jamais un prompt manuel.

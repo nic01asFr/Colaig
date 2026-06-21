@@ -71,6 +71,12 @@ Aucun PostgreSQL / Redis / Qdrant comme dependance de Colaig. **Un seul containe
 - **Memoire** : conversationnelle semantique + memoire par utilisateur.
 - **Taches autonomes** planifiees (Mode C), notifications proactives, delegation inter-workspaces, federation.
 - **Auth** : token auto-localisant ou OIDC (RS256/ES256) ; provisioning multi-client + PlatformPolicy.
+- **Administration reflexive** : en DM admin, l'agent cree/configure des workspaces et lie des salons en conversation ; droits scopes par owner de workspace.
+- **Ops** : probes `/ready` + `/live`, request_id/W3C trace, suivi d'usage LLM par tenant (`/metrics` + `/metrics/prometheus`).
+- **Securite** : delimitation anti-injection des documents, audit des citations (anti-hallucination), masquage des secrets en reponse.
+- **Auto-specialisation** (opt-in) : derive persona/vocabulaire d'un workspace depuis son corpus.
+
+Details : [docs/REFLEXIF_ET_OPS.md](docs/REFLEXIF_ET_OPS.md).
 
 ## Stack
 
@@ -113,6 +119,7 @@ ruff check colaig
 ## Documentation
 
 - [docs/GUIDE_UTILISATEUR.md](docs/GUIDE_UTILISATEUR.md) — guide utilisateur (workspaces, modes, usage)
+- [docs/REFLEXIF_ET_OPS.md](docs/REFLEXIF_ET_OPS.md) — admin réflexive, ops/observabilité, sécurité, auto-spé
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — architecture de reference
 - [docs/STORAGE_ABSTRACTION.md](docs/STORAGE_ABSTRACTION.md) — StorageProtocol + MessagingProtocol
 - [CLAUDE.md](CLAUDE.md) — principes, stack, conventions

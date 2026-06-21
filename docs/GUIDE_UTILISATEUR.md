@@ -104,3 +104,18 @@ Les fichiers images, videos et archives ne sont pas traites comme documents.
   provisioning via `POST /api/platform/provision` (voir [docs/ARCHITECTURE.md](ARCHITECTURE.md)).
 - **Securite** : definir `COLAIG_PLATFORM_API_KEY` en production (protege le
   dashboard et les routes plateforme).
+
+## Administration en conversation (DM admin)
+
+Si votre `user_id` figure dans `COLAIG_ADMIN_USER_IDS` (ou que vous êtes owner d'un
+workspace), Colaig peut **administrer en conversation** depuis un message direct :
+
+- « Crée un espace RH au chemin /espace-rh/, ton formel » → crée le workspace
+  (vous en devenez owner).
+- « Lie ce salon au workspace espace-rh » → rattache une conversation.
+- « Définis le prompt de espace-rh : tu es un assistant RH… » → configure l'agent.
+- « Liste mes espaces » → workspaces que vous pouvez administrer.
+
+La gestion des owners (`manage_workspace_owners`) est réservée aux **admins globaux**.
+Dans un salon métier (mode Assistant) ou pour un utilisateur final, ces capacités
+sont masquées. Détails : [REFLEXIF_ET_OPS.md](REFLEXIF_ET_OPS.md).

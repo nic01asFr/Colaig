@@ -262,7 +262,25 @@ COLAIG_ORCHESTRATOR_TEMPERATURE=0.1      # Température LLM de l'Orchestrateur a
 COLAIG_CONVERSATION_MEMORY_MAX_STORED=100    # Max messages stockés par conversation
 COLAIG_CONVERSATION_MEMORY_MAX_RETRIEVED=10  # Max messages récupérés par requête sémantique
 COLAIG_ANALYSER_USE_TOOL_CALLING=false   # Activer mode tool calling structuré pour l'Analyseur
+
+# === Administration réflexive + droits (owners) ===
+COLAIG_ADMIN_USER_IDS=@alice:tchap.fr,@ops:agent.gouv.fr  # admins globaux (config en DM)
+# owners par workspace : champ owners: dans .colaig/config.yaml (créateur = owner)
+
+# === Ops / Observabilité ===
+# /live, /ready (teste storage+LLM, 503 si KO), /metrics (JSON), /metrics/prometheus
+# request_id : middleware (x-request-id / traceparent W3C) → structlog.contextvars
+
+# === Robustesse / Backends ===
+S3_SESSION_TOKEN=                          # credentials STS temporaires (SSP Cloud/MinIO)
+COLAIG_LOCAL_EMBEDDINGS=false              # fallback embeddings local (SentenceTransformer)
+
+# === Auto-spécialisation (opt-in) ===
+COLAIG_AUTO_SPECIALIZE_ENABLED=false       # dérive persona/vocabulaire du corpus (dry-run)
+COLAIG_AUTO_SPECIALIZE_APPLY=false         # écrit la config dérivée (sinon knowledge.json seul)
 ```
+
+Voir aussi `docs/REFLEXIF_ET_OPS.md` (admin réflexive, ops, sécurité, auto-spé).
 
 ## Commandes
 
