@@ -57,8 +57,12 @@ spec:
             # --- Plateforme ---
             - name: PLATFORM_DB_PATH
               value: /home/onyxia/work/colaig/platform.db
+            {{- if .Values.platform.operatorEmails }}
+            # Doit être une liste JSON (ex: ["a@x.gouv.fr"]) — pydantic-settings
+            # json-parse ce champ au niveau source.
             - name: PLATFORM_OPERATOR_EMAILS
               value: {{ .Values.platform.operatorEmails | quote }}
+            {{- end }}
             - name: SESSION_PATH
               value: /home/onyxia/work/colaig/session.txt
             # --- LLM (clé via Secret/auto-découverte ; base + modèle ici) ---

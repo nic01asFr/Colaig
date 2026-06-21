@@ -50,6 +50,12 @@ class Config(BaseSettings):
         extra="ignore",
         case_sensitive=False,
         env_nested_delimiter="__",
+        # Ne PAS json-parser automatiquement les champs liste/dict au niveau
+        # source : les validateurs `_parse_list` (mode before) gèrent JSON ET
+        # CSV, et tolèrent une chaîne vide. Sans ça, un env vide ou en CSV
+        # (ex: PLATFORM_OPERATOR_EMAILS="" ou "a@x.fr,b@y.fr") fait planter
+        # Config() à l'import (JSONDecodeError).
+        enable_decoding=False,
     )
 
     # === General ===
