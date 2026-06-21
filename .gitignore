@@ -23,6 +23,8 @@ env/
 # Environment / secrets
 .env
 .env.*
+!.env.example
+!config/.env.example
 .mcp.json
 secrets/
 config/clients.yml

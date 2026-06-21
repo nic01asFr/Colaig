@@ -19,7 +19,7 @@ dependencies = [
     "jinja2>=3.1.0",
     "itsdangerous>=2.1.0",
     "python-multipart>=0.0.6",
-    "matrix-nio>=0.24.0",
+    "matrix-nio[e2e]>=0.24.0",
     "faiss-cpu>=1.7.4",
     "numpy>=1.24.0",
     "sentence-transformers>=2.2.0",
@@ -65,7 +65,16 @@ target-version = "py311"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP"]
+select = ["E", "F", "I", "W", "UP"]
+# E501 : lignes longues tolérées (templates HTML/JS, prompts, URLs)
+# E402/E741 : imports conditionnels et noms courts ponctuels assumés
+ignore = ["E501", "E402", "E741"]
+
+[tool.ruff.lint.per-file-ignores]
+# Forward-refs sous TYPE_CHECKING (annotations différées, résolues à l'exécution)
+"colaig/agents/tools/task_tools.py" = ["F821"]
+"colaig/config.py" = ["F821"]
+"colaig/rag/indexer.py" = ["F821"]
 
 [tool.mypy]
 python_version = "3.11"

@@ -1,126 +1,123 @@
-# Colaig v3 — Assistant IA personnel, provider-agnostic
+# Colaig — Assistant IA souverain, provider-agnostic
 
-**Colaig** est un assistant IA conversationnel personnel et decentralise. Il s'integre dans les outils de communication et de stockage de l'utilisateur — quels que soient les providers.
+**Colaig** est un assistant IA conversationnel decentralise pour l'administration publique. Il s'integre dans les outils de communication et de stockage existants — quels que soient les providers — et repond aux questions des agents en s'appuyant sur leurs documents, avec citation des sources.
 
 > *"Inviter Colaig, c'est comme inviter un collegue."*
 
-## Principe
+Souverain (LLM Albert / Etalab), sans base de donnees, deployable en un seul container.
 
-On donne a Colaig un acces a ses documents (Nextcloud, OneDrive, filesystem...), on lui parle via son canal de messagerie (Tchap, Slack, web chat...), et il repond aux questions en s'appuyant sur les documents partages — avec citation des sources.
+---
+
+## Comment ca marche (le modele a comprendre)
+
+Colaig n'est **pas** un bot par utilisateur. C'est **une instance** qui sert N salons et N utilisateurs, et dont le comportement change selon le **workspace** (espace de travail) auquel un salon est lie.
+
+```
+1 INSTANCE Colaig  (1 container, 1 compte bot)
+   |
+   |-- workspace "RH"            <- salons A, B    (docs RH, prompt RH, ACL RH)
+   |-- workspace "Urbanisme"     <- salon C        (docs urba, prompt urba)
+   |-- workspace "personal-alice" <- DM Alice       (espace prive + memoire)
+   |-- workspace "personal-bob"   <- DM Bob          (espace prive + memoire)
+```
+
+- **Un salon** (Tchap, Telegram, webchat...) est **lie** a un workspace.
+- **Le workspace** (`.colaig/config.yaml`) porte tout : quels documents, quel
+  ton, quel prompt systeme, quels outils, qui a le droit.
+- Le **meme** Colaig repond donc differemment d'un salon a l'autre.
+
+**3 modes** resolus automatiquement :
+
+| Situation | Mode | Comportement |
+|---|---|---|
+| Salon lie a un workspace metier | **Assistant** | Repond depuis les documents du workspace |
+| Message direct (DM) | **Personnel** | Workspace prive par utilisateur, avec memoire |
+| Salon non lie | **Chatbot** | Generique + onboarding (`colaig creer <nom>`) |
+
+Et un **2e niveau** (multi-tenant) : un operateur peut faire tourner plusieurs instances, une par organisation cliente (`config/clients.yml` + provisioning).
+
+Details : [docs/GUIDE_UTILISATEUR.md](docs/GUIDE_UTILISATEUR.md) et [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+---
 
 ## Provider-Agnostic
 
-Colaig est **aveugle au provider**. Le code metier (RAG, contexte, reponses) utilise des interfaces abstraites. L'implementation concrete est choisie a la configuration :
+Colaig est **aveugle au provider**. Le code metier (RAG, contexte, reponses) utilise des interfaces abstraites ; l'implementation concrete est choisie a la configuration.
 
 | Couche | Options disponibles |
 |--------|---------------------|
-| **Storage** | WebDAV (Nextcloud), Bigfolder (multi-provider), Filesystem local, S3 |
-| **Messaging** | Matrix/Tchap, Slack (futur), Web chat (futur) |
-| **LLM** | Albert API (souverain, Etalab/DINUM) |
+| **Storage** | Local, WebDAV (Nextcloud/Bnum), Bigfolder, S3/MinIO, OneDrive/SharePoint (Graph), Box, Google Drive |
+| **Messaging** | Matrix/Tchap, Telegram, Web chat (WebSocket) |
+| **LLM** | Albert API (souverain), + tout endpoint OpenAI-compatible (Mistral, Azure, Ollama, vLLM/SSP Cloud) avec fallback par capacite |
 
-## Architecture
+## Zero Database
 
 ```
-Zero Database — Persistence via StorageProtocol
-├── Documents metier    → backend de stockage (WebDAV, Bigfolder, local...)
+Persistence 100% via StorageProtocol
+├── Documents metier    → backend de stockage
 ├── Configuration       → .colaig/config.yaml
 ├── Index vectoriels    → .colaig/indexes/*.faiss + *.pkl
 ├── Historiques         → .colaig/conversations/*.json
-└── Cache local         → ephemere (perdu au restart, OK)
+└── Cache local         → ephemere (reconstructible au restart)
 ```
 
-**Un seul container Docker.** Pas de base de donnees dans Colaig.
+Aucun PostgreSQL / Redis / Qdrant comme dependance de Colaig. **Un seul container.**
+
+## Capacites
+
+- **RAG source** : recherche hybride (dense + BM25 + RRF), reranking, HyDE, contextual chunking, citations.
+- **Pipeline multi-agent** (opt-in) : Analyseur -> Orchestrateur agentique (tool-calling) -> Synthetiseur.
+- **MCP** : serveur streamable HTTP (~23 tools) + client de connecteurs MCP externes.
+- **Memoire** : conversationnelle semantique + memoire par utilisateur.
+- **Taches autonomes** planifiees (Mode C), notifications proactives, delegation inter-workspaces, federation.
+- **Auth** : token auto-localisant ou OIDC (RS256/ES256) ; provisioning multi-client + PlatformPolicy.
 
 ## Stack
 
-| Composant | Technologie |
-|-----------|-------------|
-| LLM | Albert API (souverain, Etalab/DINUM) |
-| Embeddings | Albert API + fallback SentenceTransformer |
-| Vector store | FAISS (fichiers via StorageProtocol) |
-| Messaging | MessagingProtocol (Matrix/Tchap, Slack, web chat) |
-| Storage | StorageProtocol (WebDAV, Bigfolder, local, S3) |
-| Web admin | FastAPI + Jinja2 + HTMX |
+Python 3.11+ · FastAPI · matrix-nio · faiss-cpu · httpx · MCP SDK · sentence-transformers (fallback embeddings) · structlog
 
 ## Demarrage rapide
 
 ```bash
 # 1. Configuration
 cp config/.env.example .env
-# Remplir : STORAGE_BACKEND, MESSAGING_BACKEND, credentials
+# Choisir STORAGE_BACKEND / MESSAGING_BACKEND / LLM_BACKEND + credentials
 
-# 2. Lancement
+# 2. Lancement (Docker)
 docker-compose up -d
 
-# 3. C'est tout.
+# 3. C'est tout. Webchat : http://localhost:8000/chat — Admin : http://localhost:8000/
 ```
 
-### Exemples de configuration
+Demarrage minimal (dev, sans service externe sauf un endpoint LLM) :
 
 ```bash
-# Administration publique (Tchap + Nextcloud + Albert)
-STORAGE_BACKEND=webdav
-MESSAGING_BACKEND=matrix
-WEBDAV_URL=https://bnum.din.gouv.fr/remote.php/dav/files/colaig/
-MATRIX_HOMESERVER=https://matrix.agent.tchap.gouv.fr
-
-# Multi-provider via Bigfolder (OneDrive + Nextcloud + Box)
-STORAGE_BACKEND=bigfolder
-MESSAGING_BACKEND=matrix
-BIGFOLDER_API_URL=http://bigfolder:8002
-
-# Developpement local (pas de services externes)
 STORAGE_BACKEND=local
 MESSAGING_BACKEND=webchat
-LOCAL_STORAGE_PATH=./data/storage
+LLM_BACKEND=albert
+ALBERT_API_KEY=...
 ```
 
-## Structure du projet
-
-```
-colaig/
-├── messaging/      # Canaux de communication (Matrix, Slack, web chat)
-├── context/        # Context Resolver (cerveau)
-├── rag/            # Pipeline RAG complet
-├── integrations/   # Backends de stockage + Albert API
-│   └── storage/    # WebDAV, Bigfolder, Local, S3
-├── storage/        # Cache in-memory
-├── web/            # Dashboard admin
-├── models.py       # Dataclasses partagees
-├── protocols.py    # Contrats d'interface (StorageProtocol, MessagingProtocol, etc.)
-└── main.py         # Point d'entree + factory backends
+```bash
+pip install -e ".[dev]"
+python -m colaig.main
 ```
 
-## Integration Bigfolder
+## Tests
 
-[Bigfolder (Archivist)](https://github.com/...) est une plateforme de gestion documentaire multi-provider. Quand `STORAGE_BACKEND=bigfolder`, Colaig utilise l'API Bigfolder pour acceder aux documents — qui peuvent etre sur OneDrive, Box, Google Drive, WebDAV, ou S3. Colaig ne sait pas et s'en fiche.
-
-```
-COLAIG (1 container)           BIGFOLDER (N containers)
-┌──────────────┐               ┌──────────────────┐
-│ StorageProto │──── API ────→ │ OneDrive, Box,   │
-│ col          │               │ WebDAV, S3, ...  │
-│ MessagingPro │               │ PostgreSQL +     │
-│ tocol        │               │ pgvector         │
-└──────────────┘               └──────────────────┘
+```bash
+pytest -q --ignore=tests/test_live.py   # ~1500 tests, hors smoke reseau
+ruff check colaig
 ```
 
 ## Documentation
 
-- **`CLAUDE.md`** — Instructions maitres (principes, stack, conventions)
-- **`AGENTS.md`** — Decomposition en agents avec specifications detaillees
-- **`colaig/protocols.py`** — Contrats d'interface entre modules
-- **`docs/ARCHITECTURE.md`** — Synthese architecturale complete
-- **`docs/STORAGE_ABSTRACTION.md`** — Spec technique StorageProtocol + MessagingProtocol
-
-## Les 5 niveaux d'evolution
-
-1. **RAG** — Conseiller documentaire *(Phase 1 — ce repo)*
-2. **Workflow** — Planificateur d'actions (MCP tools, n8n)
-3. **Personnalisation** — Expert configurable
-4. **Reseau** — Ecosysteme inter-instances
-5. **Intelligence collective** — Systeme vivant
+- [docs/GUIDE_UTILISATEUR.md](docs/GUIDE_UTILISATEUR.md) — guide utilisateur (workspaces, modes, usage)
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — architecture de reference
+- [docs/STORAGE_ABSTRACTION.md](docs/STORAGE_ABSTRACTION.md) — StorageProtocol + MessagingProtocol
+- [CLAUDE.md](CLAUDE.md) — principes, stack, conventions
+- [colaig/protocols.py](colaig/protocols.py) — contrats d'interface
 
 ## Licence
 
-Licence Ouverte 2.0 — CEREMA Mediterranee / GIDI
+Licence Ouverte 2.0 — CEREMA Mediterranee / GIDI. Voir [LICENSE](LICENSE).
