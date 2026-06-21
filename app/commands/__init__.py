@@ -60,17 +60,25 @@ async def get_unified_session_context(config, room_id, user_id):
     Returns:
         Le contexte de session pour cet utilisateur et cette salle
     """
+    import asyncio
+    empty = lambda: SessionContext(
+        session_id=f"{room_id}_{user_id}", room_id=room_id, user_id=user_id
+    )
     try:
-        # Utiliser la nouvelle fonction unifiée
-        return await get_or_create_session_context(config, room_id, user_id)
+        # TIMEOUT STRICT : un chargement de contexte lent sur le WebDAV réel ne
+        # doit jamais bloquer le traitement du message (cause du stall 180s).
+        return await asyncio.wait_for(
+            get_or_create_session_context(config, room_id, user_id), timeout=20
+        )
+    except asyncio.TimeoutError:
+        logger.warning(
+            f"[CTX] get_unified_session_context > 20s pour {room_id}/{user_id} "
+            f"— contexte vide (dégradation)"
+        )
+        return empty()
     except Exception as e:
         logger.error(f"Erreur lors de la récupération du contexte unifié: {str(e)}")
-        # Créer un contexte vide en cas d'erreur
-        return SessionContext(
-            session_id=f"{room_id}_{user_id}",
-            room_id=room_id,
-            user_id=user_id
-        )
+        return empty()
 
 # Fonction pour mettre à jour le contexte de session unifié
 async def update_unified_session_context(room_id, user_id, context):
