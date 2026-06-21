@@ -31,7 +31,27 @@ jobs:
       - name: Lint (ruff)
         run: ruff check colaig
 
-      - name: Tests (pytest, hors tests reseau live)
-        run: pytest -q --ignore=tests/test_live.py
+      - name: Tests + couverture (hors tests reseau live)
+        run: pytest -q --ignore=tests/test_live.py --cov=colaig --cov-report=term-missing
         env:
           COLAIG_LOG_LEVEL: WARNING
+
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,s3,box,tasks,oidc]" pip-audit
+
+      # Checks non bloquants (rapport) — à durcir progressivement.
+      - name: Types (mypy)
+        run: mypy colaig || true
+
+      - name: Audit dépendances (pip-audit)
+        run: pip-audit || true

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "colaig"
-version = "0.1.0"
+version = "1.0.0"
 description = "Assistant IA conversationnel décentralisé pour l'administration publique française"
 readme = "README.md"
 license = "LicenceRef-Licence-Ouverte-2.0"
