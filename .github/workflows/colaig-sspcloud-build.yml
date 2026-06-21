@@ -2,7 +2,7 @@ name: Build & Push image SSPCloud (colaig-platform)
 
 on:
   push:
-    branches: [main, Colaig_main]
+    branches: [main, Colaig_main, claude/refactor-colaig-tchap-bot-qRqkF]
     paths:
       - 'app/**'
       - 'Dockerfile.platform'
