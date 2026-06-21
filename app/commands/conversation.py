@@ -126,12 +126,12 @@ async def handle_conversation(ep: EventParser, matrix_client: MatrixClient):
     # Étape 3: Ce n'est ni un thread de commande, ni une commande - traiter comme conversation générale
     try:
         # Récupérer le contexte de session après la mise à jour
-        session_context = await get_unified_session_context(config, room_id, sender)
+        session_context = await asyncio.wait_for(get_unified_session_context(config, room_id, sender), timeout=30)
         
         # Mettre à jour l'activité du salon
         ctx_manager = await get_context_manager(config)
         try:
-            await ctx_manager.update_room_activity(room_id, sender)
+            await asyncio.wait_for(ctx_manager.update_room_activity(room_id, sender), timeout=15)
         except Exception as e:
             logger.warning(f"Erreur mise à jour activité salon: {str(e)}")
         
@@ -141,7 +141,14 @@ async def handle_conversation(ep: EventParser, matrix_client: MatrixClient):
         # et n'a pas besoin du behavior_index (qui fait ~40 requêtes WebDAV).
         from app.commands import get_behavior_manager_for_context
         logger.info("[CONV-STEP] chargement behavior_manager…")
-        behavior_manager = await get_behavior_manager_for_context(config, room_id=room_id, user_id=sender)
+        try:
+            behavior_manager = await asyncio.wait_for(
+                get_behavior_manager_for_context(config, room_id=room_id, user_id=sender),
+                timeout=20,
+            )
+        except Exception as e:
+            logger.warning(f"[CONV-GUARD] behavior_manager dégradé ({e})")
+            behavior_manager = None
         logger.info("[CONV-STEP] behavior_manager OK")
         
         # Récupérer l'historique de conversation
@@ -151,19 +158,19 @@ async def handle_conversation(ep: EventParser, matrix_client: MatrixClient):
         await matrix_client.room_typing(room_id, typing_state=True)
         
         # Récupérer le contexte de session après la mise à jour
-        session_context = await get_unified_session_context(config, room_id, sender)
+        session_context = await asyncio.wait_for(get_unified_session_context(config, room_id, sender), timeout=30)
         
         # Mettre à jour l'activité du salon
         ctx_manager = await get_context_manager(config)
         try:
             logger.info("[CONV-STEP] get_or_create_room_context…")
-            room_context = await ctx_manager.get_or_create_room_context(
+            room_context = await asyncio.wait_for(ctx_manager.get_or_create_room_context(
                 room_id=room_id,
                 room_name=ep.room.display_name if hasattr(ep.room, 'display_name') else "Salon inconnu",
                 is_direct=False
-            )
+            ), timeout=20)
             logger.info("[CONV-STEP] room_context OK")
-            await ctx_manager.update_room_activity(room_id, sender)
+            await asyncio.wait_for(ctx_manager.update_room_activity(room_id, sender), timeout=15)
         except Exception as e:
             logger.warning(f"Erreur lors de la mise à jour du contexte de salon: {str(e)}")
             # Continuer malgré l'erreur

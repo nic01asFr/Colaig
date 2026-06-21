@@ -45,6 +45,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: PYTHONUNBUFFERED
+              value: "1"
             - name: ONYXIA_USER
               value: {{ .Values.oidc.username | quote }}
             # --- Logging ---

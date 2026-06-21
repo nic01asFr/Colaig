@@ -162,7 +162,7 @@ class Callbacks:
                 # Continuer malgré l'erreur
             
             # MÉCANISME ANTI-BLOCAGE: Utiliser asyncio.wait_for avec timeout
-            COMMAND_TIMEOUT = 180.0  # Timeout de 180 secondes (agent loop + WebDAV + LLM)
+            COMMAND_TIMEOUT = 75.0  # 75s : les appels lents sont déjà bornés en interne (WebDAV/MCP/LLM)
             
             cmd_name = feature.get('name', 'unknown')
             
