@@ -133,6 +133,16 @@ class AlbertClient:
             )
         return self._multipart_client
 
+    def _check_quota(self) -> None:
+        """Lève QuotaExceededError si le quota journalier du tenant est dépassé."""
+        if self._usage_tracker is not None:
+            allowed, reason = self._usage_tracker.check_quota(self._client_id)
+            if not allowed:
+                from colaig.exceptions import QuotaExceededError
+                raise QuotaExceededError(
+                    f"client '{self._client_id or 'default'}': {reason}"
+                )
+
     def _record_usage(self, data: dict) -> None:
         """Enregistre l'usage tokens d'une réponse OpenAI-compatible (si tracker)."""
         if self._usage_tracker is not None:
@@ -230,6 +240,7 @@ class AlbertClient:
                 (OCR, indexation) acquièrent un sémaphore limité (N-1 slots) pour
                 toujours laisser au moins 1 slot libre aux requêtes utilisateur.
         """
+        self._check_quota()
         if not self._chat_chain.is_empty:
             return await self._chat_chain.chat(messages, model=model, temperature=temperature, max_tokens=max_tokens, priority=priority)
         sem = self._chat_semaphore if priority == "user" else self._bg_chat_semaphore
@@ -390,6 +401,7 @@ class AlbertClient:
 
     async def embed(self, text: str) -> list[float]:
         """Génère l'embedding d'un texte unique."""
+        self._check_quota()
         if not self._embed_chain.is_empty:
             return await self._embed_chain.embed(text)
         payload = {

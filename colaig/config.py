@@ -377,6 +377,8 @@ def load_config(yaml_path: Path | None = None) -> ColaigConfig:
         local_embeddings=_env("COLAIG_LOCAL_EMBEDDINGS", "").lower() in ("1", "true", "yes"),
         auto_specialize_enabled=_env("COLAIG_AUTO_SPECIALIZE_ENABLED", "").lower() in ("1", "true", "yes"),
         auto_specialize_apply=_env("COLAIG_AUTO_SPECIALIZE_APPLY", "").lower() in ("1", "true", "yes"),
+        daily_request_limit=_env_int("COLAIG_DAILY_REQUEST_LIMIT", 0),
+        daily_token_limit=_env_int("COLAIG_DAILY_TOKEN_LIMIT", 0),
     )
 
 

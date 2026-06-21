@@ -12,6 +12,7 @@ Reconstructible au restart (cohérent avec le principe zéro-DB / cache éphém�
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date
 
 _GLOBAL = "_global"
 
@@ -29,18 +30,66 @@ class _Counters:
 
 @dataclass
 class UsageTracker:
-    """Compteurs d'usage par client_id (+ agrégat global)."""
+    """Compteurs d'usage par client_id (+ agrégat global) + quotas journaliers.
+
+    - Cumul (depuis le démarrage) : exposé en /metrics.
+    - Fenêtre journalière par client : sert aux quotas (check_quota).
+    Quotas : 0 = illimité. Override par client via per_client_limits[client_id].
+    """
 
     _by_client: dict = field(default_factory=dict)
+    _daily: dict = field(default_factory=dict)      # client_id -> _Counters (du jour)
+    _day: object = None                              # date courante de la fenêtre
+    daily_request_limit: int = 0                     # défaut global (0 = illimité)
+    daily_token_limit: int = 0
+    per_client_limits: dict = field(default_factory=dict)  # client_id -> {"requests", "tokens"}
+
+    def set_limits(self, daily_request_limit: int = 0, daily_token_limit: int = 0,
+                   per_client_limits: dict | None = None) -> None:
+        """Configure les quotas journaliers (appelé au démarrage depuis la config)."""
+        self.daily_request_limit = daily_request_limit
+        self.daily_token_limit = daily_token_limit
+        self.per_client_limits = per_client_limits or {}
+
+    def _roll_day(self) -> None:
+        today = date.today()
+        if self._day != today:
+            self._day = today
+            self._daily = {}
+
+    def _limits_for(self, client_id: str) -> tuple[int, int]:
+        ov = self.per_client_limits.get(client_id, {})
+        return (int(ov.get("requests", self.daily_request_limit)),
+                int(ov.get("tokens", self.daily_token_limit)))
+
+    def check_quota(self, client_id: str) -> tuple[bool, str]:
+        """Retourne (autorisé, raison). True si pas de quota ou pas atteint."""
+        self._roll_day()
+        req_limit, tok_limit = self._limits_for(client_id or _GLOBAL)
+        if not req_limit and not tok_limit:
+            return True, ""
+        c = self._daily.get(client_id or _GLOBAL)
+        if c is None:
+            return True, ""
+        if req_limit and c.requests >= req_limit:
+            return False, f"quota requêtes journalier atteint ({req_limit})"
+        if tok_limit and c.total_tokens >= tok_limit:
+            return False, f"quota tokens journalier atteint ({tok_limit})"
+        return True, ""
 
     def record(self, client_id: str, prompt_tokens: int = 0,
                completion_tokens: int = 0) -> None:
-        """Enregistre une requête LLM et ses tokens pour un client."""
+        """Enregistre une requête LLM et ses tokens (cumul + fenêtre du jour)."""
+        self._roll_day()
         for key in (_GLOBAL, client_id or _GLOBAL):
             c = self._by_client.setdefault(key, _Counters())
             c.requests += 1
             c.prompt_tokens += int(prompt_tokens or 0)
             c.completion_tokens += int(completion_tokens or 0)
+        d = self._daily.setdefault(client_id or _GLOBAL, _Counters())
+        d.requests += 1
+        d.prompt_tokens += int(prompt_tokens or 0)
+        d.completion_tokens += int(completion_tokens or 0)
 
     def record_from_usage(self, client_id: str, usage: dict | None) -> None:
         """Enregistre depuis le bloc `usage` d'une réponse OpenAI-compatible."""

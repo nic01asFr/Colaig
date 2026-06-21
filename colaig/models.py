@@ -1380,6 +1380,8 @@ class ColaigConfig:
     local_embeddings: bool = False           # Fallback embeddings local (SentenceTransformer)
     auto_specialize_enabled: bool = False    # Dériver persona/vocabulaire depuis le corpus (opt-in)
     auto_specialize_apply: bool = False      # Écrire la config dérivée (sinon dry-run = knowledge.json seul)
+    daily_request_limit: int = 0             # Quota journalier requêtes LLM par tenant (0 = illimité)
+    daily_token_limit: int = 0               # Quota journalier tokens LLM par tenant (0 = illimité)
 
     # === Mode C : Tâches autonomes planifiées ===
     tasks_enabled: bool = False              # Activer le planificateur de tâches autonomes

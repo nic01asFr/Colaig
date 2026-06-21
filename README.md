@@ -120,6 +120,9 @@ ruff check colaig
 
 - [docs/GUIDE_UTILISATEUR.md](docs/GUIDE_UTILISATEUR.md) — guide utilisateur (workspaces, modes, usage)
 - [docs/REFLEXIF_ET_OPS.md](docs/REFLEXIF_ET_OPS.md) — admin réflexive, ops/observabilité, sécurité, auto-spé
+- [docs/EXPLOITATION.md](docs/EXPLOITATION.md) — runbook (déploiement, sauvegarde, upgrade, dépannage, pilote)
+- [docs/SECURITE.md](docs/SECURITE.md) — modèle de menaces & sécurité
+- [docs/CONFORMITE_RGPD.md](docs/CONFORMITE_RGPD.md) — conformité & RGPD
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — architecture de reference
 - [docs/STORAGE_ABSTRACTION.md](docs/STORAGE_ABSTRACTION.md) — StorageProtocol + MessagingProtocol
 - [CLAUDE.md](CLAUDE.md) — principes, stack, conventions

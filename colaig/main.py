@@ -1033,6 +1033,9 @@ async def main() -> None:
     config = load_config()
     setup_logging(config.log_level)
 
+    # Quotas journaliers par tenant (0 = illimité) — enforcement dans les clients LLM.
+    _USAGE_TRACKER.set_limits(config.daily_request_limit, config.daily_token_limit)
+
     # Vérifier si le mode multi-client est activé (clients.yml présent et non vide)
     from colaig.client_registry import ClientRegistry
     _clients_yml = Path(__file__).parent.parent / "config" / "clients.yml"

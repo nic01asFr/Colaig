@@ -43,6 +43,10 @@ class LLMError(ColaigError):
     """Erreur lors d'un appel à un backend LLM (Albert, OpenAI, Azure, Ollama...)."""
     pass
 
+class QuotaExceededError(LLMError):
+    """Quota d'usage LLM par tenant dépassé (limite journalière requêtes/tokens)."""
+    pass
+
 class LLMRateLimitError(LLMError):
     """Rate limit atteint sur le backend LLM (429).
 

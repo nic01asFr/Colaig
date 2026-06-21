@@ -2,6 +2,7 @@
 Tests — UsageTracker (tokens/requêtes par tenant) + exposition /metrics.
 """
 
+import pytest
 from fastapi.testclient import TestClient
 
 from colaig.metrics import UsageTracker
@@ -37,6 +38,58 @@ class TestUsageTracker:
         assert "colaig_llm_requests_total" in text
         assert 'client="svc"' in text
         assert "colaig_llm_tokens_total" in text
+
+
+class TestQuota:
+
+    def test_no_limit_allows(self):
+        t = UsageTracker()
+        assert t.check_quota("c") == (True, "")
+
+    def test_request_limit_blocks(self):
+        t = UsageTracker()
+        t.set_limits(daily_request_limit=2)
+        t.record("c"); t.record("c")
+        allowed, reason = t.check_quota("c")
+        assert allowed is False and "requêtes" in reason
+
+    def test_token_limit_blocks(self):
+        t = UsageTracker()
+        t.set_limits(daily_token_limit=10)
+        t.record("c", prompt_tokens=6, completion_tokens=6)
+        allowed, reason = t.check_quota("c")
+        assert allowed is False and "tokens" in reason
+
+    def test_per_client_override(self):
+        t = UsageTracker()
+        t.set_limits(daily_request_limit=100, per_client_limits={"vip": {"requests": 1}})
+        t.record("vip")
+        assert t.check_quota("vip")[0] is False
+        t.record("autre")
+        assert t.check_quota("autre")[0] is True
+
+    def test_under_limit_allows(self):
+        t = UsageTracker()
+        t.set_limits(daily_request_limit=5)
+        t.record("c")
+        assert t.check_quota("c")[0] is True
+
+
+class TestAlbertQuotaEnforcement:
+
+    async def test_check_quota_raises_when_over(self):
+        from colaig.exceptions import QuotaExceededError
+        from colaig.integrations.albert import AlbertClient
+        from colaig.models import ColaigConfig
+
+        t = UsageTracker()
+        t.set_limits(daily_request_limit=1)
+        t.record("c")
+        client = AlbertClient(ColaigConfig(), usage_tracker=t, client_id="c")
+        with pytest.raises(QuotaExceededError):
+            await client.chat([{"role": "user", "content": "x"}])
+        with pytest.raises(QuotaExceededError):
+            await client.embed("x")
 
 
 class TestMetricsEndpoints:
