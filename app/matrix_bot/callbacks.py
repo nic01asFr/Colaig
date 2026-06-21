@@ -309,6 +309,20 @@ class Callbacks:
             logger.info(f"Joined {room.room_id}")
         except Exception as join_room_exception:
             logger.info(f"Failed to join {room.room_id}", join_room_exceptions=join_room_exception)
+            return
+
+        # Auto-binding : détecter l'espace `.colaig` adéquat selon les conditions
+        # du salon et l'associer, puis message d'accueil. Best-effort, non bloquant.
+        try:
+            import asyncio as _asyncio
+            from app.config import get_config
+            from app.services.webdav_context_manager import auto_bind_room_on_invite
+            # Laisser la synchro peupler le nom/sujet du salon après le join.
+            await _asyncio.sleep(2)
+            joined_room = self.matrix_client.rooms.get(room.room_id, room)
+            await auto_bind_room_on_invite(get_config(), self.matrix_client, joined_room)
+        except Exception as bind_exc:
+            logger.warning(f"[BIND] Auto-binding à l'invitation échoué pour {room.room_id}: {bind_exc}")
 
     async def decryption_failure(self, room: MatrixRoom, event: MegolmEvent):
         """Callback for handling decryption errors."""

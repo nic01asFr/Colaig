@@ -838,6 +838,94 @@ class WebDAVContextManager:
             logger.error(f"Erreur lors de la suppression de l'association salon-espace: {str(e)}")
             return False
 
+    async def _discover_colaig_spaces(self) -> List[Dict[str, Any]]:
+        """Découvre les espaces marqués `.colaig` (racine + sous-dossiers niv. 1).
+
+        Pour chaque espace, lit le descripteur optionnel `.colaig/colaig.yaml`.
+        Returns: liste de {"path", "name", "descriptor"}.
+        """
+        spaces: List[Dict[str, Any]] = []
+        webdav = await self.get_default_service()
+        if not webdav:
+            return spaces
+
+        async def _read_descriptor(space_path: str) -> Dict[str, Any]:
+            desc_path = f"{space_path.rstrip('/')}/.colaig/colaig.yaml" if space_path else ".colaig/colaig.yaml"
+            try:
+                if not await webdav.exists(desc_path):
+                    return {}
+                raw = await webdav.download_file(desc_path)
+                text = raw.decode("utf-8") if isinstance(raw, (bytes, bytearray)) else str(raw)
+                import yaml
+                data = yaml.safe_load(text)
+                return data if isinstance(data, dict) else {}
+            except Exception as e:
+                logger.debug(f"[BIND] Descripteur illisible pour {space_path!r}: {e}")
+                return {}
+
+        # 1. Racine = espace ?
+        try:
+            if await webdav.exists(".colaig"):
+                root_name = getattr(webdav, "root_path", "").strip("/")
+                spaces.append({
+                    "path": "",
+                    "name": os.path.basename(root_name) if root_name else "Racine",
+                    "descriptor": await _read_descriptor(""),
+                })
+        except Exception as e:
+            logger.debug(f"[BIND] Vérification racine .colaig échouée: {e}")
+
+        # 2. Sous-dossiers de premier niveau
+        try:
+            items = await webdav.list_directory("/")
+        except Exception as e:
+            logger.debug(f"[BIND] Listage racine échoué: {e}")
+            items = []
+        for item in items:
+            if not item.get("is_dir", False):
+                continue
+            path = (item.get("path") or "").rstrip("/")
+            if not path:
+                continue
+            try:
+                if await webdav.exists(f"{path}/.colaig"):
+                    spaces.append({
+                        "path": path,
+                        "name": os.path.basename(path) or "Racine",
+                        "descriptor": await _read_descriptor(path),
+                    })
+            except Exception as e:
+                logger.debug(f"[BIND] Vérification {path}/.colaig échouée: {e}")
+
+        return spaces
+
+    async def resolve_workspace_for_room(
+        self, room_id: str, room_name: str = "", room_topic: str = "",
+    ) -> Optional[Dict[str, Any]]:
+        """Détermine l'espace `.colaig` à associer à un salon selon ses conditions.
+
+        Returns le candidat {"path","name","descriptor","score","reason"} ou None.
+        """
+        from app.agent.workspace_binding import select_workspace
+        candidates = await self._discover_colaig_spaces()
+        if not candidates:
+            return None
+        default_ws = getattr(self._config, "default_workspace", "") or ""
+        best = select_workspace(
+            candidates,
+            room_id=room_id,
+            room_name=room_name or "",
+            room_topic=room_topic or "",
+            default_workspace=default_ws,
+        )
+        if best:
+            logger.info(
+                f"[BIND] Salon {room_id} → espace {best['path']!r} "
+                f"(motif={best['reason']}, score={best['score']})"
+            )
+        return best
+
+
 # Instance unique du gestionnaire de contexte WebDAV
 _webdav_context_manager = None
 
@@ -870,7 +958,64 @@ async def get_webdav_context_manager(config: Config) -> WebDAVContextManager:
 async def close_webdav_context_manager():
     """Ferme l'instance unique du gestionnaire de contexte WebDAV."""
     global _webdav_context_manager
-    
+
     if _webdav_context_manager:
         await _webdav_context_manager.close()
         _webdav_context_manager = None
+
+
+async def auto_bind_room_on_invite(config, matrix_client, room) -> Optional[str]:
+    """À l'invitation dans un salon : détecte l'espace `.colaig` adéquat, lie le
+    salon, et envoie un message d'accueil. Retourne le chemin lié ou None.
+
+    Idempotent et tolérant : ne fait rien de bloquant, log les erreurs.
+    """
+    room_id = getattr(room, "room_id", None)
+    if not room_id:
+        return None
+    room_name = getattr(room, "display_name", None) or getattr(room, "name", "") or ""
+    room_topic = getattr(room, "topic", "") or ""
+
+    try:
+        manager = await get_webdav_context_manager(config)
+    except Exception as e:
+        logger.warning(f"[BIND] Context manager indisponible: {e}")
+        manager = None
+
+    best = None
+    if manager is not None:
+        try:
+            best = await manager.resolve_workspace_for_room(room_id, room_name, room_topic)
+        except Exception as e:
+            logger.warning(f"[BIND] Résolution échouée pour {room_id}: {e}")
+
+    bound_path = None
+    if best is not None:
+        try:
+            ok = await manager.set_room_webdav_context(room_id, best["path"])
+            if ok:
+                bound_path = best["path"]
+        except Exception as e:
+            logger.warning(f"[BIND] Association échouée pour {room_id}: {e}")
+
+    # Message d'accueil (best-effort)
+    try:
+        if bound_path is not None:
+            msg = (
+                f"Bonjour, je suis **COLAIG**, votre assistant. "
+                f"Je me suis rattaché à l'espace documentaire **{best.get('name') or bound_path or 'racine'}**.\n\n"
+                f"Posez-moi vos questions, ou tapez `!configurer` pour personnaliser mon espace "
+                f"(documents, périmètre, comportement)."
+            )
+        else:
+            msg = (
+                "Bonjour, je suis **COLAIG**, votre assistant. "
+                "Aucun espace documentaire n'est encore associé à ce salon.\n\n"
+                "Tapez `!configurer` pour être guidé, ou `!space list` puis "
+                "`!space link <id>` pour rattacher un espace existant."
+            )
+        await matrix_client.send_markdown_message(room_id, msg, msgtype="m.notice")
+    except Exception as e:
+        logger.debug(f"[BIND] Message d'accueil non envoyé pour {room_id}: {e}")
+
+    return bound_path
