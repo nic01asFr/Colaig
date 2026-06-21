@@ -594,6 +594,7 @@ async def run_client_stack(cc, config: ColaigConfig, shutdown_event: asyncio.Eve
         done_event=initial_done,
         workspace_directory=workspace_directory,
         federation_service=federation_service,
+        config=config,
     ))
 
     log.info("connexion messagerie...")
@@ -918,6 +919,7 @@ async def initial_indexation(
     done_event: asyncio.Event | None = None,
     workspace_directory=None,
     federation_service=None,
+    config: ColaigConfig | None = None,
 ) -> None:
     """Indexation initiale de tous les workspaces au démarrage.
 
@@ -972,6 +974,24 @@ async def initial_indexation(
             workspace_indexers[ws.workspace_id] = ws_indexer
             if workspace_bm25_stores is not None and ws_bm25 is not None:
                 workspace_bm25_stores[ws.workspace_id] = ws_bm25
+
+            # Auto-spécialisation opt-in : dérive persona/vocabulaire du corpus.
+            # dry-run par défaut (knowledge.json seul) ; apply écrit la config.
+            if config is not None and config.auto_specialize_enabled and albert_client is not None and ws_store.count > 0:
+                try:
+                    from colaig.rag.specializer import WorkspaceSpecializer
+                    spec = WorkspaceSpecializer(
+                        storage, albert_client,
+                        model=config.contextual_model or config.albert_model_light,
+                    )
+                    res = await spec.derive(
+                        ws.storage_path, ws_store,
+                        dry_run=not config.auto_specialize_apply,
+                    )
+                    logger.info("auto-spécialisation %s: %s", ws.workspace_id,
+                                res.get("updated_fields") or "dry-run")
+                except Exception:
+                    logger.warning("auto-spécialisation échouée: %s", ws.workspace_id, exc_info=True)
 
             # Indexation behaviors + skills (index légers, reconstruits si fichiers présents)
             try:
@@ -1393,6 +1413,7 @@ async def main() -> None:
         done_event=initial_done,
         workspace_directory=workspace_directory,
         federation_service=federation_service,
+        config=config,
     ))
 
     logger.info("connexion messagerie...")

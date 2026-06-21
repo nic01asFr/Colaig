@@ -1378,6 +1378,8 @@ class ColaigConfig:
     hyde_query_weight: float = 0.5           # Poids embedding HyDE dans la combinaison (0→1)
     rrf_k_constant: int = 60                 # Constante k du Reciprocal Rank Fusion
     local_embeddings: bool = False           # Fallback embeddings local (SentenceTransformer)
+    auto_specialize_enabled: bool = False    # Dériver persona/vocabulaire depuis le corpus (opt-in)
+    auto_specialize_apply: bool = False      # Écrire la config dérivée (sinon dry-run = knowledge.json seul)
 
     # === Mode C : Tâches autonomes planifiées ===
     tasks_enabled: bool = False              # Activer le planificateur de tâches autonomes
