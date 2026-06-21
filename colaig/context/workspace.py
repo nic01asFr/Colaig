@@ -536,6 +536,20 @@ async def update_workspace_config(
     return ws
 
 
+async def set_workspace_owners(storage, workspace_path: str, owners: list[str]) -> WorkspaceConfig:
+    """Définit la liste des owners d'un workspace (admin-global uniquement).
+
+    Volontairement HORS de update_workspace_config (owners n'est pas dans _UPDATABLE)
+    pour éviter qu'un owner s'auto-promeuve via l'outil d'update générique
+    (anti-escalade de privilège). Réservé à l'administration globale.
+    """
+    ws = await load_workspace(storage, workspace_path)
+    ws.owners = list(dict.fromkeys(o for o in owners if o))  # dédup, ordre stable
+    await _save_workspace_config(storage, workspace_path, ws)
+    logger.info("workspace owners mis à jour: %s → %s", ws.workspace_id, ws.owners)
+    return ws
+
+
 async def get_or_create_personal_workspace(storage, user_id: str) -> WorkspaceConfig:
     """Retourne ou crée le workspace personnel d'un user (mode DM).
 

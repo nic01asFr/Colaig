@@ -88,6 +88,24 @@ SET_WORKSPACE_PROMPT_DEFINITION = ToolDefinition(
     category="admin",
 )
 
+MANAGE_WORKSPACE_OWNERS_DEFINITION = ToolDefinition(
+    name="manage_workspace_owners",
+    description=(
+        "Ajoute ou retire un owner (administrateur délégué) d'un workspace. "
+        "Réservé à l'administration GLOBALE (jamais un owner — anti-escalade). "
+        "Un owner peut ensuite configurer son espace via les autres outils."
+    ),
+    parameters=[
+        ToolParameter(name="action", type="string",
+                      description="'add' ou 'remove'.", required=True),
+        ToolParameter(name="workspace_id", type="string",
+                      description="Identifiant du workspace cible.", required=True),
+        ToolParameter(name="target_user_id", type="string",
+                      description="user_id à ajouter/retirer des owners.", required=True),
+    ],
+    category="admin",
+)
+
 LIST_MANAGEABLE_WORKSPACES_DEFINITION = ToolDefinition(
     name="list_manageable_workspaces",
     description=(
@@ -253,6 +271,48 @@ def create_set_workspace_prompt_handler(storage, resolver, user_id="", admin_use
     return _handler
 
 
+def create_manage_workspace_owners_handler(storage, resolver, user_id="", admin_user_ids=None) -> Callable:
+    """Handler pour manage_workspace_owners — ADMIN GLOBAL uniquement (anti-escalade)."""
+    _admins = admin_user_ids or []
+
+    async def _handler(action: str, workspace_id: str, target_user_id: str, **kwargs) -> str:
+        from colaig.context.workspace import set_workspace_owners
+
+        # Garde stricte : admin global seulement (jamais un owner).
+        if not user_id or user_id not in _admins:
+            return json.dumps({"success": False,
+                               "error": "Réservé à l'administration globale"},
+                              ensure_ascii=False)
+        ws = _find_ws(resolver, workspace_id)
+        if ws is None:
+            return json.dumps({"success": False,
+                               "error": f"Workspace '{workspace_id}' introuvable"},
+                              ensure_ascii=False)
+        action = (action or "").strip().lower()
+        owners = list(getattr(ws, "owners", None) or [])
+        if action == "add":
+            if target_user_id not in owners:
+                owners.append(target_user_id)
+        elif action == "remove":
+            owners = [o for o in owners if o != target_user_id]
+        else:
+            return json.dumps({"success": False,
+                               "error": "action doit être 'add' ou 'remove'"},
+                              ensure_ascii=False)
+        try:
+            updated = await set_workspace_owners(storage, ws.storage_path, owners)
+            await resolver.register_workspace(updated)
+            return json.dumps({"success": True, "workspace_id": workspace_id,
+                               "owners": updated.owners,
+                               "message": f"Owners de '{updated.name}' mis à jour."},
+                              ensure_ascii=False)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("manage_workspace_owners: échec (%s)", e, exc_info=True)
+            return json.dumps({"success": False, "error": str(e)}, ensure_ascii=False)
+
+    return _handler
+
+
 def create_list_manageable_workspaces_handler(resolver, user_id="", admin_user_ids=None) -> Callable:
     """Handler pour list_manageable_workspaces (filtré aux espaces administrables)."""
     from colaig.security.acl import WorkspaceACL
@@ -290,3 +350,7 @@ def register_admin_tools(registry, storage, resolver, user_id="", admin_user_ids
                       create_set_workspace_prompt_handler(storage, resolver, user_id, admin_user_ids))
     registry.register(LIST_MANAGEABLE_WORKSPACES_DEFINITION,
                       create_list_manageable_workspaces_handler(resolver, user_id, admin_user_ids))
+    # Gestion des owners : exposée uniquement aux admins GLOBAUX (anti-escalade).
+    if user_id and user_id in (admin_user_ids or []):
+        registry.register(MANAGE_WORKSPACE_OWNERS_DEFINITION,
+                          create_manage_workspace_owners_handler(storage, resolver, user_id, admin_user_ids))

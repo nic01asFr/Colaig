@@ -15,6 +15,7 @@ from colaig.agents.tools.admin_tools import (
     create_link_conversation_handler,
     create_list_manageable_workspaces_handler,
     create_manage_workspace_handler,
+    create_manage_workspace_owners_handler,
     create_set_workspace_prompt_handler,
     register_admin_tools,
 )
@@ -239,3 +240,39 @@ class TestListAndRegister:
         for name in ("manage_workspace", "link_conversation",
                      "set_workspace_prompt", "list_manageable_workspaces"):
             assert registry.get(name) is not None
+
+    def test_owners_tool_only_for_global_admin(self, storage, resolver):
+        reg_admin = ToolRegistry()
+        register_admin_tools(reg_admin, storage, resolver, ALICE, [ALICE])
+        assert reg_admin.get("manage_workspace_owners") is not None
+        # Owner non-admin global → tool owners ABSENT
+        reg_owner = ToolRegistry()
+        register_admin_tools(reg_owner, storage, resolver, BOB, [])
+        assert reg_owner.get("manage_workspace_owners") is None
+
+
+class TestManageOwners:
+
+    async def test_global_admin_adds_owner(self, storage, resolver):
+        wid = await _create_ws(storage, resolver, ALICE)  # alice owner
+        h = create_manage_workspace_owners_handler(storage, resolver, "@ops:x", ["@ops:x"])
+        out = json.loads(await h(action="add", workspace_id=wid, target_user_id=BOB))
+        assert out["success"] is True
+        ws = next(w for w in resolver.workspaces if w.workspace_id == wid)
+        assert BOB in ws.owners
+
+    async def test_global_admin_removes_owner(self, storage, resolver):
+        wid = await _create_ws(storage, resolver, ALICE)
+        h = create_manage_workspace_owners_handler(storage, resolver, "@ops:x", ["@ops:x"])
+        await h(action="add", workspace_id=wid, target_user_id=BOB)
+        out = json.loads(await h(action="remove", workspace_id=wid, target_user_id=BOB))
+        assert out["success"] is True
+        ws = next(w for w in resolver.workspaces if w.workspace_id == wid)
+        assert BOB not in ws.owners
+
+    async def test_non_global_admin_denied(self, storage, resolver):
+        wid = await _create_ws(storage, resolver, ALICE)  # alice owner, pas admin global
+        h = create_manage_workspace_owners_handler(storage, resolver, ALICE, [])
+        out = json.loads(await h(action="add", workspace_id=wid, target_user_id="@x:y"))
+        assert out["success"] is False
+        assert "globale" in out["error"].lower()
