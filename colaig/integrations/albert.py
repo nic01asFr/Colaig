@@ -129,6 +129,19 @@ class AlbertClient:
             )
         return self._multipart_client
 
+    async def ping(self, timeout: float = 5.0) -> bool:
+        """Readiness probe : vérifie que l'endpoint LLM répond (sans consommer de tokens).
+
+        GET {base}/v1/models — accepte tout statut < 500 (200 = OK, 401/403 =
+        serveur joignable mais auth, ce qui prouve la disponibilité réseau).
+        """
+        try:
+            client = await self._get_client()
+            resp = await client.get(f"{self._base_url}/v1/models", timeout=timeout)
+            return resp.status_code < 500
+        except Exception:  # noqa: BLE001 — readiness ne doit jamais lever
+            return False
+
     async def close(self) -> None:
         """Ferme les clients HTTP."""
         if self._client and not self._client.is_closed:

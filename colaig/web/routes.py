@@ -187,6 +187,7 @@ def create_app(
     discovery_fn=None,        # async callable() — déclenche une re-découverte de workspaces
     clients_yml_path=None,    # str|Path — chemin vers clients.yml (active POST /api/platform/provision)
     messaging=None,           # MessagingProtocol (si WebChatMessaging → monte /chat/*)
+    llm_client=None,          # AlbertClientProtocol — readiness probe LLM (/ready)
 ) -> FastAPI:
     """Crée l'application FastAPI admin.
 
@@ -215,6 +216,33 @@ def create_app(
     # Session middleware (cookie signé) — clé = PLATFORM_API_KEY ou fallback dev
     _session_secret = _admin_key() or "colaig-dev-secret-change-in-production"
     app.add_middleware(SessionMiddleware, secret_key=_session_secret, session_cookie="colaig_session", https_only=False)
+
+    # Request-ID / W3C Trace Context — corrélation des logs de bout en bout.
+    # Ajouté après SessionMiddleware → outermost → s'applique à toute la requête.
+    import uuid as _uuid
+
+    import structlog
+    from starlette.middleware.base import BaseHTTPMiddleware
+
+    class _RequestIDMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: Request, call_next):
+            traceparent = request.headers.get("traceparent", "")
+            rid = request.headers.get("x-request-id", "")
+            if not rid and traceparent:
+                parts = traceparent.split("-")
+                rid = parts[1] if len(parts) >= 2 else ""
+            rid = rid or _uuid.uuid4().hex
+            structlog.contextvars.bind_contextvars(request_id=rid)
+            try:
+                response = await call_next(request)
+            finally:
+                structlog.contextvars.unbind_contextvars("request_id")
+            response.headers["x-request-id"] = rid
+            if traceparent:
+                response.headers["traceparent"] = traceparent
+            return response
+
+    app.add_middleware(_RequestIDMiddleware)
 
     # Monter le serveur MCP si disponible
     if mcp_server is not None:
@@ -264,6 +292,45 @@ def create_app(
             "started_at": _START_DATETIME,
             "uptime_seconds": uptime,
         }
+
+    @app.get("/live", response_class=JSONResponse)
+    async def live():
+        """Liveness probe — le process tourne et répond."""
+        return {"status": "alive", "uptime_seconds": int(time.monotonic() - _START_TIME)}
+
+    @app.get("/ready", response_class=JSONResponse)
+    async def ready():
+        """Readiness probe — teste les dépendances (storage, LLM).
+
+        Retourne 503 si une dépendance critique est indisponible (utile pour
+        les probes Kubernetes/Onyxia : pas de trafic tant que pas prêt).
+        """
+        checks: dict = {}
+        ok = True
+
+        if storage is not None:
+            try:
+                await storage.exists("/")
+                checks["storage"] = "ok"
+            except Exception as e:  # noqa: BLE001
+                checks["storage"] = f"error: {e}"
+                ok = False
+
+        if llm_client is not None:
+            try:
+                ping = getattr(llm_client, "ping", None)
+                checks["llm"] = "ok" if (ping and await ping()) else "unavailable"
+                ok = ok and checks["llm"] == "ok"
+            except Exception as e:  # noqa: BLE001
+                checks["llm"] = f"error: {e}"
+                ok = False
+
+        body = {
+            "status": "ready" if ok else "not_ready",
+            "checks": checks,
+            "uptime_seconds": int(time.monotonic() - _START_TIME),
+        }
+        return JSONResponse(status_code=200 if ok else 503, content=body)
 
     @app.get("/metrics", response_class=JSONResponse)
     async def metrics():

@@ -1321,6 +1321,7 @@ async def main() -> None:
         handler=handler,
         workspace_indexers=workspace_indexers,
         messaging=messaging,
+        llm_client=albert,
     )
 
     # 6b. Middleware d'auth MCP (après create_app pour wrapper le mount /mcp)
