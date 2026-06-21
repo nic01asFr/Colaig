@@ -140,7 +140,9 @@ async def handle_conversation(ep: EventParser, matrix_client: MatrixClient):
         # car _orchestrate_response utilise l'agent loop avec workspace_config/skills
         # et n'a pas besoin du behavior_index (qui fait ~40 requêtes WebDAV).
         from app.commands import get_behavior_manager_for_context
+        logger.info("[CONV-STEP] chargement behavior_manager…")
         behavior_manager = await get_behavior_manager_for_context(config, room_id=room_id, user_id=sender)
+        logger.info("[CONV-STEP] behavior_manager OK")
         
         # Récupérer l'historique de conversation
         history = session_context.history
@@ -154,11 +156,13 @@ async def handle_conversation(ep: EventParser, matrix_client: MatrixClient):
         # Mettre à jour l'activité du salon
         ctx_manager = await get_context_manager(config)
         try:
+            logger.info("[CONV-STEP] get_or_create_room_context…")
             room_context = await ctx_manager.get_or_create_room_context(
                 room_id=room_id,
                 room_name=ep.room.display_name if hasattr(ep.room, 'display_name') else "Salon inconnu",
                 is_direct=False
             )
+            logger.info("[CONV-STEP] room_context OK")
             await ctx_manager.update_room_activity(room_id, sender)
         except Exception as e:
             logger.warning(f"Erreur lors de la mise à jour du contexte de salon: {str(e)}")
@@ -265,6 +269,7 @@ Ce message suivant semble être une réaction ou une nouvelle question après ce
         from app.agent.result import AgentResult
         from app.matrix_bot.response_formatter import format_agent_response
 
+        logger.info("[CONV-STEP] pré-orchestration terminée → lancement agent")
         agent_result = await _orchestrate_response(
             message_text=message_text,
             messages=messages,
@@ -407,18 +412,31 @@ async def _orchestrate_response(
     mcp_registry = None
     mcp_instructions = {}
     try:
+        import asyncio as _asyncio_mcp
         from app.services.mcp.registry import get_mcp_registry
         mcp_registry = get_mcp_registry()
         if webdav_svc:
-            # workspace_root vide = chargement des defaults globaux uniquement
-            mcp_tools = await mcp_registry.get_tools(webdav_svc, workspace_root or "")
-            # get_server_instructions est la SSOT : natif > config > vide
-            mcp_instructions = mcp_registry.get_server_instructions(workspace_root or "")
-
-            logger.info(
-                f"[AGENT] MCP {len(mcp_tools)} outils, "
-                f"{len(mcp_instructions)} instructions"
-            )
+            # workspace_root vide = chargement des defaults globaux uniquement.
+            # TIMEOUT STRICT : un serveur MCP lent/instable (ex: SSE qui pend)
+            # ne doit JAMAIS bloquer la réponse. Au-delà, on dégrade (0 outil MCP).
+            try:
+                mcp_tools = await _asyncio_mcp.wait_for(
+                    mcp_registry.get_tools(webdav_svc, workspace_root or ""),
+                    timeout=20.0,
+                )
+                # get_server_instructions est la SSOT : natif > config > vide
+                mcp_instructions = mcp_registry.get_server_instructions(workspace_root or "")
+                logger.info(
+                    f"[AGENT] MCP {len(mcp_tools)} outils, "
+                    f"{len(mcp_instructions)} instructions"
+                )
+            except _asyncio_mcp.TimeoutError:
+                logger.warning(
+                    "[AGENT] Chargement MCP > 20s — dégradation (0 outil MCP). "
+                    "Serveur MCP lent/indisponible."
+                )
+                mcp_tools = []
+                mcp_instructions = {}
     except Exception as e:
         logger.warning(f"[AGENT] MCP non disponible: {e}")
 
