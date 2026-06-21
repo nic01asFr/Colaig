@@ -14,23 +14,23 @@ import signal
 from pathlib import Path
 
 from colaig.config import load_config
+
+# Context & Generator
+from colaig.context.resolver import ContextResolver
 from colaig.exceptions import StorageError
+from colaig.messaging.handlers import MessageHandler
 from colaig.models import ColaigConfig
-from colaig.utils.logging import setup_logging
+from colaig.rag.behavior_indexer import BehaviorIndexer
 
 # RAG pipeline
 from colaig.rag.chunker import Chunker
 from colaig.rag.embeddings import EmbeddingService
 from colaig.rag.faiss_store import FaissStore
-from colaig.rag.retriever import Retriever
-from colaig.rag.indexer import Indexer
-from colaig.rag.behavior_indexer import BehaviorIndexer
-from colaig.rag.skill_indexer import SkillIndexer
-
-# Context & Generator
-from colaig.context.resolver import ContextResolver
 from colaig.rag.generator import Generator
-from colaig.messaging.handlers import MessageHandler
+from colaig.rag.indexer import Indexer
+from colaig.rag.retriever import Retriever
+from colaig.rag.skill_indexer import SkillIndexer
+from colaig.utils.logging import setup_logging
 
 # Web
 from colaig.web.routes import create_app
@@ -91,6 +91,7 @@ def create_storage(config: ColaigConfig):
             endpoint_url=config.s3_endpoint_url or None,
             prefix=config.s3_prefix,
             region=config.s3_region,
+            session_token=config.s3_session_token or None,
         )
     elif backend == "msgraph":
         from colaig.integrations.storage.msgraph import MicrosoftGraphStorage
@@ -103,8 +104,9 @@ def create_storage(config: ColaigConfig):
             root_path=config.msgraph_root_path,
         )
     elif backend == "box":
-        from colaig.integrations.storage.box import BoxStorage
         import json as _json
+
+        from colaig.integrations.storage.box import BoxStorage
 
         client_id = config.box_client_id
         client_secret = config.box_client_secret
@@ -280,6 +282,7 @@ def create_storage_for_client(cc):
             endpoint_url=cc.storage_s3_endpoint or None,
             prefix=cc.storage_s3_prefix,
             region=cc.storage_s3_region,
+            session_token=cc.storage_s3_session_token or None,
         )
     elif backend == "msgraph":
         from colaig.integrations.storage.msgraph import MicrosoftGraphStorage
@@ -292,11 +295,18 @@ def create_storage_for_client(cc):
             root_path=cc.storage_msgraph_root_path,
         )
     elif backend == "box":
-        from colaig.integrations.storage.box import BoxStorage
         import json as _json
+
+        from colaig.integrations.storage.box import BoxStorage
         cfg_file = cc.storage_box_config_file
         client_id = client_secret = enterprise_id = public_key_id = private_key = passphrase = ""
         if cfg_file:
+            if not Path(cfg_file).is_file():
+                from colaig.exceptions import ConfigError
+                raise ConfigError(
+                    f"Client '{cc.client_id}': fichier box_config_file introuvable: {cfg_file} "
+                    f"(STORAGE_BACKEND=box). Verifiez le chemin dans config/clients.yml."
+                )
             with open(cfg_file, encoding="utf-8") as f:
                 box_cfg = _json.load(f)
             app = box_cfg.get("boxAppSettings", {})
@@ -449,7 +459,7 @@ async def run_client_stack(cc, config: ColaigConfig, shutdown_event: asyncio.Eve
 
     chunker = Chunker(chunk_size=config.chunk_size, chunk_overlap=config.chunk_overlap)
     _embed_ns = _embedding_namespace(cc.llm_api_key or config.albert_api_key, cc.llm_model_embed or config.albert_model_embed)
-    embedding_service = EmbeddingService(albert, dimension=1024, cache_namespace=_embed_ns)
+    embedding_service = EmbeddingService(albert, dimension=1024, cache_namespace=_embed_ns, local_fallback=config.local_embeddings)
     faiss_store = FaissStore(dimension=1024)
 
     retriever = Retriever(
@@ -472,8 +482,8 @@ async def run_client_stack(cc, config: ColaigConfig, shutdown_event: asyncio.Eve
     workspace_indexers: dict = {}
     workspace_bm25_stores: dict | None = {} if config.hybrid_search_enabled else None
 
-    from colaig.rag.index_registry import FaissIndexRegistry
     from colaig.context.user_memory import UserMemory
+    from colaig.rag.index_registry import FaissIndexRegistry
     index_registry = FaissIndexRegistry()
     user_memory = UserMemory(
         storage=storage,
@@ -484,8 +494,8 @@ async def run_client_stack(cc, config: ColaigConfig, shutdown_event: asyncio.Eve
         dimension=1024,
     )
 
-    from colaig.rag.workspace_directory import WorkspaceDirectory
     from colaig.rag.federation_service import FederationService
+    from colaig.rag.workspace_directory import WorkspaceDirectory
     federation_service = FederationService(storage)
     workspace_directory = WorkspaceDirectory(storage, embedding_service, index_registry)
 
@@ -503,8 +513,8 @@ async def run_client_stack(cc, config: ColaigConfig, shutdown_event: asyncio.Eve
 
     if config.agents_enabled:
         from colaig.agents import Analyser, Orchestrator, Synthesiser, build_tool_registry
-        from colaig.context.conversation_memory import ConversationMemory
         from colaig.agents.trame_manager import TrameManager
+        from colaig.context.conversation_memory import ConversationMemory
 
         conversation_memory = ConversationMemory(
             storage=storage,
@@ -543,6 +553,7 @@ async def run_client_stack(cc, config: ColaigConfig, shutdown_event: asyncio.Eve
             bm25_stores=workspace_bm25_stores,
             index_registry=index_registry,
             workspace_directory=workspace_directory,
+            admin_user_ids=config.admin_user_ids,
         )
         trame_manager = TrameManager(storage=storage)
 
@@ -661,7 +672,7 @@ async def run_indexation_loop(
     else:
         try:
             await asyncio.wait_for(shutdown_event.wait(), timeout=interval)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass
 
     while not shutdown_event.is_set():
@@ -748,7 +759,7 @@ async def run_indexation_loop(
 
         try:
             await asyncio.wait_for(shutdown_event.wait(), timeout=interval)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass
 
 
@@ -776,7 +787,7 @@ async def run_document_index_loop(
 
         try:
             await asyncio.wait_for(shutdown_event.wait(), timeout=interval)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass
 
 
@@ -805,7 +816,7 @@ async def run_workspace_discovery_loop(
 
     try:
         await asyncio.wait_for(shutdown_event.wait(), timeout=interval)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         pass
 
     while not shutdown_event.is_set():
@@ -875,7 +886,7 @@ async def run_workspace_discovery_loop(
 
         try:
             await asyncio.wait_for(shutdown_event.wait(), timeout=interval)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass
 
 
@@ -997,7 +1008,6 @@ async def main() -> None:
     setup_logging(config.log_level)
 
     # Vérifier si le mode multi-client est activé (clients.yml présent et non vide)
-    import os as _os
     from colaig.client_registry import ClientRegistry
     _clients_yml = Path(__file__).parent.parent / "config" / "clients.yml"
     client_registry = ClientRegistry.from_yaml_or_empty(_clients_yml)
@@ -1056,6 +1066,15 @@ async def main() -> None:
         return
 
     # ── Mode single-client (rétrocompat — env vars) ──────────────────────────
+    # Validation de config : message clair plutôt qu'un traceback tardif.
+    from colaig.config import validate_config
+    from colaig.exceptions import ConfigError
+    try:
+        validate_config(config)
+    except ConfigError as e:
+        logger.error("%s", e)
+        raise SystemExit(1) from None
+
     logger.info("démarrage Colaig (storage=%s, messaging=%s)",
                 config.storage_backend, config.messaging_backend)
 
@@ -1073,7 +1092,7 @@ async def main() -> None:
     )
 
     _embed_ns = _embedding_namespace(config.albert_api_key, config.albert_model_embed)
-    embedding_service = EmbeddingService(albert, dimension=1024, cache_namespace=_embed_ns)
+    embedding_service = EmbeddingService(albert, dimension=1024, cache_namespace=_embed_ns, local_fallback=config.local_embeddings)
 
     # Store partagé — utilisé uniquement par le web admin / MCP pour reindex manuel
     faiss_store = FaissStore(dimension=1024)
@@ -1113,8 +1132,8 @@ async def main() -> None:
         logger.info("recherche hybride activée (BM25 + RRF k=%d)", config.rrf_k_constant)
 
     # Registry FAISS partagé — UserMemory + accès concurrent par index
-    from colaig.rag.index_registry import FaissIndexRegistry
     from colaig.context.user_memory import UserMemory
+    from colaig.rag.index_registry import FaissIndexRegistry
     index_registry = FaissIndexRegistry()
     user_memory = UserMemory(
         storage=storage,
@@ -1125,8 +1144,8 @@ async def main() -> None:
         dimension=1024,
     )
 
-    from colaig.rag.workspace_directory import WorkspaceDirectory
     from colaig.rag.federation_service import FederationService
+    from colaig.rag.workspace_directory import WorkspaceDirectory
     federation_service = FederationService(storage)
     workspace_directory = WorkspaceDirectory(storage, embedding_service, index_registry)
 
@@ -1210,6 +1229,7 @@ async def main() -> None:
             bm25_stores=workspace_bm25_stores,
             index_registry=index_registry,
             workspace_directory=workspace_directory,
+            admin_user_ids=config.admin_user_ids,
         )
 
         if config.agents_phase6_enabled:
@@ -1220,8 +1240,8 @@ async def main() -> None:
     # ProfileService + PreExecutionBuilder (Phase 6 uniquement)
     pre_exec_builder = None
     if config.agents_enabled and config.agents_phase6_enabled:
-        from colaig.agents.profile_service import ProfileService
         from colaig.agents.pre_execution import PreExecutionBuilder
+        from colaig.agents.profile_service import ProfileService
 
         profile_service = ProfileService(storage=storage, embeddings=embedding_service, index_registry=index_registry)
         pre_exec_builder = PreExecutionBuilder(
@@ -1266,9 +1286,9 @@ async def main() -> None:
     mcp_server = None
     token_manager = None
     if config.mcp_enabled:
+        from colaig.auth import TokenManager
         from colaig.mcp import ColaigMCPServer
         from colaig.platform.config_store import ConfigStore
-        from colaig.auth import TokenManager
         _runtime_yml = Path(__file__).resolve().parent.parent / "config" / "runtime.yml"
         _config_store = ConfigStore(_runtime_yml)
         token_manager = TokenManager(storage=storage, base_url=config.base_url)

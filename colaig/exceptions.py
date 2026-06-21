@@ -12,6 +12,11 @@ class ColaigError(Exception):
     pass
 
 
+class ConfigError(ColaigError):
+    """Configuration invalide ou incomplete (detectee au demarrage)."""
+    pass
+
+
 # --- Storage (provider-agnostic) ---
 
 class StorageError(ColaigError):

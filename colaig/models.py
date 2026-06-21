@@ -10,8 +10,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional
-
 
 # =============================================================================
 # ENUMS
@@ -75,7 +73,7 @@ class ContextAnchor:
     ref: str               # Chemin fichier, ou texte de la décision/contrainte
     description: str = ""  # Description complémentaire
     turn_index: int = 0    # Tour où l'ancre a été établie
-    established_at: Optional[datetime] = None  # Horodatage UTC de création
+    established_at: datetime | None = None  # Horodatage UTC de création
 
 
 @dataclass
@@ -94,7 +92,7 @@ class ConversationTrame:
     conversation_phase: str = "discovery"
 
     # Behavior actif pour cette conversation (stable entre turns)
-    active_behavior: Optional[str] = None
+    active_behavior: str | None = None
 
     # Étapes du workflow conversationnel (méta-niveau, pas les étapes d'exécution)
     workflow_steps: list[WorkflowStep] = field(default_factory=list)
@@ -119,7 +117,7 @@ class Attachment:
     content_type: str = ""
     size: int = 0
     url: str = ""
-    content: Optional[bytes] = None
+    content: bytes | None = None
 
 
 @dataclass
@@ -142,7 +140,7 @@ class IncomingMessage:
     attachments: list[Attachment] = field(default_factory=list)
 
     # Métadonnées spécifiques au provider (pour debug/logging)
-    raw_metadata: Optional[dict] = None
+    raw_metadata: dict | None = None
 
     # Alias de rétrocompatibilité (propriétés calculées)
     @property
@@ -200,7 +198,7 @@ class StorageFile:
     is_directory: bool = False
     size: int = 0                # Taille en bytes
     etag: str = ""               # Pour détection de changements
-    last_modified: Optional[datetime] = None
+    last_modified: datetime | None = None
     content_type: str = ""       # application/pdf, text/plain, etc.
 
 
@@ -222,10 +220,10 @@ class UserProfile:
     active_projects: list[str] = field(default_factory=list)
     communication_style: str = ""
     # Métadonnées
-    consolidated_at: Optional[datetime] = None
+    consolidated_at: datetime | None = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> "UserProfile":
+    def from_dict(cls, data: dict) -> UserProfile:
         """Construit un UserProfile depuis un dict JSON (tolérant aux champs manquants)."""
         return cls(
             role=str(data.get("role", "")),
@@ -362,6 +360,7 @@ class WorkspaceConfig:
     # Mapping conversations (provider-agnostic)
     conversations: list[str] = field(default_factory=list)  # Liste de conversation_ids associés
     user_ids: list[str] = field(default_factory=list)        # Liste de user_ids pour DMs personnels
+    owners: list[str] = field(default_factory=list)          # user_ids admins de CE workspace (config réflexive scopée)
 
     # Comportement (Couche 1)
     system_prompt: str = ""
@@ -424,7 +423,7 @@ class WorkspaceContext:
     Créé par context/resolver.py + context/layers.py.
     Consommé par rag/generator.py et messaging/handlers.py.
     """
-    workspace: Optional[WorkspaceConfig]
+    workspace: WorkspaceConfig | None
     mode: ContextMode
 
     # Couche 1 — Comportement
@@ -442,7 +441,7 @@ class WorkspaceContext:
     user_domain: str = ""        # Domaine extrait du user_id
 
     # Phase 6 — Trame vivante (injectée depuis TrameManager avant le pipeline)
-    conversation_phase: Optional[str] = None
+    conversation_phase: str | None = None
     context_anchors: list = field(default_factory=list)
 
 
@@ -493,9 +492,9 @@ class BehaviorActivationConfig:
 @dataclass
 class BehaviorAgentConfig:
     """Overrides agent pour un behavior actif."""
-    temperature: Optional[float] = None
+    temperature: float | None = None
     format: str = ""
-    max_tokens: Optional[int] = None
+    max_tokens: int | None = None
     tools_priority: list[str] = field(default_factory=list)
 
 
@@ -572,7 +571,7 @@ class GeneratedResponse:
     model_used: str = ""         # Modèle Albert utilisé
     tokens_used: int = 0         # Tokens consommés
     generation_time_ms: int = 0  # Temps de génération en ms
-    context_card: Optional[ContextCard] = None  # Carte de contexte (Phase 2+)
+    context_card: ContextCard | None = None  # Carte de contexte (Phase 2+)
 
 
 # =============================================================================
@@ -607,14 +606,14 @@ class AgentContext:
     """
     agent_role: str                # "analyser" | "orchestrator" | "synthesiser"
     system_prompt: str = ""        # Prompt par défaut + override workspace
-    workspace_config: Optional[WorkspaceConfig] = None
+    workspace_config: WorkspaceConfig | None = None
     available_tools: list[str] = field(default_factory=list)
     available_resources: list[str] = field(default_factory=list)
     skills: list[dict] = field(default_factory=list)  # Skills chargés depuis .colaig/skills/
-    directives: Optional[AgentDirectives] = None      # Directives reçues de l'analyseur
+    directives: AgentDirectives | None = None      # Directives reçues de l'analyseur
     metadata: dict = field(default_factory=dict)
     # Phase 6
-    pre_exec: Optional[PreExecutionCard] = None       # PreExecutionCard (Phase 6)
+    pre_exec: PreExecutionCard | None = None       # PreExecutionCard (Phase 6)
     retrieval_results: dict = field(default_factory=dict)
     # {"chunks": [SearchResult...], "docs": [...], "skills": [...], "history": [...]}
 
@@ -665,15 +664,15 @@ class Intent:
     needs_tools: bool = False      # L'orchestrateur doit-il utiliser des outils MCP ?
     confidence: float = 0.0        # Confiance de la détection (0→1)
     raw_analysis: str = ""         # Analyse brute du LLM (debug)
-    orchestrator_directives: Optional[AgentDirectives] = None  # Directives pour l'orchestrateur (backward compat)
-    synthesiser_directives: Optional[AgentDirectives] = None   # Directives pour le synthétiseur
+    orchestrator_directives: AgentDirectives | None = None  # Directives pour l'orchestrateur (backward compat)
+    synthesiser_directives: AgentDirectives | None = None   # Directives pour le synthétiseur
     # Phase 6 — remplace orchestrator_directives
-    search_directives: Optional[SearchDirectives] = None       # Plan de récupération multi-source
+    search_directives: SearchDirectives | None = None       # Plan de récupération multi-source
     # Fast path — court-circuit pipeline complet (salutations, réponses directes)
     is_direct: bool = False
-    direct_response: Optional[str] = None
+    direct_response: str | None = None
     # Signaux pour TrameManager (suggérés par Agent 1, écrits par TrameManager seulement)
-    suggested_next_phase: Optional[str] = None
+    suggested_next_phase: str | None = None
     new_anchors: list[ContextAnchor] = field(default_factory=list)
 
 
@@ -686,7 +685,7 @@ class ExecutionStep:
     step_type: str                 # "rag_search", "mcp_tool", "llm_call", "storage_fetch"
     description: str = ""
     params: dict = field(default_factory=dict)     # Paramètres de l'étape
-    result: Optional[dict] = None  # Résultat après exécution
+    result: dict | None = None  # Résultat après exécution
     status: str = "pending"        # pending, running, done, error
     error: str = ""
 
@@ -702,7 +701,7 @@ class ExecutionPlan:
     search_results: list = field(default_factory=list)  # List[SearchResult] accumulés
     tool_results: list[dict] = field(default_factory=list)  # Résultats d'outils MCP
     execution_time_ms: int = 0
-    context_card: Optional[ContextCard] = None  # Carte de contexte (Phase 2+)
+    context_card: ContextCard | None = None  # Carte de contexte (Phase 2+)
     orchestrator_reasoning: str = ""  # Raisonnement final de l'orchestrateur (mode agentique)
 
 
@@ -782,13 +781,13 @@ class PreExecutionCard:
     Centralise : état trame, behavior actif, skills lazy-loaded, tools filtrés.
     """
     # État conversation (depuis trame vivante)
-    workspace_id: Optional[str]
-    conversation_phase: Optional[str]
+    workspace_id: str | None
+    conversation_phase: str | None
     context_anchors: list[ContextAnchor] = field(default_factory=list)
 
     # Behavior actif (résolu via behaviors.faiss + trame.active_behavior)
-    active_behavior_name: Optional[str] = None
-    active_behavior_config: Optional[BehaviorConfig] = None
+    active_behavior_name: str | None = None
+    active_behavior_config: BehaviorConfig | None = None
     active_behavior_score: float = 0.0
 
     # Skills lazy-loaded (via skills.faiss, top-k pertinents au message)
@@ -802,14 +801,14 @@ class PreExecutionCard:
     agent_overrides: dict[str, dict] = field(default_factory=dict)
 
     # Profil workspace (depuis identity.yaml)
-    workspace_profile: Optional[WorkspaceProfile] = None
+    workspace_profile: WorkspaceProfile | None = None
 
     # Contexte fixe transmis directement à Agent 1 (config + identity + behavior)
     fixed_context: dict = field(default_factory=dict)
 
     # Embedding du message — calculé 1 fois, réutilisé pour behaviors + skills FAISS
     # NE PAS utiliser pour les requêtes RAG (embed séparé dans execute_retrieval())
-    message_embedding: Optional[list[float]] = None
+    message_embedding: list[float] | None = None
 
 
 # =============================================================================
@@ -837,13 +836,13 @@ class DocumentRecord:
     size: int = 0                                # Taille en bytes
     checksum: str = ""                           # SHA256 du contenu
     mime_type: str = ""                          # application/pdf, text/plain, etc.
-    last_modified: Optional[datetime] = None
+    last_modified: datetime | None = None
     etag: str = ""                               # Etag du storage (détection de changements)
 
     # Statut de traitement
     status: DocumentStatus = DocumentStatus.PENDING
-    indexed_at: Optional[datetime] = None        # Date de première indexation
-    analyzed_at: Optional[datetime] = None       # Date de dernière analyse IA
+    indexed_at: datetime | None = None        # Date de première indexation
+    analyzed_at: datetime | None = None       # Date de dernière analyse IA
     error_message: str = ""                      # Message d'erreur si status=ERROR
 
     # Métadonnées IA (remplies par l'analyse Albert)
@@ -896,7 +895,7 @@ class DocumentRecord:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "DocumentRecord":
+    def from_dict(cls, data: dict) -> DocumentRecord:
         """Désérialise depuis un dict JSON.
 
         Migration backward-compat :
@@ -1074,6 +1073,7 @@ class ClientConfig:
     storage_s3_bucket: str = ""
     storage_s3_prefix: str = ""
     storage_s3_region: str = ""
+    storage_s3_session_token: str = ""
     # Bigfolder / Archivist
     storage_bigfolder_url: str = ""
     storage_bigfolder_service_token: str = ""
@@ -1123,7 +1123,7 @@ class ClientConfig:
     llm_azure_api_version: str = "2024-02-01"
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ClientConfig":
+    def from_dict(cls, data: dict) -> ClientConfig:
         """Construit un ClientConfig depuis un dict YAML (structure imbriquée)."""
         cc = cls()
         cc.client_id = str(data.get("id", ""))
@@ -1140,6 +1140,7 @@ class ClientConfig:
         cc.storage_s3_bucket = s.get("bucket", "")
         cc.storage_s3_prefix = s.get("prefix", "")
         cc.storage_s3_region = s.get("region", "")
+        cc.storage_s3_session_token = s.get("session_token", "")
         cc.storage_bigfolder_url = s.get("api_url", "")
         cc.storage_bigfolder_service_token = s.get("service_token", "") or s.get("api_key", "")
         cc.storage_bigfolder_root = s.get("root", "/")
@@ -1291,6 +1292,7 @@ class ColaigConfig:
     s3_bucket_name: str = ""
     s3_prefix: str = ""             # Préfixe chemin dans le bucket (ex: "colaig/")
     s3_region: str = "us-east-1"
+    s3_session_token: str = ""      # Token STS temporaire (ex: SSP Cloud / MinIO STS)
 
     # === Storage : Microsoft Graph (OneDrive / SharePoint) ===
     msgraph_tenant_id: str = ""     # ID tenant Azure AD
@@ -1375,6 +1377,7 @@ class ColaigConfig:
     hyde_enabled: bool = False               # Activer HyDE (Hypothetical Document Embeddings)
     hyde_query_weight: float = 0.5           # Poids embedding HyDE dans la combinaison (0→1)
     rrf_k_constant: int = 60                 # Constante k du Reciprocal Rank Fusion
+    local_embeddings: bool = False           # Fallback embeddings local (SentenceTransformer)
 
     # === Mode C : Tâches autonomes planifiées ===
     tasks_enabled: bool = False              # Activer le planificateur de tâches autonomes

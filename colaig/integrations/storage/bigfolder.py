@@ -20,7 +20,6 @@ import mimetypes
 import random
 import time
 from datetime import datetime
-from typing import Optional
 
 import httpx
 
@@ -58,14 +57,14 @@ class BigfolderStorage:
         self._root = bigfolder_root.rstrip("/") if bigfolder_root != "/" else ""
         self._timeout = timeout
         self._max_retries = max_retries
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
 
     # ── Client HTTP ──────────────────────────────────────────────────
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
             self._client = httpx.AsyncClient(
-                headers={"X-API-Key": self._service_token},
+                headers={"Authorization": f"Bearer {self._service_token}"},
                 timeout=httpx.Timeout(self._timeout),
                 follow_redirects=True,
             )
@@ -192,7 +191,7 @@ class BigfolderStorage:
         resp = await self._request("GET", "/storage/download", params={"path": bf_path})
         return resp.content
 
-    async def download_if_changed(self, path: str, known_etag: str) -> Optional[bytes]:
+    async def download_if_changed(self, path: str, known_etag: str) -> bytes | None:
         """Télécharge seulement si le document a changé depuis known_etag.
 
         Archivist ne supporte pas If-None-Match sur /storage/download.
@@ -250,7 +249,7 @@ class BigfolderStorage:
         except (StorageError, StorageFileNotFoundError):
             pass  # Non-bloquant — Bigfolder crée les dossiers à l'upload si absent
 
-    async def get_etag(self, path: str) -> Optional[str]:
+    async def get_etag(self, path: str) -> str | None:
         """Retourne l'ID du document comme etag (None si introuvable).
 
         L'ID est stable par contenu (déduplication MD5 côté Archivist).
@@ -276,7 +275,7 @@ def _backoff_delay(attempt: int, base: float = 1.0, maximum: float = 60.0) -> fl
     return delay + random.uniform(0, delay * 0.1)
 
 
-def _parse_iso_dt(value: Optional[str]) -> Optional[datetime]:
+def _parse_iso_dt(value: str | None) -> datetime | None:
     """Parse une date ISO 8601 (avec ou sans suffixe Z) en datetime aware."""
     if not value:
         return None

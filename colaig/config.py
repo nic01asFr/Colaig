@@ -19,7 +19,6 @@ from dotenv import load_dotenv
 
 from colaig.models import ColaigConfig, PlatformPolicy
 
-
 # Chemin racine du projet (parent du package colaig/)
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -138,9 +137,9 @@ def validate_client_against_policy(client_id: str, client_config: ColaigConfig, 
 
 def validate_client_config_against_policy(
     client_id: str,
-    cc: "ClientConfig",
+    cc: ClientConfig,
     policy: PlatformPolicy,
-    global_config: "ColaigConfig",
+    global_config: ColaigConfig,
 ) -> None:
     """Valide un ClientConfig contre la PlatformPolicy.
 
@@ -227,7 +226,7 @@ def load_config(yaml_path: Path | None = None) -> ColaigConfig:
         matrix_username=_env("MATRIX_USERNAME"),
         matrix_password=_env("MATRIX_PASSWORD"),
         # Albert API
-        albert_api_url=_env("ALBERT_API_URL", "https://albert-api.etalab.gouv.fr"),
+        albert_api_url=_env("ALBERT_API_URL", "https://albert.api.etalab.gouv.fr"),
         albert_api_key=_env("ALBERT_API_KEY"),
         albert_model_chat=_env("ALBERT_MODEL_CHAT", "openai/gpt-oss-120b"),
         albert_model_embed=_env("ALBERT_MODEL_EMBED", "BAAI/bge-m3"),
@@ -268,6 +267,7 @@ def load_config(yaml_path: Path | None = None) -> ColaigConfig:
         s3_bucket_name=_env("S3_BUCKET_NAME"),
         s3_prefix=_env("S3_PREFIX"),
         s3_region=_env("S3_REGION", "us-east-1"),
+        s3_session_token=_env("S3_SESSION_TOKEN"),
         # Storage : Microsoft Graph (OneDrive / SharePoint)
         msgraph_tenant_id=_env("MSGRAPH_TENANT_ID"),
         msgraph_client_id=_env("MSGRAPH_CLIENT_ID"),
@@ -374,4 +374,90 @@ def load_config(yaml_path: Path | None = None) -> ColaigConfig:
         hyde_enabled=_env("COLAIG_HYDE_ENABLED", "").lower() in ("1", "true", "yes"),
         hyde_query_weight=_env_float("COLAIG_HYDE_QUERY_WEIGHT", 0.5),
         rrf_k_constant=_env_int("COLAIG_RRF_K_CONSTANT", 60),
+        local_embeddings=_env("COLAIG_LOCAL_EMBEDDINGS", "").lower() in ("1", "true", "yes"),
     )
+
+
+def validate_config(config: ColaigConfig) -> None:
+    """Valide la config au demarrage et leve ConfigError avec un message clair.
+
+    Verifie que les champs requis du trio backend (storage / messaging / llm)
+    sont presents, plutot que de laisser un traceback brut survenir plus tard.
+    """
+    from colaig.exceptions import ConfigError
+
+    problems: list[str] = []
+
+    # --- LLM (un endpoint + une cle sont requis, sauf ollama keyless) ---
+    llm = (config.llm_backend or "albert").lower()
+    if llm == "albert":
+        if not config.albert_api_key:
+            problems.append("ALBERT_API_KEY manquant (LLM_BACKEND=albert)")
+    elif llm == "ollama":
+        pass  # keyless
+    else:
+        if not config.llm_api_key:
+            problems.append(f"LLM_API_KEY manquant (LLM_BACKEND={llm})")
+        if not config.llm_api_url:
+            problems.append(f"LLM_API_URL manquant (LLM_BACKEND={llm})")
+
+    # --- Storage ---
+    sb = (config.storage_backend or "").lower()
+    _required = {
+        "webdav": [("WEBDAV_URL", config.webdav_url)],
+        "bigfolder": [
+            ("BIGFOLDER_API_URL", config.bigfolder_api_url),
+            ("BIGFOLDER_SERVICE_TOKEN", config.bigfolder_service_token),
+        ],
+        "s3": [
+            ("S3_BUCKET_NAME", config.s3_bucket_name),
+            ("S3_ACCESS_KEY", config.s3_access_key),
+            ("S3_SECRET_KEY", config.s3_secret_key),
+        ],
+        "msgraph": [
+            ("MSGRAPH_TENANT_ID", config.msgraph_tenant_id),
+            ("MSGRAPH_CLIENT_ID", config.msgraph_client_id),
+            ("MSGRAPH_CLIENT_SECRET", config.msgraph_client_secret),
+        ],
+    }
+    for field_name, value in _required.get(sb, []):
+        if not value:
+            problems.append(f"{field_name} manquant (STORAGE_BACKEND={sb})")
+
+    if sb == "box":
+        if not config.box_config_file and not config.box_client_id:
+            problems.append("BOX_CONFIG_FILE ou BOX_CLIENT_ID requis (STORAGE_BACKEND=box)")
+        if config.box_config_file and not Path(config.box_config_file).is_file():
+            problems.append(f"BOX_CONFIG_FILE introuvable: {config.box_config_file}")
+    if sb == "gdrive":
+        sa = config.gdrive_service_account_json
+        if not sa:
+            problems.append("GDRIVE_SERVICE_ACCOUNT_JSON requis (STORAGE_BACKEND=gdrive)")
+        elif not sa.strip().startswith("{") and not Path(sa).is_file():
+            problems.append(f"GDRIVE_SERVICE_ACCOUNT_JSON introuvable: {sa}")
+    if sb and sb not in ("local", "webdav", "bigfolder", "s3", "msgraph", "box", "gdrive"):
+        problems.append(f"STORAGE_BACKEND inconnu: {sb}")
+
+    # --- Messaging ---
+    mb = (config.messaging_backend or "").lower()
+    if mb == "matrix":
+        for field_name, value in (
+            ("MATRIX_HOMESERVER", config.matrix_homeserver),
+            ("MATRIX_USERNAME", config.matrix_username),
+            ("MATRIX_PASSWORD", config.matrix_password),
+        ):
+            if not value:
+                problems.append(f"{field_name} manquant (MESSAGING_BACKEND=matrix)")
+    elif mb == "telegram":
+        if not config.telegram_bot_token:
+            problems.append("TELEGRAM_BOT_TOKEN manquant (MESSAGING_BACKEND=telegram)")
+    elif mb and mb not in ("webchat", "none", "noop", "slack"):
+        problems.append(f"MESSAGING_BACKEND inconnu: {mb}")
+
+    if problems:
+        details = "\n  - ".join(problems)
+        raise ConfigError(
+            "Configuration Colaig invalide :\n  - "
+            + details
+            + "\n\nVoir config/.env.example pour les variables attendues."
+        )

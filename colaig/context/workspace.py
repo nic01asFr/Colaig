@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
 
 import yaml
 
@@ -153,6 +153,7 @@ async def load_workspace(storage, workspace_path: str, repair: bool = False) -> 
         description=data.get("description", ""),
         conversations=conversations,
         user_ids=data.get("user_ids", []),
+        owners=data.get("owners", []),
         system_prompt=data.get("system_prompt", ""),
         tone=data.get("tone", "professional"),
         expertise_level=data.get("expertise_level", "general"),
@@ -214,7 +215,7 @@ async def list_workspaces(storage) -> list[WorkspaceConfig]:
 
 def find_workspace_for_conversation(
     workspaces: list[WorkspaceConfig], conversation_id: str
-) -> Optional[WorkspaceConfig]:
+) -> WorkspaceConfig | None:
     """Cherche le workspace associé à un conversation_id.
 
     Args:
@@ -232,7 +233,7 @@ def find_workspace_for_conversation(
 
 def find_workspace_for_user(
     workspaces: list[WorkspaceConfig], user_id: str
-) -> Optional[WorkspaceConfig]:
+) -> WorkspaceConfig | None:
     """Cherche le workspace personnel associé à un user_id (pour les DMs).
 
     Utilisé quand un utilisateur écrit en DM et dispose d'un workspace
@@ -321,6 +322,7 @@ def _workspace_to_dict(ws: WorkspaceConfig) -> dict:
         "tools_enabled": ws.tools_enabled,
         "storage_readonly": ws.storage_readonly,
         "user_ids": ws.user_ids,
+        "owners": ws.owners,
         "public": ws.public,
         **({"mcp_connectors": [
             {
@@ -354,13 +356,14 @@ async def create_workspace(
     storage,
     storage_path: str,
     name: str,
-    workspace_id: Optional[str] = None,
+    workspace_id: str | None = None,
     description: str = "",
-    conversations: Optional[list[str]] = None,
+    conversations: list[str] | None = None,
     system_prompt: str = "",
     tone: str = "professional",
     language: str = "fr",
     rag_enabled: bool = True,
+    owners: list[str] | None = None,
 ) -> WorkspaceConfig:
     """Crée un workspace avec le scaffold .colaig/ complet.
 
@@ -403,6 +406,7 @@ async def create_workspace(
         storage_path=storage_path,
         description=description,
         conversations=list(conversations or []),
+        owners=list(owners or []),
         system_prompt=system_prompt,
         tone=tone,
         language=language,

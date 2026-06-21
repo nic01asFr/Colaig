@@ -14,11 +14,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
-from datetime import timezone
-from typing import Optional
+from datetime import UTC
 
-from colaig.exceptions import StorageError, StorageFileNotFoundError, StorageAuthError
+from colaig.exceptions import StorageAuthError, StorageError, StorageFileNotFoundError
 from colaig.models import StorageFile
 
 logger = logging.getLogger(__name__)
@@ -60,13 +58,15 @@ class S3Storage:
         bucket_name: str,
         access_key: str,
         secret_key: str,
-        endpoint_url: Optional[str] = None,
+        endpoint_url: str | None = None,
         prefix: str = "",
         region: str = "us-east-1",
+        session_token: str | None = None,
     ) -> None:
         self._bucket = bucket_name
         self._access_key = access_key
         self._secret_key = secret_key
+        self._session_token = session_token or None
         self._endpoint_url = endpoint_url or None
         self._prefix = prefix.strip("/")
         self._region = region
@@ -80,6 +80,7 @@ class S3Storage:
                 "s3",
                 aws_access_key_id=self._access_key,
                 aws_secret_access_key=self._secret_key,
+                aws_session_token=self._session_token,
                 endpoint_url=self._endpoint_url,
                 region_name=self._region,
             )
@@ -128,7 +129,7 @@ class S3Storage:
                         name = key.rstrip("/").split("/")[-1]
                         last_mod = obj.get("LastModified")
                         if last_mod and last_mod.tzinfo is None:
-                            last_mod = last_mod.replace(tzinfo=timezone.utc)
+                            last_mod = last_mod.replace(tzinfo=UTC)
                         files.append(StorageFile(
                             path=self._strip_prefix(key),
                             name=name,
@@ -167,7 +168,7 @@ class S3Storage:
 
         return await asyncio.to_thread(_download)
 
-    async def download_if_changed(self, path: str, known_etag: str) -> Optional[bytes]:
+    async def download_if_changed(self, path: str, known_etag: str) -> bytes | None:
         """Télécharge seulement si l'etag a changé."""
         key = self._full_key(path)
 
@@ -249,7 +250,7 @@ class S3Storage:
 
         return await asyncio.to_thread(_head)
 
-    async def get_etag(self, path: str) -> Optional[str]:
+    async def get_etag(self, path: str) -> str | None:
         """Retourne l'etag d'un objet S3."""
         key = self._full_key(path)
 

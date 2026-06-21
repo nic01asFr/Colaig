@@ -8,9 +8,9 @@ normalisation L2 systématique.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
-from typing import Optional
 
 import numpy as np
 
@@ -38,6 +38,8 @@ class EmbeddingService:
         dimension: int = 1024,
         cache_max_size: int = 10000,
         cache_namespace: str = "",
+        local_fallback: bool = False,
+        local_model: str = "BAAI/bge-m3",
     ) -> None:
         self._albert = albert_client
         self._dimension = dimension
@@ -49,6 +51,35 @@ class EmbeddingService:
         # Statistiques de cache
         self._cache_hits = 0
         self._cache_misses = 0
+        # Fallback embeddings local (SentenceTransformer) si le provider échoue
+        self._local_fallback = local_fallback
+        self._local_model_name = local_model
+        self._st_model = None  # lazy init
+
+    def _load_local_model(self):
+        """Charge (paresseusement) le modèle SentenceTransformer de fallback."""
+        if self._st_model is None:
+            try:
+                from sentence_transformers import SentenceTransformer
+            except ImportError as e:  # pragma: no cover - dépend de l'install
+                raise EmbeddingError(
+                    "sentence-transformers requis pour le fallback embeddings local "
+                    "(pip install sentence-transformers)"
+                ) from e
+            logger.warning(
+                "embeddings: chargement du modèle local '%s' (fallback)",
+                self._local_model_name,
+            )
+            self._st_model = SentenceTransformer(self._local_model_name)
+        return self._st_model
+
+    async def _embed_local(self, texts: list[str]) -> list[list[float]]:
+        """Embeddings via le modèle local (hors thread event-loop)."""
+        model = self._load_local_model()
+        vectors = await asyncio.to_thread(
+            model.encode, texts, normalize_embeddings=False
+        )
+        return [list(map(float, v)) for v in vectors]
 
     @property
     def dimension(self) -> int:
@@ -72,7 +103,11 @@ class EmbeddingService:
             raw = await self._albert.embed(text)
             normalized = _normalize_l2(raw)
         except Exception as e:
-            raise EmbeddingError(f"Erreur embedding: {e}") from e
+            if not self._local_fallback:
+                raise EmbeddingError(f"Erreur embedding: {e}") from e
+            logger.warning("embeddings: provider échoué (%s) → fallback local", e)
+            raw = (await self._embed_local([text]))[0]
+            normalized = _normalize_l2(raw)
 
         if self._cache_max_size == 0 or len(self._cache) < self._cache_max_size:
             self._cache[cache_key] = normalized
@@ -84,7 +119,7 @@ class EmbeddingService:
         if not texts:
             return []
 
-        results: list[Optional[list[float]]] = [None] * len(texts)
+        results: list[list[float] | None] = [None] * len(texts)
         uncached_indices: list[int] = []
         uncached_texts: list[str] = []
 
@@ -102,7 +137,10 @@ class EmbeddingService:
             try:
                 raw_embeddings = await self._albert.embed_batch(uncached_texts)
             except Exception as e:
-                raise EmbeddingError(f"Erreur batch embedding: {e}") from e
+                if not self._local_fallback:
+                    raise EmbeddingError(f"Erreur batch embedding: {e}") from e
+                logger.warning("embeddings: provider échoué (%s) → fallback local", e)
+                raw_embeddings = await self._embed_local(uncached_texts)
 
             for idx, raw in zip(uncached_indices, raw_embeddings):
                 normalized = _normalize_l2(raw)
