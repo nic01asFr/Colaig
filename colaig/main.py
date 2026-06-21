@@ -37,6 +37,11 @@ from colaig.web.routes import create_app
 
 logger = logging.getLogger(__name__)
 
+# Suivi d'usage LLM par tenant — process-global (zéro-DB, reconstructible au restart).
+from colaig.metrics import UsageTracker
+
+_USAGE_TRACKER = UsageTracker()
+
 
 # =============================================================================
 # Factory pattern — instanciation des backends selon la config
@@ -196,7 +201,7 @@ def create_messaging(config: ColaigConfig):
         raise ValueError(f"MESSAGING_BACKEND inconnu: {backend}")
 
 
-def create_llm_client(config: ColaigConfig):
+def create_llm_client(config: ColaigConfig, client_id: str = ""):
     """Crée le client LLM selon LLM_BACKEND.
 
     LLM_BACKEND=albert (défaut) → AlbertClient — backend souverain FR
@@ -211,7 +216,8 @@ def create_llm_client(config: ColaigConfig):
 
     if backend == "albert":
         from colaig.integrations.albert import AlbertClient
-        return AlbertClient(config, ocr_page_delay=config.ocr_page_delay_s)
+        return AlbertClient(config, ocr_page_delay=config.ocr_page_delay_s,
+                            usage_tracker=_USAGE_TRACKER, client_id=client_id)
 
     elif backend == "openai":
         from colaig.integrations.llm.openai_client import OpenAIClient
@@ -388,7 +394,7 @@ def create_llm_for_client(cc, default_config: ColaigConfig):
         Instance implémentant LLMClientProtocol.
     """
     if not cc.llm_backend:
-        return create_llm_client(default_config)
+        return create_llm_client(default_config, client_id=cc.client_id)
 
     backend = cc.llm_backend.lower()
 
@@ -404,7 +410,7 @@ def create_llm_for_client(cc, default_config: ColaigConfig):
             albert_model_audio=default_config.albert_model_audio,
         )
         from colaig.integrations.albert import AlbertClient
-        return AlbertClient(override)
+        return AlbertClient(override, usage_tracker=_USAGE_TRACKER, client_id=cc.client_id)
 
     elif backend == "openai":
         from colaig.integrations.llm.openai_client import OpenAIClient
@@ -1059,6 +1065,7 @@ async def main() -> None:
             handler=None, workspace_indexers={},
             clients_yml_path=_clients_yml,
             messaging=_webchat_messaging,
+            usage_tracker=_USAGE_TRACKER,
         )
         web_task = asyncio.create_task(run_web_server(app, config.web_port))
 
@@ -1322,6 +1329,7 @@ async def main() -> None:
         workspace_indexers=workspace_indexers,
         messaging=messaging,
         llm_client=albert,
+        usage_tracker=_USAGE_TRACKER,
     )
 
     # 6b. Middleware d'auth MCP (après create_app pour wrapper le mount /mcp)

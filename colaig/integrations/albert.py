@@ -55,7 +55,11 @@ class AlbertClient:
         chat_max_concurrent: int = 4,
         bg_chat_max_concurrent: int = 3,
         ocr_page_delay: float = 3.0,
+        usage_tracker=None,
+        client_id: str = "",
     ) -> None:
+        self._usage_tracker = usage_tracker   # UsageTracker | None — suivi tokens par tenant
+        self._client_id = client_id
         self._base_url = config.albert_api_url.rstrip("/")
         self._api_key = config.albert_api_key
         self._model_chat = config.albert_model_chat
@@ -128,6 +132,14 @@ class AlbertClient:
                 follow_redirects=True,
             )
         return self._multipart_client
+
+    def _record_usage(self, data: dict) -> None:
+        """Enregistre l'usage tokens d'une réponse OpenAI-compatible (si tracker)."""
+        if self._usage_tracker is not None:
+            try:
+                self._usage_tracker.record_from_usage(self._client_id, data.get("usage"))
+            except Exception:  # noqa: BLE001 — la métrique ne doit jamais casser l'appel
+                pass
 
     async def ping(self, timeout: float = 5.0) -> bool:
         """Readiness probe : vérifie que l'endpoint LLM répond (sans consommer de tokens).
@@ -236,6 +248,7 @@ class AlbertClient:
             )
 
         data = response.json()
+        self._record_usage(data)
         try:
             return data["choices"][0]["message"]["content"]
         except (KeyError, IndexError) as e:
@@ -391,6 +404,7 @@ class AlbertClient:
         )
 
         data = response.json()
+        self._record_usage(data)
         try:
             return data["data"][0]["embedding"]
         except (KeyError, IndexError) as e:

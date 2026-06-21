@@ -188,6 +188,7 @@ def create_app(
     clients_yml_path=None,    # str|Path — chemin vers clients.yml (active POST /api/platform/provision)
     messaging=None,           # MessagingProtocol (si WebChatMessaging → monte /chat/*)
     llm_client=None,          # AlbertClientProtocol — readiness probe LLM (/ready)
+    usage_tracker=None,       # UsageTracker — métriques tokens/requêtes par tenant
 ) -> FastAPI:
     """Crée l'application FastAPI admin.
 
@@ -334,12 +335,21 @@ def create_app(
 
     @app.get("/metrics", response_class=JSONResponse)
     async def metrics():
-        """Métriques JSON."""
+        """Métriques JSON (workspaces, uptime, usage LLM par tenant)."""
         workspace_count = len(resolver.workspaces) if resolver else 0
-        return {
+        body = {
             "workspaces": workspace_count,
             "uptime_seconds": int(time.monotonic() - _START_TIME),
         }
+        if usage_tracker is not None:
+            body["llm_usage"] = usage_tracker.snapshot()
+        return body
+
+    @app.get("/metrics/prometheus", response_class=Response)
+    async def metrics_prometheus():
+        """Métriques au format texte Prometheus (usage LLM par tenant)."""
+        text = usage_tracker.prometheus_text() if usage_tracker is not None else ""
+        return Response(content=text, media_type="text/plain; charset=utf-8")
 
     _has_platform = clients_yml_path is not None
     _has_webchat = False  # mis à jour plus bas si WebChatMessaging
