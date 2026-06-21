@@ -482,41 +482,31 @@ async def _orchestrate_response(
     ))
 
     if len(kw_kept) > 6:
-        # Trop d'outils : on tranche par sémantique unifiée
-        try:
-            # Construire/maj l'index unifié du workspace
+        # Trop d'outils : on tranche par sémantique unifiée.
+        # BORNÉ À 12s : le filtrage par embeddings (appel LLM embeddings + index)
+        # ne doit jamais bloquer la réponse. Au-delà → repli sur les mots-clés.
+        async def _semantic_filter():
             ws_idx = populate_index(
                 workspace_root or "_global",
                 internal_tools=[t for t in registry.all_tools if t.name in kw_kept],
-                mcp_tools=None,  # déjà inclus via internal_tools (registre filtré)
-                skills=workspace_skills,  # pour boost sémantique des skills
+                mcp_tools=None,
+                skills=workspace_skills,
             )
             results = await ws_idx.search(
-                query=message_text,
-                config=config,
-                top_k=6,
-                kinds=["tool_internal", "tool_mcp"],  # on cherche des outils ici
+                query=message_text, config=config, top_k=6,
+                kinds=["tool_internal", "tool_mcp"],
             )
             embed_kept = {entry.name for entry, _ in results}
-            # Garder uniquement les outils qui étaient déjà candidats (intersect kw_kept)
-            kept_names = embed_kept & kw_kept if embed_kept else kw_kept
+            return (embed_kept & kw_kept) if embed_kept else kw_kept
+        try:
+            kept_names = await asyncio.wait_for(_semantic_filter(), timeout=12)
             logger.info(
                 f"[AGENT] Filtrage outils: {len(all_tool_names)} "
-                f"→ kw={len(kw_kept)} → ws-res={len(kept_names)}"
+                f"→ kw={len(kw_kept)} → sémantique={len(kept_names)}"
             )
         except Exception as e:
-            # Fallback gracieux sur l'ancien tool_filter_embed (compat)
-            logger.warning(f"[AGENT] WS-RES échoué ({e}), fallback tool_filter_embed")
-            try:
-                from app.agent.tool_filter_embed import filter_tools_by_embeddings
-                kw_kept_tools = [t for t in registry.all_tools if t.name in kw_kept]
-                embed_kept = await filter_tools_by_embeddings(
-                    message_text, kw_kept_tools, config, top_k=6,
-                )
-                kept_names = set(embed_kept)
-            except Exception as e2:
-                logger.warning(f"[AGENT] tool_filter_embed aussi échoué ({e2})")
-                kept_names = kw_kept
+            logger.warning(f"[AGENT] Filtrage sémantique ignoré ({e}) → repli mots-clés")
+            kept_names = kw_kept
     else:
         kept_names = kw_kept
         logger.info(

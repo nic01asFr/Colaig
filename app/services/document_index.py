@@ -40,7 +40,7 @@ class FAISSIndex:
         Args:
             dimension: Dimension des vecteurs d'embedding
         """
-        if dimension <= 0 or dimension > 1024:
+        if dimension <= 0 or dimension > 8192:
             raise ValueError(f"Dimension invalide: {dimension}")
             
         self.dimension = dimension
@@ -96,7 +96,7 @@ class FAISSIndex:
         Returns:
             Liste des documents à réindexer
         """
-        if new_dimension <= 0 or new_dimension > 1024:
+        if new_dimension <= 0 or new_dimension > 8192:
             raise ValueError(f"Nouvelle dimension invalide: {new_dimension}")
             
         if new_dimension == self.dimension:
