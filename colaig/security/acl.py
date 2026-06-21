@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +52,58 @@ class WorkspaceACL:
             return True
         user_ids = getattr(workspace, "user_ids", None) or []
         return user_id in user_ids
+
+    @staticmethod
+    def can_manage(context, admin_user_ids: list, workspaces=None) -> bool:
+        """Garde d'INJECTION : l'utilisateur reçoit-il les outils d'administration ?
+
+        Default-deny strict (un pouvoir réflexif n'est jamais implicite) :
+        1. mode != PERSONAL (DM) → False (jamais depuis un salon métier)
+        2. user_id absent → False
+        3. admin global (user_id ∈ admin_user_ids) → True
+        4. owner d'au moins un workspace (scoping fin) → True
+        5. Sinon → False
+
+        Contrairement à can_access (allow-all si auth désactivée), l'administration
+        est toujours default-deny. La garde FINE par workspace cible est
+        can_manage_workspace (appliquée par appel dans les handlers).
+
+        Args:
+            context: WorkspaceContext (fournit mode + user_id).
+            admin_user_ids: Liste des user_ids administrateurs globaux (config).
+            workspaces: Liste des WorkspaceConfig connus (pour le check owner).
+        """
+        from colaig.models import ContextMode
+
+        user_id = getattr(context, "user_id", "") or ""
+        if not user_id:
+            return False
+        if getattr(context, "mode", None) != ContextMode.PERSONAL:
+            return False
+        if admin_user_ids and user_id in admin_user_ids:
+            return True
+        for ws in (workspaces or []):
+            if user_id in (getattr(ws, "owners", None) or []):
+                return True
+        return False
+
+    @staticmethod
+    def can_manage_workspace(user_id: str, workspace, admin_user_ids: list) -> bool:
+        """Garde FINE : l'utilisateur peut-il administrer CE workspace cible ?
+
+        Appliquée par appel dans les handlers d'administration (update / link /
+        set_prompt). Admin global → tout ; sinon owner du workspace uniquement.
+
+        Args:
+            user_id: Identifiant de l'utilisateur courant.
+            workspace: WorkspaceConfig cible.
+            admin_user_ids: Liste des user_ids administrateurs globaux.
+        """
+        if not user_id:
+            return False
+        if admin_user_ids and user_id in admin_user_ids:
+            return True
+        return user_id in (getattr(workspace, "owners", None) or [])
 
     @staticmethod
     def assert_can_access(workspace, user_id: str, auth_enabled: bool) -> None:
@@ -125,7 +176,7 @@ class WorkspaceACL:
             WorkspaceAccessDenied: Si accès refusé.
             ValueError: Si target_workspace_id n'est pas dans workspace_ids_allowed.
         """
-        from colaig.exceptions import WorkspaceNotFound, WorkspaceAccessDenied
+        from colaig.exceptions import WorkspaceNotFound
 
         target_ws = next(
             (ws for ws in all_workspaces if ws.workspace_id == target_workspace_id),
@@ -179,7 +230,7 @@ class WorkspaceACL:
             return delivery_target
 
         if delivery_type == "document":
-            from colaig.security.path_validator import validate_storage_path, is_subpath
+            from colaig.security.path_validator import is_subpath, validate_storage_path
             validated = validate_storage_path(
                 delivery_target,
                 allow_dotcolaig=False,

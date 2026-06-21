@@ -27,11 +27,11 @@ from __future__ import annotations
 import json
 import logging
 import time
-from datetime import datetime, timezone
-from typing import Callable, Optional, Awaitable
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
 
+from colaig.agents.context_builder import build_agent_context
 from colaig.context.workspace import personal_workspace_path as _personal_ws_path
-from colaig.exceptions import OrchestrationError
 from colaig.models import (
     AgentContext,
     ContextCard,
@@ -45,7 +45,6 @@ from colaig.models import (
     ToolResult,
     WorkspaceContext,
 )
-from colaig.agents.context_builder import build_agent_context
 
 logger = logging.getLogger(__name__)
 
@@ -87,14 +86,15 @@ class Orchestrator:
         tool_registry=None,
         max_iterations: int = 5,
         temperature: float = 0.1,
-        on_step_complete: Optional[Callable[[ExecutionStep, ExecutionPlan], Awaitable[None]]] = None,
+        on_step_complete: Callable[[ExecutionStep, ExecutionPlan], Awaitable[None]] | None = None,
         workspace_stores=None,     # dict[workspace_id, FaissStore] — isolation par workspace
-        model: Optional[str] = None,   # Phase 6 : modèle LLM explicite (ex: gpt-oss-120b)
+        model: str | None = None,   # Phase 6 : modèle LLM explicite (ex: gpt-oss-120b)
         reporter=None,                 # Phase 6 : ProgressReporter — mises à jour temps réel
         workspace_resolver=None,       # ContextResolver — source de workspaces (ask_workspace ACL)
         bm25_stores=None,              # dict[workspace_id, BM25Store] — pour ask_workspace hybrid
         index_registry=None,           # FaissIndexRegistry — auto-discovery intra-fédération
         workspace_directory=None,      # WorkspaceDirectory — routage sémantique cross-workspace
+        admin_user_ids=None,           # list[str] — users autorisés à administrer en DM (réflexif)
     ) -> None:
         self._storage = storage
         self._retriever = retriever
@@ -110,6 +110,7 @@ class Orchestrator:
         self._bm25_stores = bm25_stores               # dict[str, BM25Store] | None
         self._index_registry = index_registry          # FaissIndexRegistry | None
         self._workspace_directory = workspace_directory  # WorkspaceDirectory | None
+        self._admin_user_ids = admin_user_ids or []      # administration réflexive (DM admin)
 
     @property
     def is_agentic(self) -> bool:
@@ -120,7 +121,7 @@ class Orchestrator:
         self,
         intent: Intent,
         context: WorkspaceContext,
-        pre_exec: Optional[PreExecutionCard] = None,
+        pre_exec: PreExecutionCard | None = None,
         reporter=None,
     ) -> ExecutionPlan:
         """Planifie et exécute les étapes pour répondre à l'intention.
@@ -147,7 +148,7 @@ class Orchestrator:
         self,
         intent: Intent,
         context: WorkspaceContext,
-        pre_exec: Optional[PreExecutionCard] = None,
+        pre_exec: PreExecutionCard | None = None,
         reporter=None,
     ) -> ExecutionPlan:
         """Boucle agentique LLM-driven avec tool calling natif OpenAI.
@@ -194,7 +195,10 @@ class Orchestrator:
         if self._workspace_stores and context.workspace:
             ws_store = self._workspace_stores.get(context.workspace.workspace_id)
             if ws_store is not None and available_tools.get("search_documents"):
-                from colaig.agents.tools.rag_tools import SEARCH_DOCUMENTS_DEFINITION, create_search_handler
+                from colaig.agents.tools.rag_tools import (
+                    SEARCH_DOCUMENTS_DEFINITION,
+                    create_search_handler,
+                )
                 available_tools.register(
                     SEARCH_DOCUMENTS_DEFINITION,
                     create_search_handler(self._retriever, store=ws_store),
@@ -278,6 +282,29 @@ class Orchestrator:
                     source_conversation_id=getattr(context, "conversation_id", ""),
                 ),
             )
+
+        # Administration réflexive — injecter les méta-tools si le contexte l'autorise.
+        # Garde stricte : DM (PERSONAL) + user_id administrateur (default-deny via can_manage).
+        # L'agent peut alors opérer les fonctionnalités Colaig (créer/configurer des
+        # workspaces, lier des salons) directement en conversation.
+        if self._storage is not None and self._workspace_resolver is not None:
+            from colaig.security.acl import WorkspaceACL
+            _ws_list = self._workspace_resolver.workspaces
+            if WorkspaceACL.can_manage(context, self._admin_user_ids, _ws_list):
+                from colaig.agents.tools.admin_tools import register_admin_tools
+                register_admin_tools(
+                    available_tools, self._storage, self._workspace_resolver,
+                    user_id=context.user_id, admin_user_ids=self._admin_user_ids,
+                )
+                if agent_ctx is not None:
+                    agent_ctx.system_prompt += (
+                        "\n\n## Mode administration (DM admin)\n"
+                        "Tu disposes d'outils pour administrer Colaig : créer/configurer "
+                        "des workspaces (manage_workspace), lier des salons "
+                        "(link_conversation), définir le prompt d'un espace "
+                        "(set_workspace_prompt), lister les espaces "
+                        "(list_manageable_workspaces). Confirme toujours l'action réalisée."
+                    )
 
         # MCP Connectors — découverte dynamique des outils externes (Phase 6)
         # Pour chaque connector activé avec expose_tools=True dans le workspace,
@@ -508,7 +535,7 @@ class Orchestrator:
         self,
         intent: Intent,
         agent_ctx: AgentContext,
-        pre_exec: Optional[PreExecutionCard] = None,
+        pre_exec: PreExecutionCard | None = None,
     ) -> list[dict]:
         """Construit les messages initiaux pour la boucle agentique.
 
@@ -568,7 +595,7 @@ class Orchestrator:
                 a for a in pre_exec.context_anchors if a.anchor_type == "document"
             ]
             if doc_anchors:
-                now = datetime.now(tz=timezone.utc)
+                now = datetime.now(tz=UTC)
                 anchors_lines = "\n".join(
                     _anchor_line(a, now) for a in doc_anchors
                 )
@@ -654,7 +681,7 @@ class Orchestrator:
         self,
         intent: Intent,
         context: WorkspaceContext,
-        pre_exec: Optional[PreExecutionCard] = None,
+        pre_exec: PreExecutionCard | None = None,
     ) -> ExecutionPlan:
         """Coordination pure basée sur les directives de l'Analyseur.
 
@@ -847,7 +874,7 @@ def _anchor_line(anchor, now: datetime) -> str:
         try:
             ts = anchor.established_at
             if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
+                ts = ts.replace(tzinfo=UTC)
             delta_s = (now - ts).total_seconds()
             if delta_s < 90:
                 time_label = "à l'instant"
