@@ -9,13 +9,14 @@ Phase 2+ : CRUD workspaces (création, liaison conversations, mise à jour confi
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from urllib.parse import quote
 
 from fastapi import FastAPI, Form, HTTPException, Request, WebSocket
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
@@ -47,12 +48,19 @@ def _is_authenticated(request: Request) -> bool:
 def _require_admin(request: Request) -> None:
     """Lève une redirection vers /login si non authentifié."""
     if not _is_authenticated(request):
-        raise _LoginRedirect(str(request.url))
+        raise _LoginRedirect(_safe_next(request.url.path))
 
 
 class _LoginRedirect(Exception):
     def __init__(self, next_url: str = "/"):
         self.next_url = next_url
+
+
+def _safe_next(value: str) -> str:
+    """Normalise un paramètre 'next' en chemin relatif sûr (anti open-redirect)."""
+    if not value or not value.startswith("/") or value.startswith("//"):
+        return "/"
+    return value
 
 
 # ── Modèles de requête (Pydantic) ─────────────────────────────────────────────
@@ -78,14 +86,14 @@ class UnlinkConversationRequest(BaseModel):
 
 
 class UpdateWorkspaceRequest(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    system_prompt: Optional[str] = None
-    tone: Optional[str] = None
-    language: Optional[str] = None
-    rag_enabled: Optional[bool] = None
-    similarity_threshold: Optional[float] = None
-    max_results: Optional[int] = None
+    name: str | None = None
+    description: str | None = None
+    system_prompt: str | None = None
+    tone: str | None = None
+    language: str | None = None
+    rag_enabled: bool | None = None
+    similarity_threshold: float | None = None
+    max_results: int | None = None
 
 
 class AskRequest(BaseModel):
@@ -158,8 +166,8 @@ class ProvisionRequest(BaseModel):
     client_id: str
     storage: ProvisionStorageConfig
     messaging: ProvisionMessagingConfig
-    llm: Optional[ProvisionLLMConfig] = None
-    mcp_auth: Optional[ProvisionMCPAuthConfig] = None
+    llm: ProvisionLLMConfig | None = None
+    mcp_auth: ProvisionMCPAuthConfig | None = None
     test_backends: bool = True
 
 
@@ -217,10 +225,11 @@ def create_app(
 
     @app.exception_handler(_LoginRedirect)
     async def _login_redirect_handler(request: Request, exc: _LoginRedirect):
-        return RedirectResponse(url=f"/login?next={exc.next_url}", status_code=303)
+        return RedirectResponse(url=f"/login?next={quote(_safe_next(exc.next_url), safe='')}", status_code=303)
 
     @app.get("/login", response_class=HTMLResponse)
     async def login_page(request: Request, next: str = "/"):
+        next = _safe_next(next)
         key = _admin_key()
         if not key:
             return RedirectResponse(url=next, status_code=303)
@@ -231,10 +240,11 @@ def create_app(
 
     @app.post("/login", response_class=HTMLResponse)
     async def login_submit(request: Request, password: str = Form(""), next: str = Form("/")):
+        next = _safe_next(next)
         key = _admin_key()
         if not key or password == key:
             request.session["admin"] = "1"
-            return RedirectResponse(url=next or "/", status_code=303)
+            return RedirectResponse(url=next, status_code=303)
         return _templates.TemplateResponse(request, "login.html", {
             "error": "Clé incorrecte.", "next": next,
             "logged_in": False, "show_platform": False, "show_chat": False,
@@ -582,8 +592,8 @@ def create_app(
     # Auth HTML : session cookie (même clé).
 
     if clients_yml_path is not None:
-        from colaig.platform.provisioner import ClientProvisioner
         import colaig.mcp.server as _mcp_server_mod
+        from colaig.platform.provisioner import ClientProvisioner
 
         _provisioner = ClientProvisioner(clients_yml_path)
         _platform_api_key = os.environ.get("COLAIG_PLATFORM_API_KEY", "")
@@ -770,95 +780,157 @@ def create_app(
     return app
 
 
-def _webchat_html(conv_id: str) -> str:
-    """Widget HTML minimaliste pour une conversation WebChat."""
-    return f"""<!DOCTYPE html>
+_WEBCHAT_TEMPLATE = r"""<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
     <title>Colaig</title>
     <style>
-        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
-        body {{ font-family: system-ui, sans-serif; height: 100vh; display: flex; flex-direction: column; background: #f7f7f8; }}
-        #messages {{ flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; }}
-        .msg {{ max-width: 75%; padding: 0.6rem 0.9rem; border-radius: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }}
-        .msg.user {{ align-self: flex-end; background: #1a73e8; color: #fff; }}
-        .msg.assistant {{ align-self: flex-start; background: #fff; border: 1px solid #e0e0e0; }}
-        .msg.status {{ align-self: flex-start; background: transparent; color: #888; font-style: italic; font-size: 0.85rem; border: none; }}
-        #thinking {{ align-self: flex-start; color: #888; font-style: italic; font-size: 0.85rem; padding: 0.3rem 0; display: none; }}
-        #form {{ display: flex; gap: 0.5rem; padding: 0.75rem; border-top: 1px solid #e0e0e0; background: #fff; }}
-        #input {{ flex: 1; padding: 0.6rem 0.9rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; resize: none; }}
-        #send {{ padding: 0.6rem 1.2rem; background: #1a73e8; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }}
-        #send:disabled {{ background: #ccc; cursor: default; }}
-        #status {{ text-align: center; font-size: 0.75rem; color: #aaa; padding: 0.25rem; }}
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: system-ui, -apple-system, sans-serif; height: 100vh; display: flex; flex-direction: column; background: #f7f7f8; color: #1a1a1a; }
+        header { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 1rem; background: #fff; border-bottom: 1px solid #e6e6e6; }
+        header .logo { width: 32px; height: 32px; border-radius: 8px; background: #1a73e8; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+        header .title { font-weight: 600; }
+        header .subtitle { font-size: 0.78rem; color: #888; }
+        header .dot { margin-left: auto; width: 9px; height: 9px; border-radius: 50%; background: #ccc; }
+        header .dot.on { background: #1a9d4b; }
+        #messages { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.75rem; max-width: 860px; width: 100%; margin: 0 auto; }
+        .row { display: flex; flex-direction: column; max-width: 80%; }
+        .row.user { align-self: flex-end; align-items: flex-end; }
+        .row.assistant, .row.status { align-self: flex-start; align-items: flex-start; }
+        .label { font-size: 0.72rem; color: #999; margin: 0 0.3rem 0.15rem; }
+        .msg { padding: 0.6rem 0.9rem; border-radius: 12px; line-height: 1.5; word-break: break-word; }
+        .msg.user { background: #1a73e8; color: #fff; border-bottom-right-radius: 4px; white-space: pre-wrap; }
+        .msg.assistant { background: #fff; border: 1px solid #e6e6e6; border-bottom-left-radius: 4px; }
+        .msg.status { background: transparent; color: #888; font-style: italic; font-size: 0.85rem; padding: 0.2rem 0.3rem; }
+        .msg p { margin: 0 0 0.5rem; } .msg p:last-child { margin-bottom: 0; }
+        .msg ul { margin: 0.3rem 0 0.3rem 1.2rem; } .msg li { margin: 0.1rem 0; }
+        .msg code { background: rgba(0,0,0,0.06); padding: 0.05rem 0.3rem; border-radius: 4px; font-size: 0.9em; }
+        .msg pre { background: #f0f0f2; padding: 0.6rem; border-radius: 8px; overflow-x: auto; margin: 0.4rem 0; }
+        .msg pre code { background: none; padding: 0; }
+        .msg a { color: #1a73e8; }
+        #thinking { align-self: flex-start; color: #888; font-style: italic; font-size: 0.85rem; padding: 0.3rem 1rem; display: none; }
+        #form { display: flex; gap: 0.5rem; padding: 0.75rem; border-top: 1px solid #e6e6e6; background: #fff; max-width: 860px; width: 100%; margin: 0 auto; }
+        #input { flex: 1; padding: 0.6rem 0.9rem; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; resize: none; font-family: inherit; }
+        #send { padding: 0.6rem 1.2rem; background: #1a73e8; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 1rem; }
+        #send:disabled { background: #ccc; cursor: default; }
+        #status { text-align: center; font-size: 0.75rem; color: #aaa; padding: 0.25rem; }
     </style>
 </head>
 <body>
+    <header>
+        <div class="logo">C</div>
+        <div>
+            <div class="title">Colaig</div>
+            <div class="subtitle">Assistant documentaire souverain</div>
+        </div>
+        <div class="dot" id="dot"></div>
+    </header>
     <div id="messages"></div>
-    <div id="thinking">Colaig réfléchit…</div>
-    <div id="status">Connexion…</div>
+    <div id="thinking">Colaig reflechit...</div>
+    <div id="status">Connexion...</div>
     <form id="form">
-        <textarea id="input" rows="1" placeholder="Votre message…" disabled></textarea>
+        <textarea id="input" rows="1" placeholder="Votre message..." disabled></textarea>
         <button id="send" type="submit" disabled>Envoyer</button>
     </form>
     <script>
-    const convId = {repr(conv_id)};
-    const userId = sessionStorage.getItem("colaig_uid") || (() => {{
+    const convId = __CONV_ID__;
+    const userId = sessionStorage.getItem("colaig_uid") || (() => {
         const uid = "u-" + Math.random().toString(36).slice(2, 10);
         sessionStorage.setItem("colaig_uid", uid);
         return uid;
-    }})();
+    })();
 
     const msgs = document.getElementById("messages");
     const input = document.getElementById("input");
     const send = document.getElementById("send");
     const status = document.getElementById("status");
     const thinking = document.getElementById("thinking");
+    const dot = document.getElementById("dot");
 
-    function addMsg(role, text) {{
+    function escapeHtml(s) {
+        return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+    function renderMarkdown(src) {
+        let t = escapeHtml(src);
+        t = t.replace(/```([\s\S]*?)```/g, (m, c) => "<pre><code>" + c.replace(/^\n/, "") + "</code></pre>");
+        t = t.replace(/`([^`]+)`/g, "<code>$1</code>");
+        t = t.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+        t = t.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+        t = t.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+        const lines = t.split(/\n/);
+        let html = "", inList = false, para = [];
+        const flush = () => { if (para.length) { html += "<p>" + para.join("<br>") + "</p>"; para = []; } };
+        for (const line of lines) {
+            const li = line.match(/^\s*[-*]\s+(.*)$/);
+            if (li) { flush(); if (!inList) { html += "<ul>"; inList = true; } html += "<li>" + li[1] + "</li>"; }
+            else if (line.trim() === "") { flush(); if (inList) { html += "</ul>"; inList = false; } }
+            else { if (inList) { html += "</ul>"; inList = false; } para.push(line); }
+        }
+        flush(); if (inList) html += "</ul>";
+        return html;
+    }
+
+    function addMsg(role, text) {
+        const row = document.createElement("div");
+        row.className = "row " + role;
+        if (role === "assistant" || role === "user") {
+            const lbl = document.createElement("div");
+            lbl.className = "label";
+            lbl.textContent = role === "user" ? "Vous" : "Colaig";
+            row.appendChild(lbl);
+        }
         const d = document.createElement("div");
         d.className = "msg " + role;
-        d.textContent = text;
-        msgs.appendChild(d);
+        if (role === "assistant") d.innerHTML = renderMarkdown(text);
+        else d.textContent = text;
+        row.appendChild(d);
+        msgs.appendChild(row);
         msgs.scrollTop = msgs.scrollHeight;
         return d;
-    }}
+    }
+
+    addMsg("assistant", "Bonjour, je suis **Colaig**, votre assistant documentaire. Posez-moi une question sur vos documents, ou tapez `colaig creer <nom>` pour creer un espace de travail.");
 
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
     const ws = new WebSocket(proto + "//" + location.host + "/chat/ws/" + convId + "?user_id=" + userId);
 
-    ws.onopen = () => {{ status.textContent = ""; input.disabled = false; send.disabled = false; input.focus(); }};
-    ws.onclose = () => {{ status.textContent = "Déconnecté — rechargez la page."; input.disabled = true; send.disabled = true; }};
-    ws.onerror = () => {{ status.textContent = "Erreur de connexion."; }};
+    ws.onopen = () => { status.textContent = ""; dot.classList.add("on"); input.disabled = false; send.disabled = false; input.focus(); };
+    ws.onclose = () => { status.textContent = "Deconnecte - rechargez la page."; dot.classList.remove("on"); input.disabled = true; send.disabled = true; };
+    ws.onerror = () => { status.textContent = "Erreur de connexion."; };
 
-    ws.onmessage = (e) => {{
+    ws.onmessage = (e) => {
         const msg = JSON.parse(e.data);
         if (msg.type === "x-mode") return;
-        if (msg.type === "chat_thinking") {{ thinking.style.display = "block"; msgs.scrollTop = msgs.scrollHeight; return; }}
-        if (msg.type === "chat_thinking_done" || msg.type === "chat_message") {{ thinking.style.display = "none"; }}
-        if (msg.type === "chat_message") {{
-            addMsg(msg.is_status ? "status" : "assistant", msg.text);
-        }}
-    }};
+        if (msg.type === "chat_thinking") { thinking.style.display = "block"; msgs.scrollTop = msgs.scrollHeight; return; }
+        if (msg.type === "chat_thinking_done" || msg.type === "chat_message") { thinking.style.display = "none"; }
+        if (msg.type === "chat_message") { addMsg(msg.is_status ? "status" : "assistant", msg.text); }
+    };
 
-    document.getElementById("form").onsubmit = (e) => {{
+    document.getElementById("form").onsubmit = (e) => {
         e.preventDefault();
         const text = input.value.trim();
         if (!text || ws.readyState !== WebSocket.OPEN) return;
         addMsg("user", text);
-        ws.send(JSON.stringify({{ body: text, user_id: userId }}));
+        ws.send(JSON.stringify({ body: text, user_id: userId }));
         input.value = "";
         input.style.height = "auto";
-    }};
+    };
 
-    input.addEventListener("keydown", (e) => {{
-        if (e.key === "Enter" && !e.shiftKey) {{ e.preventDefault(); document.getElementById("form").onsubmit(e); }}
-    }});
-    input.addEventListener("input", () => {{
+    input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); document.getElementById("form").onsubmit(e); }
+    });
+    input.addEventListener("input", () => {
         input.style.height = "auto";
         input.style.height = Math.min(input.scrollHeight, 120) + "px";
-    }});
+    });
     </script>
 </body>
 </html>"""
+
+
+def _webchat_html(conv_id: str) -> str:
+    """Widget HTML pour une conversation WebChat (rendu Markdown, accueil)."""
+    return _WEBCHAT_TEMPLATE.replace("__CONV_ID__", json.dumps(conv_id))
