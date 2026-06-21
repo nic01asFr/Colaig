@@ -549,12 +549,13 @@ async def ui_dashboard(request: Request) -> HTMLResponse:
     return HTMLResponse(template.render())
 
 
-async def ui_root(request: Request) -> RedirectResponse:
-    """Redirect root to dashboard or login."""
+async def ui_root(request: Request):
+    """Page d'accueil publique (onboarding) ; redirige vers le dashboard si connecté."""
     session = await _get_current_user(request)
     if session:
         return RedirectResponse(url="/dashboard", status_code=302)
-    return RedirectResponse(url="/ui/login", status_code=302)
+    template = _jinja_env.get_template("welcome.html")
+    return HTMLResponse(template.render())
 
 
 # === App factory ===
