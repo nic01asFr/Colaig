@@ -3,9 +3,9 @@ entries:
   colaig:
   - apiVersion: v2
     appVersion: 0.2.1
-    created: "2026-06-21T15:20:06.516238403Z"
+    created: "2026-06-21T20:23:08.685368334Z"
     description: Assistant Tchap COLAIG (agent Albert/LLM) pour SSPCloud / Onyxia
-    digest: 65ec333a900b699f37a6bfc08efc390747bb021e076f0ed465502ca18e783a4a
+    digest: 0b16105f44fdcaee3c839175b234174c1f9aa3ebcab80f1a18fdfc48a2f258d2
     home: https://github.com/etalab-ia/albert-tchap
     keywords:
     - tchap
@@ -21,4 +21,4 @@ entries:
     urls:
     - https://raw.githubusercontent.com/nic01asFr/Colaig/claude/refactor-colaig-tchap-bot-qRqkF/helm-repo/colaig-1.0.0.tgz
     version: 1.0.0
-generated: "2026-06-21T15:20:06.515584317Z"
+generated: "2026-06-21T20:23:08.684737133Z"
