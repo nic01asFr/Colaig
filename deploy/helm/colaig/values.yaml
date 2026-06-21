@@ -1,0 +1,75 @@
+# Colaig — valeurs Helm par defaut (profil SSP Cloud / Onyxia).
+# Surchargez via le formulaire Onyxia (values.schema.json) ou -f values.yaml.
+
+image:
+  repository: ghcr.io/cerema/colaig
+  tag: latest
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: false
+  className: ""
+  hostname: ""        # ex: colaig.lab.sspcloud.fr
+  tls: true
+
+# --- LLM (OpenAI-compatible) ---
+# SSP Cloud : LLM Open WebUI, API OpenAI-compatible sous /openai
+#   backend: openai
+#   apiUrl:  https://llm.lab.sspcloud.fr/openai
+#   apiKey:  <votre token SSP Cloud LLM>
+llm:
+  backend: openai                                  # openai | albert
+  apiUrl: https://llm.lab.sspcloud.fr/openai
+  apiKey: ""                                        # -> Secret
+  modelChat: ""                                     # ex: mistral-small ; vide = defaut serveur
+  modelEmbed: ""                                    # endpoint embeddings OpenAI-compatible si dispo
+  # Si le LLM n'expose pas d'embeddings, activer le fallback local (bge-m3 dans le pod) :
+  localEmbeddings: true
+
+# --- Storage S3 / MinIO (SSP Cloud injecte des credentials STS temporaires) ---
+storage:
+  backend: s3
+  s3:
+    endpointUrl: ""        # ex: https://minio.lab.sspcloud.fr
+    accessKey: ""
+    secretKey: ""          # -> Secret
+    sessionToken: ""       # -> Secret (STS temporaire SSP Cloud)
+    bucket: ""             # ex: <votre-bucket>
+    prefix: colaig
+    region: us-east-1
+
+# --- Messaging ---
+messaging:
+  backend: webchat         # webchat | matrix | telegram
+
+# Cle d'administration (dashboard + routes plateforme) -> Secret
+platformApiKey: ""
+
+# Variables d'environnement supplementaires (cle: valeur)
+extraEnv: {}
+
+resources:
+  requests:
+    cpu: "500m"
+    memory: 2Gi
+  limits:
+    cpu: "2"
+    memory: 4Gi
+
+# Volume de cache local ephemere (FAISS reconstruit au restart)
+persistence:
+  enabled: false
+  size: 5Gi
+  storageClass: ""
+
+podSecurityContext: {}
+securityContext: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

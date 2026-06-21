@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "colaig.fullname" . }}
+  labels:
+    {{- include "colaig.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "colaig.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "colaig.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+    spec:
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: colaig
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: {{ include "colaig.fullname" . }}
+          env:
+            - name: STORAGE_BACKEND
+              value: {{ .Values.storage.backend | quote }}
+            - name: MESSAGING_BACKEND
+              value: {{ .Values.messaging.backend | quote }}
+            - name: LLM_BACKEND
+              value: {{ .Values.llm.backend | quote }}
+            - name: LLM_API_URL
+              value: {{ .Values.llm.apiUrl | quote }}
+            - name: ALBERT_API_URL
+              value: {{ .Values.llm.apiUrl | quote }}
+            - name: COLAIG_LOCAL_EMBEDDINGS
+              value: {{ .Values.llm.localEmbeddings | quote }}
+            {{- if .Values.llm.modelChat }}
+            - name: LLM_MODEL_CHAT
+              value: {{ .Values.llm.modelChat | quote }}
+            - name: ALBERT_MODEL_CHAT
+              value: {{ .Values.llm.modelChat | quote }}
+            {{- end }}
+            {{- if .Values.llm.modelEmbed }}
+            - name: LLM_MODEL_EMBED
+              value: {{ .Values.llm.modelEmbed | quote }}
+            - name: ALBERT_MODEL_EMBED
+              value: {{ .Values.llm.modelEmbed | quote }}
+            {{- end }}
+            {{- if eq .Values.storage.backend "s3" }}
+            - name: S3_ENDPOINT_URL
+              value: {{ .Values.storage.s3.endpointUrl | quote }}
+            - name: S3_ACCESS_KEY
+              value: {{ .Values.storage.s3.accessKey | quote }}
+            - name: S3_BUCKET_NAME
+              value: {{ .Values.storage.s3.bucket | quote }}
+            - name: S3_PREFIX
+              value: {{ .Values.storage.s3.prefix | quote }}
+            - name: S3_REGION
+              value: {{ .Values.storage.s3.region | quote }}
+            {{- end }}
+            - name: COLAIG_WEB_PORT
+              value: "8000"
+            - name: COLAIG_DATA_DIR
+              value: /app/data
+            {{- range $k, $v := .Values.extraEnv }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+      volumes:
+        - name: data
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "colaig.fullname" . }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

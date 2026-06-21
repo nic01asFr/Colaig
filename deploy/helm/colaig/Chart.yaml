@@ -1,0 +1,15 @@
+apiVersion: v2
+name: colaig
+description: Assistant IA souverain provider-agnostic (RAG + multi-agent) — deployable sur Onyxia / SSP Cloud
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/CEREMA/colaig
+keywords:
+  - rag
+  - llm
+  - assistant
+  - souverain
+  - albert
+maintainers:
+  - name: CEREMA Mediterranee — GIDI

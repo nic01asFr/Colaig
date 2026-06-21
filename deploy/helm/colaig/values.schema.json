@@ -1,0 +1,107 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "image": {
+      "type": "object",
+      "description": "Image container",
+      "properties": {
+        "repository": { "type": "string", "default": "ghcr.io/cerema/colaig" },
+        "tag": { "type": "string", "default": "latest" }
+      }
+    },
+    "llm": {
+      "type": "object",
+      "description": "Modele de langage (OpenAI-compatible)",
+      "properties": {
+        "backend": {
+          "type": "string",
+          "title": "Backend LLM",
+          "enum": ["openai", "albert"],
+          "default": "openai"
+        },
+        "apiUrl": {
+          "type": "string",
+          "title": "URL de l'API LLM",
+          "description": "SSP Cloud : https://llm.lab.sspcloud.fr/openai",
+          "default": "https://llm.lab.sspcloud.fr/openai"
+        },
+        "apiKey": {
+          "type": "string",
+          "title": "Cle API LLM",
+          "description": "Token du LLM (SSP Cloud : depuis llm.lab.sspcloud.fr)",
+          "default": "",
+          "x-security": "password"
+        },
+        "modelChat": {
+          "type": "string",
+          "title": "Modele de chat",
+          "description": "Vide = defaut du serveur",
+          "default": ""
+        },
+        "modelEmbed": {
+          "type": "string",
+          "title": "Modele d'embeddings",
+          "description": "Vide + localEmbeddings=true => embeddings calcules en local",
+          "default": ""
+        },
+        "localEmbeddings": {
+          "type": "boolean",
+          "title": "Embeddings locaux (fallback)",
+          "description": "Active si le LLM n'expose pas d'endpoint embeddings (charge bge-m3 dans le pod)",
+          "default": true
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "description": "Stockage des documents et index (S3/MinIO)",
+      "properties": {
+        "backend": {
+          "type": "string",
+          "title": "Backend storage",
+          "enum": ["s3", "local"],
+          "default": "s3"
+        },
+        "s3": {
+          "type": "object",
+          "properties": {
+            "endpointUrl": { "type": "string", "title": "Endpoint S3", "default": "" },
+            "accessKey": { "type": "string", "title": "Access key", "default": "" },
+            "secretKey": { "type": "string", "title": "Secret key", "default": "", "x-security": "password" },
+            "sessionToken": { "type": "string", "title": "Session token (STS)", "default": "", "x-security": "password" },
+            "bucket": { "type": "string", "title": "Bucket", "default": "" },
+            "prefix": { "type": "string", "title": "Prefixe", "default": "colaig" },
+            "region": { "type": "string", "title": "Region", "default": "us-east-1" }
+          }
+        }
+      }
+    },
+    "messaging": {
+      "type": "object",
+      "properties": {
+        "backend": {
+          "type": "string",
+          "title": "Canal de messagerie",
+          "enum": ["webchat", "matrix", "telegram"],
+          "default": "webchat"
+        }
+      }
+    },
+    "platformApiKey": {
+      "type": "string",
+      "title": "Cle d'administration",
+      "description": "Protege le dashboard et les routes plateforme (vide = acces libre)",
+      "default": "",
+      "x-security": "password"
+    },
+    "ingress": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean", "title": "Exposer via Ingress", "default": false },
+        "hostname": { "type": "string", "title": "Nom d'hote", "default": "" },
+        "className": { "type": "string", "title": "IngressClass", "default": "" }
+      }
+    }
+  }
+}

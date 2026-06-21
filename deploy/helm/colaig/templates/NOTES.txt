@@ -1,0 +1,18 @@
+Colaig est deploye.
+
+Service : {{ include "colaig.fullname" . }} (port {{ .Values.service.port }})
+
+{{- if .Values.ingress.enabled }}
+URL : https://{{ .Values.ingress.hostname }}/        (admin)
+      https://{{ .Values.ingress.hostname }}/chat    (webchat)
+{{- else }}
+Acces local :
+  kubectl port-forward svc/{{ include "colaig.fullname" . }} 8000:{{ .Values.service.port }}
+  puis http://localhost:8000/ (admin) et http://localhost:8000/chat (webchat)
+{{- end }}
+
+LLM     : {{ .Values.llm.backend }} -> {{ .Values.llm.apiUrl }}
+Storage : {{ .Values.storage.backend }}
+Embeddings locaux (fallback) : {{ .Values.llm.localEmbeddings }}
+
+Verifiez la sante : GET /health
