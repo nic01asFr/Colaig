@@ -320,7 +320,8 @@ class Callbacks:
             # Laisser la synchro peupler le nom/sujet du salon après le join.
             await _asyncio.sleep(2)
             joined_room = self.matrix_client.rooms.get(room.room_id, room)
-            await auto_bind_room_on_invite(get_config(), self.matrix_client, joined_room)
+            inviter = getattr(event, "sender", "") or ""
+            await auto_bind_room_on_invite(get_config(), self.matrix_client, joined_room, inviter)
         except Exception as bind_exc:
             logger.warning(f"[BIND] Auto-binding à l'invitation échoué pour {room.room_id}: {bind_exc}")
 

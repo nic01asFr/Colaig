@@ -850,7 +850,7 @@ class WebDAVContextManager:
             return spaces
 
         async def _read_descriptor(space_path: str) -> Dict[str, Any]:
-            desc_path = f"{space_path.rstrip('/')}/.colaig/colaig.yaml" if space_path else ".colaig/colaig.yaml"
+            desc_path = f"{space_path.rstrip('/')}/.colaig/config.yaml" if space_path else ".colaig/config.yaml"
             try:
                 if not await webdav.exists(desc_path):
                     return {}
@@ -900,7 +900,7 @@ class WebDAVContextManager:
         return spaces
 
     async def resolve_workspace_for_room(
-        self, room_id: str, room_name: str = "", room_topic: str = "",
+        self, room_id: str, room_name: str = "", room_topic: str = "", user_id: str = "",
     ) -> Optional[Dict[str, Any]]:
         """Détermine l'espace `.colaig` à associer à un salon selon ses conditions.
 
@@ -916,6 +916,7 @@ class WebDAVContextManager:
             room_id=room_id,
             room_name=room_name or "",
             room_topic=room_topic or "",
+            user_id=user_id or "",
             default_workspace=default_ws,
         )
         if best:
@@ -964,11 +965,12 @@ async def close_webdav_context_manager():
         _webdav_context_manager = None
 
 
-async def auto_bind_room_on_invite(config, matrix_client, room) -> Optional[str]:
+async def auto_bind_room_on_invite(config, matrix_client, room, user_id: str = "") -> Optional[str]:
     """À l'invitation dans un salon : détecte l'espace `.colaig` adéquat, lie le
     salon, et envoie un message d'accueil. Retourne le chemin lié ou None.
 
-    Idempotent et tolérant : ne fait rien de bloquant, log les erreurs.
+    `user_id` : l'invitant (permet de cibler un workspace personnel/DM via
+    le champ `user_ids` du descripteur). Idempotent et tolérant.
     """
     room_id = getattr(room, "room_id", None)
     if not room_id:
@@ -985,7 +987,7 @@ async def auto_bind_room_on_invite(config, matrix_client, room) -> Optional[str]
     best = None
     if manager is not None:
         try:
-            best = await manager.resolve_workspace_for_room(room_id, room_name, room_topic)
+            best = await manager.resolve_workspace_for_room(room_id, room_name, room_topic, user_id)
         except Exception as e:
             logger.warning(f"[BIND] Résolution échouée pour {room_id}: {e}")
 

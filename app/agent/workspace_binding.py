@@ -2,21 +2,26 @@
 """
 Sélection de l'espace documentaire (`.colaig`) à associer à un salon Tchap.
 
-Modèle : un espace est un dossier du storage contenant un répertoire `.colaig`.
-Ce répertoire peut contenir un descripteur `colaig.yaml` portant des critères de
-correspondance avec le salon :
+Modèle (aligné sur le format réel du storage) : un espace est un dossier
+contenant un répertoire `.colaig` avec un descripteur `.colaig/config.yaml` :
 
-    name: "Urbanisme"
-    priority: 10
+    workspace_id: conception-routiere
+    name: Conception Routière
+    conversations:                 # salons explicitement rattachés (room_ids)
+      - "!HSwgmpTDgVFXUwecab:agent.tchap.gouv.fr"
+    user_ids:                      # utilisateurs rattachés (workspace DM/perso)
+      - "@nicolas.laval:agent.tchap.gouv.fr"
+    system_prompt: "..."
+    # --- Extension optionnelle pour l'auto-détection à l'invitation ---
     match:
-      rooms: ["!abc123:agent.tchap.gouv.fr"]   # IDs de salons explicites
-      room_name: "(?i)urbanism"                 # regex sur le nom du salon
-      room_topic: "(?i)\\bPLU\\b"               # regex sur le sujet du salon
+      room_name: "(?i)urbanism"    # regex sur le nom du salon
+      room_topic: "(?i)\\bPLU\\b"  # regex sur le sujet du salon
+    priority: 10
 
-À l'invitation du bot dans un salon, on score chaque espace candidat selon les
-conditions du salon et on retient le meilleur. Ordre de priorité décroissant :
-ID de salon explicite > regex nom > regex sujet > convention de nom > workspace
-par défaut. Ce module est **pur** (aucune I/O) pour être testable isolément.
+À l'invitation du bot, on score chaque espace selon les conditions du salon et
+on retient le meilleur. Ordre décroissant : salon déjà rattaché (`conversations`)
+> utilisateur rattaché (`user_ids`, mode DM) > regex nom > regex sujet >
+convention de nom > `default_workspace`. Module **pur** (aucune I/O), testable.
 """
 from __future__ import annotations
 
@@ -24,12 +29,12 @@ import re
 import unicodedata
 from typing import Any, Dict, List, Optional
 
-# Scores de base par type de correspondance (le `priority` du descripteur s'y ajoute).
-SCORE_ROOM_ID = 1000
-SCORE_NAME_REGEX = 300
-SCORE_TOPIC_REGEX = 200
-SCORE_NAME_CONVENTION = 100
-SCORE_DEFAULT = 10
+SCORE_ROOM_ID = 1000        # salon déjà dans `conversations`
+SCORE_USER = 500            # utilisateur dans `user_ids` (DM/perso)
+SCORE_NAME_REGEX = 300      # match.room_name
+SCORE_TOPIC_REGEX = 200     # match.room_topic
+SCORE_NAME_CONVENTION = 100 # nom du dossier/espace == nom du salon
+SCORE_DEFAULT = 10          # repli default_workspace
 
 
 def _norm(s: str) -> str:
@@ -50,14 +55,21 @@ def _safe_search(pattern: str, text: str) -> bool:
         return False
 
 
+def _as_list(v: Any) -> List[str]:
+    if not v:
+        return []
+    return [v] if isinstance(v, str) else list(v)
+
+
 def score_candidate(
     *,
     descriptor: Optional[Dict[str, Any]],
     folder_name: str,
     candidate_path: str,
     room_id: str,
-    room_name: str,
-    room_topic: str,
+    room_name: str = "",
+    room_topic: str = "",
+    user_id: str = "",
     default_workspace: str = "",
 ) -> int:
     """Score un espace candidat pour un salon donné. 0 = pas de correspondance."""
@@ -68,26 +80,29 @@ def score_candidate(
     except (TypeError, ValueError):
         priority = 0
 
-    # 1. ID de salon explicite (le plus fort)
-    rooms = match.get("rooms") or []
-    if isinstance(rooms, str):
-        rooms = [rooms]
-    if room_id and room_id in rooms:
+    # 1. Salon déjà rattaché (champ réel `conversations` + extension `match.rooms`)
+    explicit_rooms = _as_list(descriptor.get("conversations")) + _as_list(match.get("rooms"))
+    if room_id and room_id in explicit_rooms:
         return SCORE_ROOM_ID + priority
 
-    # 2. Regex sur le nom du salon
+    # 2. Utilisateur rattaché (workspace DM/personnel)
+    if user_id and user_id in _as_list(descriptor.get("user_ids")):
+        return SCORE_USER + priority
+
+    # 3. Regex sur le nom du salon
     if _safe_search(match.get("room_name", ""), room_name):
         return SCORE_NAME_REGEX + priority
 
-    # 3. Regex sur le sujet du salon
+    # 4. Regex sur le sujet du salon
     if _safe_search(match.get("room_topic", ""), room_topic):
         return SCORE_TOPIC_REGEX + priority
 
-    # 4. Convention de nom : nom du dossier == nom du salon (normalisés)
-    if folder_name and room_name and _norm(folder_name) == _norm(room_name):
+    # 5. Convention de nom : nom du dossier / espace == nom du salon
+    names = [folder_name, descriptor.get("name", ""), descriptor.get("workspace_id", "")]
+    if room_name and any(n and _norm(n) == _norm(room_name) for n in names):
         return SCORE_NAME_CONVENTION + priority
 
-    # 5. Repli sur le workspace par défaut
+    # 6. Repli sur le workspace par défaut
     if default_workspace and candidate_path.strip("/") == default_workspace.strip("/"):
         return SCORE_DEFAULT
 
@@ -100,17 +115,12 @@ def select_workspace(
     room_id: str,
     room_name: str = "",
     room_topic: str = "",
+    user_id: str = "",
     default_workspace: str = "",
 ) -> Optional[Dict[str, Any]]:
     """Retourne le meilleur espace pour un salon, ou None si aucune correspondance.
 
-    Args:
-        candidates: liste de {"path", "name", "descriptor"} (espaces `.colaig`).
-        room_id, room_name, room_topic: conditions du salon.
-        default_workspace: chemin du workspace par défaut (repli).
-
-    Returns:
-        Le candidat retenu enrichi de "score" et "reason", ou None.
+    candidates: liste de {"path", "name", "descriptor"} (espaces `.colaig`).
     """
     best: Optional[Dict[str, Any]] = None
     best_score = 0
@@ -122,6 +132,7 @@ def select_workspace(
             room_id=room_id,
             room_name=room_name,
             room_topic=room_topic,
+            user_id=user_id,
             default_workspace=default_workspace,
         )
         if s > best_score:
@@ -135,7 +146,9 @@ def select_workspace(
 
 def _reason_for_score(score: int) -> str:
     if score >= SCORE_ROOM_ID:
-        return "room_id"
+        return "conversation"
+    if score >= SCORE_USER:
+        return "user_id"
     if score >= SCORE_NAME_REGEX:
         return "room_name"
     if score >= SCORE_TOPIC_REGEX:

@@ -9,15 +9,23 @@ def _cand(name, path, descriptor=None):
     return {"name": name, "path": path, "descriptor": descriptor or {}}
 
 
-def test_room_id_explicite_gagne():
+def test_conversation_explicite_gagne():
+    # Champ réel `conversations` (room déjà rattaché) — signal le plus fort.
     cands = [
-        _cand("Urbanisme", "Urbanisme", {"match": {"rooms": ["!abc:s"]}}),
+        _cand("Urbanisme", "Urbanisme", {"conversations": ["!abc:s"]}),
         _cand("RH", "RH", {"match": {"room_name": "(?i).*"}}),  # matcherait tout
     ]
     best = select_workspace(cands, room_id="!abc:s", room_name="Coucou", room_topic="")
     assert best is not None
     assert best["path"] == "Urbanisme"
-    assert best["reason"] == "room_id"
+    assert best["reason"] == "conversation"
+
+
+def test_user_id_dm():
+    # Workspace personnel : match par user_ids (mode DM).
+    cands = [_cand("Perso", "perso", {"user_ids": ["@nicolas:s"]})]
+    best = select_workspace(cands, room_id="!dm:s", user_id="@nicolas:s")
+    assert best and best["reason"] == "user_id"
 
 
 def test_regex_nom_salon():
