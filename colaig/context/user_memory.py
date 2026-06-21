@@ -25,10 +25,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import re
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 
 from colaig.models import SearchResult, UserProfile
 
@@ -147,7 +145,7 @@ class UserMemory:
         embeddings,
         registry,
         albert_client=None,
-        light_model: Optional[str] = None,
+        light_model: str | None = None,
         dimension: int = 1024,
     ) -> None:
         self._storage = storage
@@ -343,7 +341,7 @@ class UserMemory:
             await store.rebuild_async()
             await self._persist_store(key, user_id, workspace_path)
 
-    async def load_profile(self, user_id: str, workspace_path: str) -> Optional[UserProfile]:
+    async def load_profile(self, user_id: str, workspace_path: str) -> UserProfile | None:
         """Charge le profil consolidé d'un utilisateur.
 
         Returns None si absent.
@@ -483,7 +481,7 @@ def _auto_tag(facts: list[str]) -> list[str]:
 
 
 async def run_user_memory_consolidation_loop(
-    user_memory: "UserMemory",
+    user_memory: UserMemory,
     interval: int = 3600,
     shutdown_event: asyncio.Event | None = None,
 ) -> None:
@@ -510,7 +508,7 @@ async def run_user_memory_consolidation_loop(
                 return
             else:
                 await asyncio.sleep(interval)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass
 
         # Parcourir toutes les clés user:: dans le registry

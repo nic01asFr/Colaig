@@ -28,8 +28,7 @@ import logging
 import re
 import secrets
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 from colaig.exceptions import StorageFileNotFoundError
 
@@ -65,9 +64,9 @@ class TaskDefinition:
     # Cycle de vie
     enabled: bool = True
     status: str = "pending"             # "pending" | "running" | "waiting_for_user" | "done" | "failed" | "archived"
-    next_run_at: Optional[str] = None   # ISO8601 UTC — prochaine exécution planifiée
-    last_run_at: Optional[str] = None   # ISO8601 UTC — dernière exécution
-    last_run_status: Optional[str] = None  # "done" | "failed"
+    next_run_at: str | None = None   # ISO8601 UTC — prochaine exécution planifiée
+    last_run_at: str | None = None   # ISO8601 UTC — dernière exécution
+    last_run_status: str | None = None  # "done" | "failed"
     error_count: int = 0                # Erreurs consécutives (reset sur succès)
 
     # Contraintes d'exécution
@@ -126,7 +125,7 @@ class TaskRunSummary:
 
 def _now_iso() -> str:
     """ISO8601 UTC du moment présent."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _safe_ts(iso: str) -> str:
@@ -137,8 +136,8 @@ def _safe_ts(iso: str) -> str:
 def compute_next_run(
     schedule_type: str,
     schedule_value: str,
-    from_dt: Optional[datetime] = None,
-) -> Optional[str]:
+    from_dt: datetime | None = None,
+) -> str | None:
     """Calcule la date/heure ISO8601 UTC de la prochaine exécution.
 
     Args:
@@ -150,7 +149,7 @@ def compute_next_run(
         ISO8601 UTC string, ou None pour "once" (exécution unique, pas de récurrence).
     """
     if from_dt is None:
-        from_dt = datetime.now(timezone.utc)
+        from_dt = datetime.now(UTC)
 
     if schedule_type == "once":
         return None  # Exécution unique — pas de prochaine date
@@ -169,7 +168,7 @@ def compute_next_run(
             next_dt = cron.get_next(datetime)
             # croniter peut retourner un naive datetime — forcer UTC
             if next_dt.tzinfo is None:
-                next_dt = next_dt.replace(tzinfo=timezone.utc)
+                next_dt = next_dt.replace(tzinfo=UTC)
             return next_dt.isoformat()
         except ImportError:
             logger.warning("compute_next_run: croniter non installé — impossible de planifier cron")
@@ -182,7 +181,7 @@ def compute_next_run(
     return None
 
 
-def _parse_interval(value: str) -> Optional[timedelta]:
+def _parse_interval(value: str) -> timedelta | None:
     """Parse une durée courte : '7d', '24h', '30m', '3600s'.
 
     Returns:
@@ -214,8 +213,8 @@ def is_due(task: TaskDefinition) -> bool:
     try:
         next_run = datetime.fromisoformat(task.next_run_at)
         if next_run.tzinfo is None:
-            next_run = next_run.replace(tzinfo=timezone.utc)
-        return datetime.now(timezone.utc) >= next_run
+            next_run = next_run.replace(tzinfo=UTC)
+        return datetime.now(UTC) >= next_run
     except ValueError:
         return False
 
@@ -256,7 +255,7 @@ def run_plan_path(workspace_path: str, task_id: str, run_ts: str) -> str:
 # =============================================================================
 
 
-async def load_task(storage, workspace_path: str, task_id: str) -> Optional[TaskDefinition]:
+async def load_task(storage, workspace_path: str, task_id: str) -> TaskDefinition | None:
     """Charge un TaskDefinition depuis le storage.
 
     Returns:
@@ -343,7 +342,7 @@ async def save_subtask_result(
         logger.warning("save_subtask_result: erreur %s: %s", path, exc)
 
 
-async def load_session_state(storage, task: TaskDefinition) -> Optional[TaskSessionState]:
+async def load_session_state(storage, task: TaskDefinition) -> TaskSessionState | None:
     """Charge current/session.json si présent.
 
     Returns:
@@ -363,7 +362,7 @@ async def load_session_state(storage, task: TaskDefinition) -> Optional[TaskSess
         return None
 
 
-async def load_plan(storage, task: TaskDefinition) -> Optional[dict]:
+async def load_plan(storage, task: TaskDefinition) -> dict | None:
     """Charge current/plan.json si présent."""
     path = plan_file_path(task.workspace_path, task.task_id)
     try:
@@ -378,7 +377,7 @@ async def archive_run(
     task: TaskDefinition,
     run_ts: str,
     summary: TaskRunSummary,
-    plan_data: Optional[dict] = None,
+    plan_data: dict | None = None,
 ) -> None:
     """Archive current/ → runs/{ts}/.
 

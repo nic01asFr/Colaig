@@ -17,15 +17,13 @@ Dépendance : httpx (déjà dans le projet)
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
-from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime
 
 import httpx
 
-from colaig.exceptions import StorageError, StorageFileNotFoundError, StorageAuthError
+from colaig.exceptions import StorageAuthError, StorageError, StorageFileNotFoundError
 from colaig.models import StorageFile
 
 logger = logging.getLogger(__name__)
@@ -263,7 +261,7 @@ class MicrosoftGraphStorage:
         resp = await self._request("GET", url)
         return resp.content
 
-    async def download_if_changed(self, path: str, known_etag: str) -> Optional[bytes]:
+    async def download_if_changed(self, path: str, known_etag: str) -> bytes | None:
         """Télécharge seulement si l'etag a changé."""
         # Graph ne supporte pas If-None-Match sur /content directement.
         # On fait un HEAD sur l'item pour comparer l'etag.
@@ -325,7 +323,7 @@ class MicrosoftGraphStorage:
         except (StorageError, StorageAuthError):
             return False
 
-    async def get_etag(self, path: str) -> Optional[str]:
+    async def get_etag(self, path: str) -> str | None:
         """Retourne l'etag d'un item OneDrive."""
         try:
             url = self._item_url(path)
@@ -362,8 +360,6 @@ class MicrosoftGraphStorage:
             if "folder" not in item:
                 continue
             name = item.get("name", "")
-            # remoteItem contient les métadonnées originales
-            remote = item.get("remoteItem", item)
             files.append(StorageFile(
                 path=f"/shared/{name}",
                 name=name,

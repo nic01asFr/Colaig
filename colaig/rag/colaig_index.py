@@ -39,11 +39,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, ClassVar, Optional
+from typing import TYPE_CHECKING, ClassVar
 
 if TYPE_CHECKING:
-    from colaig.rag.faiss_store import FaissStore
     from colaig.protocols import StorageProtocol
+    from colaig.rag.faiss_store import FaissStore
 
 logger = logging.getLogger(__name__)
 
@@ -139,11 +139,11 @@ class ColaigIndex:
 
     @staticmethod
     async def load_store(
-        storage: "StorageProtocol",
+        storage: StorageProtocol,
         faiss_path: str,
         meta_path: str,
         dimension: int = 1024,
-    ) -> Optional["FaissStore"]:
+    ) -> FaissStore | None:
         """Charge un FaissStore depuis le storage (retourne None si absent).
 
         Utilisé comme loader pour FaissIndexRegistry.get_or_load().

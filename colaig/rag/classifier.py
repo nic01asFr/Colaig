@@ -22,8 +22,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 import yaml
 
@@ -56,8 +55,8 @@ class ClassificationCriteria:
     def __init__(
         self,
         category: str = "",
-        entities: Optional[dict] = None,
-        keywords: Optional[list[str]] = None,
+        entities: dict | None = None,
+        keywords: list[str] | None = None,
     ) -> None:
         self.category: str = category
         self.entities: dict = entities or {}
@@ -80,7 +79,7 @@ class ClassificationAction:
         self,
         virtual_path: str = "",
         virtual_filename: str = "",
-        tags: Optional[list[str]] = None,
+        tags: list[str] | None = None,
     ) -> None:
         self.virtual_path: str = virtual_path
         self.virtual_filename: str = virtual_filename
@@ -129,7 +128,7 @@ class ClassificationRule:
         enabled: bool = True,
         priority: int = 0,
         applied_count: int = 0,
-        last_applied_at: Optional[datetime] = None,
+        last_applied_at: datetime | None = None,
     ) -> None:
         self.name = name
         self.criteria = criteria
@@ -307,7 +306,7 @@ class ClassificationEngine:
 
             # Statistiques en mémoire (persistées au prochain save())
             rule.applied_count += 1
-            rule.last_applied_at = datetime.now(timezone.utc)
+            rule.last_applied_at = datetime.now(UTC)
 
             return record
 
@@ -374,7 +373,7 @@ def _extract_variables(record: DocumentRecord) -> dict:
     Identique à ClassifyAgent._extract_variables() d'Archivist.
     Ordre : défauts système → catégorie → entités AI → dérivation date.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     variables: dict = {
         "year": str(now.year),
         "month": now.strftime("%m"),
@@ -393,9 +392,8 @@ def _extract_variables(record: DocumentRecord) -> dict:
         variables.update(entities)
     # Si ai_entities est encore une list[str] (migration), ignorer silencieusement
 
-    # Dériver year/month/day depuis la date du document si disponible
-    doc_date = variables.get("date") if isinstance(entities, dict) else None
-    # Ne dériver que si la date vient des entités (pas la date système)
+    # Dériver year/month/day depuis la date du document si disponible.
+    # Ne dériver que si la date vient des entités (pas la date système).
     entity_date = isinstance(entities, dict) and entities.get("date")
     if entity_date:
         try:

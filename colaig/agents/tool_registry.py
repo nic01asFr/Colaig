@@ -8,7 +8,7 @@ L'Orchestrateur l'utilise pour découvrir les outils disponibles et les exécute
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from colaig.models import ToolCall, ToolDefinition, ToolResult
 
@@ -39,7 +39,7 @@ class ToolRegistry:
     # ------------------------------------------------------------------
     # Consultation
 
-    def get(self, name: str) -> Optional[tuple[ToolDefinition, Callable]]:
+    def get(self, name: str) -> tuple[ToolDefinition, Callable] | None:
         """Retourne (definition, handler) pour un outil, ou None si inconnu."""
         return self._tools.get(name)
 

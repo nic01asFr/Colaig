@@ -17,10 +17,8 @@ from __future__ import annotations
 
 import io
 import logging
-import os
 import zipfile
 from pathlib import Path
-from typing import Optional
 
 import yaml
 
@@ -144,7 +142,7 @@ class ClientProvisioner:
             logger.warning("ClientProvisioner: lecture de %s impossible: %s", self._path, e)
             return {"clients": []}
 
-    def get_client(self, client_id: str) -> Optional[dict]:
+    def get_client(self, client_id: str) -> dict | None:
         """Retourne la config d'un client par ID, ou None si absent."""
         data = self.load()
         for client in data.get("clients", []):
@@ -164,8 +162,8 @@ class ClientProvisioner:
         client_id: str,
         storage: dict,
         messaging: dict,
-        llm: Optional[dict] = None,
-        mcp_auth: Optional[dict] = None,
+        llm: dict | None = None,
+        mcp_auth: dict | None = None,
     ) -> str:
         """Crée ou met à jour un client dans clients.yml.
 

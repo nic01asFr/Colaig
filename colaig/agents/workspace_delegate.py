@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
 
 import httpx
 
@@ -42,7 +41,6 @@ logger = logging.getLogger(__name__)
 # WorkspaceAccessDenied supporte la signature legacy (user_id, workspace_id)
 # ET la signature simple (message string) — backward compat complet.
 from colaig.exceptions import WorkspaceAccessDenied, WorkspaceNotFound  # noqa: F401
-
 
 # =============================================================================
 # Résultats
@@ -116,13 +114,13 @@ async def run_rag_delegate(
     query: str,
     user_id: str,
     all_workspaces: list[WorkspaceConfig],
-    workspace_stores: Optional[dict] = None,
+    workspace_stores: dict | None = None,
     index_registry=None,          # FaissIndexRegistry — niveau 2 intra-fédération
-    calling_workspace: Optional[WorkspaceConfig] = None,  # niveau 3 inter-fédération
+    calling_workspace: WorkspaceConfig | None = None,  # niveau 3 inter-fédération
     retriever,
     k: int = 5,
     score_threshold: float = 0.3,
-    bm25_stores: Optional[dict] = None,
+    bm25_stores: dict | None = None,
     workspace_directory=None,     # WorkspaceDirectory — niveau 4 fédération décentralisée
 ) -> WorkspaceDelegateResult:
     """Effectue une recherche RAG dans un workspace cible avec vérification ACL.
@@ -341,7 +339,7 @@ async def run_workspace_task(
     query: str,
     user_id: str,
     all_workspaces: list[WorkspaceConfig],
-    workspace_stores: Optional[dict] = None,
+    workspace_stores: dict | None = None,
     analyser=None,
     orchestrator=None,
     synthesiser=None,
@@ -349,7 +347,7 @@ async def run_workspace_task(
     generator=None,
     conversation_memory=None,
     conversation_id: str = "",
-    bm25_stores: Optional[dict] = None,
+    bm25_stores: dict | None = None,
 ) -> WorkspaceTaskResult:
     """Exécute une tâche complète dans un workspace cible avec vérification ACL.
 
@@ -369,7 +367,7 @@ async def run_workspace_task(
     )
 
     from colaig.context.layers import build_context
-    from colaig.models import ConversationType, IncomingMessage, ContextMode
+    from colaig.models import ContextMode, ConversationType, IncomingMessage
 
     fake_message = IncomingMessage(
         user_id=user_id,

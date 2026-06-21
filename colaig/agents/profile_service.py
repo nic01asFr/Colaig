@@ -10,8 +10,6 @@ Charge et met en cache le profil déclaratif d'un workspace :
 from __future__ import annotations
 
 import logging
-import pickle
-from typing import Optional
 
 from colaig.models import (
     BehaviorActivationConfig,
@@ -22,7 +20,7 @@ from colaig.models import (
     VocabularyConfig,
     WorkspaceProfile,
 )
-from colaig.protocols import StorageProtocol, EmbeddingServiceProtocol
+from colaig.protocols import EmbeddingServiceProtocol, StorageProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -45,14 +43,14 @@ class ProfileService:
     def __init__(
         self,
         storage: StorageProtocol,
-        embeddings: Optional[EmbeddingServiceProtocol] = None,
+        embeddings: EmbeddingServiceProtocol | None = None,
         index_registry=None,   # FaissIndexRegistry — cache behaviors.faiss entre les messages
     ) -> None:
         self._storage = storage
         self._embeddings = embeddings
         self._index_registry = index_registry
 
-    async def load_profile(self, workspace_path: str) -> Optional[WorkspaceProfile]:
+    async def load_profile(self, workspace_path: str) -> WorkspaceProfile | None:
         """Charge le WorkspaceProfile depuis identity.yaml.
 
         Retourne None si identity.yaml absent (comportement Phase 5 inchangé).
@@ -109,8 +107,8 @@ class ProfileService:
         message_embedding: list[float],
         behaviors: list[BehaviorConfig],
         workspace_path: str,
-        active_behavior_name: Optional[str] = None,
-    ) -> tuple[Optional[BehaviorConfig], float]:
+        active_behavior_name: str | None = None,
+    ) -> tuple[BehaviorConfig | None, float]:
         """Résout le behavior actif par similarité sémantique.
 
         Priorité :

@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Callable, Optional
+from collections.abc import Callable
 
 import httpx
 
@@ -100,7 +100,7 @@ class TelegramMessaging:
         self,
         conversation_id: str,
         text: str,
-        formatted: Optional[str] = None,
+        formatted: str | None = None,
         is_status: bool = False,
     ) -> None:
         """Envoie un message dans une conversation Telegram.
@@ -218,7 +218,7 @@ class TelegramMessaging:
         reply_to = str(reply_to_msg.get("message_id", "")) if is_reply else ""
 
         # Télécharger le fichier audio si présent
-        audio_attachment: Optional[Attachment] = None
+        audio_attachment: Attachment | None = None
         if voice_data:
             file_id = voice_data.get("file_id", "")
             mime_type = voice_data.get("mime_type", "audio/ogg")
@@ -259,7 +259,7 @@ class TelegramMessaging:
 
     async def _set_webhook(self) -> None:
         """Configure le webhook sur Telegram."""
-        result = await self._api("setWebhook", json={"url": self._webhook_url})
+        await self._api("setWebhook", json={"url": self._webhook_url})
         logger.info("telegram webhook configuré: %s", self._webhook_url)
 
     async def _clear_webhook(self) -> None:
@@ -276,8 +276,8 @@ class TelegramMessaging:
     async def _api(
         self,
         method: str,
-        json: Optional[dict] = None,
-        timeout: Optional[float] = None,
+        json: dict | None = None,
+        timeout: float | None = None,
     ) -> dict | list:
         """Appelle une méthode Bot API Telegram.
 
@@ -319,7 +319,7 @@ class TelegramMessaging:
 
         return data.get("result", {})
 
-    async def _download_file(self, file_id: str) -> Optional[bytes]:
+    async def _download_file(self, file_id: str) -> bytes | None:
         """Télécharge un fichier depuis Telegram via getFile + CDN.
 
         Args:

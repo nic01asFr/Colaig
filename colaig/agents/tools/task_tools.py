@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from colaig.models import ToolDefinition, ToolParameter
 
@@ -323,8 +323,8 @@ def create_run_subtask_handler(
     generator=None,
     conversation_memory=None,
     storage=None,
-    task: "Optional[TaskDefinition]" = None,
-    session_state: "Optional[TaskSessionState]" = None,
+    task: TaskDefinition | None = None,
+    session_state: TaskSessionState | None = None,
 ) -> Callable:
     """Handler pour run_subtask.
 
@@ -359,12 +359,12 @@ def create_run_subtask_handler(
         subtask_id: str = "",
         **kwargs,
     ) -> str:
+        from colaig.agents.tasks import save_subtask_result
         from colaig.agents.workspace_delegate import (
             WorkspaceAccessDenied,
             WorkspaceNotFound,
             run_workspace_task,
         )
-        from colaig.agents.tasks import save_subtask_result
 
         sid = subtask_id or f"sub-{len(_all_workspaces)}"
 
@@ -435,8 +435,8 @@ def create_run_subtask_handler(
 
 def create_update_plan_handler(
     storage,
-    task: "TaskDefinition",
-    session_state: "TaskSessionState",
+    task: TaskDefinition,
+    session_state: TaskSessionState,
 ) -> Callable:
     """Handler pour update_plan.
 
@@ -453,8 +453,7 @@ def create_update_plan_handler(
         notes: str = "",
         **kwargs,
     ) -> str:
-        from colaig.agents.tasks import save_plan, save_session_state
-        from colaig.agents.tasks import _now_iso
+        from colaig.agents.tasks import _now_iso, save_plan, save_session_state
 
         plan_data = {
             "task_id": _task.task_id,
@@ -513,8 +512,8 @@ def create_report_to_user_handler(
 
 def create_pause_handler(
     storage,
-    task: "TaskDefinition",
-    session_state: "TaskSessionState",
+    task: TaskDefinition,
+    session_state: TaskSessionState,
     messaging,
 ) -> Callable:
     """Handler pour pause_and_ask_user.
@@ -538,7 +537,7 @@ def create_pause_handler(
     _messaging = messaging
 
     async def _handler(question: str, **kwargs) -> str:
-        from colaig.agents.tasks import save_task, save_session_state
+        from colaig.agents.tasks import save_session_state, save_task
 
         if not _messaging or not _task.delivery_target:
             return json.dumps({

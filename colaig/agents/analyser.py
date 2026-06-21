@@ -27,22 +27,19 @@ import json
 import logging
 import re
 import time
-from typing import Optional
 
+from colaig.agents.context_builder import build_agent_context
 from colaig.exceptions import AnalysisError
 from colaig.models import (
-    AgentContext,
     AgentDirectives,
     ContextAnchor,
-    ContextCard,
+    IncomingMessage,
     Intent,
     IntentType,
     PreExecutionCard,
     SearchDirectives,
     WorkspaceContext,
-    IncomingMessage,
 )
-from colaig.agents.context_builder import build_agent_context
 
 logger = logging.getLogger(__name__)
 
@@ -222,7 +219,7 @@ class Analyser:
         temperature: float = 0.1,
         use_tool_calling: bool = False,
         tool_registry=None,
-        model: Optional[str] = None,
+        model: str | None = None,
     ) -> None:
         self._albert = albert
         self._storage = storage
@@ -235,7 +232,7 @@ class Analyser:
         self,
         message: IncomingMessage,
         context: WorkspaceContext,
-        pre_exec: Optional[PreExecutionCard] = None,
+        pre_exec: PreExecutionCard | None = None,
     ) -> Intent:
         """Analyse un message et produit une Intent avec directives ciblées.
 
@@ -267,7 +264,7 @@ class Analyser:
         self,
         message: IncomingMessage,
         context: WorkspaceContext,
-        pre_exec: Optional[PreExecutionCard] = None,
+        pre_exec: PreExecutionCard | None = None,
     ) -> Intent:
         """Analyse via prompt JSON libre (mode par défaut)."""
         start = time.monotonic()
@@ -317,7 +314,7 @@ class Analyser:
         self,
         message: IncomingMessage,
         context: WorkspaceContext,
-        pre_exec: Optional[PreExecutionCard] = None,
+        pre_exec: PreExecutionCard | None = None,
     ) -> Intent:
         """Analyse via tool calling — retourne un JSON garanti sans parsing.
 
@@ -381,7 +378,7 @@ class Analyser:
     def _build_workspace_info(
         self,
         context: WorkspaceContext,
-        pre_exec: Optional[PreExecutionCard] = None,
+        pre_exec: PreExecutionCard | None = None,
     ) -> str:
         """Construit la section workspace info pour le prompt d'analyse.
 
@@ -603,8 +600,8 @@ class Analyser:
     # -------------------------------------------------------------------------
 
     def _parse_search_directives(
-        self, raw_sd: Optional[dict], fallback_query: str
-    ) -> Optional[SearchDirectives]:
+        self, raw_sd: dict | None, fallback_query: str
+    ) -> SearchDirectives | None:
         """Construit des SearchDirectives depuis le dict JSON ou génère un fallback minimal."""
         if not raw_sd:
             # Fallback : 1 query = la reformulation originale
@@ -640,7 +637,7 @@ class Analyser:
 # Utilitaires module-level
 # =============================================================================
 
-def _extract_json_object(text: str) -> "str | None":
+def _extract_json_object(text: str) -> str | None:
     """Extrait le premier objet JSON complet depuis un texte libre.
 
     Contrairement à une regex `{.*}`, gère correctement les accolades

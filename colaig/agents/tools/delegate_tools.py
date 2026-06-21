@@ -17,10 +17,9 @@ ACL : l'utilisateur doit figurer dans workspace.user_ids du workspace cible.
 from __future__ import annotations
 
 import json
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from colaig.models import ToolDefinition, ToolParameter
-
 
 # =============================================================================
 # find_workspace — découverte sémantique de workspaces
@@ -55,7 +54,7 @@ FIND_WORKSPACE_DEFINITION = ToolDefinition(
 def create_find_workspace_handler(
     workspace_directory,
     user_id: str = "",
-    all_workspaces: Optional[list] = None,
+    all_workspaces: list | None = None,
     auth_enabled: bool = True,
 ) -> Callable:
     """Crée un handler async pour l'outil find_workspace.
@@ -81,7 +80,7 @@ def create_find_workspace_handler(
     # Index ACL rapide : workspace_id → WorkspaceConfig
     _ws_index = {ws.workspace_id: ws for ws in _all_workspaces}
 
-    async def find_workspace_handler(query: str, k: Optional[int] = 3) -> str:
+    async def find_workspace_handler(query: str, k: int | None = 3) -> str:
         """Trouve les workspaces les plus pertinents pour une requête.
 
         Returns:
@@ -173,8 +172,8 @@ def create_ask_workspace_handler(
     user_id: str,
     all_workspaces: list,
     retriever,
-    workspace_stores: Optional[dict] = None,
-    bm25_stores: Optional[dict] = None,
+    workspace_stores: dict | None = None,
+    bm25_stores: dict | None = None,
     calling_workspace=None,   # WorkspaceConfig — niveau 3 inter-fédération (mcp_connectors)
     index_registry=None,      # FaissIndexRegistry — niveau 2 intra-fédération (auto-discovery)
     workspace_directory=None, # WorkspaceDirectory — niveau 4 fédération décentralisée
@@ -216,7 +215,7 @@ def create_ask_workspace_handler(
     async def ask_workspace_handler(
         workspace_id: str,
         query: str,
-        k: Optional[int] = 5,
+        k: int | None = 5,
     ) -> str:
         """Effectue une recherche RAG dans un workspace cible.
 

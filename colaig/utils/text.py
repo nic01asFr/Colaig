@@ -150,8 +150,7 @@ def _extract_odt(content: bytes) -> str:
         with zf.open("content.xml") as f:
             tree = ET.parse(f)
 
-    # Namespace OpenDocument
-    ns = {"text": "urn:oasis:names:tc:opendocument:xmlns:text:1.0"}
+    # Namespace OpenDocument : urn:oasis:names:tc:opendocument:xmlns:text:1.0
     paragraphs = []
     for p in tree.iter("{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p"):
         text = "".join(p.itertext()).strip()

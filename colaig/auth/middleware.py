@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -61,7 +61,7 @@ class MCPTokenMiddleware(BaseHTTPMiddleware):
         token_manager: TokenManager,
         mcp_path: str = "/mcp",
         auth_required: bool = False,  # conservé pour compatibilité — non utilisé
-        oidc_validator: Optional["OIDCValidator"] = None,
+        oidc_validator: OIDCValidator | None = None,
     ) -> None:
         super().__init__(app)
         self._token_manager = token_manager

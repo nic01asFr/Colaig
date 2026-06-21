@@ -10,9 +10,8 @@ L'injection de dépendances concrètes se fait dans main.py.
 
 from __future__ import annotations
 
-from typing import Protocol, List, Optional, AsyncIterator, runtime_checkable
-from dataclasses import dataclass
-
+from collections.abc import AsyncIterator
+from typing import Protocol, runtime_checkable
 
 # =============================================================================
 # INTÉGRATIONS — Clients externes
@@ -42,7 +41,7 @@ class StorageProtocol(Protocol):
         """Télécharge le contenu d'un fichier."""
         ...
 
-    async def download_if_changed(self, path: str, known_etag: str) -> Optional[bytes]:
+    async def download_if_changed(self, path: str, known_etag: str) -> bytes | None:
         """Télécharge seulement si etag a changé. None si inchangé."""
         ...
 
@@ -58,7 +57,7 @@ class StorageProtocol(Protocol):
         """Vérifie si un chemin existe."""
         ...
 
-    async def get_etag(self, path: str) -> Optional[str]:
+    async def get_etag(self, path: str) -> str | None:
         """Retourne l'etag d'un fichier (None si inexistant)."""
         ...
 
@@ -89,7 +88,7 @@ class AlbertClientProtocol(Protocol):
     async def chat(
         self,
         messages: list[dict],
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.3,
         max_tokens: int = 2048,
         priority: str = "user",
@@ -106,7 +105,7 @@ class AlbertClientProtocol(Protocol):
     async def chat_stream(
         self,
         messages: list[dict],
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.3,
         max_tokens: int = 2048,
         priority: str = "user",
@@ -126,7 +125,7 @@ class AlbertClientProtocol(Protocol):
         self,
         messages: list[dict],
         tools: list[dict],
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.3,
         max_tokens: int = 2048,
         tool_choice: str = "auto",
@@ -169,7 +168,7 @@ class MessagingProtocol(Protocol):
         self,
         conversation_id: str,
         text: str,
-        formatted: Optional[str] = None,
+        formatted: str | None = None,
         is_status: bool = False,
     ) -> None:
         """Envoie un message dans une conversation.
@@ -237,7 +236,7 @@ class ChunkerProtocol(Protocol):
         content: str,
         source_path: str,
         doc_type: str = "text",
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> list:
         """Découpe un document en chunks. Retourne List[DocumentChunk]."""
         ...
@@ -351,7 +350,7 @@ class DocumentIndexProtocol(Protocol):
         query: str,
         workspace_path: str,
         k: int = 5,
-        filters: Optional[dict] = None,
+        filters: dict | None = None,
     ) -> list:
         """Recherche sémantique + filtres structurés. Retourne List[DocumentIndexSearchResult].
 
@@ -366,7 +365,7 @@ class DocumentIndexProtocol(Protocol):
     async def list_documents(
         self,
         workspace_path: str,
-        filters: Optional[dict] = None,
+        filters: dict | None = None,
         limit: int = 50,
     ) -> list:
         """Liste les documents avec filtres optionnels. Retourne List[DocumentRecord].
@@ -380,7 +379,7 @@ class DocumentIndexProtocol(Protocol):
         self,
         workspace_path: str,
         doc_path: str,
-    ) -> Optional[object]:
+    ) -> object | None:
         """Récupère le DocumentRecord d'un fichier par son path exact.
 
         Returns:
@@ -443,7 +442,7 @@ class GeneratorProtocol(Protocol):
         query: str,
         context: object,  # WorkspaceContext
         search_results: list,  # List[SearchResult]
-        conversation_history: Optional[list] = None,
+        conversation_history: list | None = None,
     ) -> object:
         """Génère une réponse. Retourne GeneratedResponse."""
         ...
@@ -503,7 +502,7 @@ class SynthesiserProtocol(Protocol):
         self,
         plan: object,          # ExecutionPlan
         context: object,       # WorkspaceContext
-        conversation_history: Optional[list] = None,
+        conversation_history: list | None = None,
     ) -> object:
         """Synthétise les résultats. Retourne GeneratedResponse."""
         ...

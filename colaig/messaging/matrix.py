@@ -12,8 +12,8 @@ import json
 import logging
 import re
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Optional
 
 from nio import (
     AsyncClient,
@@ -24,7 +24,6 @@ from nio import (
     KeysQueryResponse,
     LoginResponse,
     RoomEncryptedAudio,
-    RoomMemberEvent,
     RoomMessageAudio,
     RoomMessageText,
     SyncError,
@@ -32,7 +31,7 @@ from nio import (
 from nio.crypto.device import TrustState
 
 from colaig.exceptions import MessagingError
-from colaig.models import Attachment, ColaigConfig, ConversationType, IncomingMessage
+from colaig.models import Attachment, ConversationType, IncomingMessage
 
 logger = logging.getLogger(__name__)
 
@@ -358,7 +357,6 @@ class MatrixMessaging:
         2. sync_forever(timeout=3000) — long-poll continu
         3. Si exception → vérifier le token via whoami(), re-login si nécessaire
         """
-        import asyncio
         if self._client is None:
             raise MessagingError("connect() doit être appelé avant run()")
         logger.info("matrix boucle d'écoute démarrée")
@@ -411,7 +409,7 @@ class MatrixMessaging:
         self,
         conversation_id: str,
         text: str,
-        formatted: Optional[str] = None,
+        formatted: str | None = None,
         is_status: bool = False,
     ) -> None:
         """Envoie un message dans une conversation."""
@@ -451,7 +449,7 @@ class MatrixMessaging:
         self._message_callbacks.append(callback)
 
     # Alias de rétrocompatibilité
-    async def send_message(self, room_id: str, text: str, formatted: Optional[str] = None) -> None:
+    async def send_message(self, room_id: str, text: str, formatted: str | None = None) -> None:
         """Alias pour send() — rétrocompatibilité."""
         await self.send(room_id, text, formatted)
 
@@ -582,7 +580,7 @@ class MatrixMessaging:
             except Exception:
                 logger.exception("erreur handler audio pour %s", room.room_id)
 
-    async def _download_audio(self, event: RoomMessageAudio) -> Optional[bytes]:
+    async def _download_audio(self, event: RoomMessageAudio) -> bytes | None:
         """Télécharge (et décrypte si E2E) l'audio d'un événement Matrix.
 
         Gère deux cas :
@@ -593,8 +591,8 @@ class MatrixMessaging:
         if self._client is None:
             return None
 
-        mxc_url: Optional[str] = None
-        file_info: Optional[dict] = None
+        mxc_url: str | None = None
+        file_info: dict | None = None
 
         # Cas 1 — RoomEncryptedAudio : attributs directs url/key/iv/hashes
         if isinstance(event, RoomEncryptedAudio):

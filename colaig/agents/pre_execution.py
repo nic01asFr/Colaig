@@ -11,13 +11,11 @@ après que l'Analyser ait produit les SearchDirectives.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
-from typing import Optional
 
+from colaig.agents.profile_service import ProfileService
 from colaig.models import (
     BehaviorConfig,
-    ContextAnchor,
     ConversationTrame,
     IncomingMessage,
     PreExecutionCard,
@@ -26,7 +24,6 @@ from colaig.models import (
     WorkspaceContext,
     WorkspaceProfile,
 )
-from colaig.agents.profile_service import ProfileService
 from colaig.protocols import (
     EmbeddingServiceProtocol,
     RetrieverProtocol,
@@ -39,9 +36,9 @@ logger = logging.getLogger(__name__)
 def filter_tools(
     tools: list[ToolDefinition],
     workspace: object,
-    trame: Optional[ConversationTrame] = None,
-    behavior: Optional[BehaviorConfig] = None,
-    intent_type: Optional[str] = None,
+    trame: ConversationTrame | None = None,
+    behavior: BehaviorConfig | None = None,
+    intent_type: str | None = None,
 ) -> list[ToolDefinition]:
     """Filtre les tools disponibles sans LLM (évaluation booléenne déclarative).
 
@@ -99,7 +96,7 @@ class PreExecutionBuilder:
         embeddings: EmbeddingServiceProtocol,
         profile_service: ProfileService,
         all_tools: list[ToolDefinition],
-        retriever: Optional[RetrieverProtocol] = None,
+        retriever: RetrieverProtocol | None = None,
         conversation_memory=None,
         index_registry=None,   # FaissIndexRegistry optionnel (multi-index concurrent)
         user_memory=None,      # UserMemory optionnel (mémoire per-user)
@@ -143,7 +140,7 @@ class PreExecutionBuilder:
         workspace_id = workspace.workspace_id if workspace else None
 
         # 1. Embedding du message (1 seul appel Albert, réutilisé)
-        message_embedding: Optional[list[float]] = None
+        message_embedding: list[float] | None = None
         if message.body.strip():
             try:
                 message_embedding = await self._embeddings.embed_text(message.body)
@@ -151,7 +148,7 @@ class PreExecutionBuilder:
                 logger.warning("embed message échoué: %s", e)
 
         # 2-3. Profil, behaviors et mémoire user — en parallèle
-        profile: Optional[WorkspaceProfile] = None
+        profile: WorkspaceProfile | None = None
         behaviors: list = []
         user_facts: list = []
 
@@ -173,7 +170,7 @@ class PreExecutionBuilder:
                 user_facts = gathered[2] if not isinstance(gathered[2], Exception) else []
 
         # 4. Behavior actif
-        active_behavior: Optional[BehaviorConfig] = None
+        active_behavior: BehaviorConfig | None = None
         active_score: float = 0.0
         if message_embedding and behaviors:
             active_behavior, active_score = await self._profile_service.resolve_behavior(
@@ -340,8 +337,8 @@ class PreExecutionBuilder:
     async def _load_skills(
         self,
         workspace_path: str,
-        message_embedding: Optional[list[float]],
-        behavior: Optional[BehaviorConfig],
+        message_embedding: list[float] | None,
+        behavior: BehaviorConfig | None,
     ) -> tuple[list[dict], list[float]]:
         """Lazy-load skills pertinents via skills.faiss ou fallback liste complète."""
         skills_dir = f"{workspace_path}/.colaig/skills"

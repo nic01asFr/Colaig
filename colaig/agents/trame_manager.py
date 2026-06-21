@@ -13,9 +13,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime
-from typing import Optional
 
-from colaig.exceptions import ColaigError
 from colaig.models import (
     ContextAnchor,
     ConversationTrame,
@@ -72,9 +70,9 @@ class TrameManager:
     async def update(
         self,
         trame: ConversationTrame,
-        intent: Optional[Intent] = None,
-        plan: Optional[ExecutionPlan] = None,
-        response: Optional[GeneratedResponse] = None,
+        intent: Intent | None = None,
+        plan: ExecutionPlan | None = None,
+        response: GeneratedResponse | None = None,
     ) -> ConversationTrame:
         """Met à jour la trame avec les résultats du pipeline.
 

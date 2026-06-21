@@ -15,7 +15,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from colaig.models import ToolDefinition, ToolParameter
 from colaig.rag.colaig_index import ColaigIndex

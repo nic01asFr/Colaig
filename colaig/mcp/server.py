@@ -29,12 +29,16 @@ import base64
 import json
 import logging
 from dataclasses import asdict
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from mcp import types as mcp_types
 from mcp.server.fastmcp import Context, FastMCP
 
+from colaig.context.workspace import (
+    add_conversation_to_workspace,
+    create_workspace,
+    update_workspace_config,
+)
 from colaig.models import (
     ConversationType,
     DocumentRecord,
@@ -42,12 +46,6 @@ from colaig.models import (
     IncomingMessage,
 )
 from colaig.rag.document_index import _parse_json_from_response
-from colaig.context.workspace import (
-    create_workspace,
-    add_conversation_to_workspace,
-    remove_conversation_from_workspace,
-    update_workspace_config,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -419,7 +417,7 @@ class ColaigMCPServer:
                     name=filename,
                     size=len(content),
                     status=DocumentStatus.PENDING,
-                    indexed_at=datetime.now(timezone.utc),
+                    indexed_at=datetime.now(UTC),
                 )
 
                 # Tenter l'analyse via sampling MCP
@@ -593,9 +591,9 @@ class ColaigMCPServer:
 
             expires_at = None
             if expires_in_days and expires_in_days > 0:
-                from datetime import timedelta, timezone
                 from datetime import datetime as dt
-                expires_at = (dt.now(timezone.utc) + timedelta(days=expires_in_days)).isoformat()
+                from datetime import timedelta
+                expires_at = (dt.now(UTC) + timedelta(days=expires_in_days)).isoformat()
 
             raw_token = await token_manager.create(
                 user_id=token_ctx.user_id,
@@ -604,7 +602,7 @@ class ColaigMCPServer:
                 expires_at=expires_at,
             )
 
-            from colaig.auth.tokens import _personal_ws_slug, _safe_name, _mcp_config_path
+            from colaig.auth.tokens import _mcp_config_path, _personal_ws_slug, _safe_name
             slug = _personal_ws_slug(token_ctx.user_id)
             sname = _safe_name(name)
             cfg_path = _mcp_config_path(slug, sname)
@@ -710,13 +708,13 @@ class ColaigMCPServer:
             if token_ctx is None:
                 return json.dumps({"error": "Authentification requise pour créer une tâche"})
 
-            from colaig.context.workspace import get_or_create_personal_workspace
             from colaig.agents.tasks import (
                 TaskDefinition,
                 compute_next_run,
                 generate_task_id,
                 save_task,
             )
+            from colaig.context.workspace import get_or_create_personal_workspace
 
             personal_ws = await get_or_create_personal_workspace(storage, token_ctx.user_id)
             task_id = generate_task_id()
@@ -788,8 +786,8 @@ class ColaigMCPServer:
             if token_ctx is None:
                 return json.dumps({"error": "Authentification requise"})
 
-            from colaig.context.workspace import get_or_create_personal_workspace
             from colaig.agents.tasks import list_tasks
+            from colaig.context.workspace import get_or_create_personal_workspace
 
             personal_ws = await get_or_create_personal_workspace(storage, token_ctx.user_id)
             tasks = await list_tasks(storage, personal_ws.storage_path)
@@ -832,8 +830,8 @@ class ColaigMCPServer:
             if token_ctx is None:
                 return json.dumps({"error": "Authentification requise"})
 
-            from colaig.context.workspace import get_or_create_personal_workspace
             from colaig.agents.tasks import load_task, save_task
+            from colaig.context.workspace import get_or_create_personal_workspace
 
             personal_ws = await get_or_create_personal_workspace(storage, token_ctx.user_id)
             task = await load_task(storage, personal_ws.storage_path, task_id)
@@ -866,8 +864,8 @@ class ColaigMCPServer:
             if token_ctx is None:
                 return json.dumps({"error": "Authentification requise"})
 
-            from colaig.context.workspace import get_or_create_personal_workspace
             from colaig.agents.tasks import load_task, save_task
+            from colaig.context.workspace import get_or_create_personal_workspace
 
             personal_ws = await get_or_create_personal_workspace(storage, token_ctx.user_id)
             task = await load_task(storage, personal_ws.storage_path, task_id)
@@ -910,10 +908,13 @@ class ColaigMCPServer:
             if token_ctx is None:
                 return json.dumps({"error": "Authentification requise"})
 
-            from colaig.context.workspace import get_or_create_personal_workspace
             from colaig.agents.tasks import (
-                load_task, load_session_state, load_plan, run_summary_path,
+                load_plan,
+                load_session_state,
+                load_task,
+                run_summary_path,
             )
+            from colaig.context.workspace import get_or_create_personal_workspace
 
             personal_ws = await get_or_create_personal_workspace(storage, token_ctx.user_id)
             task = await load_task(storage, personal_ws.storage_path, task_id)
@@ -950,7 +951,6 @@ class ColaigMCPServer:
                     result["live_plan"] = plan
             else:
                 # Dernier run archivé
-                from dataclasses import asdict as _asdict
                 last_summary = None
                 try:
                     run_dir = f"{task.workspace_path.rstrip('/')}/.colaig/tasks/{task_id}/runs/"
@@ -992,8 +992,8 @@ class ColaigMCPServer:
             if token_ctx is None:
                 return json.dumps({"error": "Authentification requise"})
 
-            from colaig.context.workspace import get_or_create_personal_workspace
             from colaig.agents.tasks import load_task
+            from colaig.context.workspace import get_or_create_personal_workspace
 
             personal_ws = await get_or_create_personal_workspace(storage, token_ctx.user_id)
             task = await load_task(storage, personal_ws.storage_path, task_id)
@@ -1181,9 +1181,9 @@ class ColaigMCPServer:
             system_prompt: str = "",
             tone: str = "",
             language: str = "",
-            rag_enabled: Optional[bool] = None,
-            similarity_threshold: Optional[float] = None,
-            max_results: Optional[int] = None,
+            rag_enabled: bool | None = None,
+            similarity_threshold: float | None = None,
+            max_results: int | None = None,
         ) -> str:
             """Met à jour la configuration d'un workspace Colaig existant.
 
@@ -1972,7 +1972,7 @@ def _user_can_access_workspace(ws, user_id: str, auth_enabled: bool) -> bool:
     return WorkspaceACL.can_access(ws, user_id, auth_enabled)
 
 
-def _doc_to_dict(record: "DocumentRecord") -> dict:
+def _doc_to_dict(record: DocumentRecord) -> dict:
     """Sérialise un DocumentRecord en dict pour les listings MCP."""
     return {
         "path": record.path,
@@ -1987,7 +1987,7 @@ def _doc_to_dict(record: "DocumentRecord") -> dict:
     }
 
 
-def _doc_to_dict_full(record: "DocumentRecord") -> dict:
+def _doc_to_dict_full(record: DocumentRecord) -> dict:
     """Sérialise un DocumentRecord complet (toutes les métadonnées IA)."""
     return {
         "path": record.path,
@@ -2047,6 +2047,7 @@ async def _test_storage(backend: str, creds: dict, ms) -> tuple[bool, str, int]:
 
         elif backend == "local":
             from pathlib import Path as _Path
+
             from colaig.integrations.storage.local import LocalStorage
             p = creds.get("path", "")
             if not p:
@@ -2463,7 +2464,7 @@ def _onboarding_text_instructions(config_store) -> str:
     }, ensure_ascii=False, indent=2)
 
 
-async def _try_sampling_analysis(mcp: FastMCP, content: bytes, filename: str) -> Optional[dict]:
+async def _try_sampling_analysis(mcp: FastMCP, content: bytes, filename: str) -> dict | None:
     """Tente d'analyser un document via MCP sampling (client LLM).
 
     Le serveur MCP demande au client connecté (Claude Desktop, Cursor…)

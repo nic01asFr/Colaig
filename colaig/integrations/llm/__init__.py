@@ -19,9 +19,9 @@ Usage :
 """
 
 from colaig.integrations.albert import AlbertClient
-from colaig.integrations.llm.openai_client import OpenAIClient
 from colaig.integrations.llm.azure_client import AzureClient
 from colaig.integrations.llm.ollama_client import OllamaClient
+from colaig.integrations.llm.openai_client import OpenAIClient
 from colaig.integrations.llm.utils import normalize_tool_call_id
 
 __all__ = ["AlbertClient", "OpenAIClient", "AzureClient", "OllamaClient", "normalize_tool_call_id"]

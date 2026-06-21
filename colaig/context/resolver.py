@@ -11,14 +11,10 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Optional
 
-from colaig.models import (
-    ContextMode,
-    ConversationType,
-    IncomingMessage,
-    WorkspaceConfig,
-    WorkspaceContext,
+from colaig.context.layers import (
+    build_context,
+    load_conversation_history,
 )
 from colaig.context.workspace import (
     create_default_workspace,
@@ -27,9 +23,12 @@ from colaig.context.workspace import (
     get_or_create_personal_workspace,
     list_workspaces,
 )
-from colaig.context.layers import (
-    build_context,
-    load_conversation_history,
+from colaig.models import (
+    ContextMode,
+    ConversationType,
+    IncomingMessage,
+    WorkspaceConfig,
+    WorkspaceContext,
 )
 
 logger = logging.getLogger(__name__)

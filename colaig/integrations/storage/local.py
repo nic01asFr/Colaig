@@ -11,7 +11,6 @@ import hashlib
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from colaig.exceptions import StorageError, StorageFileNotFoundError
 from colaig.models import StorageFile
@@ -84,7 +83,7 @@ class LocalStorage:
             raise StorageFileNotFoundError(f"Fichier introuvable: {path}")
         return target.read_bytes()
 
-    async def download_if_changed(self, path: str, known_etag: str) -> Optional[bytes]:
+    async def download_if_changed(self, path: str, known_etag: str) -> bytes | None:
         """Télécharge seulement si le fichier a changé."""
         target = self._resolve(path)
         if not target.exists() or not target.is_file():
@@ -110,7 +109,7 @@ class LocalStorage:
         """Vérifie si un chemin existe."""
         return self._resolve(path).exists()
 
-    async def get_etag(self, path: str) -> Optional[str]:
+    async def get_etag(self, path: str) -> str | None:
         """Retourne l'etag d'un fichier (None si inexistant)."""
         target = self._resolve(path)
         if not target.exists() or not target.is_file():

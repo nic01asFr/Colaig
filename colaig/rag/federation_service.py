@@ -37,7 +37,6 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +82,7 @@ class FederationService:
         self._cache_ts: float = 0.0
 
     async def load_peers(
-        self, workspace_connectors: Optional[list] = None
+        self, workspace_connectors: list | None = None
     ) -> list[FederationPeer]:
         """Charge les peers depuis peers.yaml + mcp_connectors optionnels.
 

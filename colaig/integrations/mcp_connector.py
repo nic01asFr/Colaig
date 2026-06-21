@@ -26,7 +26,8 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 import httpx
 
@@ -42,7 +43,7 @@ _HTTP_TIMEOUT = 30.0
 _TOOLS_CACHE: dict[str, tuple[list, float]] = {}
 _TOOLS_CACHE_TTL = 300.0  # 5 minutes
 
-_INSTRUCTIONS_CACHE: dict[str, tuple[Optional[str], float]] = {}
+_INSTRUCTIONS_CACHE: dict[str, tuple[str | None, float]] = {}
 _INSTRUCTIONS_CACHE_TTL = 600.0  # 10 minutes
 
 # Rate limiting — clé : connector URL, valeur : list[timestamp]
@@ -68,7 +69,7 @@ def _json_type_to_colaig(json_type: str) -> str:
 def _parse_tool_definition(
     raw: dict,
     connector_name: str,
-) -> Optional[tuple[ToolDefinition, dict]]:
+) -> tuple[ToolDefinition, dict] | None:
     """Convertit un schéma d'outil MCP en ToolDefinition Colaig + annotations.
 
     Le nom de l'outil est préfixé par le nom du connector pour éviter les collisions :
@@ -434,7 +435,7 @@ class MCPConnectorClient:
         _TOOLS_CACHE[self._url] = (result, time.monotonic())
         return result
 
-    async def get_server_instructions(self) -> Optional[str]:
+    async def get_server_instructions(self) -> str | None:
         """Récupère les instructions du serveur MCP via le handshake initialize.
 
         Appelle initialize (JSON-RPC MCP) et extrait result.instructions.
@@ -471,7 +472,7 @@ class MCPConnectorClient:
             _INSTRUCTIONS_CACHE[self._url] = (None, time.monotonic())
             return None
 
-        instructions: Optional[str] = None
+        instructions: str | None = None
         if "result" in data:
             instructions = data["result"].get("instructions") or None
 

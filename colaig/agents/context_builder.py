@@ -11,10 +11,9 @@ via .colaig/prompts/{role}.md dans le workspace.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
-from colaig.models import AgentContext, AgentDirectives, WorkspaceConfig
 from colaig.agents.tool_registry import ToolRegistry
+from colaig.models import AgentContext, AgentDirectives, WorkspaceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -116,10 +115,10 @@ BACKGROUND_TASK_TOOLS = [
 
 async def build_agent_context(
     storage,
-    workspace: Optional[WorkspaceConfig],
+    workspace: WorkspaceConfig | None,
     agent_role: str,
-    directives: Optional[AgentDirectives] = None,
-    selected_skills: Optional[list] = None,
+    directives: AgentDirectives | None = None,
+    selected_skills: list | None = None,
 ) -> AgentContext:
     """Construit le contexte spécifique à un agent.
 
@@ -194,7 +193,7 @@ async def build_agent_context(
 
 async def _load_agent_prompt_override(
     storage, workspace_path: str, role: str
-) -> Optional[str]:
+) -> str | None:
     """Charge .colaig/prompts/{role}.md si existant.
 
     Returns:
@@ -216,7 +215,7 @@ def build_tool_registry(
     retriever,
     storage,
     albert,
-    workspace: Optional[WorkspaceConfig] = None,
+    workspace: WorkspaceConfig | None = None,
     document_index=None,    # DocumentIndexProtocol, optionnel
     synthesiser=None,       # Synthesiser, optionnel (Phase 6 : outil assess_completion)
     index_registry=None,    # FaissIndexRegistry, optionnel (N1 : search_skill sémantique)
@@ -278,14 +277,14 @@ def build_tool_registry(
     # Outils DocumentIndex — enregistrés uniquement si le service est disponible
     if document_index is not None and workspace is not None:
         from colaig.agents.tools.document_index_tools import (
-            SEARCH_DOCUMENT_INDEX_DEFINITION,
-            LIST_DOCUMENT_INDEX_DEFINITION,
-            GET_DOCUMENT_METADATA_DEFINITION,
             GET_CLASSIFIED_DOCUMENTS_DEFINITION,
-            create_search_document_index_handler,
-            create_list_document_index_handler,
-            create_get_document_metadata_handler,
+            GET_DOCUMENT_METADATA_DEFINITION,
+            LIST_DOCUMENT_INDEX_DEFINITION,
+            SEARCH_DOCUMENT_INDEX_DEFINITION,
             create_get_classified_documents_handler,
+            create_get_document_metadata_handler,
+            create_list_document_index_handler,
+            create_search_document_index_handler,
         )
         ws_path = workspace.storage_path
         registry.register(
@@ -376,8 +375,8 @@ def build_background_tool_registry(
     retriever=None,
     generator=None,
     messaging=None,
-    workspace_stores: Optional[dict] = None,
-    bm25_stores: Optional[dict] = None,
+    workspace_stores: dict | None = None,
+    bm25_stores: dict | None = None,
     conversation_memory=None,
     workspace_directory=None,
 ) -> ToolRegistry:
@@ -409,6 +408,10 @@ def build_background_tool_registry(
     Returns:
         ToolRegistry prêt pour l'orchestrateur en session de tâche.
     """
+    from colaig.agents.tools.delegate_tools import (
+        ASK_WORKSPACE_DEFINITION,
+        create_ask_workspace_handler,
+    )
     from colaig.agents.tools.rag_tools import (
         SEARCH_DOCUMENTS_DEFINITION,
         create_search_handler,
@@ -423,21 +426,17 @@ def build_background_tool_registry(
         SUMMARIZE_TEXT_DEFINITION,
         create_summarize_handler,
     )
-    from colaig.agents.tools.delegate_tools import (
-        ASK_WORKSPACE_DEFINITION,
-        create_ask_workspace_handler,
-    )
     from colaig.agents.tools.task_tools import (
-        RUN_SUBTASK_DEFINITION,
-        UPDATE_PLAN_DEFINITION,
-        REPORT_TO_USER_DEFINITION,
         CREATE_DOCUMENT_DEFINITION,
         PAUSE_AND_ASK_USER_DEFINITION,
-        create_run_subtask_handler,
-        create_update_plan_handler,
-        create_report_to_user_handler,
+        REPORT_TO_USER_DEFINITION,
+        RUN_SUBTASK_DEFINITION,
+        UPDATE_PLAN_DEFINITION,
         create_document_handler,
         create_pause_handler,
+        create_report_to_user_handler,
+        create_run_subtask_handler,
+        create_update_plan_handler,
     )
 
     # Workspace personnel du user (workspace de la tâche)

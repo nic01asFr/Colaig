@@ -21,13 +21,13 @@ import asyncio
 import logging
 import random
 import time
-from typing import AsyncIterator, Optional
+from collections.abc import AsyncIterator
 
 import httpx
 
 from colaig.exceptions import LLMError, LLMRateLimitError, LLMUnavailableError
-from colaig.models import ChatCompletionResult, ToolCall
 from colaig.integrations.llm.utils import normalize_tool_call_id as _normalize_id
+from colaig.models import ChatCompletionResult, ToolCall
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ def _backoff_delay(attempt: int) -> float:
     return min(60.0, (2 ** attempt) + random.uniform(0, 1))
 
 
-def _retry_after_delay(response: "httpx.Response", attempt: int) -> float:
+def _retry_after_delay(response: httpx.Response, attempt: int) -> float:
     """Délai avant retry : lit Retry-After si présent, sinon backoff exponentiel."""
     retry_after = response.headers.get("retry-after") or response.headers.get("Retry-After")
     if retry_after:
@@ -161,7 +161,7 @@ class OpenAIClient:
     async def chat(
         self,
         messages: list[dict],
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.3,
         max_tokens: int = 2048,
         priority: str = "user",
@@ -185,7 +185,7 @@ class OpenAIClient:
     async def chat_stream(
         self,
         messages: list[dict],
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.3,
         max_tokens: int = 2048,
         priority: str = "user",
@@ -226,7 +226,7 @@ class OpenAIClient:
         self,
         messages: list[dict],
         tools: list[dict],
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.3,
         max_tokens: int = 2048,
         tool_choice: str = "auto",

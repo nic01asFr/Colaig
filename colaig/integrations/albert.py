@@ -15,7 +15,7 @@ import logging
 import os
 import random
 import time
-from typing import AsyncIterator, Optional
+from collections.abc import AsyncIterator
 
 import httpx
 
@@ -81,8 +81,8 @@ class AlbertClient:
         self._ocr_page_delay = ocr_page_delay
         # Capability chains — routing par provider avec fallback
         # Construites depuis les vars COLAIG_CAP_* et les credentials provider
-        from colaig.integrations.llm.provider_registry import ProviderRegistry
         from colaig.integrations.llm.capability_chain import CapabilityChain
+        from colaig.integrations.llm.provider_registry import ProviderRegistry
         _registry = ProviderRegistry.from_env()
         self._chat_chain = CapabilityChain.parse(
             config.cap_chat, _registry, "chat",
@@ -193,7 +193,7 @@ class AlbertClient:
     async def chat(
         self,
         messages: list[dict],
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.3,
         max_tokens: int = 2048,
         priority: str = "user",
@@ -231,7 +231,7 @@ class AlbertClient:
     async def chat_stream(
         self,
         messages: list[dict],
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.3,
         max_tokens: int = 2048,
         priority: str = "user",
@@ -285,7 +285,7 @@ class AlbertClient:
         self,
         messages: list[dict],
         tools: list[dict],
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.3,
         max_tokens: int = 2048,
         tool_choice: str = "auto",
@@ -431,8 +431,8 @@ class AlbertClient:
         self,
         query: str,
         documents: list[str],
-        top_n: Optional[int] = None,
-        model: Optional[str] = None,
+        top_n: int | None = None,
+        model: str | None = None,
     ) -> list[tuple[int, float]]:
         """Reranke des documents selon leur pertinence pour une query (cross-encoder).
 
@@ -478,7 +478,7 @@ class AlbertClient:
         self,
         content: bytes,
         filename: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         dpi: int = 150,
         prompt: str = "",
     ) -> str:
@@ -518,7 +518,7 @@ class AlbertClient:
         self,
         content: bytes,
         filename: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         dpi: int = 150,
         ocr_prompt: str = "",
     ) -> str:
@@ -606,7 +606,7 @@ class AlbertClient:
         self,
         content: bytes,
         filename: str,
-        model: Optional[str] = None,
+        model: str | None = None,
     ) -> str:
         """OCR via POST /v1/ocr (JSON body, document_url base64)."""
         import base64
@@ -647,7 +647,7 @@ class AlbertClient:
         self,
         content: bytes,
         filename: str,
-        model: Optional[str] = None,
+        model: str | None = None,
         dpi: int = 150,
         prompt: str = "",
     ) -> str:
@@ -692,7 +692,7 @@ class AlbertClient:
         self,
         content: bytes,
         filename: str,
-        model: Optional[str] = None,
+        model: str | None = None,
     ) -> str:
         """Transcription audio via Albert API (whisper-large-v3).
 
@@ -870,7 +870,7 @@ def _backoff_delay(attempt: int, base: float = 1.0, maximum: float = 60.0) -> fl
     return delay + random.uniform(0, delay * 0.1)
 
 
-def _retry_after_delay(response: "httpx.Response", attempt: int, maximum: float = 60.0) -> float:
+def _retry_after_delay(response: httpx.Response, attempt: int, maximum: float = 60.0) -> float:
     """Délai avant retry : lit Retry-After si présent, sinon backoff exponentiel.
 
     Retry-After (RFC 7231 §7.1.3) peut être :

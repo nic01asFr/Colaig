@@ -15,7 +15,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Optional
 
 from colaig.models import (
     ContextMode,
@@ -31,10 +30,10 @@ DEFAULT_HISTORY_LENGTH = 10
 
 
 def build_context(
-    workspace: Optional[WorkspaceConfig],
+    workspace: WorkspaceConfig | None,
     message: IncomingMessage,
     mode: ContextMode,
-    conversation_history: Optional[list[dict]] = None,
+    conversation_history: list[dict] | None = None,
 ) -> WorkspaceContext:
     """Construit le WorkspaceContext à partir des éléments résolus.
 
@@ -73,7 +72,7 @@ def build_context(
 
 
 def _build_system_prompt(
-    workspace: Optional[WorkspaceConfig], mode: ContextMode
+    workspace: WorkspaceConfig | None, mode: ContextMode
 ) -> str:
     """Construit le system prompt adapté au mode."""
     if workspace and workspace.system_prompt:

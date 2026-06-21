@@ -8,10 +8,9 @@ Utilise : AlbertClientProtocol (1 appel LLM)
 from __future__ import annotations
 
 import json
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from colaig.models import ToolDefinition, ToolParameter
-
 
 SUMMARIZE_TEXT_DEFINITION = ToolDefinition(
     name="summarize_text",
@@ -44,7 +43,7 @@ SUMMARIZE_TEXT_DEFINITION = ToolDefinition(
 )
 
 
-def create_summarize_handler(albert, model: Optional[str] = None) -> Callable:
+def create_summarize_handler(albert, model: str | None = None) -> Callable:
     """Crée un handler async pour summarize_text.
 
     Args:
@@ -54,8 +53,8 @@ def create_summarize_handler(albert, model: Optional[str] = None) -> Callable:
 
     async def summarize_handler(
         text: str,
-        max_sentences: Optional[int] = 5,
-        language: Optional[str] = "fr",
+        max_sentences: int | None = 5,
+        language: str | None = "fr",
     ) -> str:
         """Résume le texte via un appel Albert.
 

@@ -9,10 +9,9 @@ Outils :
 from __future__ import annotations
 
 import json
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from colaig.models import ToolDefinition, ToolParameter, WorkspaceConfig
-
 
 # ---------------------------------------------------------------------------
 # Définitions
@@ -68,7 +67,7 @@ LIST_DOCUMENTS_DEFINITION = ToolDefinition(
 # ---------------------------------------------------------------------------
 # Factories
 
-def create_fetch_handler(storage, workspace: Optional[WorkspaceConfig] = None) -> Callable:
+def create_fetch_handler(storage, workspace: WorkspaceConfig | None = None) -> Callable:
     """Crée un handler async pour fetch_document.
 
     Args:
@@ -77,7 +76,7 @@ def create_fetch_handler(storage, workspace: Optional[WorkspaceConfig] = None) -
     """
     workspace_root = workspace.storage_path if workspace else ""
 
-    async def fetch_handler(path: str, max_chars: Optional[int] = 3000) -> str:
+    async def fetch_handler(path: str, max_chars: int | None = 3000) -> str:
         """Télécharge et retourne le contenu d'un document.
 
         Returns:
@@ -117,7 +116,7 @@ def create_fetch_handler(storage, workspace: Optional[WorkspaceConfig] = None) -
     return fetch_handler
 
 
-def create_list_handler(storage, workspace: Optional[WorkspaceConfig] = None) -> Callable:
+def create_list_handler(storage, workspace: WorkspaceConfig | None = None) -> Callable:
     """Crée un handler async pour list_documents.
 
     Args:
@@ -126,7 +125,7 @@ def create_list_handler(storage, workspace: Optional[WorkspaceConfig] = None) ->
     """
     workspace_root = workspace.storage_path if workspace else ""
 
-    async def list_handler(directory: Optional[str] = "") -> str:
+    async def list_handler(directory: str | None = "") -> str:
         """Liste les fichiers d'un répertoire.
 
         Returns:

@@ -16,7 +16,7 @@ Pipeline complet :
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -54,14 +54,14 @@ class Retriever:
         self,
         embedding_service,
         store=None,
-        albert_client: "AlbertClient | None" = None,
+        albert_client: AlbertClient | None = None,
         hyde_enabled: bool = False,
         hyde_query_weight: float = 0.5,
         rrf_k_constant: int = 60,
     ) -> None:
         self._embeddings = embedding_service  # EmbeddingServiceProtocol
         self._store = store  # VectorStoreProtocol | None
-        self._albert_client: "AlbertClient | None" = albert_client
+        self._albert_client: AlbertClient | None = albert_client
         self._hyde_enabled = hyde_enabled
         self._hyde_query_weight = hyde_query_weight
         self._rrf_k = rrf_k_constant

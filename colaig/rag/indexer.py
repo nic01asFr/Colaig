@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Optional
 
 from colaig.models import ColaigConfig
 from colaig.utils.text import extract_text, is_supported
@@ -44,7 +43,7 @@ class Indexer:
         chunker,       # ChunkerProtocol
         embeddings,    # EmbeddingServiceProtocol
         store,         # VectorStoreProtocol (FaissStore)
-        config: Optional[ColaigConfig] = None,
+        config: ColaigConfig | None = None,
         albert_client=None,    # AlbertClient | None — pour OCR des PDFs scannés
         bm25_store=None,       # BM25Store | None — index lexical hybride
         contextualizer=None,   # ChunkContextualizer | None — préfixes contextuels
@@ -189,7 +188,7 @@ class Indexer:
         logger.debug("indexé %s → %d chunks", doc_path, len(chunks))
         return True
 
-    async def handle_event(self, event: "StorageEvent") -> bool:
+    async def handle_event(self, event: StorageEvent) -> bool:
         """Traite un StorageEvent — point d'entrée unique pour tout changement de fichier.
 
         Utilisé par check_updates() (polling) et, à terme, par tout provider
@@ -217,7 +216,7 @@ class Indexer:
             return True
         return False
 
-    async def check_updates(self, workspace_path: str) -> "UpdateSummary":
+    async def check_updates(self, workspace_path: str) -> UpdateSummary:
         """Compare les etags et ré-indexe les documents modifiés.
 
         Produit des StorageEvent pour chaque changement détecté et les traite

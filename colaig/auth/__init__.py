@@ -10,9 +10,9 @@ Exports publics :
     OIDCValidationError — exception levée si JWT invalide/expiré
 """
 
-from colaig.auth.tokens import TokenContext, TokenManager, get_current_token
 from colaig.auth.middleware import MCPTokenMiddleware
-from colaig.auth.oidc_validator import OIDCValidator, OIDCValidationError
+from colaig.auth.oidc_validator import OIDCValidationError, OIDCValidator
+from colaig.auth.tokens import TokenContext, TokenManager, get_current_token
 
 __all__ = [
     "TokenContext",

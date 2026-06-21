@@ -19,9 +19,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import uuid
 from collections import defaultdict
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from colaig.models import ConversationType, IncomingMessage
 
@@ -39,7 +38,7 @@ class WebChatMessaging:
     """
 
     def __init__(self) -> None:
-        self._handler: Optional[Callable] = None
+        self._handler: Callable | None = None
         # conv_id → liste des WebSocket actifs (multi-onglets supportés)
         self._connections: dict[str, list] = defaultdict(list)
         logger.info("WebChatMessaging actif (MESSAGING_BACKEND=webchat)")
@@ -59,7 +58,7 @@ class WebChatMessaging:
         self,
         conversation_id: str,
         text: str,
-        formatted: Optional[str] = None,
+        formatted: str | None = None,
         is_status: bool = False,
     ) -> None:
         payload = json.dumps(

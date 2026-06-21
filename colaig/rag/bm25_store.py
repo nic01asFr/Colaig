@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import logging
 import pickle
-from typing import Optional
 
 from colaig.models import DocumentChunk
 
@@ -47,7 +46,7 @@ class BM25Store:
     def __init__(self) -> None:
         self._chunks: list[DocumentChunk] = []  # corpus indexé (position → chunk)
         self._deleted: set[int] = set()          # positions marquées supprimées
-        self._bm25: Optional[object] = None      # BM25Okapi | None (lazy rebuild)
+        self._bm25: object | None = None      # BM25Okapi | None (lazy rebuild)
         self._dirty: bool = False                # True si rebuild nécessaire
 
     # ── API publique ────────────────────────────────────────────────────────
@@ -67,7 +66,6 @@ class BM25Store:
             return
         if not _BM25_AVAILABLE:
             return
-        start = len(self._chunks)
         self._chunks.extend(chunks)
         self._dirty = True
         logger.debug("bm25 ajouté %d chunks (total actifs: %d)", len(chunks), self.count)

@@ -22,12 +22,11 @@ import json
 import logging
 import time
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import datetime
 
 import httpx
 
-from colaig.exceptions import StorageError, StorageFileNotFoundError, StorageAuthError
+from colaig.exceptions import StorageAuthError, StorageError, StorageFileNotFoundError
 from colaig.models import StorageFile
 
 logger = logging.getLogger(__name__)
@@ -429,7 +428,7 @@ class GoogleDriveStorage:
             return []
 
         files: list[StorageFile] = []
-        page_token: Optional[str] = None
+        page_token: str | None = None
 
         while True:
             params: dict = {
@@ -456,7 +455,7 @@ class GoogleDriveStorage:
                 # Etag = md5Checksum pour les fichiers, vide pour les dossiers
                 etag = item.get("md5Checksum", "") if not is_dir else ""
 
-                last_mod: Optional[datetime] = None
+                last_mod: datetime | None = None
                 if mod_str := item.get("modifiedTime"):
                     try:
                         last_mod = datetime.fromisoformat(
@@ -502,7 +501,7 @@ class GoogleDriveStorage:
         )
         return resp.content
 
-    async def download_if_changed(self, path: str, known_etag: str) -> Optional[bytes]:
+    async def download_if_changed(self, path: str, known_etag: str) -> bytes | None:
         """Télécharge seulement si l'etag (md5Checksum) a changé."""
         try:
             file_id = await self._resolve_path(path)
@@ -533,7 +532,7 @@ class GoogleDriveStorage:
         parent_id = await self._ensure_folder(parent_path)
 
         # Vérifier si le fichier existe déjà (pour update vs create)
-        existing_id: Optional[str] = None
+        existing_id: str | None = None
         cache_key = self._full_key(path)
         if cache_key in self._path_cache:
             existing_id = self._path_cache[cache_key]
@@ -554,14 +553,14 @@ class GoogleDriveStorage:
         body = (
             f"--{boundary}\r\n"
             "Content-Type: application/json; charset=UTF-8\r\n\r\n"
-        ).encode("utf-8")
+        ).encode()
         body += metadata
         body += (
             f"\r\n--{boundary}\r\n"
             "Content-Type: application/octet-stream\r\n\r\n"
-        ).encode("utf-8")
+        ).encode()
         body += content
-        body += f"\r\n--{boundary}--".encode("utf-8")
+        body += f"\r\n--{boundary}--".encode()
 
         if existing_id:
             # Mise à jour d'un fichier existant
@@ -601,7 +600,7 @@ class GoogleDriveStorage:
         except (StorageError, StorageAuthError):
             return False
 
-    async def get_etag(self, path: str) -> Optional[str]:
+    async def get_etag(self, path: str) -> str | None:
         """Retourne le md5Checksum d'un fichier Drive (None pour les dossiers)."""
         try:
             file_id = await self._resolve_path(path)

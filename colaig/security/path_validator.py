@@ -56,7 +56,6 @@ def validate_storage_path(
     Raises:
         StorageError: Si le chemin est invalide ou dangereux.
     """
-    from colaig.exceptions import StorageError
 
     if not path or not isinstance(path, str):
         _reject(path, "chemin vide ou invalide", context)

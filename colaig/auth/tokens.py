@@ -31,14 +31,13 @@ import os
 import re
 import secrets
 from contextvars import ContextVar
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Optional
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
 # ContextVar per-async-task — lu par les MCP tools après injection par le middleware
-_current_token: ContextVar[Optional[TokenContext]] = ContextVar(
+_current_token: ContextVar[TokenContext | None] = ContextVar(
     "colaig_mcp_token", default=None
 )
 
@@ -66,7 +65,7 @@ class TokenContext:
     role: str = "user"
 
 
-def require_admin(token_ctx: Optional[TokenContext]) -> Optional[str]:
+def require_admin(token_ctx: TokenContext | None) -> str | None:
     """Vérifie que le token courant a le rôle admin.
 
     Retourne None si l'accès est autorisé, ou un JSON d'erreur (str) à
@@ -89,7 +88,7 @@ def require_admin(token_ctx: Optional[TokenContext]) -> Optional[str]:
     return None
 
 
-def get_current_token() -> Optional[TokenContext]:
+def get_current_token() -> TokenContext | None:
     """Retourne le TokenContext du token MCP courant (None si non authentifié).
 
     Lit le ContextVar positionné par MCPTokenMiddleware. Utilisé par les
@@ -98,7 +97,7 @@ def get_current_token() -> Optional[TokenContext]:
     return _current_token.get()
 
 
-def set_current_token(ctx: Optional[TokenContext]) -> None:
+def set_current_token(ctx: TokenContext | None) -> None:
     """Positionne le TokenContext dans le ContextVar courant.
 
     Appelé par MCPTokenMiddleware — une seule fois par requête HTTP.
@@ -215,7 +214,7 @@ class TokenManager:
         user_id: str,
         name: str,
         scope: str = "*",
-        expires_at: Optional[str] = None,
+        expires_at: str | None = None,
     ) -> str:
         """Crée un token, le persiste et génère la config MCP prête à l'emploi.
 
@@ -238,7 +237,7 @@ class TokenManager:
         if expires_at is None and self._default_expiry_days > 0:
             from datetime import timedelta
             expires_at = (
-                datetime.now(tz=timezone.utc) + timedelta(days=self._default_expiry_days)
+                datetime.now(tz=UTC) + timedelta(days=self._default_expiry_days)
             ).isoformat()
 
         # Le rôle est toujours déterminé côté serveur par COLAIG_ADMIN_USER_IDS.
@@ -250,7 +249,7 @@ class TokenManager:
             "role": role,
             "scope": scope,
             "name": name,
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
             "expires_at": expires_at,
         }
 
@@ -277,7 +276,7 @@ class TokenManager:
         )
         return raw_token
 
-    async def resolve(self, raw_token: str) -> Optional[TokenContext]:
+    async def resolve(self, raw_token: str) -> TokenContext | None:
         """Valide un token et retourne son contexte.
 
         Résolution O(1) sans index central :
@@ -304,7 +303,7 @@ class TokenManager:
         if data.get("expires_at"):
             try:
                 exp = datetime.fromisoformat(data["expires_at"])
-                if datetime.now(timezone.utc) > exp:
+                if datetime.now(UTC) > exp:
                     logger.debug("token expiré: %s", t_path)
                     return None
             except Exception:
@@ -406,7 +405,7 @@ class TokenManager:
             "_colaig": {
                 "token_name": name,
                 "scope": scope,
-                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "generated_at": datetime.now(UTC).isoformat(),
                 "note": (
                     "Copiez ce fichier dans votre config MCP client. "
                     "Ne partagez pas ce fichier — il contient votre token d'accès."

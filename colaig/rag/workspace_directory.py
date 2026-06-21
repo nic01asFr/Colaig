@@ -41,8 +41,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 from colaig.models import DocumentChunk
 from colaig.rag.colaig_index import ColaigIndex
@@ -317,7 +316,7 @@ class WorkspaceDirectory:
             ))
         return output
 
-    def find_by_id(self, workspace_id: str) -> Optional[WorkspaceDirectoryEntry]:
+    def find_by_id(self, workspace_id: str) -> WorkspaceDirectoryEntry | None:
         """Retourne l'entrée d'un workspace par son ID (lookup O(1)).
 
         Utilisé par run_rag_delegate niveau 4 pour résoudre un workspace_id

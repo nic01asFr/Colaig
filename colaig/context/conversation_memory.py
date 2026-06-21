@@ -19,7 +19,6 @@ import logging
 import math
 import re
 from datetime import datetime
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +77,7 @@ class ConversationMemory:
         workspace_path: str,
         conversation_id: str,
         current_query: str,
-        max_messages: Optional[int] = None,
+        max_messages: int | None = None,
     ) -> list[dict]:
         """Charge l'historique contextuellement pertinent.
 

@@ -16,9 +16,12 @@ Exemple .env :
     COLAIG_CAP_EMBED=albert:BAAI/bge-m3,mistral:mistral-embed
 """
 from __future__ import annotations
+
 import logging
 import time
-from typing import TYPE_CHECKING, AsyncIterator, Optional
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
+
 from colaig.exceptions import LLMError, LLMRateLimitError, LLMUnavailableError
 from colaig.models import ChatCompletionResult
 
@@ -34,7 +37,7 @@ _DEFAULT_COOLDOWN_S = 60.0
 class CapabilityChain:
     def __init__(
         self,
-        entries: list[tuple["OpenAIClient", str]],
+        entries: list[tuple[OpenAIClient, str]],
         capability: str = "",
         cooldown_s: float = _DEFAULT_COOLDOWN_S,
     ) -> None:
@@ -46,10 +49,10 @@ class CapabilityChain:
 
     # ── Circuit breaker ───────────────────────────────────────────────
 
-    def _is_on_cooldown(self, client: "OpenAIClient") -> bool:
+    def _is_on_cooldown(self, client: OpenAIClient) -> bool:
         return time.monotonic() < self._cooldowns.get(id(client), 0.0)
 
-    def _set_cooldown(self, client: "OpenAIClient", retry_after: float | None = None) -> None:
+    def _set_cooldown(self, client: OpenAIClient, retry_after: float | None = None) -> None:
         # Utilise le Retry-After de l'API si présent, sinon le cooldown par défaut.
         # On prend max des deux pour ne jamais être en dessous du minimum configuré.
         cooldown = max(retry_after or 0.0, self._cooldown_s)
@@ -60,10 +63,10 @@ class CapabilityChain:
             self._cap, client._backend, cooldown, extra,
         )
 
-    def _clear_cooldown(self, client: "OpenAIClient") -> None:
+    def _clear_cooldown(self, client: OpenAIClient) -> None:
         self._cooldowns.pop(id(client), None)
 
-    def _active_entries(self) -> list[tuple["OpenAIClient", str]]:
+    def _active_entries(self) -> list[tuple[OpenAIClient, str]]:
         """Entrées non en cooldown. Si toutes sont en cooldown → liste vide (pas d'appel HTTP).
 
         Retourner [] permet aux cooldowns de s'écouler naturellement sans être réinitialisés
@@ -87,14 +90,14 @@ class CapabilityChain:
     def parse(
         cls,
         spec: str,
-        registry: "ProviderRegistry",
+        registry: ProviderRegistry,
         capability: str = "",
         default_model: str = "",
         chat_max_concurrent: int = 4,
         bg_chat_max_concurrent: int = 3,
         embed_max_concurrent: int = 4,
         cooldown_s: float = _DEFAULT_COOLDOWN_S,
-    ) -> "CapabilityChain":
+    ) -> CapabilityChain:
         if not spec.strip():
             return cls([], capability, cooldown_s)
         # Parser d'abord toutes les parties pour connaître le nombre total
@@ -268,7 +271,6 @@ class CapabilityChain:
         model: str | None = None,
     ) -> str:
         """Transcription audio via la chain avec fallback."""
-        last_err: Exception | None = None
         for client, default_model in self._active_entries():
             try:
                 result = await client.transcribe(content, filename, model=default_model or model or None)
@@ -276,7 +278,6 @@ class CapabilityChain:
                     self._clear_cooldown(client)
                     return result
             except (LLMRateLimitError, LLMUnavailableError) as e:
-                last_err = e
                 self._set_cooldown(client, retry_after=getattr(e, "retry_after", None))
                 logger.warning("Cap %s transcribe: %s → fallback (%s)", self._cap, client._backend, e)
             except Exception:

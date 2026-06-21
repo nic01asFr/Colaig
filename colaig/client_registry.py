@@ -42,7 +42,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Iterator
+from collections.abc import Iterator
 
 import yaml
 
@@ -68,7 +68,7 @@ class ClientRegistry:
     # --- Factories ---
 
     @classmethod
-    def from_yaml(cls, path: str) -> "ClientRegistry":
+    def from_yaml(cls, path: str) -> ClientRegistry:
         """Charge le registre depuis un fichier YAML.
 
         Returns un registre vide si le fichier n'existe pas.
@@ -98,7 +98,7 @@ class ClientRegistry:
         return cls(clients)
 
     @classmethod
-    def from_yaml_or_empty(cls, path: str) -> "ClientRegistry":
+    def from_yaml_or_empty(cls, path: str) -> ClientRegistry:
         """Comme from_yaml mais ne lève pas d'exception — log l'erreur et retourne vide."""
         try:
             return cls.from_yaml(path)

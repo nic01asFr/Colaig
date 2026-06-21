@@ -4,8 +4,10 @@ Lit depuis os.environ : {PROVIDER}_API_URL, {PROVIDER}_API_KEY.
 Providers connus : albert, mistral, openai, groq, together, ollama.
 """
 from __future__ import annotations
+
 import logging
 import os
+
 from colaig.integrations.llm.openai_client import OpenAIClient
 
 logger = logging.getLogger(__name__)
@@ -26,7 +28,7 @@ class ProviderRegistry:
         self._providers = providers  # {name: (url, key)}
 
     @classmethod
-    def from_env(cls) -> "ProviderRegistry":
+    def from_env(cls) -> ProviderRegistry:
         providers: dict[str, tuple[str, str]] = {}
         for name, default_url in _KNOWN_PROVIDERS.items():
             key = os.environ.get(f"{name.upper()}_API_KEY", "")

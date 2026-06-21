@@ -13,14 +13,12 @@ import logging
 import random
 import time
 import xml.etree.ElementTree as ET
-from datetime import datetime
 from email.utils import parsedate_to_datetime
-from typing import Optional
 from urllib.parse import unquote
 
 import httpx
 
-from colaig.exceptions import StorageError, StorageFileNotFoundError, StorageAuthError
+from colaig.exceptions import StorageAuthError, StorageError, StorageFileNotFoundError
 from colaig.models import StorageFile
 
 logger = logging.getLogger(__name__)
@@ -161,7 +159,7 @@ class WebDAVStorage:
         response = await self._request_with_retry("GET", self._url(path))
         return response.content
 
-    async def download_if_changed(self, path: str, known_etag: str) -> Optional[bytes]:
+    async def download_if_changed(self, path: str, known_etag: str) -> bytes | None:
         """Télécharge seulement si etag a changé. None si inchangé."""
         try:
             response = await self._request_with_retry(
@@ -203,7 +201,7 @@ class WebDAVStorage:
         except (httpx.TimeoutException, httpx.ConnectError):
             return False
 
-    async def get_etag(self, path: str) -> Optional[str]:
+    async def get_etag(self, path: str) -> str | None:
         """Retourne l'etag d'un fichier (None si inexistant)."""
         propfind_body = (
             '<?xml version="1.0" encoding="utf-8"?>'

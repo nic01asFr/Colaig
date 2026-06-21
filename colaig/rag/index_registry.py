@@ -28,7 +28,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, Callable, Coroutine, Optional
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 from colaig.models import SearchResult
 
@@ -51,15 +52,15 @@ class FaissIndexRegistry:
     # ──────────────────────────────────────────────────────────────────
     # Accès aux stores
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """Retourne le store si présent en mémoire, sinon None."""
         return self._stores.get(key)
 
     async def get_or_load(
         self,
         key: str,
-        loader: Callable[[], Coroutine[Any, Any, Optional[Any]]],
-    ) -> Optional[Any]:
+        loader: Callable[[], Coroutine[Any, Any, Any | None]],
+    ) -> Any | None:
         """Retourne le store (charge depuis le loader si absent du cache).
 
         Le loader est une coroutine qui retourne un FaissStore ou None.

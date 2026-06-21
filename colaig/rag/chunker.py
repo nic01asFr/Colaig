@@ -13,7 +13,6 @@ from __future__ import annotations
 import hashlib
 import logging
 import re
-from typing import Optional
 
 from colaig.models import DocumentChunk
 
@@ -41,7 +40,7 @@ class Chunker:
         content: str,
         source_path: str,
         doc_type: str = "text",
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> list[DocumentChunk]:
         """Découpe un document en chunks.
 

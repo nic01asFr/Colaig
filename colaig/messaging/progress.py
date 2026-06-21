@@ -9,7 +9,6 @@ Fournit :
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from colaig.models import ChannelFormat, ConversationType
 from colaig.protocols import MessagingProtocol
@@ -94,7 +93,7 @@ class ProgressReporter:
 
     def __init__(
         self,
-        messaging: Optional[MessagingProtocol],
+        messaging: MessagingProtocol | None,
         conversation_id: str,
         channel_format: ChannelFormat,
     ) -> None:

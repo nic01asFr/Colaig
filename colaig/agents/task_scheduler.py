@@ -27,8 +27,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -57,10 +56,10 @@ async def run_task_scheduler_loop(
     generator=None,
     messaging=None,
     conversation_memory=None,
-    workspace_stores: Optional[dict] = None,
-    bm25_stores: Optional[dict] = None,
+    workspace_stores: dict | None = None,
+    bm25_stores: dict | None = None,
     workspace_directory=None,
-    shutdown_event: Optional[asyncio.Event] = None,
+    shutdown_event: asyncio.Event | None = None,
     poll_interval: int = _DEFAULT_POLL_INTERVAL,
     max_concurrent: int = _DEFAULT_MAX_CONCURRENT,
     session_timeout: int = _DEFAULT_SESSION_TIMEOUT,
@@ -100,7 +99,7 @@ async def run_task_scheduler_loop(
     # Attente initiale — laisser l'indexation démarrer
     try:
         await asyncio.wait_for(shutdown_event.wait(), timeout=poll_interval)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         pass
 
     while not shutdown_event.is_set():
@@ -127,7 +126,7 @@ async def run_task_scheduler_loop(
 
         try:
             await asyncio.wait_for(shutdown_event.wait(), timeout=poll_interval)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass
 
     logger.info("task_scheduler: arrêt propre")
@@ -144,8 +143,8 @@ async def _dispatch_due_tasks(
     generator=None,
     messaging=None,
     conversation_memory=None,
-    workspace_stores: Optional[dict] = None,
-    bm25_stores: Optional[dict] = None,
+    workspace_stores: dict | None = None,
+    bm25_stores: dict | None = None,
     workspace_directory=None,
     session_timeout: int = _DEFAULT_SESSION_TIMEOUT,
     max_error_count: int = _DEFAULT_MAX_ERROR_COUNT,
@@ -238,14 +237,13 @@ async def _check_session_timeout(
     """
     from colaig.agents.tasks import (
         TaskRunSummary,
+        _now_iso,
         archive_run,
         compute_next_run,
+        load_plan,
         load_session_state,
         save_task,
-        load_plan,
-        _now_iso,
     )
-    from datetime import timezone
 
     session = await load_session_state(storage, task)
     if session is None:
@@ -258,8 +256,8 @@ async def _check_session_timeout(
         try:
             last_hb = datetime.fromisoformat(session.last_heartbeat)
             if last_hb.tzinfo is None:
-                last_hb = last_hb.replace(tzinfo=timezone.utc)
-            elapsed = (datetime.now(timezone.utc) - last_hb).total_seconds()
+                last_hb = last_hb.replace(tzinfo=UTC)
+            elapsed = (datetime.now(UTC) - last_hb).total_seconds()
             if elapsed < session_timeout:
                 return  # Session encore active
             logger.warning(
@@ -336,8 +334,8 @@ async def run_background_session(
     generator=None,
     messaging=None,
     conversation_memory=None,
-    workspace_stores: Optional[dict] = None,
-    bm25_stores: Optional[dict] = None,
+    workspace_stores: dict | None = None,
+    bm25_stores: dict | None = None,
     workspace_directory=None,
 ) -> None:
     """Exécute une session complète pour une tâche autonome.
@@ -365,15 +363,15 @@ async def run_background_session(
         bm25_stores         : dict workspace_id → BM25Store.
     """
     from colaig.agents.tasks import (
-        TaskSessionState,
         TaskRunSummary,
+        TaskSessionState,
+        _now_iso,
         archive_run,
         compute_next_run,
-        load_session_state,
-        save_task,
-        save_session_state,
         load_plan,
-        _now_iso,
+        load_session_state,
+        save_session_state,
+        save_task,
     )
 
     run_ts = _now_iso()
@@ -444,10 +442,8 @@ async def run_background_session(
         )
 
         # ── 3. Contexte PERSONAL du user ────────────────────────────────────
-        from colaig.models import ConversationType, IncomingMessage
         from colaig.context.workspace import get_or_create_personal_workspace
-        from colaig.context.layers import build_context
-        from colaig.models import ContextMode
+        from colaig.models import ContextMode, ConversationType, IncomingMessage
 
         personal_ws = await get_or_create_personal_workspace(storage, task.user_id)
 
@@ -608,7 +604,7 @@ async def _run_agents_pipeline(
     synthesiser,
     background_registry,
     conversation_history: list,
-    max_steps: Optional[int] = None,
+    max_steps: int | None = None,
 ) -> tuple[str, list[str], int]:
     """Exécute Analyser → Orchestrateur (avec background_registry) → Synthétiseur.
 
@@ -656,7 +652,7 @@ async def _run_generator_pipeline(
     context,
     retriever,
     generator,
-    workspace_stores: Optional[dict] = None,
+    workspace_stores: dict | None = None,
 ) -> tuple[str, list[str]]:
     """Pipeline Phase 1 : RAG + Generator.
 

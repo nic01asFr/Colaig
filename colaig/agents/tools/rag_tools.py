@@ -8,10 +8,9 @@ Utilise : RetrieverProtocol
 from __future__ import annotations
 
 import json
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from colaig.models import ToolDefinition, ToolParameter
-
 
 # Définition de l'outil — schéma JSON OpenAI-compatible
 SEARCH_DOCUMENTS_DEFINITION = ToolDefinition(
@@ -60,8 +59,8 @@ def create_search_handler(retriever, workspace_id: str = "", store=None) -> Call
 
     async def search_handler(
         query: str,
-        k: Optional[int] = 5,
-        threshold: Optional[float] = 0.3,
+        k: int | None = 5,
+        threshold: float | None = 0.3,
     ) -> str:
         """Exécute une recherche RAG et retourne les résultats en JSON.
 

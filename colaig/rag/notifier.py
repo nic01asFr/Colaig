@@ -25,8 +25,8 @@ _MAX_PREFIX_LENGTH = 200          # Troncature du contextual_prefix si trop long
 
 def format_notification(
     workspace_name: str,
-    update: "UpdateSummary",
-    store: "FaissStore | None" = None,
+    update: UpdateSummary,
+    store: FaissStore | None = None,
     language: str = "fr",
 ) -> str:
     """Formate une notification de changements documentaires.
@@ -108,7 +108,7 @@ def format_notification(
 
 def _extract_descriptions(
     paths: list[str],
-    store: "FaissStore | None",
+    store: FaissStore | None,
 ) -> dict[str, str]:
     """Extrait le contextual_prefix du premier chunk actif pour chaque chemin.
 

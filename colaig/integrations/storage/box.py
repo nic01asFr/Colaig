@@ -27,10 +27,9 @@ import io
 import json
 import logging
 import time
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
-from colaig.exceptions import StorageError, StorageFileNotFoundError, StorageAuthError
+from colaig.exceptions import StorageAuthError, StorageError, StorageFileNotFoundError
 from colaig.models import StorageFile, StorageWebhookEvent
 
 logger = logging.getLogger(__name__)
@@ -149,7 +148,7 @@ class BoxStorage:
     # ------------------------------------------------------------------
     # Cache chemin → ID
 
-    def _get_cached(self, path: str) -> Optional[tuple[str, str]]:
+    def _get_cached(self, path: str) -> tuple[str, str] | None:
         """Retourne (id, type) depuis le cache si encore valide."""
         entry = self._item_cache.get(path)
         if entry and time.monotonic() - self._cache_ts.get(path, 0) < _CACHE_TTL:
@@ -397,7 +396,7 @@ class BoxStorage:
 
         return await asyncio.to_thread(_download)
 
-    async def download_if_changed(self, path: str, known_etag: str) -> Optional[bytes]:
+    async def download_if_changed(self, path: str, known_etag: str) -> bytes | None:
         """Télécharge seulement si l'etag a changé."""
 
         def _conditional():
@@ -440,7 +439,7 @@ class BoxStorage:
             client = self._get_client()
 
             # Chercher si le fichier existe déjà
-            file_id: Optional[str] = None
+            file_id: str | None = None
             try:
                 fid, ftype = self._find_child_sync(client, parent_id, filename)
                 if ftype == "file":
@@ -496,7 +495,7 @@ class BoxStorage:
 
         return await asyncio.to_thread(_exists)
 
-    async def get_etag(self, path: str) -> Optional[str]:
+    async def get_etag(self, path: str) -> str | None:
         """Retourne l'etag d'un fichier Box."""
 
         def _etag():
@@ -636,7 +635,7 @@ class BoxStorage:
 
     async def handle_webhook_event(
         self, payload: bytes, headers: dict
-    ) -> Optional[StorageWebhookEvent]:
+    ) -> StorageWebhookEvent | None:
         """Valide et parse un événement webhook Box (HMAC-SHA256).
 
         Args:
@@ -744,12 +743,12 @@ def _raise_box_error(exc, path: str = "") -> None:
     raise StorageError(f"Box erreur [{status}]: {msg}") from exc
 
 
-def _parse_box_datetime(value) -> Optional[datetime]:
+def _parse_box_datetime(value) -> datetime | None:
     """Parse une date ISO 8601 Box en datetime aware UTC."""
     if not value:
         return None
     if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
     try:
         return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
     except (ValueError, TypeError):

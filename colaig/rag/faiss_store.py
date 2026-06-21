@@ -12,7 +12,6 @@ import asyncio
 import logging
 import os
 import pickle
-from typing import Optional
 
 import faiss
 import numpy as np

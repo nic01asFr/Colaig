@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Any, Callable, Coroutine, Optional
+from collections.abc import Callable, Coroutine
 
 from colaig.models import TaskHandle
 
@@ -34,7 +34,7 @@ class TaskExecutor:
         self._queue_ttl = queue_ttl
         self._conv_queues: dict[str, asyncio.Queue] = {}
         self._last_activity: dict[str, float] = {}
-        self._cleanup_task: Optional[asyncio.Task] = None
+        self._cleanup_task: asyncio.Task | None = None
 
     async def start(self) -> None:
         """Démarre la tâche de nettoyage périodique des queues inactives."""
@@ -55,8 +55,8 @@ class TaskExecutor:
         coro: Coroutine,
         task_id: str,
         conv_id: str,
-        on_complete: Optional[Callable] = None,
-        on_error: Optional[Callable] = None,
+        on_complete: Callable | None = None,
+        on_error: Callable | None = None,
     ) -> TaskHandle:
         """Soumet une tâche pour exécution. Retourne TaskHandle immédiatement (non-bloquant).
 
@@ -95,7 +95,7 @@ class TaskExecutor:
             try:
                 # Attente avec timeout = TTL (permet la suppression des queues vides)
                 item = await asyncio.wait_for(queue.get(), timeout=self._queue_ttl)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self._conv_queues.pop(conv_id, None)
                 self._last_activity.pop(conv_id, None)
                 logger.debug("queue conv %s supprimée (inactive)", conv_id)

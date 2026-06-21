@@ -26,17 +26,16 @@ import json
 import logging
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
-from colaig.exceptions import DocumentIndexError, DocumentAnalysisError
-from colaig.rag.classifier import ClassificationEngine
+from colaig.exceptions import DocumentAnalysisError
 from colaig.models import (
     ColaigConfig,
     DocumentIndexSearchResult,
     DocumentRecord,
     DocumentStatus,
 )
+from colaig.rag.classifier import ClassificationEngine
 from colaig.rag.faiss_store import FaissStore
 from colaig.utils.text import extract_text, is_supported
 
@@ -78,7 +77,7 @@ class DocumentIndex:
         storage,
         embedding_service,
         albert,
-        config: Optional[ColaigConfig] = None,
+        config: ColaigConfig | None = None,
         index_cache_ttl: int = 300,
     ) -> None:
         self._storage = storage
@@ -132,7 +131,7 @@ class DocumentIndex:
                     mime_type=f.content_type,
                     last_modified=f.last_modified,
                     status=DocumentStatus.PENDING,
-                    indexed_at=datetime.now(timezone.utc),
+                    indexed_at=datetime.now(UTC),
                 )
                 changed += 1
                 logger.debug("document_index nouveau fichier: %s", f.path)
@@ -216,7 +215,7 @@ class DocumentIndex:
         query: str,
         workspace_path: str,
         k: int = 5,
-        filters: Optional[dict] = None,
+        filters: dict | None = None,
     ) -> list[DocumentIndexSearchResult]:
         """Recherche sémantique + filtres structurés.
 
@@ -234,7 +233,7 @@ class DocumentIndex:
         if not query.strip():
             # Sans requête : liste filtrée
             docs = _apply_filters(list(state.registry.values()), filters)
-            docs.sort(key=lambda r: r.analyzed_at or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+            docs.sort(key=lambda r: r.analyzed_at or datetime.min.replace(tzinfo=UTC), reverse=True)
             return [
                 DocumentIndexSearchResult(record=r, score=0.0, rank=i)
                 for i, r in enumerate(docs[:k])
@@ -271,7 +270,7 @@ class DocumentIndex:
     async def list_documents(
         self,
         workspace_path: str,
-        filters: Optional[dict] = None,
+        filters: dict | None = None,
         limit: int = 50,
     ) -> list[DocumentRecord]:
         """Liste les documents avec filtres optionnels.
@@ -286,7 +285,7 @@ class DocumentIndex:
         state = await self._ensure_loaded(workspace_path)
         docs = _apply_filters(list(state.registry.values()), filters)
         docs.sort(
-            key=lambda r: r.analyzed_at or r.indexed_at or datetime.min.replace(tzinfo=timezone.utc),
+            key=lambda r: r.analyzed_at or r.indexed_at or datetime.min.replace(tzinfo=UTC),
             reverse=True,
         )
         return docs[:limit]
@@ -295,7 +294,7 @@ class DocumentIndex:
         self,
         workspace_path: str,
         doc_path: str,
-    ) -> Optional[DocumentRecord]:
+    ) -> DocumentRecord | None:
         """Récupère le DocumentRecord d'un fichier par son path exact.
 
         Returns:
@@ -364,7 +363,7 @@ class DocumentIndex:
         # Finaliser le statut
         record.status = DocumentStatus.ANALYZED
         if not record.analyzed_at:
-            record.analyzed_at = datetime.now(timezone.utc)
+            record.analyzed_at = datetime.now(UTC)
 
         state.registry[record.path] = record
         state.dirty = True
@@ -466,6 +465,7 @@ class DocumentIndex:
             WorkspaceProfile si le fichier existe, None sinon.
         """
         import yaml as _yaml
+
         from colaig.models import DocumentMapConfig, VocabularyConfig, WorkspaceProfile
         profile_path = f"{workspace_path.rstrip('/')}/.colaig/profile/identity.yaml"
         try:
@@ -524,7 +524,7 @@ class DocumentIndex:
             record.ai_category = "autre"
             record.ai_entities = {}
             record.status = DocumentStatus.ANALYZED
-            record.analyzed_at = datetime.now(timezone.utc)
+            record.analyzed_at = datetime.now(UTC)
             return
 
         # 4. Charger le classifieur et construire le contexte règles
@@ -588,7 +588,7 @@ class DocumentIndex:
 
         # 12. Finaliser
         record.status = DocumentStatus.ANALYZED
-        record.analyzed_at = datetime.now(timezone.utc)
+        record.analyzed_at = datetime.now(UTC)
 
         logger.debug(
             "analysé %s → catégorie=%s, entities=%s, virtual_path=%s, règle=%s",
@@ -603,7 +603,7 @@ class DocumentIndex:
         text: str,
         filename: str,
         rules_context: str = "",
-        extra_entity_vars: "set | None" = None,
+        extra_entity_vars: set | None = None,
         workspace_profile=None,
     ) -> dict:
         """Appelle Albert pour analyser un document (version rule-aware + profile-aware).
@@ -789,7 +789,7 @@ def _match_filters(record: DocumentRecord, filters: dict) -> bool:
 
 def _apply_filters(
     records: list[DocumentRecord],
-    filters: Optional[dict],
+    filters: dict | None,
 ) -> list[DocumentRecord]:
     """Applique les filtres sur une liste de DocumentRecord."""
     if not filters:

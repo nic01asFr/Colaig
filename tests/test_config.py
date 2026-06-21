@@ -99,7 +99,7 @@ class TestLoadConfig:
 
             try:
                 config = load_config(yaml_path=yml)
-                assert config.albert_api_url == "https://albert-api.etalab.gouv.fr"
+                assert config.albert_api_url == "https://albert.api.etalab.gouv.fr"
                 assert config.chunk_size == 800
                 assert config.chunk_overlap == 100
                 assert config.log_level == "INFO"

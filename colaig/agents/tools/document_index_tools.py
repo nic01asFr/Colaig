@@ -10,10 +10,9 @@ Trois outils :
 from __future__ import annotations
 
 import json
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from colaig.models import ToolDefinition, ToolParameter
-
 
 # ── Définitions des outils (schémas JSON OpenAI-compatible) ──────────
 
@@ -153,11 +152,11 @@ def create_search_document_index_handler(
 
     async def handler(
         query: str,
-        k: Optional[int] = 5,
-        category: Optional[str] = None,
-        status: Optional[str] = None,
-        virtual_path_contains: Optional[str] = None,
-        entity: Optional[str] = None,
+        k: int | None = 5,
+        category: str | None = None,
+        status: str | None = None,
+        virtual_path_contains: str | None = None,
+        entity: str | None = None,
     ) -> str:
         k_val = k if k is not None else 5
 
@@ -213,10 +212,10 @@ def create_list_document_index_handler(
     """
 
     async def handler(
-        category: Optional[str] = None,
-        status: Optional[str] = None,
-        name_contains: Optional[str] = None,
-        limit: Optional[int] = 20,
+        category: str | None = None,
+        status: str | None = None,
+        name_contains: str | None = None,
+        limit: int | None = 20,
     ) -> str:
         filters: dict = {}
         if category:
@@ -302,9 +301,9 @@ def create_get_classified_documents_handler(
     """
 
     async def handler(
-        virtual_folder: Optional[str] = None,
-        rule_applied: Optional[str] = None,
-        limit: Optional[int] = 20,
+        virtual_folder: str | None = None,
+        rule_applied: str | None = None,
+        limit: int | None = 20,
     ) -> str:
         filters: dict = {"has_virtual_path": True}
         if virtual_folder:

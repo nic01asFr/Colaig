@@ -14,14 +14,15 @@ Utilise uniquement les Protocols (injection dans le constructeur).
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Callable, Optional, Awaitable
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from colaig.integrations.albert import AlbertClient
 
-from colaig.models import ChannelFormat, ContextMode, IncomingMessage, IntentType, PipelinePhase
 from colaig.context.layers import save_conversation_history
-from colaig.messaging.progress import resolve_channel, ProgressReporter
+from colaig.messaging.progress import ProgressReporter, resolve_channel
+from colaig.models import ContextMode, IncomingMessage, IntentType, PipelinePhase
 
 logger = logging.getLogger(__name__)
 
@@ -107,8 +108,8 @@ class MessageHandler:
         tool_registry=None,        # ToolRegistry (Phase 5, optionnel)
         workspace_stores=None,     # dict[workspace_id, FaissStore] — isolation par workspace
         workspace_bm25_stores=None,  # dict[workspace_id, BM25Store] — hybrid search
-        on_phase_change: Optional[Callable[[PipelinePhase, str], Awaitable[None]]] = None,
-        albert_client: "AlbertClient | None" = None,
+        on_phase_change: Callable[[PipelinePhase, str], Awaitable[None]] | None = None,
+        albert_client: AlbertClient | None = None,
         trame_manager=None,        # TrameManager (Phase 6, optionnel)
         pre_exec_builder=None,     # PreExecutionBuilder (Phase 6, optionnel)
         user_memory=None,          # UserMemory (Phase 7, optionnel) — mémoire per-user
@@ -257,10 +258,13 @@ class MessageHandler:
             normalement), False sinon.
         """
         try:
-            from colaig.context.workspace import get_or_create_personal_workspace
             from colaig.agents.tasks import (
-                list_tasks, load_session_state, save_task, save_session_state,
+                list_tasks,
+                load_session_state,
+                save_session_state,
+                save_task,
             )
+            from colaig.context.workspace import get_or_create_personal_workspace
 
             personal_ws = await get_or_create_personal_workspace(self._storage, message.user_id)
             tasks = await list_tasks(self._storage, personal_ws.storage_path)
