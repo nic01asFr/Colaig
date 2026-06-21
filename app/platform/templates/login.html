@@ -2,31 +2,41 @@
 {% block title %}Connexion{% endblock %}
 
 {% block body %}
-<div class="login-container">
-    <div class="card">
-        <h1>Colaig</h1>
-        <p>Plateforme d'administration des bots</p>
+<div class="fr-container colaig-login">
+    <div class="fr-mb-4w fr-text--center">
+        <p class="fr-logo">République<br>Française</p>
+    </div>
 
-        <div id="alert" class="alert" style="display:none;"></div>
+    <div class="fr-p-4w" style="background:var(--background-default-grey); border:1px solid var(--border-default-grey); border-radius:.5rem;">
+        <h1 class="fr-h3 fr-mb-1v">Colaig</h1>
+        <p class="fr-text--sm fr-text-mention--grey fr-mb-3w">Plateforme d'administration des assistants</p>
+
+        <div id="alert" class="fr-alert fr-alert--error fr-alert--sm fr-mb-3w" role="alert" hidden>
+            <p id="alertText"></p>
+        </div>
 
         {% if proconnect_enabled %}
-        <a href="/auth/login" class="btn btn-primary" style="width:100%; margin-bottom:16px;">
+        <a href="/auth/login" class="fr-btn fr-btn--icon-left fr-icon-account-circle-line fr-mb-2w" style="width:100%; justify-content:center;">
             Se connecter avec ProConnect
         </a>
-        <hr style="margin: 16px 0; border: none; border-top: 1px solid var(--border);">
-        <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 16px;">Ou connexion directe (dev)</p>
+        <hr class="fr-mt-1w fr-mb-2w">
+        <p class="fr-text--xs fr-text-mention--grey fr-mb-2w">Ou connexion directe</p>
         {% endif %}
 
         <form id="loginForm" onsubmit="return handleLogin(event)">
-            <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" required placeholder="prenom.nom@gouv.fr">
+            <div class="fr-input-group">
+                <label class="fr-label" for="email">Adresse électronique</label>
+                <input class="fr-input" type="email" id="email" name="email" required
+                       autocomplete="username" placeholder="prenom.nom@gouv.fr">
             </div>
-            <div class="form-group">
-                <label for="password">Mot de passe</label>
-                <input type="password" id="password" name="password" required>
+            <div class="fr-input-group">
+                <label class="fr-label" for="password">Mot de passe</label>
+                <input class="fr-input" type="password" id="password" name="password" required
+                       autocomplete="current-password">
             </div>
-            <button type="submit" class="btn btn-primary" style="width:100%;">Connexion</button>
+            <button type="submit" class="fr-btn fr-mt-1w" style="width:100%; justify-content:center;">
+                Connexion
+            </button>
         </form>
     </div>
 </div>
@@ -37,7 +47,7 @@
 async function handleLogin(e) {
     e.preventDefault();
     const alertEl = document.getElementById('alert');
-    alertEl.style.display = 'none';
+    alertEl.hidden = true;
 
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
@@ -46,9 +56,8 @@ async function handleLogin(e) {
     if (ok) {
         window.location.href = '/dashboard';
     } else {
-        alertEl.className = 'alert alert-error';
-        alertEl.textContent = data.error || 'Erreur de connexion';
-        alertEl.style.display = 'block';
+        document.getElementById('alertText').textContent = data.error || 'Erreur de connexion';
+        alertEl.hidden = false;
     }
     return false;
 }

@@ -1,225 +1,315 @@
 {% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}Tableau de bord{% endblock %}
+
+{% block head %}
+<style>
+  .wizard-illu {
+    border: 1px dashed var(--border-default-grey);
+    border-radius: .5rem;
+    background: var(--background-alt-grey);
+    color: var(--text-mention-grey);
+    min-height: 9rem;
+    display: flex; align-items: center; justify-content: center;
+    text-align: center; padding: 1rem; font-size: .9rem;
+  }
+  .colaig-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em; }
+  .wizard-step[hidden] { display: none !important; }
+</style>
+{% endblock %}
 
 {% block body %}
-<div class="header">
-    <h1>Colaig - Plateforme APF</h1>
-    <div class="user-info">
-        <span id="userName"></span>
-        <a href="/auth/logout">Deconnexion</a>
-    </div>
-</div>
-
-<div class="container">
-    <div id="alert" class="alert" style="display:none;"></div>
-
-    <!-- Stats -->
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
-        <div class="card" style="text-align:center;">
-            <div style="font-size: 28px; font-weight: 700; color: var(--primary);" id="totalInstances">-</div>
-            <div style="color: var(--text-muted); font-size: 13px;">Instances</div>
+<header role="banner" class="fr-header">
+  <div class="fr-header__body">
+    <div class="fr-container">
+      <div class="fr-header__body-row">
+        <div class="fr-header__brand fr-enlarge-link">
+          <div class="fr-header__brand-top">
+            <div class="fr-header__logo"><p class="fr-logo">République<br>Française</p></div>
+            <div class="fr-header__navbar">
+              <button class="fr-btn--menu fr-btn" data-fr-opened="false" aria-controls="header-tools-modal" id="btn-header-menu" title="Menu">Menu</button>
+            </div>
+          </div>
+          <div class="fr-header__service">
+            <a href="/dashboard" title="Accueil — Colaig">
+              <p class="fr-header__service-title">Colaig</p>
+            </a>
+            <p class="fr-header__service-tagline">Plateforme d'administration des assistants</p>
+          </div>
         </div>
-        <div class="card" style="text-align:center;">
-            <div style="font-size: 28px; font-weight: 700; color: var(--success);" id="runningInstances">-</div>
-            <div style="color: var(--text-muted); font-size: 13px;">En cours</div>
+        <div class="fr-header__tools">
+          <div class="fr-header__tools-links">
+            <ul class="fr-btns-group">
+              <li><span class="fr-btn fr-btn--tertiary-no-outline fr-icon-account-circle-line fr-btn--icon-left" id="userName"></span></li>
+              <li><a class="fr-btn fr-icon-logout-box-r-line fr-btn--icon-left" href="/auth/logout">Déconnexion</a></li>
+            </ul>
+          </div>
         </div>
-        <div class="card" style="text-align:center;">
-            <div style="font-size: 28px; font-weight: 700; color: var(--danger);" id="errorInstances">-</div>
-            <div style="color: var(--text-muted); font-size: 13px;">En erreur</div>
+      </div>
+    </div>
+  </div>
+  <div class="fr-header__menu fr-modal" id="header-tools-modal" aria-labelledby="btn-header-menu">
+    <div class="fr-container">
+      <button class="fr-btn--close fr-btn" aria-controls="header-tools-modal">Fermer</button>
+      <div class="fr-header__menu-links">
+        <ul class="fr-btns-group">
+          <li><a class="fr-btn fr-icon-logout-box-r-line fr-btn--icon-left" href="/auth/logout">Déconnexion</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="contenu" class="fr-container fr-py-4w">
+
+  <div id="alert" class="fr-alert fr-alert--sm fr-mb-3w" role="status" hidden>
+    <p id="alertText"></p>
+  </div>
+
+  <!-- Statistiques -->
+  <div class="fr-grid-row fr-grid-row--gutters fr-mb-2w">
+    <div class="fr-col-12 fr-col-md-4">
+      <div class="fr-card fr-card--no-arrow"><div class="fr-card__body"><div class="fr-card__content fr-text--center">
+        <p class="colaig-stat__num fr-mb-1v" style="color:var(--text-action-high-blue-france)" id="totalInstances">–</p>
+        <p class="fr-text--sm fr-text-mention--grey fr-mb-0">Instances</p>
+      </div></div></div>
+    </div>
+    <div class="fr-col-12 fr-col-md-4">
+      <div class="fr-card fr-card--no-arrow"><div class="fr-card__body"><div class="fr-card__content fr-text--center">
+        <p class="colaig-stat__num fr-mb-1v" style="color:var(--text-default-success)" id="runningInstances">–</p>
+        <p class="fr-text--sm fr-text-mention--grey fr-mb-0">En cours</p>
+      </div></div></div>
+    </div>
+    <div class="fr-col-12 fr-col-md-4">
+      <div class="fr-card fr-card--no-arrow"><div class="fr-card__body"><div class="fr-card__content fr-text--center">
+        <p class="colaig-stat__num fr-mb-1v" style="color:var(--text-default-error)" id="errorInstances">–</p>
+        <p class="fr-text--sm fr-text-mention--grey fr-mb-0">En erreur</p>
+      </div></div></div>
+    </div>
+  </div>
+
+  <!-- Liste des instances -->
+  <div class="fr-mt-4w">
+    <div class="fr-grid-row fr-grid-row--middle" style="justify-content:space-between;">
+      <h2 class="fr-h4 fr-mb-2w">Instances de bot</h2>
+      <button class="fr-btn fr-btn--sm fr-icon-add-line fr-btn--icon-left" onclick="showCreateForm()">Nouvelle instance</button>
+    </div>
+    <div class="fr-table fr-table--bordered">
+      <table>
+        <thead>
+          <tr><th>Nom</th><th>Serveur</th><th>Utilisateur</th><th>Statut</th><th>Référent</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="instancesBody">
+          <tr><td colspan="6" class="fr-text--center fr-text-mention--grey">Chargement…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== Assistant de création (pas à pas) ===== -->
+  <div class="fr-card fr-card--grey fr-mt-4w" id="createForm" hidden>
+    <div class="fr-card__body"><div class="fr-card__content">
+
+      <div class="fr-stepper">
+        <h2 class="fr-stepper__title">
+          <span id="wizTitle">Identité du bot Tchap</span>
+          <span class="fr-stepper__state">Étape <span id="wizCur">1</span> sur 5</span>
+        </h2>
+        <div class="fr-stepper__steps" id="wizSteps" data-fr-current-step="1" data-fr-steps="5"></div>
+        <p class="fr-stepper__details"><span class="fr-text--bold">Étape suivante :</span> <span id="wizNextLabel">Qui peut l'utiliser</span></p>
+      </div>
+
+      <form onsubmit="return createInstance(event)">
+
+        <!-- Étape 1 : Identité Tchap -->
+        <div class="wizard-step" data-step="1">
+          <div class="fr-callout fr-icon-information-line fr-mb-3w">
+            <h3 class="fr-callout__title">Donnez une identité Tchap à votre assistant</h3>
+            <p class="fr-callout__text">COLAIG se connecte à Tchap avec <strong>son propre compte</strong> (différent du vôtre). Si vous n'en avez pas, demandez la création d'un compte de service dédié, par exemple <span class="colaig-mono">colaig.assistant</span>.</p>
+          </div>
+          <figure class="fr-mb-3w" role="group">
+            <div class="wizard-illu">Capture à insérer : page Tchap « Paramètres du compte » — emplacement du serveur d'accueil et de l'identifiant</div>
+            <figcaption class="fr-text--xs fr-text-mention--grey fr-mt-1v">À récupérer : <strong>serveur d'accueil</strong> (ex. <span class="colaig-mono">https://matrix.agent.tchap.gouv.fr</span>), <strong>identifiant</strong> et <strong>mot de passe</strong> du compte bot.</figcaption>
+          </figure>
+          <div class="fr-grid-row fr-grid-row--gutters">
+            <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+              <label class="fr-label" for="c_name">Nom de l'assistant<span class="fr-hint-text">Affiché dans la liste — ex. « Bot Urbanisme »</span></label>
+              <input class="fr-input" type="text" id="c_name" required placeholder="Bot Urbanisme"></div></div>
+            <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+              <label class="fr-label" for="c_description">Description<span class="fr-hint-text">Optionnel</span></label>
+              <input class="fr-input" type="text" id="c_description" placeholder="Assistant de la direction urbanisme"></div></div>
+            <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+              <label class="fr-label" for="c_homeserver">Serveur Matrix (Tchap)</label>
+              <input class="fr-input" type="url" id="c_homeserver" required placeholder="https://matrix.agent.tchap.gouv.fr"></div></div>
+            <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+              <label class="fr-label" for="c_username">Identifiant du bot</label>
+              <input class="fr-input" type="text" id="c_username" required placeholder="colaig.assistant"></div></div>
+            <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+              <label class="fr-label" for="c_password">Mot de passe du bot</label>
+              <input class="fr-input" type="password" id="c_password" required></div></div>
+          </div>
         </div>
-    </div>
 
-    <!-- Instances list -->
-    <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h2>Instances de bot</h2>
-            <button class="btn btn-primary btn-small" onclick="showCreateForm()">+ Nouvelle instance</button>
+        <!-- Étape 2 : Périmètre de collaboration -->
+        <div class="wizard-step" data-step="2" hidden>
+          <div class="fr-callout fr-icon-team-line fr-mb-3w">
+            <h3 class="fr-callout__title">Qui pourra parler à l'assistant et le configurer ?</h3>
+            <p class="fr-callout__text">COLAIG est <strong>collaboratif</strong> : tous les agents d'un domaine de messagerie autorisé peuvent l'utiliser et l'enrichir. Indiquez le(s) domaine(s), séparés par des virgules. Laissez <span class="colaig-mono">*</span> pour autoriser tout le monde.</p>
+          </div>
+          <figure class="fr-mb-3w" role="group">
+            <div class="wizard-illu">Exemple : un agent écrit « <span class="colaig-mono">prenom.nom-mairie-laval.fr</span> » → domaine <span class="colaig-mono">mairie-laval.fr</span></div>
+            <figcaption class="fr-text--xs fr-text-mention--grey fr-mt-1v">Le domaine se lit dans l'adresse Tchap des agents (après le tiret, avant les deux-points).</figcaption>
+          </figure>
+          <div class="fr-grid-row fr-grid-row--gutters">
+            <div class="fr-col-12 fr-col-md-8"><div class="fr-input-group">
+              <label class="fr-label" for="c_domains">Domaines autorisés (séparés par des virgules)</label>
+              <input class="fr-input" type="text" id="c_domains" placeholder="* (tous) ou gouv.fr,ecologie.gouv.fr"></div></div>
+          </div>
         </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Nom</th>
-                    <th>Serveur</th>
-                    <th>Utilisateur</th>
-                    <th>Statut</th>
-                    <th>Admin</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="instancesBody">
-                <tr><td colspan="6" style="text-align:center; color: var(--text-muted);">Chargement...</td></tr>
-            </tbody>
-        </table>
-    </div>
+        <!-- Étape 3 : Stockage documentaire -->
+        <div class="wizard-step" data-step="3" hidden>
+          <div class="fr-callout fr-icon-folder-2-line fr-mb-3w">
+            <h3 class="fr-callout__title">Où sont stockés les documents de l'assistant ?</h3>
+            <p class="fr-callout__text">COLAIG répond à partir de vos documents, stockés sur un espace <strong>WebDAV</strong> (BigFolder, MDrive…). Renseignez l'URL et les identifiants de cet espace. Vous pourrez ajouter des documents plus tard, directement dans Tchap.</p>
+          </div>
+          <figure class="fr-mb-3w" role="group">
+            <div class="wizard-illu">Capture à insérer : espace BigFolder / MDrive — bouton « WebDAV » qui donne l'URL d'accès</div>
+            <figcaption class="fr-text--xs fr-text-mention--grey fr-mt-1v">À récupérer : <strong>URL WebDAV</strong>, <strong>utilisateur</strong> et <strong>mot de passe</strong> de l'espace documentaire.</figcaption>
+          </figure>
+          <div class="fr-grid-row fr-grid-row--gutters">
+            <div class="fr-col-12"><div class="fr-input-group">
+              <label class="fr-label" for="c_webdav_url">URL WebDAV<span class="fr-hint-text">Optionnel — peut être ajouté plus tard</span></label>
+              <input class="fr-input" type="url" id="c_webdav_url" placeholder="https://…/remote.php/dav/files/…"></div></div>
+            <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+              <label class="fr-label" for="c_webdav_user">Utilisateur WebDAV</label>
+              <input class="fr-input" type="text" id="c_webdav_user"></div></div>
+            <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+              <label class="fr-label" for="c_webdav_password">Mot de passe WebDAV</label>
+              <input class="fr-input" type="password" id="c_webdav_password"></div></div>
+          </div>
+        </div>
 
-    <!-- Edit form (hidden by default) -->
-    <div id="editForm" class="card" style="display:none;">
-        <h2>Modifier l'instance</h2>
-        <input type="hidden" id="e_instance_id">
-        <form onsubmit="return updateInstance(event)">
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Nom</label>
-                    <input type="text" id="e_name" required>
-                </div>
-                <div class="form-group">
-                    <label>Description</label>
-                    <input type="text" id="e_description">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Serveur Matrix</label>
-                    <input type="url" id="e_homeserver" required>
-                </div>
-                <div class="form-group">
-                    <label>Utilisateur Matrix</label>
-                    <input type="text" id="e_username" required>
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Mot de passe Matrix <small>(laisser vide = inchangé)</small></label>
-                    <input type="password" id="e_password">
-                </div>
-                <div class="form-group">
-                    <label>Domaines autorises (CSV)</label>
-                    <input type="text" id="e_domains">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>URL WebDAV</label>
-                    <input type="url" id="e_webdav_url">
-                </div>
-                <div class="form-group">
-                    <label>Utilisateur WebDAV</label>
-                    <input type="text" id="e_webdav_user">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Mot de passe WebDAV <small>(laisser vide = inchangé)</small></label>
-                    <input type="password" id="e_webdav_password">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Chemin racine WebDAV</label>
-                    <input type="text" id="e_webdav_root_path" placeholder="documents">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>URL Albert API</label>
-                    <input type="url" id="e_albert_api_url">
-                </div>
-                <div class="form-group">
-                    <label>Clé Albert API <small>(laisser vide = inchangé)</small></label>
-                    <input type="password" id="e_albert_api_token">
-                </div>
-            </div>
-            <details style="margin-bottom:12px;">
-                <summary style="cursor:pointer; font-weight:500; padding:6px 0;">Clés E2E (chiffrement Tchap) <small>— optionnel</small></summary>
-                <div class="form-row" style="margin-top:8px;">
-                    <div class="form-group">
-                        <label>Fichier de clés exporté <small>(laisser vide = inchangé)</small></label>
-                        <input type="file" id="e_e2e_keys_file" accept=".txt">
-                    </div>
-                    <div class="form-group">
-                        <label>Phrase secrète des clés <small>(laisser vide = inchangé)</small></label>
-                        <input type="password" id="e_e2e_keys_passphrase">
-                    </div>
-                </div>
-            </details>
-            <div class="actions">
-                <button type="button" class="btn" onclick="document.getElementById('editForm').style.display='none'">Annuler</button>
-                <button type="submit" class="btn btn-primary">Enregistrer</button>
-            </div>
-        </form>
-    </div>
+        <!-- Étape 4 : Modèle IA -->
+        <div class="wizard-step" data-step="4" hidden>
+          <div class="fr-callout fr-icon-cpu-line fr-mb-3w">
+            <h3 class="fr-callout__title">Quel moteur d'IA ?</h3>
+            <p class="fr-callout__text">Sur SSPCloud, le modèle et la clé sont <strong>récupérés automatiquement</strong> (votre clé « AI Assistant ») — vous pouvez laisser ces champs vides. Renseignez-les seulement pour utiliser <strong>Albert</strong> ou un autre fournisseur.</p>
+          </div>
+          <figure class="fr-mb-3w" role="group">
+            <div class="wizard-illu">Capture à insérer : SSPCloud « Mon compte → AI Assistant » (clé récupérée automatiquement) — ou portail Albert pour une clé API</div>
+            <figcaption class="fr-text--xs fr-text-mention--grey fr-mt-1v">À récupérer (optionnel) : <strong>URL de l'API</strong> et <strong>clé</strong> si vous n'utilisez pas le LLM SSPCloud par défaut.</figcaption>
+          </figure>
+          <div class="fr-grid-row fr-grid-row--gutters">
+            <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+              <label class="fr-label" for="c_albert_api_url">URL de l'API (optionnel)</label>
+              <input class="fr-input" type="url" id="c_albert_api_url" placeholder="https://api.albert.etalab.gouv.fr/v1"></div></div>
+            <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+              <label class="fr-label" for="c_albert_api_token">Clé d'API (optionnel)</label>
+              <input class="fr-input" type="password" id="c_albert_api_token"></div></div>
+          </div>
+        </div>
 
-    <!-- Create form (hidden by default) -->
-    <div id="createForm" class="card" style="display:none;">
-        <h2>Nouvelle instance</h2>
-        <form onsubmit="return createInstance(event)">
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Nom</label>
-                    <input type="text" id="c_name" required placeholder="Bot MTE">
-                </div>
-                <div class="form-group">
-                    <label>Description</label>
-                    <input type="text" id="c_description" placeholder="Bot pour le ministere">
-                </div>
+        <!-- Étape 5 : Sécurité E2E + récapitulatif -->
+        <div class="wizard-step" data-step="5" hidden>
+          <div class="fr-callout fr-icon-lock-line fr-mb-3w">
+            <h3 class="fr-callout__title">Chiffrement de bout en bout (optionnel)</h3>
+            <p class="fr-callout__text">Si vos salons Tchap sont chiffrés, fournissez les <strong>clés E2E exportées</strong> du compte bot pour qu'il puisse lire les messages. Sinon, passez cette étape.</p>
+          </div>
+          <figure class="fr-mb-3w" role="group">
+            <div class="wizard-illu">Capture à insérer : Tchap « Sécurité → Exporter les clés de chiffrement » → fichier .txt + phrase secrète</div>
+            <figcaption class="fr-text--xs fr-text-mention--grey fr-mt-1v">À récupérer : le <strong>fichier de clés</strong> exporté et la <strong>phrase secrète</strong> choisie à l'export.</figcaption>
+          </figure>
+          <div class="fr-grid-row fr-grid-row--gutters fr-mb-2w">
+            <div class="fr-col-12 fr-col-md-6"><div class="fr-upload-group">
+              <label class="fr-label" for="c_e2e_keys_file">Fichier de clés exporté</label>
+              <input class="fr-upload" type="file" id="c_e2e_keys_file" accept=".txt"></div></div>
+            <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+              <label class="fr-label" for="c_e2e_keys_passphrase">Phrase secrète des clés</label>
+              <input class="fr-input" type="password" id="c_e2e_keys_passphrase"></div></div>
+          </div>
+          <div class="fr-alert fr-alert--info fr-alert--sm">
+            <h3 class="fr-alert__title">Prêt à créer</h3>
+            <p>Après création, démarrez l'assistant, invitez-le dans un salon Tchap, puis tapez <span class="colaig-mono">!configurer</span> pour finaliser ses espaces et documents — il vous guidera.</p>
+          </div>
+        </div>
+
+        <!-- Navigation -->
+        <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--right fr-mt-3w">
+          <li><button type="button" class="fr-btn fr-btn--tertiary-no-outline" onclick="wizardCancel()">Annuler</button></li>
+          <li><button type="button" class="fr-btn fr-btn--secondary fr-icon-arrow-left-line fr-btn--icon-left" id="wizPrev" onclick="wizardPrev()" hidden>Précédent</button></li>
+          <li><button type="button" class="fr-btn fr-icon-arrow-right-line fr-btn--icon-right" id="wizNext" onclick="wizardNext()">Suivant</button></li>
+          <li><button type="submit" class="fr-btn fr-icon-check-line fr-btn--icon-left" id="wizSubmit" hidden>Créer l'assistant</button></li>
+        </ul>
+      </form>
+    </div></div>
+  </div>
+
+  <!-- Formulaire d'édition -->
+  <div class="fr-card fr-card--grey fr-mt-4w" id="editForm" hidden>
+    <div class="fr-card__body"><div class="fr-card__content">
+      <h2 class="fr-h5">Modifier l'instance</h2>
+      <input type="hidden" id="e_instance_id">
+      <form onsubmit="return updateInstance(event)">
+        <div class="fr-grid-row fr-grid-row--gutters">
+          <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+            <label class="fr-label" for="e_name">Nom</label>
+            <input class="fr-input" type="text" id="e_name" required></div></div>
+          <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+            <label class="fr-label" for="e_description">Description</label>
+            <input class="fr-input" type="text" id="e_description"></div></div>
+          <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+            <label class="fr-label" for="e_homeserver">Serveur Matrix</label>
+            <input class="fr-input" type="url" id="e_homeserver" required></div></div>
+          <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+            <label class="fr-label" for="e_username">Utilisateur Matrix</label>
+            <input class="fr-input" type="text" id="e_username" required></div></div>
+          <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+            <label class="fr-label" for="e_password">Mot de passe Matrix <span class="fr-hint-text">laisser vide = inchangé</span></label>
+            <input class="fr-input" type="password" id="e_password"></div></div>
+          <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+            <label class="fr-label" for="e_domains">Domaines autorisés (CSV)</label>
+            <input class="fr-input" type="text" id="e_domains"></div></div>
+          <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+            <label class="fr-label" for="e_webdav_url">URL WebDAV</label>
+            <input class="fr-input" type="url" id="e_webdav_url"></div></div>
+          <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+            <label class="fr-label" for="e_webdav_user">Utilisateur WebDAV</label>
+            <input class="fr-input" type="text" id="e_webdav_user"></div></div>
+          <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+            <label class="fr-label" for="e_webdav_password">Mot de passe WebDAV <span class="fr-hint-text">laisser vide = inchangé</span></label>
+            <input class="fr-input" type="password" id="e_webdav_password"></div></div>
+          <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+            <label class="fr-label" for="e_webdav_root_path">Chemin racine WebDAV</label>
+            <input class="fr-input" type="text" id="e_webdav_root_path" placeholder="documents"></div></div>
+          <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+            <label class="fr-label" for="e_albert_api_url">URL Albert API</label>
+            <input class="fr-input" type="url" id="e_albert_api_url"></div></div>
+          <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+            <label class="fr-label" for="e_albert_api_token">Clé Albert API <span class="fr-hint-text">laisser vide = inchangé</span></label>
+            <input class="fr-input" type="password" id="e_albert_api_token"></div></div>
+        </div>
+        <div class="fr-accordion fr-mt-1w">
+          <h3 class="fr-accordion__title"><button type="button" class="fr-accordion__btn" aria-expanded="false" aria-controls="e_e2e">Clés E2E (chiffrement Tchap) — optionnel</button></h3>
+          <div class="fr-collapse" id="e_e2e">
+            <div class="fr-grid-row fr-grid-row--gutters">
+              <div class="fr-col-12 fr-col-md-6"><div class="fr-upload-group">
+                <label class="fr-label" for="e_e2e_keys_file">Fichier de clés exporté <span class="fr-hint-text">laisser vide = inchangé</span></label>
+                <input class="fr-upload" type="file" id="e_e2e_keys_file" accept=".txt"></div></div>
+              <div class="fr-col-12 fr-col-md-6"><div class="fr-input-group">
+                <label class="fr-label" for="e_e2e_keys_passphrase">Phrase secrète des clés <span class="fr-hint-text">laisser vide = inchangé</span></label>
+                <input class="fr-input" type="password" id="e_e2e_keys_passphrase"></div></div>
             </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Serveur Matrix</label>
-                    <input type="url" id="c_homeserver" required placeholder="https://matrix.agent.dev-durable.tchap.gouv.fr">
-                </div>
-                <div class="form-group">
-                    <label>Utilisateur Matrix</label>
-                    <input type="text" id="c_username" required placeholder="colaig.assistant">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Mot de passe Matrix</label>
-                    <input type="password" id="c_password" required>
-                </div>
-                <div class="form-group">
-                    <label>Domaines autorises (CSV)</label>
-                    <input type="text" id="c_domains" placeholder="* (tous) ou gouv.fr,ecologie.gouv.fr">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>URL WebDAV</label>
-                    <input type="url" id="c_webdav_url" placeholder="https://...">
-                </div>
-                <div class="form-group">
-                    <label>Utilisateur WebDAV</label>
-                    <input type="text" id="c_webdav_user">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Mot de passe WebDAV</label>
-                    <input type="password" id="c_webdav_password">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>URL Albert API</label>
-                    <input type="url" id="c_albert_api_url" placeholder="https://api.albert.etalab.gouv.fr/v1">
-                </div>
-                <div class="form-group">
-                    <label>Clé Albert API</label>
-                    <input type="password" id="c_albert_api_token">
-                </div>
-            </div>
-            <details style="margin-bottom:12px;">
-                <summary style="cursor:pointer; font-weight:500; padding:6px 0;">Clés E2E (chiffrement Tchap) <small>— optionnel</small></summary>
-                <div class="form-row" style="margin-top:8px;">
-                    <div class="form-group">
-                        <label>Fichier de clés exporté</label>
-                        <input type="file" id="c_e2e_keys_file" accept=".txt">
-                    </div>
-                    <div class="form-group">
-                        <label>Phrase secrète des clés</label>
-                        <input type="password" id="c_e2e_keys_passphrase">
-                    </div>
-                </div>
-            </details>
-            <div class="actions">
-                <button type="button" class="btn" onclick="document.getElementById('createForm').style.display='none'">Annuler</button>
-                <button type="submit" class="btn btn-primary">Creer</button>
-            </div>
-        </form>
-    </div>
-</div>
+          </div>
+        </div>
+        <ul class="fr-btns-group fr-btns-group--inline-md fr-btns-group--right fr-mt-2w">
+          <li><button type="button" class="fr-btn fr-btn--secondary" onclick="document.getElementById('editForm').hidden=true">Annuler</button></li>
+          <li><button type="submit" class="fr-btn">Enregistrer</button></li>
+        </ul>
+      </form>
+    </div></div>
+  </div>
+
+</main>
 {% endblock %}
 
 {% block scripts %}
@@ -233,6 +323,10 @@ async function loadUser() {
     document.getElementById('userName').textContent = data.display_name || data.email;
 }
 
+function badgeClass(status) {
+    return ({ running: 'fr-badge--success', error: 'fr-badge--error', starting: 'fr-badge--info' })[status] || '';
+}
+
 async function loadInstances() {
     const { ok, data } = await apiCall('GET', '/api/instances');
     if (!ok) return;
@@ -244,27 +338,84 @@ async function loadInstances() {
 
     const tbody = document.getElementById('instancesBody');
     if (instances.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">Aucune instance. Cliquez sur "+ Nouvelle instance" pour commencer.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="fr-text--center fr-text-mention--grey">Aucune instance. Cliquez sur « Nouvelle instance » pour commencer.</td></tr>';
         return;
     }
 
     tbody.innerHTML = instances.map(inst => `
         <tr>
             <td><strong>${esc(inst.name || inst.instance_id)}</strong></td>
-            <td style="font-size:13px;">${esc(inst.matrix_homeserver || '-')}</td>
-            <td style="font-size:13px;">${esc(inst.matrix_username || '-')}</td>
-            <td><span class="badge badge-${inst.status}">${inst.status}</span>
-                ${inst.error_message ? '<br><small style="color:var(--danger);">' + esc(inst.error_message) + '</small>' : ''}
-            </td>
-            <td style="font-size:13px;">${esc(inst.admin_email)}</td>
+            <td class="fr-text--sm">${esc(inst.matrix_homeserver || '-')}</td>
+            <td class="fr-text--sm">${esc(inst.matrix_username || '-')}</td>
             <td>
-                ${inst.status === 'stopped' || inst.status === 'error' ? `<button class="btn btn-success btn-small" onclick="startInstance('${inst.instance_id}')">Demarrer</button>` : ''}
-                ${inst.status === 'running' ? `<button class="btn btn-danger btn-small" onclick="stopInstance('${inst.instance_id}')">Arreter</button>` : ''}
-                ${inst.status !== 'running' ? `<button class="btn btn-small" onclick="showEditForm('${inst.instance_id}')">Modifier</button>` : ''}
-                ${inst.status !== 'running' ? `<button class="btn btn-danger btn-small" onclick="deleteInstance('${inst.instance_id}')">Supprimer</button>` : ''}
+                <span class="fr-badge fr-badge--sm ${badgeClass(inst.status)}">${esc(inst.status)}</span>
+                ${inst.error_message ? '<p class="fr-text--xs fr-mb-0" style="color:var(--text-default-error)">' + esc(inst.error_message) + '</p>' : ''}
+            </td>
+            <td class="fr-text--sm">${esc(inst.admin_email)}</td>
+            <td>
+              <ul class="fr-btns-group fr-btns-group--inline-sm fr-btns-group--sm">
+                ${(inst.status === 'stopped' || inst.status === 'error') ? `<li><button class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-play-line fr-btn--icon-left" onclick="startInstance('${inst.instance_id}')">Démarrer</button></li>` : ''}
+                ${inst.status === 'running' ? `<li><button class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-stop-circle-line fr-btn--icon-left" onclick="stopInstance('${inst.instance_id}')">Arrêter</button></li>` : ''}
+                ${inst.status !== 'running' ? `<li><button class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-edit-line fr-btn--icon-left" onclick="showEditForm('${inst.instance_id}')">Modifier</button></li>` : ''}
+                ${inst.status !== 'running' ? `<li><button class="fr-btn fr-btn--sm fr-btn--tertiary fr-icon-delete-line fr-btn--icon-left" onclick="deleteInstance('${inst.instance_id}')">Supprimer</button></li>` : ''}
+              </ul>
             </td>
         </tr>
     `).join('');
+}
+
+/* ===== Assistant de création (stepper) ===== */
+const WIZARD_STEPS = [
+    { title: "Identité du bot Tchap", next: "Qui peut l'utiliser" },
+    { title: "Qui peut l'utiliser", next: "Documents (WebDAV)" },
+    { title: "Documents (WebDAV)", next: "Moteur d'IA" },
+    { title: "Moteur d'IA", next: "Sécurité & création" },
+    { title: "Sécurité (E2E) & création", next: null },
+];
+let wizStep = 1;
+const WIZ_TOTAL = WIZARD_STEPS.length;
+
+function wizardRender() {
+    document.querySelectorAll('#createForm .wizard-step').forEach(el => {
+        el.hidden = (parseInt(el.dataset.step, 10) !== wizStep);
+    });
+    const meta = WIZARD_STEPS[wizStep - 1];
+    document.getElementById('wizTitle').textContent = meta.title;
+    document.getElementById('wizCur').textContent = wizStep;
+    const steps = document.getElementById('wizSteps');
+    steps.setAttribute('data-fr-current-step', wizStep);
+    document.querySelector('.fr-stepper__details').style.display = meta.next ? '' : 'none';
+    if (meta.next) document.getElementById('wizNextLabel').textContent = meta.next;
+    document.getElementById('wizPrev').hidden = (wizStep === 1);
+    document.getElementById('wizNext').hidden = (wizStep === WIZ_TOTAL);
+    document.getElementById('wizSubmit').hidden = (wizStep !== WIZ_TOTAL);
+}
+
+function wizardValidateStep() {
+    const panel = document.querySelector(`#createForm .wizard-step[data-step="${wizStep}"]`);
+    for (const inp of panel.querySelectorAll('input, select, textarea')) {
+        if (!inp.checkValidity()) { inp.reportValidity(); return false; }
+    }
+    return true;
+}
+
+function wizardNext() {
+    if (!wizardValidateStep()) return;
+    if (wizStep < WIZ_TOTAL) { wizStep++; wizardRender(); window.scrollTo({top: document.getElementById('createForm').offsetTop - 20, behavior: 'smooth'}); }
+}
+function wizardPrev() {
+    if (wizStep > 1) { wizStep--; wizardRender(); }
+}
+function wizardCancel() {
+    document.getElementById('createForm').hidden = true;
+}
+
+function showCreateForm() {
+    wizStep = 1;
+    wizardRender();
+    document.getElementById('createForm').hidden = false;
+    document.getElementById('createForm').scrollIntoView({behavior: 'smooth'});
+    document.getElementById('c_name').focus();
 }
 
 async function showEditForm(id) {
@@ -285,7 +436,7 @@ async function showEditForm(id) {
     document.getElementById('e_password').value = '';
     document.getElementById('e_webdav_password').value = '';
     document.getElementById('e_albert_api_token').value = '';
-    document.getElementById('editForm').style.display = 'block';
+    document.getElementById('editForm').hidden = false;
     document.getElementById('editForm').scrollIntoView({behavior: 'smooth'});
 }
 
@@ -304,7 +455,6 @@ async function updateInstance(e) {
         webdav_root_path: document.getElementById('e_webdav_root_path').value,
         albert_api_url: document.getElementById('e_albert_api_url').value,
     };
-    // N'envoyer les mots de passe que s'ils sont renseignés
     const pwd = document.getElementById('e_password').value;
     if (pwd) body.matrix_password = pwd;
     const wdpwd = document.getElementById('e_webdav_password').value;
@@ -320,18 +470,13 @@ async function updateInstance(e) {
 
     const { ok, data } = await apiCall('PUT', `/api/instances/${id}`, body);
     if (ok) {
-        showAlert('Instance modifiee avec succes', 'success');
-        document.getElementById('editForm').style.display = 'none';
+        showAlert('Instance modifiée avec succès', 'success');
+        document.getElementById('editForm').hidden = true;
         loadInstances();
     } else {
         showAlert(data.error || 'Erreur', 'error');
     }
     return false;
-}
-
-function showCreateForm() {
-    document.getElementById('createForm').style.display = 'block';
-    document.getElementById('c_name').focus();
 }
 
 async function readFileAsBase64(fileInput) {
@@ -370,8 +515,8 @@ async function createInstance(e) {
 
     const { ok, data } = await apiCall('POST', '/api/instances', body);
     if (ok) {
-        showAlert('Instance creee avec succes', 'success');
-        document.getElementById('createForm').style.display = 'none';
+        showAlert('Assistant créé avec succès', 'success');
+        document.getElementById('createForm').hidden = true;
         e.target.reset();
         loadInstances();
     } else {
@@ -382,41 +527,36 @@ async function createInstance(e) {
 
 async function startInstance(id) {
     const { ok, data } = await apiCall('POST', `/api/instances/${id}/start`);
-    if (ok) { showAlert('Instance en cours de demarrage', 'success'); }
-    else { showAlert(data.error || 'Erreur', 'error'); }
+    showAlert(ok ? 'Instance en cours de démarrage' : (data.error || 'Erreur'), ok ? 'success' : 'error');
     loadInstances();
 }
 
 async function stopInstance(id) {
-    if (!confirm('Arreter cette instance ?')) return;
+    if (!confirm('Arrêter cette instance ?')) return;
     const { ok, data } = await apiCall('POST', `/api/instances/${id}/stop`);
-    if (ok) { showAlert('Instance arretee', 'success'); }
-    else { showAlert(data.error || 'Erreur', 'error'); }
+    showAlert(ok ? 'Instance arrêtée' : (data.error || 'Erreur'), ok ? 'success' : 'error');
     loadInstances();
 }
 
 async function deleteInstance(id) {
-    if (!confirm('Supprimer definitivement cette instance ?')) return;
+    if (!confirm('Supprimer définitivement cette instance ?')) return;
     const { ok, data } = await apiCall('DELETE', `/api/instances/${id}`);
-    if (ok) { showAlert('Instance supprimee', 'success'); }
-    else { showAlert(data.error || 'Erreur', 'error'); }
+    showAlert(ok ? 'Instance supprimée' : (data.error || 'Erreur'), ok ? 'success' : 'error');
     loadInstances();
 }
 
 function showAlert(msg, type) {
     const el = document.getElementById('alert');
-    el.className = `alert alert-${type}`;
-    el.textContent = msg;
-    el.style.display = 'block';
-    setTimeout(() => { el.style.display = 'none'; }, 4000);
+    el.className = `fr-alert fr-alert--sm fr-mb-3w fr-alert--${type === 'success' ? 'success' : 'error'}`;
+    document.getElementById('alertText').textContent = msg;
+    el.hidden = false;
+    setTimeout(() => { el.hidden = true; }, 4000);
 }
 
 function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
-// Init
 loadUser();
 loadInstances();
-// Auto-refresh every 15s
 setInterval(loadInstances, 15000);
 </script>
 {% endblock %}
