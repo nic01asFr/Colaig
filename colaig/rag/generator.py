@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Optional
 
 from colaig.exceptions import GenerationError
 from colaig.models import ChannelFormat, GeneratedResponse, SearchResult, WorkspaceContext
@@ -30,7 +29,7 @@ class Generator:
     def __init__(
         self,
         albert,  # AlbertClientProtocol
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.3,
         max_tokens: int = 2048,
     ) -> None:
@@ -44,8 +43,8 @@ class Generator:
         query: str,
         context: WorkspaceContext,
         search_results: list[SearchResult],
-        conversation_history: Optional[list[dict]] = None,
-        channel_format: Optional[ChannelFormat] = None,
+        conversation_history: list[dict] | None = None,
+        channel_format: ChannelFormat | None = None,
     ) -> GeneratedResponse:
         """Génère une réponse à partir du contexte et des résultats RAG.
 
@@ -73,6 +72,11 @@ class Generator:
         except Exception as e:
             raise GenerationError(f"erreur appel Albert: {e}") from e
 
+        # Sécurité : masquer d'éventuels secrets (clés, tokens) présents dans des
+        # documents indexés avant qu'ils ne fuient dans la réponse à l'utilisateur.
+        from colaig.security.secrets_filter import mask_secrets
+        text = mask_secrets(text)
+
         elapsed_ms = int((time.monotonic() - start) * 1000)
 
         # Extraire les sources des résultats RAG
@@ -98,8 +102,8 @@ class Generator:
         query: str,
         context: WorkspaceContext,
         search_results: list[SearchResult],
-        conversation_history: Optional[list[dict]],
-        channel_format: Optional[ChannelFormat] = None,
+        conversation_history: list[dict] | None,
+        channel_format: ChannelFormat | None = None,
     ) -> list[dict]:
         """Construit la liste de messages pour l'appel Albert.
 

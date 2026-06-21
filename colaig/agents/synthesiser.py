@@ -23,10 +23,9 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 import time
-from datetime import datetime, timezone
-from typing import AsyncIterator, Optional
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 
 try:
     from zoneinfo import ZoneInfo
@@ -34,6 +33,7 @@ try:
 except Exception:
     _PARIS_TZ = None  # fallback UTC
 
+from colaig.agents.context_builder import build_agent_context
 from colaig.exceptions import SynthesisError
 from colaig.models import (
     AgentContext,
@@ -44,10 +44,8 @@ from colaig.models import (
     GeneratedResponse,
     IncomingMessage,
     PreExecutionCard,
-    SearchResult,
     WorkspaceContext,
 )
-from colaig.agents.context_builder import build_agent_context
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +65,7 @@ class Synthesiser:
         self,
         albert,
         storage,
-        model: Optional[str] = None,
+        model: str | None = None,
         temperature: float = 0.3,
         max_tokens: int = 2048,
     ) -> None:
@@ -81,10 +79,10 @@ class Synthesiser:
         self,
         plan: ExecutionPlan,
         context: WorkspaceContext,
-        conversation_history: Optional[list[dict]] = None,
-        channel_format: Optional[ChannelFormat] = None,
-        pre_exec: Optional[PreExecutionCard] = None,
-        message: Optional[IncomingMessage] = None,
+        conversation_history: list[dict] | None = None,
+        channel_format: ChannelFormat | None = None,
+        pre_exec: PreExecutionCard | None = None,
+        message: IncomingMessage | None = None,
     ) -> GeneratedResponse:
         """Synthétise les résultats en réponse finale.
 
@@ -132,6 +130,10 @@ class Synthesiser:
         except Exception as e:
             raise SynthesisError(f"erreur appel Albert pour synthèse: {e}") from e
 
+        # Sécurité : masquer d'éventuels secrets avant envoi à l'utilisateur.
+        from colaig.security.secrets_filter import mask_secrets
+        text = mask_secrets(text)
+
         elapsed_ms = int((time.monotonic() - start) * 1000)
 
         # Extraire les sources — cherche d'abord dans search_results (Phase 1),
@@ -170,9 +172,9 @@ class Synthesiser:
         plan: ExecutionPlan,
         context: WorkspaceContext,
         agent_ctx: AgentContext,
-        conversation_history: Optional[list[dict]],
-        channel_format: Optional[ChannelFormat] = None,
-        message: Optional[IncomingMessage] = None,
+        conversation_history: list[dict] | None,
+        channel_format: ChannelFormat | None = None,
+        message: IncomingMessage | None = None,
     ) -> list[dict]:
         """Construit les messages pour l'appel Albert.
 
@@ -354,7 +356,7 @@ class Synthesiser:
         query: str,
         collected_info: str,
         criteria: str = "",
-        context: Optional[WorkspaceContext] = None,
+        context: WorkspaceContext | None = None,
     ) -> CompletionSignal:
         """Évalue si les informations collectées sont suffisantes pour répondre (Phase 6).
 
@@ -404,8 +406,8 @@ class Synthesiser:
         self,
         plan: ExecutionPlan,
         context: WorkspaceContext,
-        conversation_history: Optional[list[dict]] = None,
-        channel_format: Optional[ChannelFormat] = None,
+        conversation_history: list[dict] | None = None,
+        channel_format: ChannelFormat | None = None,
     ) -> AsyncIterator[str]:
         """Version streaming de synthesise() — yield des chunks de texte (Phase 6).
 
@@ -510,9 +512,9 @@ def _relative_time_label(msg_ts: datetime, ref_ts: datetime) -> str:
     """
     # Normaliser en UTC pour la comparaison
     if msg_ts.tzinfo is None:
-        msg_ts = msg_ts.replace(tzinfo=timezone.utc)
+        msg_ts = msg_ts.replace(tzinfo=UTC)
     if ref_ts.tzinfo is None:
-        ref_ts = ref_ts.replace(tzinfo=timezone.utc)
+        ref_ts = ref_ts.replace(tzinfo=UTC)
 
     delta_s = (ref_ts - msg_ts).total_seconds()
     if delta_s < 90:
@@ -543,9 +545,9 @@ def _relative_time_label(msg_ts: datetime, ref_ts: datetime) -> str:
 
 
 def _temporal_context_hint(
-    message_ts: Optional[datetime],
+    message_ts: datetime | None,
     history: list[dict],
-    conversation_phase: Optional[str],
+    conversation_phase: str | None,
 ) -> str:
     """Génère des indications contextuelles pour calibrer le ton et le format.
 
@@ -566,7 +568,7 @@ def _temporal_context_hint(
             if _PARIS_TZ is not None:
                 if message_ts.tzinfo is None:
                     # Timestamp naïf → supposer UTC
-                    ts_utc = message_ts.replace(tzinfo=timezone.utc)
+                    ts_utc = message_ts.replace(tzinfo=UTC)
                 else:
                     ts_utc = message_ts
                 local_ts = ts_utc.astimezone(_PARIS_TZ)
@@ -760,7 +762,7 @@ def _confidence_from_tool_results(tool_results: list) -> float:
     return sum(scores) / len(scores)
 
 
-def _extract_json_object(text: str) -> "str | None":
+def _extract_json_object(text: str) -> str | None:
     """Extrait le premier objet JSON complet depuis un texte libre.
 
     Gère les accolades dans les valeurs string (contrairement à une regex simple).
