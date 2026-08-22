@@ -20,7 +20,7 @@
 #   allowed_storage_backends: [webdav, bigfolder, msgraph]
 #   # Endpoints LLM autorisés — comparaison préfixe (vide = tous)
 #   allowed_llm_endpoints:
-#     - https://albert-api.etalab.gouv.fr
+#     - https://albert.api.etalab.gouv.fr
 #   # Modes auth MCP autorisés (vide = tous)
 #   allowed_mcp_auth_modes: [token, oidc]
 #   # true = 401 si pas de token (désactive le chatbot public)

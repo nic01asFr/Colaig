@@ -347,7 +347,7 @@ class TestCreateLlmForClient:
         return ColaigConfig(
             llm_backend="albert",
             albert_api_key="albert-key",
-            albert_api_url="https://albert-api.etalab.gouv.fr",
+            albert_api_url="https://albert.api.etalab.gouv.fr",
         )
 
     def test_no_override_uses_default(self):

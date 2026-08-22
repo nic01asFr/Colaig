@@ -5,12 +5,27 @@ Déploie Colaig en un pod : storage S3/MinIO, LLM OpenAI-compatible, webchat. Z�
 ## Déploiement rapide (SSP Cloud)
 
 Profil SSP Cloud (LLM Open WebUI + S3 MinIO). Le LLM SSP Cloud expose une API
-OpenAI-compatible sous `/openai` :
+OpenAI-compatible :
+
+> **Mesuré le 22/08/2026 — ne pas revenir à `/openai`.**
+>
+> Les clients LLM construisent eux-mêmes `{base}/v1/chat/completions`. Avec
+> `--set llm.apiUrl=https://llm.lab.sspcloud.fr/openai`, l'appel devient
+> `/openai/v1/chat/completions` et le serveur répond **403 — « Direct API passthrough is
+> disabled »**. Le déploiement démarre puis échoue au premier appel LLM.
+>
+> La base correcte est **`https://llm.lab.sspcloud.fr/api`** : `/api/v1/chat/completions`
+> répond 200. Elle sert aussi un modèle de plus que `/openai` (7 contre 6 — `/openai`
+> n'expose pas `qwen3-cursor`).
+>
+> Ne jamais suffixer la base par `/v1` : cela produirait `/v1/v1/`.
+
+
 
 ```bash
 helm install colaig deploy/helm/colaig \
   --set llm.backend=openai \
-  --set llm.apiUrl=https://llm.lab.sspcloud.fr/openai \
+  --set llm.apiUrl=https://llm.lab.sspcloud.fr/api \
   --set llm.apiKey=<TOKEN_SSPCLOUD_LLM> \
   --set llm.localEmbeddings=true \
   --set storage.s3.endpointUrl=<ENDPOINT_MINIO> \

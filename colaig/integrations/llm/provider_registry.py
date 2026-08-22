@@ -13,7 +13,7 @@ from colaig.integrations.llm.openai_client import OpenAIClient
 logger = logging.getLogger(__name__)
 
 _KNOWN_PROVIDERS: dict[str, str] = {
-    "albert":   "https://albert-api.etalab.gouv.fr",
+    "albert":   "https://albert.api.etalab.gouv.fr",
     "mistral":  "https://api.mistral.ai",
     "openai":   "https://api.openai.com",
     "groq":     "https://api.groq.com/openai",

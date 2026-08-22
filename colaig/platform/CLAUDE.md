@@ -42,7 +42,7 @@ class ClientProvisioner:
     def build_selfhosted_package(
         client_id: str,
         base_url: str = "",
-        albert_api_url: str = "https://albert-api.etalab.gouv.fr",
+        albert_api_url: str = "https://albert.api.etalab.gouv.fr",
         albert_api_key: str = "",
         albert_model_chat: str = "openai/gpt-oss-120b",
         albert_model_embed: str = "BAAI/bge-m3",
@@ -55,7 +55,7 @@ class ClientProvisioner:
 platform_policy:                     # optionnel — contraintes opérateur
   allowed_storage_backends: [webdav, bigfolder]
   allowed_llm_endpoints:
-    - https://albert-api.etalab.gouv.fr
+    - https://albert.api.etalab.gouv.fr
   allowed_mcp_auth_modes: [token, oidc]
   enforce_mcp_auth: false
 

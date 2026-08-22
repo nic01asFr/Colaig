@@ -9,7 +9,7 @@ Compatible avec :
     Mistral AI       → base_url="https://api.mistral.ai"
     Groq             → base_url="https://api.groq.com/openai"
     Together AI      → base_url="https://api.together.xyz"
-    Albert API       → base_url="https://albert-api.etalab.gouv.fr"
+    Albert API       → base_url="https://albert.api.etalab.gouv.fr"
     Tout endpoint OpenAI-compat (LM Studio, vLLM...)
 
 Dépendance : httpx (déjà dans le projet)

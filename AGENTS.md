@@ -194,7 +194,7 @@ Pour les fichiers internes (.colaig/), utilise un sous-backend configurable
 ```
 Implémente : AlbertClientProtocol
 Bibliothèque : httpx (async)
-Endpoint : https://albert-api.etalab.gouv.fr
+Endpoint : https://albert.api.etalab.gouv.fr
 
 Méthodes requises :
 - chat(messages, model?, temperature?, max_tokens?) → str

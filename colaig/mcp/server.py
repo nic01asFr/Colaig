@@ -1766,7 +1766,7 @@ class ColaigMCPServer:
                         "description": "Albert API (Etalab/DINUM — recommandé pour l'administration française)",
                         "fields": ["api_url", "api_key", "model_chat", "model_embed"],
                         "example": {
-                            "api_url": "https://albert-api.etalab.gouv.fr",
+                            "api_url": "https://albert.api.etalab.gouv.fr",
                             "api_key": "sk-xxx",
                             "model_chat": "openai/gpt-oss-120b",
                             "model_embed": "BAAI/bge-m3",
@@ -2270,7 +2270,7 @@ def _get_llm_schema(backend: str) -> dict | None:
         "albert": {
             "type": "object",
             "properties": {
-                "api_url": {"type": "string", "description": "URL Albert API (ex: https://albert-api.etalab.gouv.fr)"},
+                "api_url": {"type": "string", "description": "URL Albert API (ex: https://albert.api.etalab.gouv.fr)"},
                 "api_key": {"type": "string", "description": "Clé API Albert"},
                 "model_chat": {"type": "string", "description": "Modèle de chat (ex: openai/gpt-oss-120b)"},
                 "model_embed": {"type": "string", "description": "Modèle d'embeddings (ex: BAAI/bge-m3)"},
@@ -2415,7 +2415,7 @@ def _onboarding_text_instructions(config_store) -> str:
                 "albert": {
                     "description": "Albert API — Etalab/DINUM (recommandé pour l'administration française)",
                     "fields": {
-                        "api_url": "URL (ex: https://albert-api.etalab.gouv.fr)",
+                        "api_url": "URL (ex: https://albert.api.etalab.gouv.fr)",
                         "api_key": "Clé API Albert",
                         "model_chat": "Modèle chat (optionnel, ex: openai/gpt-oss-120b)",
                         "model_embed": "Modèle embeddings (optionnel, ex: BAAI/bge-m3)",

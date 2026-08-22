@@ -21,7 +21,7 @@ Ouvert : <ce qui reste, ou "rien">
 |---|---|
 | **Phase en cours** | 0 — Socle |
 | **Branche** | `chantier/tronc-unique` (compte Onyxia retenu : **`nicolaslaval`**) |
-| **Lot en cours** | L0.2 — **TERMINÉ**. Suivant : L0.3 (doctrine) et L0.4 (harnais) |
+| **Lot en cours** | L0.3 — **TERMINÉ, en attente de revue humaine**. Suivant : L0.4 |
 | **Bloqué par** | H4/H5 (accès `colaig-0`), H3ter (corpus représentatif pour le listing récursif) |
 | **Arbitrages en attente** | reranker absent de SSPCloud (voir HYPOTHESES) |
 | **Dernière mise à jour** | 22/08/2026 |
@@ -72,9 +72,10 @@ Exécutée depuis le poste local, avec les credentials trouvés dans `colaig-v3/
 (sur instruction explicite). Aucune valeur de clé n'apparaît ni dans le transcript ni
 dans les fichiers produits. Résultat complet : `_chantier/mesures/llm-capabilities-albert.md`.
 
-**Point à corriger dans la config héritée :** `ALBERT_API_URL` de v3 vaut
-`https://albert.api.etalab.gouv.fr` — **sans le préfixe `/v1`**, ce qui renvoie 404 sur
-tous les appels. L'URL correcte est `https://albert.api.etalab.gouv.fr/v1`.
+**⚠️ Ce paragraphe a été corrigé le 22/08/2026 — il était faux.** Il annonçait que
+`ALBERT_API_URL` devait recevoir `/v1`. C'est l'inverse : les clients ajoutent `/v1`
+eux-mêmes, la base doit rester sans. Le défaut de `config.py` est correct, et le
+« corriger » aurait produit `/v1/v1/`. Voir la correction détaillée dans `HYPOTHESES.md`.
 
 Catalogue Albert servi (10 modèles) : `openai/gpt-oss-120b`,
 `qwen3-coder-30b-A3b-instruct`, `ministral-3-8b-instruct-2512`,
@@ -380,16 +381,89 @@ attendu, elle est la brique de L1.7.
 
 ---
 
+## L0.3 — Doctrine corrigée · 22/08/2026 · **TERMINÉ — revue humaine requise**
+
+Critère de fin : « zéro contradiction code/doc, **revue humaine** ». La première partie
+est atteinte et testée ; **la seconde t'appartient**, elle n'est pas franchie ici.
+
+Branche `lot/L0.3-doctrine`. Le lot devait corriger un texte. Il a trouvé **deux bugs**.
+
+### Bug 1 — un hôte qui ne résout pas, dans le code
+
+`albert-api.etalab.gouv.fr` (avec un **tiret**) ne résout pas — vérifié deux fois. L'hôte
+réel est `albert.api.etalab.gouv.fr` (avec un **point**).
+
+Il figurait à **20 endroits**, dont le défaut de `provider_registry.py` — le module même
+que la doctrine désigne comme point d'entrée multi-provider — ainsi que `models.py`,
+`provisioner.py`, `web/routes.py` et trois endroits de `mcp/server.py`. Un déploiement
+sélectionnant `albert` sans surcharger l'URL échouait donc en résolution DNS.
+
+Fait notable : `config.py` portait déjà le **bon** hôte. Les deux coexistaient dans le
+même dépôt.
+
+### Bug 2 — la commande de déploiement documentée échoue
+
+`deploy/helm/colaig/README.md` et `docs/EXPLOITATION.md` recommandaient
+`--set llm.apiUrl=https://llm.lab.sspcloud.fr/openai`.
+
+Les clients construisent eux-mêmes `{base}/v1/chat/completions`. Mesuré :
+
+```
+base=.../openai -> 403  {"detail":"Direct API passthrough is disabled..."}
+base=.../api    -> 200  OK
+```
+
+**Un déploiement suivant cette documentation démarre puis échoue au premier appel LLM.**
+Corrigé, avec la mesure inscrite dans le README pour qu'on n'y revienne pas. `/api` sert
+en outre un modèle de plus que `/openai` (7 contre 6, `qwen3-cursor` en moins).
+
+### Une erreur de ma part, corrigée
+
+J'avais inscrit dans `HYPOTHESES.md` et `AVANCEMENT.md` qu'`ALBERT_API_URL` « omet `/v1`,
+ce qui renvoie 404 » et qu'il fallait l'ajouter. **C'était faux, et le suivre aurait
+cassé la configuration** en produisant `/v1/v1/`. Les clients ajoutent `/v1` eux-mêmes ;
+c'était ma sonde qui appelait `/models` sans préfixe. Les deux fichiers sont corrigés.
+
+### Doctrine proprement dite
+
+- `docs/ARCHITECTURE.md` §9.2 disait « **Albert API exclusivement** pour le LLM ».
+  Remplacé : le LLM est choisi par l'exploitant, la souveraineté se fait respecter par
+  `platform_policy.allowed_llm_endpoints`, pas en câblant un fournisseur dans le code.
+- `CLAUDE.md` racine nommait un `LLMClientProtocol` **qui n'existe pas**. Le contrat réel
+  s'appelle `AlbertClientProtocol` — alors qu'il est implémenté par `openai_client`,
+  `azure_client` et `ollama_client` autant que par `albert.py`. Ce nom est le dernier
+  résidu de la doctrine « Albert uniquement ». **Le renommer touche `protocols.py` :
+  c'est un arbitrage humain, il n'est pas fait ici.**
+- `docs/CLAUDE.v3-original.md` porte désormais une bannière « ARCHIVE — NE PAS SUIVRE »
+  qui nomme ses deux points périmés.
+
+### Verrouillage
+
+`tests/test_doctrine_llm.py` — 4 tests **statiques et hors ligne** : aucune occurrence de
+l'hôte mort, aucune URL de base suffixée par `/v1`, registre effectivement
+multi-provider, cohérence entre le défaut de `config.py` et celui du registre.
+
+**1588 tests passent**, zéro échec.
+
+**Ouvert — porte humaine :** la revue de doctrine. Deux points appellent ton arbitrage :
+le renommage d'`AlbertClientProtocol`, et la question de savoir si `platform_policy`
+doit restreindre les endpoints par défaut.
+
+---
+
 ## Prochaine action
 
-1. Lots **L0.3** (doctrine multi-provider dans `CLAUDE.md`) et **L0.4** (harnais de
-   test) — ni l'un ni l'autre n'est bloqué.
+1. **Revue humaine de L0.3** (porte) : renommage d'`AlbertClientProtocol` ? restriction
+   par défaut des endpoints dans `platform_policy` ?
+2. **L0.4** — harnais de test. Le critère « suite hors ligne < 60 s » est **déjà tenu**
+   (17,7 s hors `test_live`) ; reste à écrire les `FakeStorage` / `FakeMessaging` /
+   `FakeLLM` déterministes. `tests/conftest.py` existe (334 lignes, 13 fixtures) et est
+   déjà unique dans le dépôt.
 2. Lancer `scripts/probe_s3.py` depuis le pod → lève **H3**, alimente H4 et H5.
    La sonde est déjà validée contre un S3 simulé, le pod est prêt et cloné.
 3. Trancher l'arbitrage reranker et l'inscrire dans `DECISIONS.md`.
 4. Créer un **compte de service** sur `minio-console.lab.sspcloud.fr` avant tout
    déploiement — credentials permanentes, rattachées au projet (H3bis).
-5. Corriger `ALBERT_API_URL` (ajout de `/v1`) au portage de la configuration.
 
 ## H3 levée — stockage S3 mesuré sur le vrai bucket · 22/08/2026
 

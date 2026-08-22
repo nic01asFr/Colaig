@@ -793,7 +793,7 @@ def create_app(
                 zip_bytes = _provisioner.build_selfhosted_package(
                     client_id=client_id,
                     base_url=base_url,
-                    albert_api_url=os.environ.get("ALBERT_API_URL", "https://albert-api.etalab.gouv.fr"),
+                    albert_api_url=os.environ.get("ALBERT_API_URL", "https://albert.api.etalab.gouv.fr"),
                     albert_api_key=os.environ.get("ALBERT_API_KEY", ""),
                     albert_model_chat=os.environ.get("ALBERT_MODEL_CHAT", "openai/gpt-oss-120b"),
                     albert_model_embed=os.environ.get("ALBERT_MODEL_EMBED", "BAAI/bge-m3"),

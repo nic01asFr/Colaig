@@ -65,8 +65,16 @@ Rapport intégral : `mesures/llm-capabilities-albert.md`.
 | Embeddings | `qwen3-vl-embedding-8b` — **dimension 4096** |
 | Reranker | `bge-reranker-v2-m3` — 0,12 s |
 
-**Piège de configuration hérité :** `ALBERT_API_URL` de v3 omet `/v1`, ce qui renvoie
-404 sur tous les appels. À corriger au portage de la configuration.
+**Correction du 22/08/2026 — ce paragraphe disait le contraire de la vérité.**
+Il affirmait qu'`ALBERT_API_URL` « omet `/v1`, ce qui renvoie 404 sur tous les appels ».
+C'était un diagnostic erroné, tiré du comportement de la sonde et non de celui du code.
+
+Vérification faite : `integrations/albert.py` et `llm/openai_client.py` construisent
+eux-mêmes `f"{base_url}/v1/chat/completions"`. La base **doit donc être sans `/v1`**, et
+le défaut de `config.py` — `https://albert.api.etalab.gouv.fr` — est **correct**.
+Mesuré : cette base suivie de `/v1/models`, exactement ce que construit le client,
+retourne 200 et 10 modèles. **Ajouter `/v1` à la configuration produirait `/v1/v1/` et
+casserait tout.** C'est la sonde qui appelait `/models` sans préfixe, pas le code.
 
 **Ce qui n'est PAS mesuré :** SSPCloud. Le catalogue ci-dessus est celui d'Albert et rien
 ne permet de le transposer. `qwen3-6-35b-moe` reste **INCONNU**.

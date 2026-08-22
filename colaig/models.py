@@ -1202,7 +1202,7 @@ class PlatformPolicy:
     # Vide → tout backend autorisé
     allowed_storage_backends: list = field(default_factory=list)
 
-    # URL LLM autorisées (ex: ["https://albert-api.etalab.gouv.fr"])
+    # URL LLM autorisées (ex: ["https://albert.api.etalab.gouv.fr"])
     # Comparaison préfixe — vide → tout endpoint autorisé
     allowed_llm_endpoints: list = field(default_factory=list)
 
@@ -1234,7 +1234,7 @@ class ColaigConfig:
     matrix_password: str = ""
 
     # === LLM : Albert API (défaut souverain) ===
-    albert_api_url: str = "https://albert-api.etalab.gouv.fr"
+    albert_api_url: str = "https://albert.api.etalab.gouv.fr"
     albert_api_key: str = ""
     albert_model_chat: str = "openai/gpt-oss-120b"
     albert_model_embed: str = "BAAI/bge-m3"
