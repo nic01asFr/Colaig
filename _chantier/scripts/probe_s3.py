@@ -38,6 +38,16 @@ Usage :
 Dans un pod Onyxia, les variables AWS_* injectées suffisent : le script les reprend
 automatiquement quand les COLAIG_S3_* sont absentes.
 
+**Innocuité — le bucket contient du travail réel.**
+  - La seule écriture est un objet temporaire sous `<PREFIX>.colaig-probe/`, supprimé
+    immédiatement. Le script ne supprime **que** la clé qu'il vient d'écrire.
+  - Renseigner `COLAIG_S3_PREFIX` cantonne toute la sonde à ce préfixe. Sans préfixe,
+    la sonde échantillonne le premier dossier du bucket **en lecture seule**.
+  - `COLAIG_S3_ALLOW_WRITE=0` désactive entièrement l'écriture.
+  - Le listing récursif est borné par `COLAIG_S3_MAX_OBJETS` (défaut 50 000) ; s'il est
+    tronqué, c'est **écrit dans le rapport** — un plafond silencieux se lirait comme une
+    mesure complète.
+
 Aucune valeur n'est inventée : ce qui n'est pas vérifié est marqué INCONNU.
 """
 from __future__ import annotations
@@ -49,6 +59,7 @@ import time
 
 TIMEOUT = 120
 ECRITURE_AUTORISEE = os.environ.get("COLAIG_S3_ALLOW_WRITE", "1") != "0"
+MAX_OBJETS = int(os.environ.get("COLAIG_S3_MAX_OBJETS", "50000"))
 
 
 def _env(*noms: str, defaut: str = "") -> str:
@@ -93,12 +104,17 @@ def _client():
 
 
 def lister(s3, prefixe: str, recursif: bool) -> tuple[list, list, float, str]:
-    """→ (objets, prefixes_communs, durée_s, statut)"""
+    """→ (objets, prefixes_communs, durée_s, statut)
+
+    Le statut vaut `200 (tronqué à N)` si le plafond `MAX_OBJETS` a coupé le listing :
+    un plafond silencieux se lirait comme une mesure complète.
+    """
     params = {"Bucket": BUCKET, "Prefix": prefixe}
     if not recursif:
         params["Delimiter"] = "/"
     objets: list = []
     prefixes: list = []
+    tronque = False
     t0 = time.monotonic()
     try:
         jeton = None
@@ -108,10 +124,14 @@ def lister(s3, prefixe: str, recursif: bool) -> tuple[list, list, float, str]:
             r = s3.list_objects_v2(**params)
             objets.extend(r.get("Contents", []))
             prefixes.extend(p["Prefix"] for p in r.get("CommonPrefixes", []))
+            if len(objets) >= MAX_OBJETS:
+                tronque = True
+                break
             if not r.get("IsTruncated"):
                 break
             jeton = r.get("NextContinuationToken")
-        return objets, prefixes, time.monotonic() - t0, "200"
+        statut = f"200 (tronqué à {MAX_OBJETS})" if tronque else "200"
+        return objets, prefixes, time.monotonic() - t0, statut
     except Exception as e:  # noqa: BLE001
         return [], [], time.monotonic() - t0, f"{type(e).__name__}: {str(e)[:120]}"
 

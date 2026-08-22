@@ -9,7 +9,7 @@ Si un lot bute dessus : arrêter le lot, inscrire le blocage dans `AVANCEMENT.md
 | **H1b** | **SSPCloud** sert un chat **avec tool calling** (`qwen3-6-35b-moe`) | ✅ **levée le 22/08/2026** | — | mesurée : `mesures/llm-capabilities-sspcloud.md` |
 | **H2** | Un reranker est disponible (SSPCloud ou Albert) | ⚠️ **levée pour Albert, PAS pour SSPCloud** | L4.1 — impose un arbitrage | Albert : `bge-reranker-v2-m3` OK (0,12 s). SSPCloud : **aucun reranker au catalogue**. Voir « Arbitrage reranker » ci-dessous. |
 | **H3** | La latence du **stockage S3 SSPCloud** est compatible avec une réponse < 10 s | ❌ **non levée — bloquante** | L1.1 et toute l'architecture de cache | `scripts/probe_s3.py` (bucket + credentials requis) |
-| **H3bis** | Les credentials S3 SSPCloud peuvent être **non expirantes** | ❌ **non levée — bloquante pour la production** | L3.6, exploitation | mesuré : les jetons STS Onyxia sont refusés en < 9 h. Demander au datalab s'il délivre un compte de service. |
+| **H3bis** | Les credentials S3 SSPCloud peuvent être **non expirantes** | ✅ **levée le 22/08/2026 par la documentation** | — | un **compte de service** MinIO donne un couple access/secret permanent, rattaché à un projet. Console : `minio-console.lab.sspcloud.fr`. Reste à le créer. |
 | **H4** | `colaig-0` a assez d'historique pour ≥ 200 cas dorés | ❌ non levée | L1.4 | compter les `.colaig/conversations/*.json` |
 | **H5** | Le corpus reste sous le seuil de `IndexFlatIP` (exact, O(n)) | ❌ non levée | L4.1 | compter documents et poids par espace |
 | **H6** | L'agent peut pousser sur GitHub et déployer sur SSPCloud | ✅ **levée pour GitHub le 22/08/2026** | — | PAT fine-grained vérifié : `push: true` sur `nic01asFr/Colaig`. Déploiement SSPCloud : voir L3.6. |
@@ -249,3 +249,91 @@ pods "proj-colaig-refonte-jupyter-python-0" is forbidden
 
 Deux comptes Onyxia coexistent (`nicolaslaval`, `nic01asfr`). **À trancher :** sur lequel
 le chantier travaille, car cela conditionne quel pod est pilotable depuis l'outillage.
+
+---
+
+## Vault SSPCloud — exploré le 22/08/2026 · H3bis reste ouverte, mais une voie apparaît
+
+Accès fourni : `https://vault.lab.sspcloud.fr`, jeton de policy `onyxia-kv`.
+
+| | |
+|---|---|
+| Validité du jeton | **2 764 642 s ≈ 32 jours**, `renewable: true` |
+| Portée | `onyxia-kv/…/nicolaslaval/**` uniquement — la racine et `nic01asfr` renvoient 403 |
+| Contenu | 17 secrets sous `nicolaslaval/.onyxia/` : préférences d'interface, `gitName`, `gitEmail`, `githubPersonalAccessToken`, `servicePassword`, `s3Profiles`, `s3BookmarksStr`, `restorableServiceConfigs` |
+
+**Ce qui n'y est pas : les credentials S3.**
+
+- `s3Profiles` → **liste vide**
+- `s3BookmarksStr` → `null`
+- `restorableServiceConfigs` → vide ; aucune occurrence de `accessKey`, `secretKey`,
+  `sessionToken` ni `aws_access` dans l'ensemble du contenu.
+
+**Explication et conséquence.** Onyxia ne stocke pas de credentials S3 : il les **frappe à
+la demande** en échangeant le jeton OIDC de la session contre des credentials STS MinIO
+(`AssumeRoleWithWebIdentity`). C'est pour cela qu'elles sont temporaires, et pour cela que
+rien n'est mis en cache nulle part. **Sans jeton OIDC, aucun outillage ne peut en obtenir**
+— ce qui referme définitivement la piste automatisée.
+
+**La voie qui s'ouvre, pour H3bis.** `s3Profiles` est précisément l'emplacement prévu par
+Onyxia pour un **profil S3 personnalisé** — c'est-à-dire des credentials MinIO qui ne
+viennent pas du flux STS. Il est vide, mais il existe, et il est porté par un magasin
+durable (jeton de 32 jours, renouvelable, portée limitée à l'utilisateur).
+
+Le chemin vers un stockage exploitable est donc : obtenir des credentials MinIO durables
+auprès du datalab → les enregistrer comme profil personnalisé → y pointer Colaig.
+**La première étape reste une question au datalab, elle n'est pas contournable.**
+
+**À noter pour L3.6, sans en faire une décision ici :** Vault est un magasin de secrets
+durable et déjà disponible dans l'environnement cible. Il pourrait porter les credentials
+d'une instance sans contredire le principe « zero database » — Vault est un service de
+l'environnement de déploiement, au même titre que l'API LLM, pas une dépendance interne
+de Colaig. À arbitrer au lot du chart Helm, pas avant.
+
+---
+
+## Credentials S3 SSPCloud — réponse documentée, 22/08/2026 · **H3bis levée**
+
+Recherche menée après l'échec de toutes les pistes automatisées. La documentation
+SSPCloud tranche la question, et elle décrit **deux mécanismes distincts** qu'il ne faut
+pas confondre.
+
+### 1. Jeton personnel — le mécanisme par défaut, celui qui expirait
+
+- **Valide 7 jours**, régénéré automatiquement à échéances régulières.
+- Pré-injecté en variables d'environnement dans les services lancés **depuis le Datalab**.
+- À l'expiration, les services créés avant la date de péremption **perdent l'accès au
+  stockage** et apparaissent **marqués en rouge** dans « Mes services ».
+- Renouvellement : page **`datalab.sspcloud.fr/account/storage`**, qui fournit des
+  scripts prêts à l'emploi pour R, Python et le terminal.
+
+**Ceci explique exactement ce qui a été mesuré** : `InvalidAccessKeyId` sur un pod de
+8 h 38, parce que le jeton dont il avait hérité avait été régénéré entre-temps. Ce n'est
+pas une anomalie, c'est le fonctionnement nominal.
+
+**Et cela confirme le second constat :** les pods lancés par l'outillage MCP ne passent
+pas par le Datalab, donc ne reçoivent **aucune** injection. Vérifié sur un pod de 48 s.
+
+### 2. Compte de service — le mécanisme pérenne
+
+- Couple **(access key, secret access key) permanent**, sans expiration.
+- Rattaché à un **projet**, pas à une personne — donc il survit au départ d'un agent.
+- Créé depuis la console **`minio-console.lab.sspcloud.fr`**.
+- La documentation le désigne explicitement pour « les traitements périodiques ou **le
+  déploiement d'applications** » — c'est-à-dire précisément le cas de Colaig.
+
+### Conséquences pour le chantier
+
+| besoin | mécanisme | où |
+|---|---|---|
+| Mesurer H3 maintenant | jeton personnel (7 j) | `datalab.sspcloud.fr/account/storage` |
+| Faire tourner une instance | **compte de service** | `minio-console.lab.sspcloud.fr` |
+
+**H3bis est levée : une option non expirante existe et est documentée.** L'inquiétude
+soulevée en D8 — « une instance tombera en panne d'authentification » — est réelle mais
+**évitable**, à condition de ne pas déployer sur un jeton personnel. À inscrire comme
+contrainte du lot L3.6 : le chart Helm doit consommer un compte de service, jamais un
+jeton hérité d'une session.
+
+Sources : [Stockage de données — docs.sspcloud.fr](https://docs.sspcloud.fr/content/storage.html),
+[S3 Configuration — docs.onyxia.sh](https://docs.onyxia.sh/admin-doc/s3-configuration).

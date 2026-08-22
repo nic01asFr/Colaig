@@ -22,7 +22,7 @@ Ouvert : <ce qui reste, ou "rien">
 | **Phase en cours** | 0 — Socle |
 | **Branche** | `chantier/tronc-unique` (compte Onyxia retenu : **`nicolaslaval`**) |
 | **Lot en cours** | L0.1 — **TERMINÉ et poussé** |
-| **Bloqué par** | H3 (bucket S3 de test), H3bis (durabilité des credentials), H4/H5 (accès `colaig-0`) |
+| **Bloqué par** | H3 (jeton S3 à récupérer — 2 min sur `datalab.sspcloud.fr/account/storage`), H4/H5 (accès `colaig-0`) |
 | **Arbitrages en attente** | reranker absent de SSPCloud (voir HYPOTHESES) |
 | **Dernière mise à jour** | 22/08/2026 |
 
@@ -271,13 +271,59 @@ récupérer dans Onyxia. Et la réponse du datalab sur H3bis (credentials non ex
 
 ---
 
+## Credentials S3 — Vault exploré, réponse trouvée dans la documentation · 22/08/2026 · **H3bis levée**
+
+### Vault ne contient pas de credentials S3
+
+Jeton valide **32 jours**, renouvelable, portée `onyxia-kv/…/nicolaslaval/**`. Dix-sept
+secrets, tous des préférences d'interface — et surtout : `s3Profiles` est une **liste
+vide**, `s3BookmarksStr` vaut `null`, `restorableServiceConfigs` est vide, aucune
+occurrence de `accessKey` / `secretKey` / `sessionToken` nulle part.
+
+Onyxia ne stocke pas de credentials S3 : il les **frappe à la demande** en échangeant le
+jeton OIDC contre du STS MinIO. D'où l'absence de cache, et l'impossibilité pour tout
+outillage sans OIDC d'en obtenir. La piste automatisée est définitivement close.
+
+### La documentation tranche — deux mécanismes, pas un
+
+| | jeton personnel | **compte de service** |
+|---|---|---|
+| Durée | **7 jours**, régénéré automatiquement | **permanent** |
+| Rattaché à | une personne | **un projet** |
+| Obtention | `datalab.sspcloud.fr/account/storage` (scripts R/Python/terminal fournis) | console `minio-console.lab.sspcloud.fr` |
+| Usage prévu | travail interactif | « traitements périodiques ou **déploiement d'applications** » |
+
+**Ceci explique la mesure précédente** : `InvalidAccessKeyId` sur un pod de 8 h 38 parce
+que le jeton hérité avait été régénéré entre-temps. Ce n'est pas une anomalie, c'est le
+fonctionnement nominal — les services créés avant une régénération perdent l'accès et
+apparaissent en rouge dans « Mes services ».
+
+**H3bis est levée.** L'inquiétude soulevée en D8 est réelle mais évitable : il suffit de
+ne jamais déployer sur un jeton personnel. Contrainte à inscrire dans L3.6 — le chart
+Helm consomme un compte de service, jamais un jeton de session.
+
+### Innocuité de la sonde renforcée
+
+Le bucket cible est `nicolaslaval` et il contient `qgis-workspace/`, c'est-à-dire du
+travail réel. `probe_s3.py` a donc été durcie : écriture cantonnée à
+`<PREFIX>.colaig-probe/` avec suppression de la seule clé écrite, `COLAIG_S3_PREFIX` pour
+cantonner toute la sonde, `COLAIG_S3_ALLOW_WRITE=0` pour la désactiver, et listing
+récursif borné par `COLAIG_S3_MAX_OBJETS` avec **troncature écrite dans le rapport** —
+un plafond silencieux se lirait comme une mesure complète.
+
+**Ouvert :** récupérer le jeton personnel pour lever H3 ; créer le compte de service
+avant tout déploiement.
+
+---
+
 ## Prochaine action
 
-1. **Fournir les credentials S3** (Onyxia → Mon compte → Connexion au stockage) :
-   endpoint, bucket, access key, secret key, session token. Elles ne sont récupérables
-   que là — l'outillage ne peut pas les obtenir.
+1. **Récupérer le jeton S3** sur `datalab.sspcloud.fr/account/storage` (le site fournit
+   un script prêt à copier) et le déposer dans le `.env` du chantier. Valable 7 jours,
+   suffisant pour lever H3.
 2. Lancer `scripts/probe_s3.py` depuis le pod → lève **H3**, alimente H4 et H5.
    La sonde est déjà validée contre un S3 simulé, le pod est prêt et cloné.
 3. Trancher l'arbitrage reranker et l'inscrire dans `DECISIONS.md`.
-4. Demander au datalab s'il délivre des credentials S3 **non expirantes** (H3bis).
+4. Créer un **compte de service** sur `minio-console.lab.sspcloud.fr` avant tout
+   déploiement — credentials permanentes, rattachées au projet (H3bis).
 5. Corriger `ALBERT_API_URL` (ajout de `/v1`) au portage de la configuration.
