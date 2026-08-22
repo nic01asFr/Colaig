@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 
 # Suivi d'usage LLM par tenant — process-global (zéro-DB, reconstructible au restart).
 from colaig.metrics import UsageTracker
+from colaig import paths
 
 _USAGE_TRACKER = UsageTracker()
 
@@ -847,10 +848,10 @@ async def run_workspace_discovery_loop(
                     continue
 
                 # Opt-out explicite par dossier
-                if await storage.exists(f"{entry_path}/.colaig-ignore"):
+                if await storage.exists(paths.ignore_file(entry_path)):
                     continue
 
-                config_path = f"{entry_path}/.colaig/config.yaml"
+                config_path = paths.config_file(entry_path)
 
                 try:
                     if await storage.exists(config_path):

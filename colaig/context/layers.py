@@ -22,6 +22,7 @@ from colaig.models import (
     WorkspaceConfig,
     WorkspaceContext,
 )
+from colaig import paths
 
 logger = logging.getLogger(__name__)
 
@@ -190,7 +191,7 @@ async def load_conversation_history(
 
     # Sécuriser le nom de fichier (conversation_id peut contenir des caractères spéciaux)
     safe_id = _sanitize_id(conversation_id)
-    history_path = f"{workspace_path.rstrip('/')}/.colaig/conversations/{safe_id}.json"
+    history_path = paths.conversation_file(workspace_path, safe_id)
 
     try:
         content = await storage.download(history_path)
@@ -246,7 +247,7 @@ async def save_conversation_history(
         return
 
     safe_id = _sanitize_id(conversation_id)
-    conv_dir = f"{workspace_path.rstrip('/')}/.colaig/conversations/"
+    conv_dir = paths.conversations_dir(workspace_path)
     history_path = f"{conv_dir}{safe_id}.json"
 
     try:

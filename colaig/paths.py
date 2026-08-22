@@ -110,6 +110,11 @@ def conversation_file(workspace_path: str, conversation_id: str) -> str:
     return f"{conversations_dir(workspace_path)}{conversation_id}.json"
 
 
+def trame_file(workspace_path: str, conversation_id: str) -> str:
+    """Trame d'une conversation — `{ws}/.colaig/conversations/{id}_trame.json`."""
+    return f"{conversations_dir(workspace_path)}{conversation_id}_trame.json"
+
+
 def tasks_dir(workspace_path: str) -> str:
     """Dossier des tâches planifiées — `{ws}/.colaig/tasks/`."""
     return f"{colaig_dir(workspace_path)}tasks/"
@@ -118,6 +123,34 @@ def tasks_dir(workspace_path: str) -> str:
 def task_file(workspace_path: str, task_id: str) -> str:
     """Fichier d'une tâche — `{ws}/.colaig/tasks/{id}.json`."""
     return f"{tasks_dir(workspace_path)}{task_id}.json"
+
+
+def task_dir(workspace_path: str, task_id: str) -> str:
+    """Dossier d'exécution d'une tâche — `{ws}/.colaig/tasks/{id}/`."""
+    return f"{tasks_dir(workspace_path)}{task_id}/"
+
+
+def task_current_file(workspace_path: str, task_id: str, nom: str) -> str:
+    """Fichier de l'exécution en cours — `.../tasks/{id}/current/{nom}`.
+
+    `nom` vaut `session.json` ou `plan.json`.
+    """
+    return f"{task_dir(workspace_path, task_id)}current/{nom.lstrip('/')}"
+
+
+def task_subtask_file(workspace_path: str, task_id: str, subtask_id: str) -> str:
+    """Sous-tâche en cours — `.../tasks/{id}/current/subtasks/{sous_id}.json`."""
+    return f"{task_dir(workspace_path, task_id)}current/subtasks/{subtask_id}.json"
+
+
+def task_runs_dir(workspace_path: str, task_id: str) -> str:
+    """Historique des exécutions — `{ws}/.colaig/tasks/{id}/runs/`."""
+    return f"{task_dir(workspace_path, task_id)}runs/"
+
+
+def task_run_file(workspace_path: str, task_id: str, run_id: str, nom: str) -> str:
+    """Fichier d'une exécution passée — `.../tasks/{id}/runs/{run}/{nom}`."""
+    return f"{task_runs_dir(workspace_path, task_id)}{run_id}/{nom.lstrip('/')}"
 
 
 # ── Index ───────────────────────────────────────────────────────────────────
@@ -228,6 +261,42 @@ def federation_index_files(workspace_path: str = "") -> tuple[str, str]:
     return f"{base}workspaces.faiss", f"{base}workspaces.pkl"
 
 
+# ── Sous-dossiers libres ────────────────────────────────────────────────────
+
+
+def instance_subdir(workspace_path: str, nom: str) -> str:
+    """Sous-dossier libre du dossier d'instance — `{ws}/.colaig/{nom}/`.
+
+    Réservé aux modules qui définissent leur propre sous-dossier par une constante
+    (`behavior_indexer`, `skill_indexer`, `classifier`). Préférer une fonction nommée
+    quand le sous-dossier fait partie du vocabulaire stable de Colaig.
+    """
+    return f"{colaig_dir(workspace_path)}{nom.strip('/')}/"
+
+
+# ── Poste local ─────────────────────────────────────────────────────────────
+#
+# À ne pas confondre avec ce qui précède. Ces chemins-là sont sur la machine qui
+# exécute Colaig, pas dans un espace de stockage. Ils ne relèvent pas du principe
+# « un espace + un dossier .colaig = une instance » : rien d'un espace ne s'y trouve.
+
+
+def local_home_dir():
+    """Dossier local de Colaig sur la machine hôte — `~/.colaig/`.
+
+    Retourne un `pathlib.Path`, contrairement au reste du module qui manipule des
+    chemins de storage sous forme de chaînes.
+    """
+    from pathlib import Path
+
+    return Path.home() / COLAIG_DIR
+
+
+def local_file(nom: str):
+    """Fichier local — `~/.colaig/{nom}`, par exemple le jeton de session Matrix."""
+    return local_home_dir() / nom
+
+
 # ── Inspection ──────────────────────────────────────────────────────────────
 
 
@@ -239,3 +308,19 @@ def is_instance_path(path: str) -> bool:
     """
     segments = path.replace("\\", "/").split("/")
     return COLAIG_DIR in segments or LEGACY_DIR in segments
+
+
+def is_reserved_path(path: str) -> bool:
+    """Le chemin touche-t-il un nom réservé à Colaig ?
+
+    **Plus large que `is_instance_path()`, volontairement.** Ce prédicat couvre tout
+    segment *commençant par* `.colaig` ou `.albert`, donc aussi `.colaig-ignore`, alors
+    que `is_instance_path()` exige l'égalité stricte du segment.
+
+    C'est le prédicat des contrôles de sécurité (`security/path_validator.py`) : y
+    substituer la version stricte autoriserait la lecture de `.colaig-ignore` comme
+    document ordinaire. Un contrôle de sécurité ne se resserre ni ne se desserre par
+    effet de bord d'un refactoring.
+    """
+    segments = path.replace("\\", "/").split("/")
+    return any(s.startswith(COLAIG_DIR) or s.startswith(LEGACY_DIR) for s in segments)

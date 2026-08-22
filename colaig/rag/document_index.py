@@ -38,6 +38,7 @@ from colaig.models import (
 from colaig.rag.classifier import ClassificationEngine
 from colaig.rag.faiss_store import FaissStore
 from colaig.utils.text import extract_text, is_supported
+from colaig import paths
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +116,7 @@ class DocumentIndex:
             if not is_supported(f.name):
                 continue
             # Ignorer les fichiers dans .colaig/
-            if "/.colaig/" in f.path:
+            if paths.is_instance_path(f.path):
                 continue
 
             current_paths.add(f.path)
@@ -467,7 +468,7 @@ class DocumentIndex:
         import yaml as _yaml
 
         from colaig.models import DocumentMapConfig, VocabularyConfig, WorkspaceProfile
-        profile_path = f"{workspace_path.rstrip('/')}/.colaig/profile/identity.yaml"
+        profile_path = paths.identity_file(workspace_path)
         try:
             raw = await self._storage.download(profile_path)
             data = _yaml.safe_load(raw.decode("utf-8"))
@@ -703,7 +704,7 @@ def _norm(workspace_path: str) -> str:
 
 def _remote_dir(workspace_path: str) -> str:
     """Chemin du dossier documents dans le storage."""
-    return f"{workspace_path.rstrip('/')}/.colaig/indexes/{_DOCUMENTS_SUBDIR}"
+    return paths.index_file(workspace_path, _DOCUMENTS_SUBDIR)
 
 
 def _checksum(content: bytes) -> str:

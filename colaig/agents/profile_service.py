@@ -21,6 +21,7 @@ from colaig.models import (
     WorkspaceProfile,
 )
 from colaig.protocols import EmbeddingServiceProtocol, StorageProtocol
+from colaig import paths
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ class ProfileService:
             logger.warning("pyyaml non installé, profil workspace non chargeable")
             return None
 
-        path = f"{workspace_path}/.colaig/profile/identity.yaml"
+        path = paths.identity_file(workspace_path)
         try:
             data = await self._storage.download(path)
             raw = yaml.safe_load(data.decode("utf-8")) or {}
@@ -82,7 +83,7 @@ class ProfileService:
         except ImportError:
             return []
 
-        dir_path = f"{workspace_path}/.colaig/profile/behaviors"
+        dir_path = paths.behaviors_dir(workspace_path)
         try:
             files = await self._storage.list_files(dir_path)
         except Exception:

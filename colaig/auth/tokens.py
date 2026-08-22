@@ -33,6 +33,7 @@ import secrets
 from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from colaig import paths
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +128,7 @@ def _personal_ws_path(slug: str) -> str:
 
 
 def _token_dir(slug: str) -> str:
-    return f"/{slug}/.colaig/tokens/"
+    return paths.tokens_dir(f"/{slug}")
 
 
 def _token_path(slug: str, token_hash: str) -> str:
@@ -135,7 +136,7 @@ def _token_path(slug: str, token_hash: str) -> str:
 
 
 def _mcp_configs_dir(slug: str) -> str:
-    return f"/{slug}/.colaig/mcp-configs/"
+    return paths.mcp_configs_dir(f"/{slug}")
 
 
 def _mcp_config_path(slug: str, safe_name: str) -> str:

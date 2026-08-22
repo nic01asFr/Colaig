@@ -21,7 +21,7 @@ Ouvert : <ce qui reste, ou "rien">
 |---|---|
 | **Phase en cours** | 0 — Socle |
 | **Branche** | `chantier/tronc-unique` (compte Onyxia retenu : **`nicolaslaval`**) |
-| **Lot en cours** | L0.1 — **TERMINÉ et poussé** |
+| **Lot en cours** | L0.2 — **TERMINÉ**. Suivant : L0.3 (doctrine) et L0.4 (harnais) |
 | **Bloqué par** | H4/H5 (accès `colaig-0`), H3ter (corpus représentatif pour le listing récursif) |
 | **Arbitrages en attente** | reranker absent de SSPCloud (voir HYPOTHESES) |
 | **Dernière mise à jour** | 22/08/2026 |
@@ -316,11 +316,74 @@ avant tout déploiement.
 
 ---
 
+## L0.2 — `paths.py` source unique · 22/08/2026 · **TERMINÉ**
+
+Critère de fin → **atteint**, mais **reformulé** : celui de `PLAN.md` était inapplicable.
+
+Branche `lot/L0.2-paths`. Deux commits : le contrat d'abord, le portage ensuite.
+
+### Le critère d'origine ne pouvait pas être satisfait
+
+`grep -rn '\.colaig\|\.albert' colaig/ | grep -v paths.py` → **vide** ne peut jamais
+l'être : `from colaig.rag.colaig_index import` contient la sous-chaîne `.colaig`, et les
+docstrings mentionnent légitimement le dossier. Sur **206** lignes remontées, **70**
+étaient de vraies constructions de chemin.
+
+Critère reformulé, exécutable, dans `tests/test_paths_source_unique.py` : aucun littéral
+de chaîne, hors docstring, **sans espace**, contenant `.colaig` ou `.albert`, hors
+`paths.py`. L'AST écarte commentaires et noms de modules ; l'exclusion des chaînes à
+espace écarte la prose (message d'accueil, description d'outil MCP, gabarit
+`docker-compose`) qui mentionne le dossier sans le construire.
+
+### Ce que le lot a corrigé au passage
+
+Deux conventions concurrentes coexistaient : certains appelants faisaient `rstrip('/')`
+sur la base, d'autres non. Un espace déclaré `/equipe-rh/` produisait donc tantôt
+`/equipe-rh/.colaig/tasks/`, tantôt `/equipe-rh//.colaig/tasks/` — deux objets distincts
+selon le backend. `paths.py` normalise une fois pour toutes.
+
+### Un bug introduit puis corrigé, qui vaut d'être retenu
+
+Le portage a **introduit** ce même bug à trois endroits (`behavior_indexer`,
+`skill_indexer`, `pre_execution`) : les fonctions `*_dir()` renvoient un slash final,
+alors que le code d'origine construisait ces dossiers sans, et le code appelant écrivait
+`f"{indexes_dir}/{nom}"` → `.../indexes//behaviors.faiss`.
+
+**Les 1574 tests de la suite n'ont rien vu.** Aucun ne vérifie la forme des chemins de
+persistance. Détecté par relecture manuelle des sites où le slash changeait, puis par un
+audit statique. Un test de non-régression a été ajouté pour cette classe de bug.
+
+C'est le mode de défaillance le plus coûteux : l'index s'écrit à un endroit et se relit
+à un autre, sans erreur visible.
+
+### Sécurité préservée explicitement
+
+`path_validator.py` bloquait par sous-chaîne `"/.colaig" in path`, ce qui attrape aussi
+`.colaig-ignore`. Y substituer un test par segment aurait **desserré** un contrôle de
+sécurité. D'où deux prédicats distincts et documentés : `is_instance_path()` (égalité
+stricte, pour les filtres d'indexation) et `is_reserved_path()` (préfixe, pour la
+sécurité).
+
+`protocols.py` n'a **pas** été touché : ses occurrences étaient toutes des docstrings.
+
+### Résultat
+
+- 64 remplacements, 21 fichiers portés, `colaig/paths.py` créé (23 fonctions).
+- **1584 tests passent**, zéro échec (1574 d'origine + 10 nouveaux).
+- Suite complète hors `test_live` en **20 s** — le critère de L0.4 (« < 60 s hors
+  ligne ») est déjà tenu avant même d'avoir commencé ce lot.
+- `colaig/CLAUDE.md` créé (contrat de `paths.py`), `rag/CLAUDE.md` mis à jour :
+  `ColaigIndex` garde les *clés* et délègue les *chemins*, API publique inchangée.
+
+**Ouvert :** rien. `legacy_albert_path()` est fournie mais sans appelant — c'est
+attendu, elle est la brique de L1.7.
+
+---
+
 ## Prochaine action
 
-1. **Récupérer le jeton S3** sur `datalab.sspcloud.fr/account/storage` (le site fournit
-   un script prêt à copier) et le déposer dans le `.env` du chantier. Valable 7 jours,
-   suffisant pour lever H3.
+1. Lots **L0.3** (doctrine multi-provider dans `CLAUDE.md`) et **L0.4** (harnais de
+   test) — ni l'un ni l'autre n'est bloqué.
 2. Lancer `scripts/probe_s3.py` depuis le pod → lève **H3**, alimente H4 et H5.
    La sonde est déjà validée contre un S3 simulé, le pod est prêt et cloné.
 3. Trancher l'arbitrage reranker et l'inscrire dans `DECISIONS.md`.

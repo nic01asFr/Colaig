@@ -40,6 +40,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from typing import TYPE_CHECKING, ClassVar
+from colaig import paths
 
 if TYPE_CHECKING:
     from colaig.protocols import StorageProtocol
@@ -64,8 +65,8 @@ class ColaigIndex:
     # ── Constantes de classe (index sans workspace) ─────────────────────────
 
     FEDERATION_KEY: ClassVar[str] = "federation::workspaces"
-    FEDERATION_FAISS_PATH: ClassVar[str] = "/.colaig/federation/workspaces.faiss"
-    FEDERATION_META_PATH: ClassVar[str] = "/.colaig/federation/workspaces.pkl"
+    FEDERATION_FAISS_PATH: ClassVar[str] = paths.federation_index_files()[0]
+    FEDERATION_META_PATH: ClassVar[str] = paths.federation_index_files()[1]
 
     # ── Clés de registry ────────────────────────────────────────────────────
 
@@ -99,41 +100,41 @@ class ColaigIndex:
     @staticmethod
     def docs_paths(ws_path: str) -> tuple[str, str]:
         """(faiss_path, meta_path) pour l'index RAG docs."""
-        b = f"{ws_path.rstrip('/')}/.colaig/indexes"
-        return f"{b}/index.faiss", f"{b}/metadata.pkl"
+        return (paths.index_file(ws_path, "index.faiss"),
+                paths.index_file(ws_path, "metadata.pkl"))
 
     @staticmethod
     def behaviors_paths(ws_path: str) -> tuple[str, str]:
         """(faiss_path, meta_path) pour l'index behaviors."""
-        b = f"{ws_path.rstrip('/')}/.colaig/indexes"
-        return f"{b}/behaviors.faiss", f"{b}/behaviors.pkl"
+        return (paths.index_file(ws_path, "behaviors.faiss"),
+                paths.index_file(ws_path, "behaviors.pkl"))
 
     @staticmethod
     def skills_paths(ws_path: str) -> tuple[str, str]:
         """(faiss_path, meta_path) pour l'index skills."""
-        b = f"{ws_path.rstrip('/')}/.colaig/indexes"
-        return f"{b}/skills.faiss", f"{b}/skills.pkl"
+        return (paths.index_file(ws_path, "skills.faiss"),
+                paths.index_file(ws_path, "skills.pkl"))
 
     @staticmethod
     def user_memory_paths(ws_path: str, safe_uid: str) -> tuple[str, str]:
         """(faiss_path, meta_path) pour la mémoire sémantique d'un utilisateur."""
-        b = f"{ws_path.rstrip('/')}/.colaig/users/{safe_uid}"
-        return f"{b}/memory.faiss", f"{b}/memory.pkl"
+        return (paths.user_file(ws_path, safe_uid, "memory.faiss"),
+                paths.user_file(ws_path, safe_uid, "memory.pkl"))
 
     @staticmethod
     def user_profile_path(ws_path: str, safe_uid: str) -> str:
         """Chemin du profil JSON d'un utilisateur."""
-        return f"{ws_path.rstrip('/')}/.colaig/users/{safe_uid}/profile.json"
+        return paths.user_file(ws_path, safe_uid, "profile.json")
 
     @staticmethod
     def user_dir(ws_path: str, safe_uid: str) -> str:
         """Dossier parent des fichiers d'un utilisateur (pour mkdir)."""
-        return f"{ws_path.rstrip('/')}/.colaig/users/{safe_uid}/"
+        return paths.user_dir(ws_path, safe_uid)
 
     @staticmethod
     def knowledge_json_path(ws_path: str) -> str:
         """Chemin du fichier JSON de cartographie sémantique (Bloc D)."""
-        return f"{ws_path.rstrip('/')}/.colaig/workspace_knowledge.json"
+        return paths.workspace_knowledge_file(ws_path)
 
     # ── Utilitaire de chargement partagé ────────────────────────────────────
 

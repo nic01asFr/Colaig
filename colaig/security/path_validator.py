@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import posixpath
 import re
+from colaig import paths
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ def validate_storage_path(
     # normpath peut supprimer le slash final — on ne le remet pas (géré par l'appelant)
 
     if not allow_dotcolaig:
-        if "/.colaig" in path or path.startswith("/.colaig"):
+        if paths.is_reserved_path(path):
             _reject(path, "accès interdit à .colaig/", context)
 
     return path

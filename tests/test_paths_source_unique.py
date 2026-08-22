@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import ast
 import pathlib
+import re
 
 import pytest
 
@@ -107,6 +108,45 @@ def test_aucun_chemin_colaig_hors_paths():
             f"{len(violations)} construction(s) de chemin hors de colaig/paths.py :\n"
             f"{detail}\n\n"
             "Utiliser les fonctions de `colaig.paths` au lieu d'un littéral."
+        )
+
+
+def test_aucune_concatenation_avec_slash_apres_un_dossier():
+    """Un chemin de dossier finit déjà par `/` : le concaténer avec `/` fait `//`.
+
+    Ce test existe parce que le portage du lot a introduit précisément ce bug à trois
+    endroits (`behavior_indexer`, `skill_indexer`, `pre_execution`) : les fonctions
+    `*_dir()` retournent un slash final, alors que le code d'origine construisait ces
+    dossiers sans. **Les 1574 tests de la suite n'ont rien vu**, parce qu'aucun ne
+    vérifie la forme des chemins de persistance.
+
+    Un `//` produit un objet distinct sur certains backends de stockage : l'index
+    s'écrit à un endroit et se relit à un autre, sans erreur visible. C'est le mode de
+    défaillance le plus coûteux — silencieux.
+    """
+    motif_variable = re.compile(r"(\w+)\s*=\s*paths\.\w*_dir\(")
+    motif_direct = re.compile(r"paths\.\w*_dir\([^)]*\)\}/")
+    suspects: list[str] = []
+
+    for fichier in sorted(RACINE.rglob("*.py")):
+        if fichier.name == MODULE_AUTORISE:
+            continue
+        lignes = fichier.read_text(encoding="utf-8").split("\n")
+        variables = {m.group(1) for ligne in lignes for m in [motif_variable.search(ligne)] if m}
+        for numero, ligne in enumerate(lignes, 1):
+            if motif_direct.search(ligne):
+                suspects.append(f"  {fichier.name}:{numero}  {ligne.strip()[:90]}")
+                continue
+            for variable in variables:
+                if re.search(r"\{" + re.escape(variable) + r"\}/", ligne):
+                    suspects.append(f"  {fichier.name}:{numero}  {ligne.strip()[:90]}")
+
+    if suspects:
+        pytest.fail(
+            "Chemin de dossier concaténé avec un '/' — produit un double slash :\n"
+            + "\n".join(suspects)
+            + "\n\nUtiliser la fonction de fichier correspondante (index_file, "
+            "user_file, conversation_file…) ou concaténer sans slash."
         )
 
 

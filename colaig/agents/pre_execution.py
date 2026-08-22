@@ -29,6 +29,7 @@ from colaig.protocols import (
     RetrieverProtocol,
     StorageProtocol,
 )
+from colaig import paths
 
 logger = logging.getLogger(__name__)
 
@@ -341,7 +342,7 @@ class PreExecutionBuilder:
         behavior: BehaviorConfig | None,
     ) -> tuple[list[dict], list[float]]:
         """Lazy-load skills pertinents via skills.faiss ou fallback liste complète."""
-        skills_dir = f"{workspace_path}/.colaig/skills"
+        skills_dir = paths.skills_dir(workspace_path)
         selected_names: list[str] = []
         selected_scores: list[float] = []
 
@@ -395,7 +396,7 @@ class PreExecutionBuilder:
         selected_skills: list[dict] = []
         for name in selected_names[:5]:
             try:
-                content = await self._storage.download(f"{skills_dir}/{name}.md")
+                content = await self._storage.download(f"{skills_dir}{name}.md")
                 selected_skills.append({"name": name, "content": content.decode("utf-8")})
             except Exception:
                 pass

@@ -46,6 +46,7 @@ from colaig.models import (
     IncomingMessage,
 )
 from colaig.rag.document_index import _parse_json_from_response
+from colaig import paths
 
 logger = logging.getLogger(__name__)
 
@@ -953,7 +954,7 @@ class ColaigMCPServer:
                 # Dernier run archivé
                 last_summary = None
                 try:
-                    run_dir = f"{task.workspace_path.rstrip('/')}/.colaig/tasks/{task_id}/runs/"
+                    run_dir = paths.task_runs_dir(task.workspace_path, task_id)
                     run_entries = await storage.list_files(run_dir, recursive=False)
                     run_dirs = sorted(
                         [e for e in run_entries if e.is_directory],
@@ -1002,7 +1003,7 @@ class ColaigMCPServer:
 
             runs = []
             try:
-                run_dir = f"{task.workspace_path.rstrip('/')}/.colaig/tasks/{task_id}/runs/"
+                run_dir = paths.task_runs_dir(task.workspace_path, task_id)
                 run_entries = await storage.list_files(run_dir, recursive=False)
                 run_dirs = sorted(
                     [e for e in run_entries if e.is_directory],

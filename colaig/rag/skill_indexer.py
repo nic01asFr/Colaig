@@ -23,6 +23,7 @@ import logging
 
 from colaig.models import DocumentChunk
 from colaig.rag.faiss_store import FaissStore
+from colaig import paths
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ class SkillIndexer:
             Nombre de skills indexés (0 si dossier absent ou vide).
         """
         ws = workspace_path.rstrip("/")
-        skills_dir = f"{ws}/.colaig/{_SKILLS_DIR}"
+        skills_dir = paths.instance_subdir(ws, _SKILLS_DIR)
 
         try:
             files = await self._storage.list_files(skills_dir)
@@ -110,10 +111,10 @@ class SkillIndexer:
 
         # Persistance sur le storage
         index_bytes, meta_bytes = store.serialize()
-        indexes_dir = f"{ws}/.colaig/indexes"
+        indexes_dir = paths.indexes_dir(ws)
         await self._storage.mkdir(indexes_dir)
-        await self._storage.upload(f"{indexes_dir}/{_FAISS_NAME}", index_bytes)
-        await self._storage.upload(f"{indexes_dir}/{_META_NAME}", meta_bytes)
+        await self._storage.upload(paths.index_file(ws, _FAISS_NAME), index_bytes)
+        await self._storage.upload(paths.index_file(ws, _META_NAME), meta_bytes)
 
         logger.info(
             "skills indexés: %d → %s/%s",

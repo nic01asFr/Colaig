@@ -37,10 +37,11 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
+from colaig import paths
 
 logger = logging.getLogger(__name__)
 
-_PEERS_PATH = "/.colaig/federation/peers.yaml"
+_PEERS_PATH = paths.federation_peers_file()
 _CACHE_TTL = 300  # secondes — durée de vie du cache de workspace distants
 
 

@@ -16,6 +16,7 @@ import logging
 
 from colaig.models import ColaigConfig
 from colaig.utils.text import extract_text, is_supported
+from colaig import paths
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +85,7 @@ class Indexer:
             if not is_supported(f.name):
                 continue
             # Ignorer les fichiers dans .colaig/
-            if "/.colaig/" in f.path:
+            if paths.is_instance_path(f.path):
                 continue
 
             try:
@@ -203,7 +204,7 @@ class Indexer:
         if event.type in ("file.created", "file.modified"):
             if not is_supported(event.path.split("/")[-1]):
                 return False
-            if "/.colaig/" in event.path:
+            if paths.is_instance_path(event.path):
                 return False
             etag = event.metadata.get("etag", "")
             return await self.index_document(event.path, etag)
@@ -233,7 +234,7 @@ class Indexer:
         for f in files:
             if f.is_directory or not is_supported(f.name):
                 continue
-            if "/.colaig/" in f.path:
+            if paths.is_instance_path(f.path):
                 continue
             current_paths.add(f.path)
             if self._known_etags.get(f.path) == f.etag:

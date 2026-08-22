@@ -14,6 +14,7 @@ import logging
 
 from colaig.agents.tool_registry import ToolRegistry
 from colaig.models import AgentContext, AgentDirectives, WorkspaceConfig
+from colaig import paths
 
 logger = logging.getLogger(__name__)
 
@@ -199,7 +200,7 @@ async def _load_agent_prompt_override(
     Returns:
         Contenu du fichier override, ou None si inexistant.
     """
-    path = f"{workspace_path.rstrip('/')}/.colaig/prompts/{role}.md"
+    path = paths.prompt_file(workspace_path, role)
     try:
         content = await storage.download(path)
         text = content.decode("utf-8").strip()
@@ -584,7 +585,7 @@ async def _load_workspace_skills(storage, workspace_path: str) -> list[dict]:
     Returns:
         Liste de skills chargés. Vide si pas de dossier skills.
     """
-    skills_dir = f"{workspace_path.rstrip('/')}/.colaig/skills/"
+    skills_dir = paths.skills_dir(workspace_path)
     skills = []
 
     try:

@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 from colaig.models import ToolDefinition, ToolParameter
 from colaig.rag.colaig_index import ColaigIndex
+from colaig import paths
 
 if TYPE_CHECKING:
     pass
@@ -99,7 +100,7 @@ def create_search_skill_handler(
 
     async def _keyword_fallback(query: str, k: int) -> list[dict[str, str]]:
         """Fallback : scan .colaig/skills/*.md avec correspondance de mots-clés."""
-        skills_path = f"{_ws_path}/.colaig/skills"
+        skills_path = paths.skills_dir(_ws_path)
         try:
             files = await _storage.list_files(skills_path)
         except Exception:

@@ -28,7 +28,7 @@ complète. Aucune modification de `protocols.py` sans arbitrage.
 | ID | Lot | Dépend | Critère de fin |
 |---|---|---|---|
 | L0.1 | Assainissement dépôt : import v3, `main`, suppression `;C`, `secrets/`, `.gitignore` durci | — | `git status` propre, `pytest` au même niveau qu'avant |
-| L0.2 | `paths.py` source unique + `legacy_albert_path()` | L0.1 | `grep -rn '\.colaig\|\.albert' colaig/ --include=*.py \| grep -v paths.py` **vide** |
+| L0.2 | `paths.py` source unique + `legacy_albert_path()` | L0.1 | `pytest tests/test_paths_source_unique.py` vert — critère vérifié par AST, le grep d'origine étant inapplicable (voir docstring du test) |
 | L0.3 | Doctrine corrigée dans `CLAUDE.md` (multi-provider, SSPCloud) | L0.1 | zéro contradiction code/doc, revue humaine |
 | L0.4 | Harnais de test : `FakeStorage`, `FakeMessaging`, `FakeLLM` déterministes, `conftest` unifié | L0.1 | suite complète hors ligne < 60 s |
 

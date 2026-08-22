@@ -32,6 +32,7 @@ from nio.crypto.device import TrustState
 
 from colaig.exceptions import MessagingError
 from colaig.models import Attachment, ConversationType, IncomingMessage
+from colaig import paths
 
 logger = logging.getLogger(__name__)
 
@@ -201,7 +202,7 @@ class MatrixMessaging:
         self._message_callbacks: list[Callable] = []
         self._start_time: float = 0.0
         # Fichier de persistance du token (évite de créer une nouvelle session à chaque démarrage)
-        self._token_store = token_store or Path.home() / ".colaig" / "matrix_token.json"
+        self._token_store = token_store or paths.local_file("matrix_token.json")
         # Répertoire du crypto store E2E (clés Olm/Megolm — nécessite matrix-nio[e2e])
         self._store_path = self._token_store.parent / "e2e_store"
 
