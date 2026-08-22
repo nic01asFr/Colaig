@@ -17,7 +17,11 @@
 {% elif backend == "telegram" %}
 <div class="form-group">
     <label>Bot Token</label>
-    <input type="password" name="bot_token" placeholder="123456789:AAFxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+    {# Placeholder volontairement hors format : un exemple respectant la forme réelle
+       d'un jeton Telegram (9 chiffres, deux-points, 35 caractères) déclenche les
+       détecteurs de secrets sur un dépôt public. Une alerte à répétition sur un faux
+       positif apprend à ignorer les alertes. #}
+    <input type="password" name="bot_token" placeholder="jeton fourni par @BotFather">
     <div class="form-hint">Obtenu via @BotFather sur Telegram.</div>
 </div>
 <div class="form-group">
