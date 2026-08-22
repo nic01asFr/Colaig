@@ -211,11 +211,73 @@ existant. Point de vigilance consigné en fin de `DECISIONS.md`.
 
 ---
 
+## Recherche et test du stockage S3 — 22/08/2026 · **sonde validée, credentials introuvables**
+
+### Pod de développement créé
+
+`proj-colaig-dev-jupyter-python-0`, namespace `user-nicolaslaval`, cloné sur
+`chantier/tronc-unique` (commit `8641439`). Python 3.13.13, git 2.55.0, 9,8 Go libres.
+
+Joignabilité depuis le pod : `minio.lab.sspcloud.fr` **403** (atteignable, refus anonyme
+attendu), `llm.lab.sspcloud.fr` 401 (pas de clé dans l'environnement), github 200,
+pypi 200.
+
+### Le fait qui bloque — aucune credential S3 n'est récupérable par l'outillage
+
+Quatre pods examinés, aucun ne fournit de credentials utilisables :
+
+| pod | âge | variables `AWS_*` | test |
+|---|---|---|---|
+| `jupyter-python-271780-0` | 8 h 38 | présentes (STS) | ❌ `InvalidAccessKeyId` |
+| `dev-805f11a5-jupyter-python-0` | 24 j | **absentes** | — |
+| `jupyter-python-557343-0` | — | — | exec en timeout |
+| `proj-colaig-dev-jupyter-python-0` | **48 s** | **absentes** | — |
+
+**Le pod fraîchement lancé n'a aucune variable `AWS_*`.** C'est le résultat décisif : les
+pods créés par l'outillage MCP le sont sans passer par Onyxia, donc **sans injection de
+credentials S3**. Relancer un pod ne régénère pas de jetons.
+
+Les seuls pods qui en possèdent sont ceux lancés depuis l'interface Onyxia — et ceux
+trouvés avaient des jetons déjà expirés (`mc ls s3` → `InvalidAccessKeyId`, alias `mc`
+pourtant bien configuré sur `https://minio.lab.sspcloud.fr`).
+
+**Conclusion : les credentials S3 ne peuvent venir que d'Onyxia → Mon compte →
+Connexion au stockage.** Aucune valeur n'est supposée d'ici là.
+
+### `probe_s3.py` validée de bout en bout
+
+Faute de S3 réel, la sonde a été exercée contre un S3 simulé (`moto`) semé d'un jeu
+représentatif : deux espaces, l'un migré en `.colaig`, l'autre encore en `.albert`,
+5 conversations, 8 documents.
+
+```
+| LIST non récursif racine | 10 ms | 2 | 200 |
+| LIST non récursif espace | 11 ms | 2 | 200 |
+| LIST récursif espace     | 18 ms | 8 | 200 |
+| GET d'un objet           | 26 ms | 1 | 200 |
+PUT 12 ms · GET 14 ms (contenu identique) · DELETE 9 ms
+
+| espace-a/ | —  | ✅ | 3 |
+| espace-b/ | ✅ | —  | 2 |
+```
+
+Tout se comporte comme prévu : découverte des espaces, distinction `.albert`/`.colaig`,
+comptage des conversations (H4), volumétrie (H5), latences et aller-retour en écriture.
+**La sonde tournera du premier coup dès que les credentials arriveront** — les chiffres
+ci-dessus sont ceux d'un simulateur local et n'ont évidemment aucune valeur de mesure.
+
+**Ouvert :** endpoint, bucket, access key, secret key et éventuel session token, à
+récupérer dans Onyxia. Et la réponse du datalab sur H3bis (credentials non expirantes).
+
+---
+
 ## Prochaine action
 
-1. Créer le pod `colaig-dev` dans **`user-nicolaslaval`**, le binder sur
-   `chantier/tronc-unique`.
+1. **Fournir les credentials S3** (Onyxia → Mon compte → Connexion au stockage) :
+   endpoint, bucket, access key, secret key, session token. Elles ne sont récupérables
+   que là — l'outillage ne peut pas les obtenir.
 2. Lancer `scripts/probe_s3.py` depuis le pod → lève **H3**, alimente H4 et H5.
+   La sonde est déjà validée contre un S3 simulé, le pod est prêt et cloné.
 3. Trancher l'arbitrage reranker et l'inscrire dans `DECISIONS.md`.
 4. Demander au datalab s'il délivre des credentials S3 **non expirantes** (H3bis).
 5. Corriger `ALBERT_API_URL` (ajout de `/v1`) au portage de la configuration.
