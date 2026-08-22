@@ -157,10 +157,13 @@ async def test_messagerie_observable_et_pilotable():
     assert m.connecte
 
     await m.send("!salon:test", "bonjour", formatted="<b>bonjour</b>")
+    await m.send("!salon:test", "indexation en cours", is_status=True)
     await m.send_typing("!salon:test", True)
 
-    assert m.textes_envoyes("!salon:test") == ["bonjour"]
-    assert m.dernier_envoi["formatted"] == "<b>bonjour</b>"
+    assert m.textes_envoyes("!salon:test") == ["bonjour", "indexation en cours"]
+    assert m.envois[0]["formatted"] == "<b>bonjour</b>"
+    assert m.envois[0]["is_status"] is False
+    assert m.dernier_envoi["is_status"] is True
     assert m.frappes == [("!salon:test", True)]
 
 
@@ -194,8 +197,27 @@ async def test_injecter_sans_callback_echoue_franchement():
 
 
 @pytest.mark.asyncio
-async def test_run_ne_boucle_pas():
-    """`run()` doit rendre la main : une boucle infinie dans un test le fait pendre."""
+async def test_run_boucle_et_reste_annulable():
+    """`run()` **ne rend pas la main** — c'est ce que le Protocol déclare.
+
+    Ce test disait d'abord le contraire, et la doublure aussi : `run()` retournait
+    immédiatement. C'était plus commode, et faux — `NoopMessaging` comme
+    `WebChatMessaging` bouclent sur `asyncio.sleep`. Un test écrit contre une doublure
+    complaisante passe, puis pend en production.
+
+    Ce qu'on exige donc : que la boucle démarre, qu'elle ne retourne pas d'elle-même,
+    et qu'elle soit **annulable proprement** — sans quoi l'arrêt de Colaig serait un
+    kill -9.
+    """
+    import asyncio
+
     m = FakeMessaging()
-    await m.run()
-    assert m.arrete
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(m.run(), timeout=0.2)
+    assert m.demarre, "la boucle n'a pas démarré"
+
+    tache = asyncio.create_task(m.run())
+    await asyncio.sleep(0.05)
+    tache.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await tache

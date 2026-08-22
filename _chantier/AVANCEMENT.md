@@ -21,7 +21,7 @@ Ouvert : <ce qui reste, ou "rien">
 |---|---|
 | **Phase en cours** | 0 — Socle |
 | **Branche** | `chantier/tronc-unique` (compte Onyxia retenu : **`nicolaslaval`**) |
-| **Lot en cours** | L1.1 — **TERMINÉ**. Suivant : L1.2 (messagerie), L1.3 (LLM) |
+| **Lot en cours** | L1.2 — **TERMINÉ**. Suivant : L1.3 (contrat LLM) |
 | **Bloqué par** | H4/H5 (accès `colaig-0`), H3ter (corpus représentatif pour le listing récursif) |
 | **Arbitrages en attente** | reranker absent de SSPCloud (voir HYPOTHESES) |
 | **Dernière mise à jour** | 22/08/2026 |
@@ -639,10 +639,63 @@ racine du bucket ne montre que `qgis-workspace/`.
 
 ---
 
+## L1.2 — Contrat `MessagingProtocol` · 23/08/2026 · **TERMINÉ**
+
+Critère de fin → **atteint**. 21 tests verts sur `fake`, `noop` et `webchat` ;
+`matrix` en `skip` (homeserver et compte bot requis).
+
+Branche `lot/L1.2-messaging-contrat`.
+
+### Le contrat a d'abord condamné ma propre doublure
+
+`FakeMessaging`, écrit deux lots plus tôt, divergeait du Protocol sur **deux points** :
+
+1. `send()` acceptait un `reply_to` **qui n'existe nulle part** — ni dans
+   `MessagingProtocol`, ni dans `matrix.py`, ni dans `webchat.py` — et omettait
+   `is_status`, qui rend un message en `m.notice` sur Tchap. Je l'avais inventé.
+   Une doublure plus permissive que le contrat laisse écrire des appels que la
+   production refuse.
+2. `run()` retournait immédiatement, et un test affirmait que c'était bien.
+   Le Protocol dit « boucle d'écoute **infinie** », et `NoopMessaging` comme
+   `WebChatMessaging` bouclent effectivement.
+
+Le second point s'est vengé sur-le-champ : après correction de la doublure, la suite
+**a pendu** — le test qui attendait un retour immédiat attendait pour toujours. C'est
+précisément ce qui serait arrivé en production à un code écrit contre la doublure
+complaisante. Le test dit maintenant l'inverse, et vérifie les deux moitiés du contrat :
+la boucle ne retourne pas d'elle-même, et elle reste **annulable** — sans quoi l'arrêt
+de Colaig serait un `kill -9`.
+
+### Deux divergences réelles dans le code, latentes
+
+- **`NoopMessaging.send_typing(conversation_id, **kwargs)`** — `**kwargs` n'absorbe que
+  les mots-clés. `send_typing(conv, True)`, forme positionnelle que le Protocol
+  autorise, levait donc un `TypeError` **sur ce backend seulement**. Vérification faite
+  avant de corriger : les huit appels de `handlers.py` passent tous `typing=` en
+  mot-clé, le piège n'était pas déclenché. Il attendait. Idem pour `send()`, aligné sur
+  les quatre paramètres déclarés.
+- **`on_message(handler)`** dans `noop` et `webchat`, contre `on_message(callback)` au
+  Protocol. Sans effet tant qu'on appelle positionnellement — et `main.py` le fait aux
+  deux endroits. Aligné.
+
+### Ce que le contrat ne peut pas vérifier, et le dit
+
+`NoopMessaging` **jette tout par construction** : c'est son objet. La livraison n'y est
+donc pas observable, et le test le `skip` explicitement plutôt que de la simuler par une
+assertion creuse. Pour `webchat`, une WebSocket factice permet d'observer une vraie
+livraison.
+
+**1667 tests passent, 68 sautent.**
+
+**Ouvert :** credentials Matrix/Tchap de test pour couvrir le quatrième backend.
+
+---
+
 ## Prochaine action
 
-1. **L1.2** (contrat `MessagingProtocol` : matrix / webchat / noop) et **L1.3**
-   (contrat `LLMClientProtocol` — H1 déjà levée, la sonde a produit les mesures).
+1. **L1.3** — contrat `LLMClientProtocol` + `capability_chain`. H1 est déjà levée et
+   les mesures existent (`mesures/llm-capabilities-*.md`) : reste à en faire un contrat
+   exécutable.
 2. **L1.4 / L1.5 restent bloqués** : le jeu doré et la référence de mesure exigent
    l'accès aux conversations de `colaig-0`. **Aucun lot de phase 4 avant L1.5.**
 2. Lancer `scripts/probe_s3.py` depuis le pod → lève **H3**, alimente H4 et H5.

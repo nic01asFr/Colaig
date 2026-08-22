@@ -39,6 +39,7 @@ héritent au passage du déterminisme.
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
@@ -166,8 +167,9 @@ class FakeMessaging:
         self.envois: list[dict[str, Any]] = []
         self.frappes: list[tuple[str, bool]] = []
         self.connecte = False
-        self.arrete = False
+        self.demarre = False
         self._callback = None
+        self._jamais = asyncio.Event()
 
     # ── MessagingProtocol ───────────────────────────────────────────────────
 
@@ -175,24 +177,39 @@ class FakeMessaging:
         self.connecte = True
 
     async def run(self) -> None:
-        """Ne boucle pas : une boucle infinie dans un test est un test qui pend."""
-        self.arrete = True
+        """Boucle d'écoute, **comme le déclare le Protocol** : elle ne rend pas la main.
+
+        Une doublure qui retournerait immédiatement serait plus commode, mais elle ne
+        se comporterait pas comme `NoopMessaging` ni `WebChatMessaging`, qui bouclent
+        toutes deux sur `asyncio.sleep`. Un test écrit contre une doublure complaisante
+        passerait, puis pendrait en production.
+
+        L'attente porte sur un `Event` qui n'est jamais posé : la coroutine est donc
+        annulable proprement, et `asyncio.wait_for()` la borne dans un test.
+        """
+        self.demarre = True
+        await self._jamais.wait()
 
     async def send(
         self,
         conversation_id: str,
         text: str,
         formatted: str | None = None,
-        reply_to: str | None = None,
-        **kwargs: Any,
+        is_status: bool = False,
     ) -> None:
+        """Signature **exactement** celle du Protocol.
+
+        La version précédente avait un `reply_to` qui n'existe nulle part — ni dans
+        `MessagingProtocol`, ni dans `matrix.py`, ni dans `webchat.py` — et omettait
+        `is_status`, qui sert à rendre un message en `m.notice`. Une doublure plus
+        permissive que le contrat laisse passer des appels que la production refuse.
+        """
         self.envois.append(
             {
                 "conversation_id": conversation_id,
                 "text": text,
                 "formatted": formatted,
-                "reply_to": reply_to,
-                **kwargs,
+                "is_status": is_status,
             }
         )
 
