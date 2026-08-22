@@ -1,8 +1,13 @@
 """
 Colaig — Fixtures de test partagées
 
-Fournit des mocks et fixtures utilisés par TOUS les tests.
-Chaque agent Claude Code utilise ces fixtures pour ses tests unitaires.
+Point d'entrée **unique** du harnais de test. Les doublures elles-mêmes vivent dans
+`tests/fakes.py` — `FakeStorage`, `FakeMessaging`, `FakeLLM` — et sont réexportées ici
+sous leurs anciens noms (`MockStorage`, `MockAlbertClient`…) pour que les tests
+existants continuent de fonctionner sans modification.
+
+Tout est déterministe et hors ligne : aucune horloge murale, aucun hasard non semé,
+aucun accès réseau.
 """
 
 import pytest
@@ -11,6 +16,14 @@ from dataclasses import dataclass, field
 from typing import Optional
 from datetime import datetime
 
+from tests.fakes import (  # noqa: F401 - reexportes pour les tests existants
+    FakeLLM,
+    FakeMessaging,
+    FakeStorage,
+    MockAlbertClient,
+    MockStorage,
+    MockWebDAVClient,
+)
 from colaig.models import (
     ColaigConfig,
     WorkspaceConfig,
@@ -91,66 +104,6 @@ def test_dm_message() -> IncomingMessage:
     )
 
 
-class MockStorage:
-    """Mock du backend de stockage. Stocke fichiers en mémoire."""
-
-    def __init__(self):
-        self.files: dict[str, bytes] = {}
-        self.metadata: dict[str, StorageFile] = {}
-
-    def add_file(self, path: str, content: bytes, content_type: str = "text/plain"):
-        self.files[path] = content
-        self.metadata[path] = StorageFile(
-            path=path, name=path.split("/")[-1], size=len(content),
-            etag=f'"{hash(content)}"', last_modified=datetime.utcnow(),
-            content_type=content_type,
-        )
-
-    async def list_files(self, path: str, recursive: bool = False) -> list[StorageFile]:
-        prefix = path.rstrip("/") + "/"
-        results = []
-        for p, m in self.metadata.items():
-            if not p.startswith(prefix):
-                continue
-            if not recursive:
-                # Only direct children: relative path should have no "/" (except trailing)
-                relative = p[len(prefix):].rstrip("/")
-                if "/" in relative:
-                    continue
-            results.append(m)
-        return results
-
-    async def download(self, path: str) -> bytes:
-        if path not in self.files:
-            raise FileNotFoundError(f"Storage 404: {path}")
-        return self.files[path]
-
-    async def download_if_changed(self, path: str, known_etag: str) -> Optional[bytes]:
-        meta = self.metadata.get(path)
-        if meta and meta.etag == known_etag:
-            return None
-        return await self.download(path)
-
-    async def upload(self, path: str, content: bytes) -> None:
-        self.add_file(path, content)
-
-    async def mkdir(self, path: str) -> None:
-        self.metadata[path] = StorageFile(path=path, name=path.split("/")[-1], is_directory=True)
-
-    async def exists(self, path: str) -> bool:
-        return path in self.files or path in self.metadata
-
-    async def get_etag(self, path: str) -> Optional[str]:
-        meta = self.metadata.get(path)
-        return meta.etag if meta else None
-
-    async def delete(self, path: str) -> None:
-        self.files.pop(path, None)
-        self.metadata.pop(path, None)
-
-
-# Alias rétrocompatibilité
-MockWebDAVClient = MockStorage
 
 
 @pytest.fixture
@@ -193,66 +146,31 @@ def mock_webdav_with_workspace(mock_storage_with_workspace) -> MockStorage:
     return mock_storage_with_workspace
 
 
-class MockAlbertClient:
-    """Mock du client Albert API.
-
-    Supporte chat(), chat_with_tools(), embed(), embed_batch().
-    Pour chat_with_tools, utilise tool_call_responses si défini,
-    sinon retourne une ChatCompletionResult texte depuis chat_responses.
-    """
-
-    def __init__(self, embedding_dim: int = 384):
-        self.embedding_dim = embedding_dim
-        self.chat_responses = ["D'après les documents, la procédure comporte 3 étapes. [guide.txt]"]
-        self._chat_call_count = 0
-        # Pour chat_with_tools : liste de ChatCompletionResult à retourner séquentiellement
-        self.tool_call_responses: list = []
-        self._tool_call_count = 0
-
-    async def chat(self, messages, model=None, temperature=0.3, max_tokens=2048) -> str:
-        response = self.chat_responses[min(self._chat_call_count, len(self.chat_responses) - 1)]
-        self._chat_call_count += 1
-        return response
-
-    async def chat_stream(self, messages, **kwargs):
-        response = await self.chat(messages, **kwargs)
-        for word in response.split():
-            yield word + " "
-
-    async def chat_with_tools(
-        self,
-        messages,
-        tools,
-        model=None,
-        temperature=0.3,
-        max_tokens=2048,
-        tool_choice="auto",
-    ):
-        from colaig.models import ChatCompletionResult
-        if self.tool_call_responses:
-            idx = min(self._tool_call_count, len(self.tool_call_responses) - 1)
-            result = self.tool_call_responses[idx]
-            self._tool_call_count += 1
-            return result
-        # Fallback : retourne une réponse texte depuis chat_responses
-        text = await self.chat(messages, model, temperature, max_tokens)
-        return ChatCompletionResult(content=text, finish_reason="stop")
-
-    async def embed(self, text: str) -> list[float]:
-        import hashlib, numpy as np
-        h = hashlib.md5(text.encode()).hexdigest()
-        rng = np.random.RandomState(int(h[:8], 16))
-        vec = rng.randn(self.embedding_dim).astype(np.float32)
-        vec = vec / np.linalg.norm(vec)
-        return vec.tolist()
-
-    async def embed_batch(self, texts: list[str], batch_size=32) -> list[list[float]]:
-        return [await self.embed(t) for t in texts]
-
-
 @pytest.fixture
 def mock_albert() -> MockAlbertClient:
     return MockAlbertClient()
+
+
+@pytest.fixture
+def fake_llm() -> FakeLLM:
+    """Doublure LLM déterministe. Nom canonique de `mock_albert` (lot L0.4)."""
+    return FakeLLM()
+
+
+@pytest.fixture
+def fake_storage() -> FakeStorage:
+    """Doublure de stockage déterministe. Nom canonique de `mock_storage` (lot L0.4)."""
+    return FakeStorage()
+
+
+@pytest.fixture
+def fake_messaging() -> FakeMessaging:
+    """Doublure de messagerie déterministe.
+
+    À préférer à un `AsyncMock()` : celui-ci accepte n'importe quel appel et ne
+    vérifie donc rien du contrat `MessagingProtocol`.
+    """
+    return FakeMessaging()
 
 
 @pytest.fixture

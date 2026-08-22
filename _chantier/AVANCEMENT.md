@@ -21,7 +21,7 @@ Ouvert : <ce qui reste, ou "rien">
 |---|---|
 | **Phase en cours** | 0 — Socle |
 | **Branche** | `chantier/tronc-unique` (compte Onyxia retenu : **`nicolaslaval`**) |
-| **Lot en cours** | L0.3b — **TERMINÉ**. Suivant : L0.4 (harnais) |
+| **Lot en cours** | **Phase 0 terminée.** Suivant : phase 1 (L1.1 à L1.7) |
 | **Bloqué par** | H4/H5 (accès `colaig-0`), H3ter (corpus représentatif pour le listing récursif) |
 | **Arbitrages en attente** | reranker absent de SSPCloud (voir HYPOTHESES) |
 | **Dernière mise à jour** | 22/08/2026 |
@@ -496,12 +496,97 @@ démarrage. Si Colaig ne décide pas où partent les conversations, l'exploitant
 
 ---
 
+## L0.4 — Harnais de test déterministe · 23/08/2026 · **TERMINÉ**
+
+Critère de fin : « suite complète hors ligne < 60 s » → **atteint : 1626 tests en 21 s**,
+et deux exécutions consécutives donnent le même résultat.
+
+Branche `lot/L0.4-harnais`.
+
+### Le harnais n'était pas déterministe
+
+`MockStorage` calculait ses etags ainsi :
+
+```python
+etag = f'"{hash(content)}"'
+```
+
+`hash()` sur des `bytes` est **randomisé par processus**. Mesuré sur trois exécutions :
+
+```
+2598434101455927999 · -123023570338129182 · 8217233926374741472
+```
+
+Or l'indexation incrémentale de Colaig repose **entièrement** sur la comparaison
+d'etags (`.colaig/indexes/etags.json`). Une doublure dont les etags bougent d'un run à
+l'autre ne peut pas servir à éprouver ce mécanisme, et fabrique des tests intermittents
+dont on finit par accuser la CI. L'etag est désormais le SHA-256 du contenu : stable
+entre processus, identique pour un contenu identique — le comportement d'un vrai backend.
+
+`last_modified` lisait aussi l'horloge (`datetime.utcnow()`). Remplacé par un instant
+fixe et un compteur : l'ordre des écritures est reproductible.
+
+### Il n'y avait aucune doublure de messagerie
+
+Les tests utilisaient des `AsyncMock()` bruts, qui acceptent n'importe quel appel et ne
+vérifient donc **rien** du contrat. `FakeMessaging` enregistre les envois et les
+indicateurs de frappe, et `injecter()` déclenche le callback de `on_message` — ce qui
+permet de piloter la réception sans réseau. Un `injecter()` sans callback préalable
+échoue franchement plutôt que de ne rien faire en silence. `run()` rend la main : une
+boucle infinie dans un test fait pendre la suite.
+
+### Livrables
+
+- `tests/fakes.py` — `FakeStorage`, `FakeMessaging`, `FakeLLM`, tous déterministes.
+- `tests/conftest.py` — point d'entrée unique, réexporte les doublures sous leurs
+  anciens noms (`MockStorage`, `MockAlbertClient`…). **Les 78 fichiers de tests
+  existants fonctionnent sans modification** et héritent du déterminisme.
+- `tests/test_harnais.py` — 13 tests : stabilité de l'etag **entre processus** (vérifiée
+  en relançant un interpréteur, un `assert` local ne dirait rien), absence d'horloge,
+  reproductibilité des embeddings, ordre de listing stable, conformité des trois
+  doublures à leurs Protocols.
+- `tests/CLAUDE.md` — contrat du harnais.
+
+### Un réflexe qui a payé trois fois
+
+Le test de conformité aux Protocols passait sur les trois doublures. Avant de le croire,
+vérification qu'il **sait échouer** : `inspect.getmembers()` sur un `Protocol` aurait pu
+ne rien retourner, auquel cas le test aurait été vert par vacuité. Il détecte bien les
+8 méthodes manquantes d'une classe vide, et cette preuve est elle-même un test.
+
+C'est la troisième fois dans la phase 0 qu'un contrôle est vert pour une mauvaise
+raison — après le garde-fou anti-secret (recherche ligne à ligne, aveugle aux clés PEM
+multilignes) et le portage de L0.2 (doubles slashes invisibles à 1574 tests).
+**À retenir comme méthode : un garde-fou dont on n'a pas vu le rouge ne prouve rien.**
+
+**Ouvert :** rien.
+
+---
+
+## Phase 0 — terminée · 23/08/2026
+
+| lot | état | critère |
+|---|---|---|
+| L0.1 | ✅ | tronc v3 importé avec son historique, tests au même niveau |
+| L0.2 | ✅ | `paths.py` source unique, vérifié par AST |
+| L0.3 | ✅ | doctrine multi-provider, zéro contradiction code/doc |
+| L0.3b | ✅ | renommage arbitré, `allowed_llm_endpoints` durci |
+| L0.4 | ✅ | harnais déterministe, 1626 tests hors ligne en 21 s |
+
+Cinq branches poussées, `Colaig_main` intacte. **Quatre bugs réels trouvés** en chemin :
+hôte Albert non résolvant dans sept fichiers, commande de déploiement Helm renvoyant 403,
+liste blanche d'endpoints contournable par suffixe de domaine, etags non déterministes.
+Aucun n'était l'objet du lot qui l'a découvert.
+
+---
+
 ## Prochaine action
 
-1. **L0.4** — harnais de test. Le critère « suite hors ligne < 60 s » est **déjà tenu**
-   (17,7 s hors `test_live`) ; reste à écrire les `FakeStorage` / `FakeMessaging` /
-   `FakeLLM` déterministes. `tests/conftest.py` existe (334 lignes, 13 fixtures) et est
-   déjà unique dans le dépôt.
+1. **Phase 1** — L1.1 (contrat `StorageProtocol` sur 7 implémentations, vert sur
+   `local` + `s3`), L1.2 (contrat `MessagingProtocol`), L1.3 (contrat
+   `LLMClientProtocol` — H1 déjà levée, la sonde a produit les mesures).
+2. **L1.4 / L1.5 restent bloqués** : le jeu doré et la référence de mesure exigent
+   l'accès aux conversations de `colaig-0`. **Aucun lot de phase 4 avant L1.5.**
 2. Lancer `scripts/probe_s3.py` depuis le pod → lève **H3**, alimente H4 et H5.
    La sonde est déjà validée contre un S3 simulé, le pod est prêt et cloné.
 3. Trancher l'arbitrage reranker et l'inscrire dans `DECISIONS.md`.
