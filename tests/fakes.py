@@ -43,6 +43,7 @@ import hashlib
 from datetime import UTC, datetime, timedelta
 from typing import Any, Optional
 
+from colaig.exceptions import StorageFileNotFoundError
 from colaig.models import IncomingMessage, StorageFile
 
 # Instant de référence fixe. Aucune doublure ne lit l'horloge : deux exécutions de la
@@ -108,7 +109,13 @@ class FakeStorage:
     async def download(self, path: str) -> bytes:
         self.appels.append(("download", path))
         if path not in self.files:
-            raise FileNotFoundError(f"Storage 404: {path}")
+            # `StorageFileNotFoundError`, comme les **sept** implémentations réelles —
+            # et non le `FileNotFoundError` natif, qui n'en est pas un parent
+            # (`issubclass(...)` vaut False). Une doublure qui lève une autre exception
+            # que la vraie laisse passer en test un `except` qui ne se déclenchera pas
+            # en production. La trace de ce piège est encore visible dans
+            # `agents/tasks.py`, qui attrape les deux « au cas où ».
+            raise StorageFileNotFoundError(f"Storage 404: {path}")
         return self.files[path]
 
     async def download_if_changed(self, path: str, known_etag: str) -> Optional[bytes]:

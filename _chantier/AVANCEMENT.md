@@ -21,7 +21,7 @@ Ouvert : <ce qui reste, ou "rien">
 |---|---|
 | **Phase en cours** | 0 — Socle |
 | **Branche** | `chantier/tronc-unique` (compte Onyxia retenu : **`nicolaslaval`**) |
-| **Lot en cours** | **Phase 0 terminée.** Suivant : phase 1 (L1.1 à L1.7) |
+| **Lot en cours** | L1.1 — **TERMINÉ**. Suivant : L1.2 (messagerie), L1.3 (LLM) |
 | **Bloqué par** | H4/H5 (accès `colaig-0`), H3ter (corpus représentatif pour le listing récursif) |
 | **Arbitrages en attente** | reranker absent de SSPCloud (voir HYPOTHESES) |
 | **Dernière mise à jour** | 22/08/2026 |
@@ -580,11 +580,69 @@ Aucun n'était l'objet du lot qui l'a découvert.
 
 ---
 
+## L1.1 — Contrat `StorageProtocol` · 23/08/2026 · **TERMINÉ**
+
+Critère de fin : « vert sur `local` + `s3` ; autres `skipif` » → **atteint**.
+**30 tests verts** sur `fake`, `local` et **`s3` contre le vrai MinIO SSPCloud**.
+
+Branche `lot/L1.1-storage-contrat`. `tests/test_storage_contrat.py` : une seule suite de
+10 tests, exécutée contre chaque implémentation par paramétrage.
+
+### La doublure ne se comportait pas comme les vraies
+
+`FakeStorage` levait le `FileNotFoundError` natif sur un fichier absent. **Les sept
+implémentations réelles lèvent `StorageFileNotFoundError`** — et l'une n'hérite pas de
+l'autre, `issubclass()` vaut `False`.
+
+Conséquence : un `except StorageFileNotFoundError` pouvait passer les tests sans jamais
+se déclencher, ou l'inverse. La trace du contournement est encore dans le code —
+`agents/tasks.py` attrape **les deux** à deux endroits, « au cas où ». C'est le symptôme
+qu'on écrit quand on ne sait plus laquelle arrive.
+
+Doublure alignée sur les sept. Les 1626 tests existants passent sans modification :
+rien ne dépendait de l'exception native.
+
+### Le Protocol est sous-spécifié — le contrat l'écrit
+
+`StorageProtocol` ne dit ni ce que lève `download()` sur un chemin absent, ni si
+`delete()` d'un inexistant est une erreur, ni si `upload()` crée les parents. Les
+docstrings tiennent en une ligne. Le contrat prend pour référence le **comportement
+commun aux sept**, pas une préférence — et là où elles divergeraient, c'est un arbitrage
+à remonter, pas à trancher dans un test.
+
+Ce qui est désormais écrit et vérifié : aller-retour d'octets, cycle de vie de
+`exists()`, exception sur absent, écrasement à l'`upload`, **sémantique de l'etag**
+(absent → `None`, stable sans écriture, différent après modification), économie de
+transfert de `download_if_changed`, listing récursif *vs* non récursif, dossier vide qui
+rend une liste vide sans lever, et préservation du **binaire** — un index FAISS n'est pas
+du texte.
+
+### Couverture honnête
+
+| backend | état |
+|---|---|
+| `fake`, `local` | ✅ vérifié |
+| `s3` | ✅ vérifié **contre MinIO SSPCloud** |
+| `webdav`, `bigfolder`, `msgraph`, `box`, `gdrive` | ⏭️ `skip` — credentials absents |
+
+Un `skip` est visible dans le rapport pytest. Il dit « non vérifié », jamais
+« vérifié » : c'est la différence entre une couverture connue et une couverture supposée.
+**Cinq implémentations sur sept restent non éprouvées** faute de credentials.
+
+### Innocuité
+
+Le contrat s'exécute sous un préfixe unique par run (`colaig-contrat/<uuid>`) et chaque
+test supprime ce qu'il a créé. Contrôle après exécution : **aucun objet résiduel**, la
+racine du bucket ne montre que `qgis-workspace/`.
+
+**Ouvert :** credentials pour les cinq backends non couverts, si on veut les éprouver.
+
+---
+
 ## Prochaine action
 
-1. **Phase 1** — L1.1 (contrat `StorageProtocol` sur 7 implémentations, vert sur
-   `local` + `s3`), L1.2 (contrat `MessagingProtocol`), L1.3 (contrat
-   `LLMClientProtocol` — H1 déjà levée, la sonde a produit les mesures).
+1. **L1.2** (contrat `MessagingProtocol` : matrix / webchat / noop) et **L1.3**
+   (contrat `LLMClientProtocol` — H1 déjà levée, la sonde a produit les mesures).
 2. **L1.4 / L1.5 restent bloqués** : le jeu doré et la référence de mesure exigent
    l'accès aux conversations de `colaig-0`. **Aucun lot de phase 4 avant L1.5.**
 2. Lancer `scripts/probe_s3.py` depuis le pod → lève **H3**, alimente H4 et H5.
