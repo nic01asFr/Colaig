@@ -2,7 +2,7 @@
 Colaig — OpenAIClient
 
 Client LLM générique pour tout endpoint OpenAI-compatible.
-Implémente LLMClientProtocol (alias AlbertClientProtocol).
+Implémente LLMClientProtocol (alias LLMClientProtocol).
 
 Compatible avec :
     OpenAI           → base_url="https://api.openai.com"

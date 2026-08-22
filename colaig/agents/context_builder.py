@@ -229,7 +229,7 @@ def build_tool_registry(
     Args:
         retriever: RetrieverProtocol pour le tool search_documents.
         storage: StorageProtocol pour les tools fetch_document et list_documents.
-        albert: AlbertClientProtocol pour le tool summarize_text.
+        albert: LLMClientProtocol pour le tool summarize_text.
         workspace: Configuration workspace pour la résolution des chemins.
         document_index: DocumentIndexProtocol pour les 3 outils DocumentIndex (optionnel).
         synthesiser: Synthesiser (Phase 6) — enregistre l'outil assess_completion si fourni.

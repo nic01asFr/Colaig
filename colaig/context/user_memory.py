@@ -132,7 +132,7 @@ class UserMemory:
         storage: Backend de stockage (StorageProtocol).
         embeddings: Service d'embeddings (EmbeddingServiceProtocol).
         registry: FaissIndexRegistry partagé.
-        albert_client: Client LLM léger pour extraction (AlbertClientProtocol).
+        albert_client: Client LLM léger pour extraction (LLMClientProtocol).
         light_model: Modèle léger pour extraction (ex: Ministral-3B).
         dimension: Dimension des vecteurs (doit correspondre au modèle d'embedding).
         storage_root: Racine du storage pour la mémoire globale cross-workspace (mode DM).

@@ -204,7 +204,7 @@ class Analyser:
     """Agent Analyseur — comprend l'intention du message.
 
     Args:
-        albert: Client Albert API (AlbertClientProtocol).
+        albert: Client Albert API (LLMClientProtocol).
         storage: Backend de stockage (StorageProtocol).
         temperature: Température pour l'appel LLM d'analyse.
         use_tool_calling: Si True, utilise chat_with_tools pour un JSON garanti.

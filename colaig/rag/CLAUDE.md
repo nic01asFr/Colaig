@@ -209,7 +209,7 @@ COLAIG_CONTEXTUAL_MODEL=mistralai/Ministral-3-8B-Instruct-2512  # vide = albert_
 - Chunk min 50 chars, max 2000 chars
 
 ## embeddings.py
-- Utilise `AlbertClientProtocol`, cache dict `{hash(text): embedding}`
+- Utilise `LLMClientProtocol`, cache dict `{hash(text): embedding}`
 - **Toujours normaliser L2** les vecteurs
 - Fallback `SentenceTransformer("BAAI/bge-m3")` si Albert down
 

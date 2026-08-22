@@ -2,7 +2,7 @@
 Colaig — AzureClient (Azure OpenAI Service)
 
 Implémente LLMClientProtocol pour Azure OpenAI.
-Implémente LLMClientProtocol (alias AlbertClientProtocol).
+Implémente LLMClientProtocol (alias LLMClientProtocol).
 
 Différences vs OpenAI standard :
     - Endpoint : https://{resource}.openai.azure.com/openai/deployments/{deployment}/

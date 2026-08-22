@@ -71,7 +71,7 @@ class Orchestrator:
     Args:
         storage: Backend de stockage (StorageProtocol).
         retriever: Service de recherche RAG (RetrieverProtocol).
-        albert: Client Albert API (AlbertClientProtocol) — requis pour mode agentique.
+        albert: Client Albert API (LLMClientProtocol) — requis pour mode agentique.
         tool_registry: Registre des outils (ToolRegistry) — requis pour mode agentique.
         max_iterations: Nombre max d'itérations de la boucle agentique (défaut : 5).
         temperature: Température LLM pour l'orchestrateur agentique.

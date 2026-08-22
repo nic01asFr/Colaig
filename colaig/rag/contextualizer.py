@@ -42,12 +42,12 @@ Génère un contexte de 1-2 phrases maximum qui situe cet extrait dans son docum
 class ChunkContextualizer:
     """Génère des préfixes contextuels pour les chunks à l'indexation.
 
-    Utilise le LLM (via LLMClientProtocol / AlbertClientProtocol) pour produire
+    Utilise le LLM (via LLMClientProtocol / LLMClientProtocol) pour produire
     un préfixe ancré dans le contexte du workspace. Le texte final embedé est :
     ``{contextual_prefix}\\n\\n{chunk.text}``
 
     Args:
-        llm_client: Client LLM (AlbertClientProtocol ou compatible).
+        llm_client: Client LLM (LLMClientProtocol ou compatible).
         model: Modèle LLM à utiliser (ex: "mistralai/Ministral-3-8B-Instruct-2512").
         max_concurrent: Nombre max de requêtes LLM en parallèle.
     """

@@ -29,11 +29,11 @@ Colaig est un système multi-tenant dont la frontière est le dossier.
    couche plateforme. (Un service externe qui utilise une base en interne, c'est son
    affaire, pas la nôtre.)
 2. **Provider-agnostic.** Toute I/O passe par un Protocol : `StorageProtocol`,
-   `MessagingProtocol`, `AlbertClientProtocol`. L'implémentation concrète est injectée
+   `MessagingProtocol`, `LLMClientProtocol`. L'implémentation concrète est injectée
    dans `main.py`, nulle part ailleurs.
 
    ⚠️ `LLMClientProtocol` **n'existe pas** — ce texte le nommait ainsi jusqu'au lot L0.3.
-   Le contrat réel s'appelle `AlbertClientProtocol`, alors qu'il est implémenté par
+   Le contrat réel s'appelle `LLMClientProtocol`, alors qu'il est implémenté par
    `openai_client`, `azure_client` et `ollama_client` autant que par `albert.py`. Ce nom
    est un résidu de la doctrine « Albert uniquement » : il **décrit mal** ce qu'il fait.
    Le renommer touche `protocols.py` et relève donc d'un **arbitrage humain** (§5) —

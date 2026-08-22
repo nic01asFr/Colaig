@@ -54,7 +54,7 @@ class Synthesiser:
     """Agent Synthétiseur — formule la réponse finale.
 
     Args:
-        albert: Client Albert API (AlbertClientProtocol).
+        albert: Client Albert API (LLMClientProtocol).
         storage: Backend de stockage (StorageProtocol).
         model: Modèle Albert à utiliser. Si None, utilise le défaut.
         temperature: Température de génération.

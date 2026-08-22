@@ -211,9 +211,22 @@ def create_llm_client(config: ColaigConfig, client_id: str = ""):
     LLM_BACKEND=ollama          → OllamaClient — Ollama local autohébergé
 
     Returns:
-        Instance implémentant LLMClientProtocol (= AlbertClientProtocol).
+        Instance implémentant LLMClientProtocol.
     """
     backend = (config.llm_backend or "albert").lower()
+
+    # Colaig ne restreint aucun endpoint LLM par défaut (décision D9) : la
+    # souveraineté est portée par `platform_policy.allowed_llm_endpoints`, décidée par
+    # l'exploitant. Le contrepoids de ce choix est la visibilité — l'endpoint
+    # réellement joint est tracé au démarrage, sans quoi personne ne sait où partent
+    # les conversations.
+    _endpoint = {
+        "albert": config.albert_api_url,
+        "openai": config.llm_api_url or "https://api.openai.com",
+        "azure": f"https://{config.llm_azure_resource}.openai.azure.com",
+        "ollama": config.llm_api_url or "http://localhost:11434",
+    }.get(backend, "?")
+    logger.info("LLM : backend=%s endpoint=%s", backend, _endpoint)
 
     if backend == "albert":
         from colaig.integrations.albert import AlbertClient

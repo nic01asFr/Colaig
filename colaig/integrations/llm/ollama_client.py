@@ -2,7 +2,7 @@
 Colaig — OllamaClient (Ollama local)
 
 Client LLM pour Ollama autohébergé.
-Implémente LLMClientProtocol (alias AlbertClientProtocol).
+Implémente LLMClientProtocol (alias LLMClientProtocol).
 
 Ollama expose une API OpenAI-compatible sur http://localhost:11434/v1/
 Pas d'authentification requise (usage local uniquement).

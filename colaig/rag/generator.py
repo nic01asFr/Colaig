@@ -20,7 +20,7 @@ class Generator:
     """Service de génération de réponses via Albert API.
 
     Args:
-        albert: Client Albert API (AlbertClientProtocol).
+        albert: Client Albert API (LLMClientProtocol).
         model: Modèle à utiliser. Si None, utilise le défaut du client.
         temperature: Température de génération.
         max_tokens: Nombre max de tokens en sortie.
@@ -28,7 +28,7 @@ class Generator:
 
     def __init__(
         self,
-        albert,  # AlbertClientProtocol
+        albert,  # LLMClientProtocol
         model: str | None = None,
         temperature: float = 0.3,
         max_tokens: int = 2048,

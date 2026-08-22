@@ -21,7 +21,7 @@ Ouvert : <ce qui reste, ou "rien">
 |---|---|
 | **Phase en cours** | 0 — Socle |
 | **Branche** | `chantier/tronc-unique` (compte Onyxia retenu : **`nicolaslaval`**) |
-| **Lot en cours** | L0.3 — **TERMINÉ, en attente de revue humaine**. Suivant : L0.4 |
+| **Lot en cours** | L0.3b — **TERMINÉ**. Suivant : L0.4 (harnais) |
 | **Bloqué par** | H4/H5 (accès `colaig-0`), H3ter (corpus représentatif pour le listing récursif) |
 | **Arbitrages en attente** | reranker absent de SSPCloud (voir HYPOTHESES) |
 | **Dernière mise à jour** | 22/08/2026 |
@@ -451,11 +451,54 @@ doit restreindre les endpoints par défaut.
 
 ---
 
+## L0.3b — Renommage arbitré et durcissement de la policy · 23/08/2026 · **TERMINÉ**
+
+Branche `lot/L0.3b-renommage-protocol`. Fait suite à la revue humaine de L0.3.
+
+### Point 1 — renommage autorisé, effectué
+
+`AlbertClientProtocol` → **`LLMClientProtocol`**. 34 occurrences, 22 fichiers, dont
+`protocols.py` — modification couverte par l'arbitrage humain explicite exigé au §5 du
+`CLAUDE.md`. Le nom décrit enfin ce que fait le contrat : il est implémenté par
+`openai_client`, `azure_client` et `ollama_client` autant que par `albert.py`.
+L'archive `CLAUDE.v3-original.md` n'a pas été touchée.
+
+### Point 2 — arbitrage délégué : pas de restriction par défaut (D9)
+
+Décision prise et motivée en **D9**. Une liste blanche par défaut casserait D4
+(auto-hébergeable), reviendrait à décider de la souveraineté du déploiement d'autrui, et
+donnerait une fausse sécurité puisque qui exécute le code peut l'éditer.
+
+**Mais en examinant le mécanisme, j'ai trouvé une faille.** Le contrôle était
+`url.startswith(autorise)` :
+
+```
+"https://llm.lab.sspcloud.fr.attaquant.example/v1"
+    .startswith("https://llm.lab.sspcloud.fr")   ->  True
+```
+
+Un opérateur croyait restreindre son parc au datalab ; un suffixe de domaine suffisait à
+envoyer les conversations ailleurs. C'est le **seul** levier de souveraineté du produit,
+et il était contournable en une ligne.
+
+Remplacé par `config.endpoint_autorise()` : schéma et autorité comparés à l'identique
+(insensibles à la casse), chemin validé sur **frontière de segment** — `/api` autorise
+`/api/v1`, pas `/apiv2`. `tests/test_policy_endpoints.py` : **17 tests**, couvrant le
+suffixe de domaine, le sous-domaine, le schéma dégradé en HTTP, le port différent et le
+débordement de chemin, plus une régression qui refuse le retour de `startswith`.
+
+Contrepoids de D9 : `main.py` journalise désormais `LLM : backend=… endpoint=…` au
+démarrage. Si Colaig ne décide pas où partent les conversations, l'exploitant doit le voir.
+
+**1605 tests passent.**
+
+**Ouvert :** rien.
+
+---
+
 ## Prochaine action
 
-1. **Revue humaine de L0.3** (porte) : renommage d'`AlbertClientProtocol` ? restriction
-   par défaut des endpoints dans `platform_policy` ?
-2. **L0.4** — harnais de test. Le critère « suite hors ligne < 60 s » est **déjà tenu**
+1. **L0.4** — harnais de test. Le critère « suite hors ligne < 60 s » est **déjà tenu**
    (17,7 s hors `test_live`) ; reste à écrire les `FakeStorage` / `FakeMessaging` /
    `FakeLLM` déterministes. `tests/conftest.py` existe (334 lignes, 13 fixtures) et est
    déjà unique dans le dépôt.

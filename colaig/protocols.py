@@ -71,7 +71,7 @@ WebDAVClientProtocol = StorageProtocol
 
 
 @runtime_checkable
-class AlbertClientProtocol(Protocol):
+class LLMClientProtocol(Protocol):
     """Client Albert API — LLM souverain.
 
     Responsable des appels au LLM (chat) et au service d'embeddings.
@@ -136,7 +136,7 @@ class AlbertClientProtocol(Protocol):
 
 
 # Alias générique — tous les backends LLM implémentent ce contrat
-LLMClientProtocol = AlbertClientProtocol
+LLMClientProtocol = LLMClientProtocol
 
 
 @runtime_checkable

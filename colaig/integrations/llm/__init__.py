@@ -1,7 +1,7 @@
 """
 Colaig — Clients LLM (provider-agnostic)
 
-Implémentations de LLMClientProtocol (alias AlbertClientProtocol) pour
+Implémentations de LLMClientProtocol (alias LLMClientProtocol) pour
 différents backends LLM compatibles OpenAI.
 
 Backends disponibles :

@@ -2,7 +2,7 @@
 Colaig — Service d'embeddings
 
 Implémente EmbeddingServiceProtocol.
-Utilise AlbertClientProtocol en priorité, cache en mémoire,
+Utilise LLMClientProtocol en priorité, cache en mémoire,
 normalisation L2 systématique.
 """
 
@@ -23,7 +23,7 @@ class EmbeddingService:
     """Service d'embeddings avec cache et normalisation.
 
     Args:
-        albert_client: Client Albert API (AlbertClientProtocol).
+        albert_client: Client Albert API (LLMClientProtocol).
         dimension: Dimension des vecteurs (doit correspondre au modèle).
         cache_max_size: Taille max du cache de hashes. 0 = illimité.
         cache_namespace: Préfixe opaque incorporé dans chaque clé de cache.
@@ -34,7 +34,7 @@ class EmbeddingService:
 
     def __init__(
         self,
-        albert_client,  # AlbertClientProtocol
+        albert_client,  # LLMClientProtocol
         dimension: int = 1024,
         cache_max_size: int = 10000,
         cache_namespace: str = "",

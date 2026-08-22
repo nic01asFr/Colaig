@@ -149,3 +149,45 @@ intactes. Le tronc a été poussé sur `chantier/tronc-unique`, en ajout.
 D5 dit aussi « branche par défaut `main` » : la branche par défaut réelle est
 **`Colaig_main`**. Changer la branche par défaut est une opération visible et
 difficilement réversible — elle relève d'un arbitrage, pas d'un effet de bord de lot.
+
+---
+
+## D9 — Aucune restriction d'endpoint LLM par défaut · 23/08/2026 · **actée**
+
+**Question posée :** `platform_policy.allowed_llm_endpoints` doit-il restreindre les
+endpoints LLM par défaut ? Arbitrage délégué.
+
+**Décision : non.** La liste reste vide par défaut. Colaig n'impose aucun endpoint.
+
+**Pourquoi.**
+
+1. **Cela casserait D4.** Le dépôt vise une portée interministérielle **et
+   auto-hébergeable**. Une liste blanche par défaut interdirait d'emblée un Ollama sur
+   `localhost`, un Azure privé, un endpoint ministériel interne — c'est-à-dire
+   exactement les cas que D4 protège.
+2. **`platform_policy` est par construction une contrainte d'*opérateur*.** Vide = pas
+   d'opérateur de plateforme = pas de contrainte. Y mettre un défaut reviendrait à ce
+   que Colaig décide de la souveraineté du déploiement de quelqu'un d'autre.
+3. **Un défaut donnerait une fausse sécurité.** Qui exécute le code peut l'éditer. La
+   souveraineté est une propriété de déploiement, pas une propriété de code. Une liste
+   blanche embarquée rassurerait sans rien garantir.
+
+**Le contrepoids — deux obligations en échange.**
+
+Ne pas restreindre n'autorise pas à être négligent. Deux choses ont donc été faites au
+même lot :
+
+- **Le contrôle, quand il est posé, doit tenir.** Il était implémenté par
+  `url.startswith(autorise)`, et laissait passer
+  `https://llm.lab.sspcloud.fr.attaquant.example/v1` — un opérateur croyait restreindre
+  son parc au datalab alors qu'un suffixe de domaine suffisait à envoyer les
+  conversations ailleurs. Remplacé par `config.endpoint_autorise()` : comparaison exacte
+  du schéma et de l'autorité, chemin sur frontière de segment. 17 tests, dont tous les
+  contournements ci-dessus.
+- **L'endpoint effectif est tracé au démarrage.** `main.py` journalise
+  `LLM : backend=… endpoint=…`. Si Colaig ne décide pas où partent les conversations,
+  l'exploitant doit au minimum le voir.
+
+**Ce que cela n'exclut pas.** Un opérateur de plateforme qui veut contraindre son parc
+renseigne `allowed_llm_endpoints` dans `clients.yml` — le mécanisme existe, il est
+testé, et il est désormais solide. C'est là que la souveraineté se décide.

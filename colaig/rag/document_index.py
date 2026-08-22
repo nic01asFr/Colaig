@@ -10,7 +10,7 @@ Responsabilités :
 - Permettre la recherche vectorielle et les requêtes structurées
 
 Implémente DocumentIndexProtocol.
-Dépend de : FaissStore, EmbeddingServiceProtocol, AlbertClientProtocol, StorageProtocol.
+Dépend de : FaissStore, EmbeddingServiceProtocol, LLMClientProtocol, StorageProtocol.
 
 Structure sur le storage :
     {workspace}/.colaig/indexes/documents/
@@ -68,7 +68,7 @@ class DocumentIndex:
     Args:
         storage: Backend de stockage (StorageProtocol).
         embedding_service: Service d'embeddings (EmbeddingServiceProtocol).
-        albert: Client Albert API (AlbertClientProtocol).
+        albert: Client Albert API (LLMClientProtocol).
         config: Configuration globale (optionnel).
         index_cache_ttl: Durée de vie du cache en mémoire (secondes).
     """

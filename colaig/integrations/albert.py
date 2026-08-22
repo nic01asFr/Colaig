@@ -1,7 +1,7 @@
 """
 Colaig — Client Albert API (LLM souverain Etalab/DINUM)
 
-Implémente AlbertClientProtocol.
+Implémente LLMClientProtocol.
 Format API OpenAI-compatible : /v1/chat/completions, /v1/embeddings.
 """
 

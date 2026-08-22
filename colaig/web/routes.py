@@ -187,7 +187,7 @@ def create_app(
     discovery_fn=None,        # async callable() — déclenche une re-découverte de workspaces
     clients_yml_path=None,    # str|Path — chemin vers clients.yml (active POST /api/platform/provision)
     messaging=None,           # MessagingProtocol (si WebChatMessaging → monte /chat/*)
-    llm_client=None,          # AlbertClientProtocol — readiness probe LLM (/ready)
+    llm_client=None,          # LLMClientProtocol — readiness probe LLM (/ready)
     usage_tracker=None,       # UsageTracker — métriques tokens/requêtes par tenant
 ) -> FastAPI:
     """Crée l'application FastAPI admin.

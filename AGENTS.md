@@ -98,7 +98,7 @@ class StorageFile: ...           # Fichier dans le storage (path, etag, size, la
 # --- Couches d'abstraction fondamentales ---
 class StorageProtocol(Protocol): ...          # list_files, download, upload, mkdir, exists, delete
 class MessagingProtocol(Protocol): ...        # connect, run, send, send_typing, on_message
-class AlbertClientProtocol(Protocol): ...     # chat, embed, embed_batch
+class LLMClientProtocol(Protocol): ...     # chat, embed, embed_batch
 
 # --- RAG Pipeline ---
 class EmbeddingServiceProtocol(Protocol): ... # embed_text, embed_texts
@@ -116,7 +116,7 @@ class GeneratorProtocol(Protocol): ...        # generate
 ## Agent CONNEXIONS — Clients Externes
 
 ### Mission
-Implémenter les backends de stockage, le client LLM, et les backends de messagerie. Chaque implémentation respecte le Protocol correspondant (StorageProtocol, AlbertClientProtocol, MessagingProtocol).
+Implémenter les backends de stockage, le client LLM, et les backends de messagerie. Chaque implémentation respecte le Protocol correspondant (StorageProtocol, LLMClientProtocol, MessagingProtocol).
 
 ### Fichiers sous sa responsabilité
 ```
@@ -192,7 +192,7 @@ Pour les fichiers internes (.colaig/), utilise un sous-backend configurable
 
 #### albert.py — AlbertClient
 ```
-Implémente : AlbertClientProtocol
+Implémente : LLMClientProtocol
 Bibliothèque : httpx (async)
 Endpoint : https://albert.api.etalab.gouv.fr
 
@@ -285,7 +285,7 @@ Overlap configurable. Chunks trop courts fusionnés. Chunks trop longs re-décou
 #### embeddings.py
 ```
 Implémente : EmbeddingServiceProtocol
-Utilise : AlbertClientProtocol (injection)
+Utilise : LLMClientProtocol (injection)
 
 - embed_text(text) → List[float]
 - embed_texts(texts) → List[List[float]]  # Batch avec gestion rate limit
@@ -447,7 +447,7 @@ Couche 5 - Profil : infos utilisateur connues
 #### rag/generator.py
 ```
 Implémente : GeneratorProtocol
-Utilise : AlbertClientProtocol
+Utilise : LLMClientProtocol
 
 generate(query, context: WorkspaceContext, search_results: List[SearchResult]) → GeneratedResponse
 

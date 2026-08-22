@@ -65,7 +65,7 @@ def create_search_skill_handler(
     Args:
         storage: StorageProtocol pour lire .colaig/skills/*.md.
         workspace_path: Chemin du workspace (ex: "/espace-rh/").
-        albert: AlbertClientProtocol pour embed() — requis pour mode sémantique.
+        albert: LLMClientProtocol pour embed() — requis pour mode sémantique.
         index_registry: FaissIndexRegistry — requis pour mode sémantique.
 
     Returns:

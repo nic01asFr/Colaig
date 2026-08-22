@@ -75,6 +75,42 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
+def endpoint_autorise(url: str, autorises: list) -> bool:
+    """L'URL appartient-elle à l'un des endpoints autorisés par la policy plateforme ?
+
+    **Ne pas remplacer par `url.startswith(autorise)`.** C'était l'implémentation
+    jusqu'au lot L0.3b, et elle laissait passer un domaine attaquant :
+
+        "https://llm.lab.sspcloud.fr.attaquant.example/v1"
+            .startswith("https://llm.lab.sspcloud.fr")   →  True
+
+    `allowed_llm_endpoints` est le seul levier par lequel un opérateur de plateforme
+    fait respecter la souveraineté du LLM. Un contrôle contournable par l'ajout d'un
+    suffixe au nom de domaine ne vaut rien.
+
+    La comparaison porte donc sur :
+      - le schéma et l'autorité (hôte + port), **à l'identique**, insensibles à la casse ;
+      - le chemin, sur une **frontière de segment** : `/api` autorise `/api/v1` mais
+        pas `/apiv2`.
+    """
+    from urllib.parse import urlsplit
+
+    cible = urlsplit(url.strip())
+    for brut in autorises:
+        ref = urlsplit(str(brut).strip())
+        if cible.scheme.lower() != ref.scheme.lower():
+            continue
+        if cible.netloc.lower() != ref.netloc.lower():
+            continue
+        chemin_ref = ref.path.rstrip("/")
+        chemin_cible = cible.path.rstrip("/")
+        if not chemin_ref:
+            return True
+        if chemin_cible == chemin_ref or chemin_cible.startswith(chemin_ref + "/"):
+            return True
+    return False
+
+
 def load_platform_policy(clients_yaml_path: Path | None = None) -> PlatformPolicy:
     """Charge la politique plateforme depuis clients.yml (section platform_policy).
 
@@ -127,7 +163,7 @@ def validate_client_against_policy(client_id: str, client_config: ColaigConfig, 
         )
 
     if policy.allowed_llm_endpoints and client_config.albert_api_url:
-        if not any(client_config.albert_api_url.startswith(ep) for ep in policy.allowed_llm_endpoints):
+        if not endpoint_autorise(client_config.albert_api_url, policy.allowed_llm_endpoints):
             raise ValueError(
                 f"Client '{client_id}': endpoint LLM '{client_config.albert_api_url}' "
                 f"non autorisé par la policy plateforme "
@@ -173,7 +209,7 @@ def validate_client_config_against_policy(
     # LLM endpoint (hérite de la config globale si pas d'override)
     effective_llm_url = cc.llm_api_url or global_config.albert_api_url
     if policy.allowed_llm_endpoints and effective_llm_url:
-        if not any(effective_llm_url.startswith(ep) for ep in policy.allowed_llm_endpoints):
+        if not endpoint_autorise(effective_llm_url, policy.allowed_llm_endpoints):
             raise ValueError(
                 f"Client '{client_id}': endpoint LLM '{effective_llm_url}' "
                 f"non autorisé par la policy plateforme "

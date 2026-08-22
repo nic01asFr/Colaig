@@ -2,7 +2,7 @@
 agents/tools/summarize_tools.py — Outil de synthèse de texte pour l'Orchestrateur.
 
 Outil : summarize_text
-Utilise : AlbertClientProtocol (1 appel LLM)
+Utilise : LLMClientProtocol (1 appel LLM)
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ def create_summarize_handler(albert, model: str | None = None) -> Callable:
     """Crée un handler async pour summarize_text.
 
     Args:
-        albert: Implémentation de AlbertClientProtocol.
+        albert: Implémentation de LLMClientProtocol.
         model: Modèle à utiliser (défaut : modèle chat de l'instance Albert).
     """
 
