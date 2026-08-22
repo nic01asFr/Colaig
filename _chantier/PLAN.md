@@ -36,7 +36,7 @@ complète. Aucune modification de `protocols.py` sans arbitrage.
 
 | ID | Lot | Dépend | Critère de fin |
 |---|---|---|---|
-| L1.1 | Contrat `StorageProtocol` sur 7 implémentations | L0.4 | vert sur local + webdav ; autres `skipif` |
+| L1.1 | Contrat `StorageProtocol` sur 7 implémentations | L0.4 | vert sur local + **s3 (SSPCloud, D8)** ; autres `skipif`, webdav inclus |
 | L1.2 | Contrat `MessagingProtocol` (matrix/webchat/noop) | L0.4 | idem |
 | L1.3 | Contrat `LLMClientProtocol` + `capability_chain` SSPCloud | L0.4, **H1** | `docs/llm-capabilities.md` rempli par la sonde |
 | L1.4 | Jeu doré : extraction + anonymisation depuis `colaig-0` | L0.4, **H4** | `tests/golden/v1.jsonl` ≥ 200 cas, ≥ 3 espaces, revue humaine |

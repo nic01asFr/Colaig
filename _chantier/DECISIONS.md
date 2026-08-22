@@ -85,3 +85,67 @@ standard si l'extension couvre le besoin des tâches planifiées.
 Le développement se fait sur un pod dédié du namespace `user-nic01asfr`.
 **`colaig-0` n'est jamais touché.** Les tests Tchap se font sur un compte bot et un salon
 distincts de la production.
+
+---
+
+## D7bis — Amendement de D7 : namespace de développement · 22/08/2026 · **actée**
+
+D7 désignait le namespace `user-nic01asfr`. **Le chantier se fait sur
+`user-nicolaslaval`.** Motif : l'outillage de pilotage (MCP SSPCloud) s'authentifie comme
+`system:serviceaccount:user-nicolaslaval:...` et ne peut pas atteindre `user-nic01asfr` —
+`pods ... is forbidden`. Travailler dans un namespace non pilotable revient à travailler
+à l'aveugle.
+
+Le reste de D7 est inchangé : **`colaig-0` n'est jamais touché**, et les tests de
+messagerie se font sur un compte et un salon distincts de la production.
+
+---
+
+## D8 — Le stockage du chantier est le stockage S3 SSPCloud · 22/08/2026 · **actée**
+
+**Décision.** Le backend de stockage utilisé pour le développement, les tests de contrat
+et les mesures est le **stockage utilisateur SSPCloud (MinIO)**, `STORAGE_BACKEND=s3`.
+Il remplace l'espace WebDAV de test qui était attendu.
+
+**Ce que ça change.**
+
+- **H3 est reformulée** : elle porte sur la latence de MinIO, plus sur celle du WebDAV
+  Bnum. Sonde : `scripts/probe_s3.py`, qui remplace `probe_webdav.py`.
+- Le chantier n'est **plus bloqué** par l'attente de credentials WebDAV — c'était l'un
+  des cinq blocages ouverts.
+- `probe_webdav.py` est **conservé** et marqué déprécié : `webdav.py` reste une
+  implémentation du tronc, testée au titre de L1.1.
+
+**Ce que ça ne change pas.**
+
+- `StorageProtocol` reste la seule interface. Le choix d'un backend pour le chantier
+  n'est pas un choix d'architecture : les sept implémentations restent au contrat de
+  L1.1. C'est précisément ce que le Protocol protège.
+- Un bucket du datalab **n'est pas** l'espace où les agents déposent leurs documents.
+  Le principe fondateur vise leur espace de travail réel. Le choix de S3 est un choix
+  d'outillage de chantier, il ne présume pas du backend d'un déploiement chez un tiers.
+
+**Ce que ça coûte — à ne pas perdre de vue.**
+
+Les credentials S3 injectées par Onyxia sont des **jetons STS temporaires**, mesurés
+refusés en moins de neuf heures (`InvalidAccessKeyId` sur un pod âgé de 8 h 38). Une
+instance au long cours branchée dessus tombera en panne d'authentification sans qu'une
+ligne de code ait bougé, et la panne est silencieuse côté code.
+
+C'est suivi comme **H3bis**, bloquante pour l'exploitation. Question ouverte au datalab :
+délivre-t-il des credentials S3 non expirantes (compte de service) ? **Aucune valeur par
+défaut n'est supposée tant que la réponse manque.**
+
+---
+
+## Point de vigilance sur D5 — branches distantes
+
+D5 prévoit d'archiver `Colaig_main` et `claude/refactor-colaig-tchap-bot-qRqkF` après
+import. **Cela n'a pas été fait, et ne le sera pas sans arbitrage explicite** : consigne
+a été donnée de ne pas supprimer le travail existant. Le dépôt public contient une
+génération antérieure de Colaig, sous Licence Ouverte 2.0, et ses cinq branches sont
+intactes. Le tronc a été poussé sur `chantier/tronc-unique`, en ajout.
+
+D5 dit aussi « branche par défaut `main` » : la branche par défaut réelle est
+**`Colaig_main`**. Changer la branche par défaut est une opération visible et
+difficilement réversible — elle relève d'un arbitrage, pas d'un effet de bord de lot.

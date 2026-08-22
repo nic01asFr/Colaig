@@ -21,9 +21,9 @@ Ouvert : <ce qui reste, ou "rien">
 |---|---|
 | **Phase en cours** | 0 — Socle |
 | **Branche** | `chantier/tronc-unique` (compte Onyxia retenu : **`nicolaslaval`**) |
-| **Lot en cours** | L0.1 — **terminé en local**, reste à pousser |
-| **Bloqué par** | H3 (credentials WebDAV de test), H4/H5 (accès `colaig-0`) |
-| **Arbitrages en attente** | reranker absent de SSPCloud (voir HYPOTHESES) ; nom de branche poussée ; feu vert publication (dépôt public) |
+| **Lot en cours** | L0.1 — **TERMINÉ et poussé** |
+| **Bloqué par** | H3 (bucket S3 de test), H3bis (durabilité des credentials), H4/H5 (accès `colaig-0`) |
+| **Arbitrages en attente** | reranker absent de SSPCloud (voir HYPOTHESES) |
 | **Dernière mise à jour** | 22/08/2026 |
 
 ---
@@ -172,12 +172,50 @@ première publication.
 
 ---
 
+## D8 — Stockage du chantier : S3 SSPCloud remplace WebDAV · 22/08/2026 · ACTÉ
+
+Sur instruction. Consigné en D8 dans `DECISIONS.md`, avec D7bis (le chantier passe du
+namespace `user-nic01asfr` à **`user-nicolaslaval`**, seul namespace que l'outillage
+peut piloter).
+
+Effets :
+- **H3 reformulée** — porte sur la latence de MinIO, plus sur celle du WebDAV Bnum.
+- **`scripts/probe_s3.py` écrit** : mesure LIST non récursif / LIST récursif / GET,
+  aller-retour PUT-GET-DELETE, marqueurs `.albert`/`.colaig`, volumétrie, comptage des
+  conversations (H4), nature des credentials. Reprend les variables `AWS_*` d'Onyxia
+  quand les `COLAIG_S3_*` sont absentes, donc utilisable tel quel dans un pod.
+- **`probe_webdav.py` conservé**, marqué déprécié pour H3 : `webdav.py` reste une
+  implémentation du tronc, testée au titre de L1.1.
+- **H3bis créée** — durabilité des credentials, bloquante pour l'exploitation.
+- Critère de fin de L1.1 mis à jour dans `PLAN.md` : vert sur `local` + `s3`.
+
+Le chantier n'attend plus de credentials WebDAV : un blocage sur cinq est levé.
+
+**Ouvert :** nom du bucket et credentials S3 à utiliser ; réponse du datalab sur
+l'existence de credentials non expirantes.
+
+---
+
+## L0.1 — poussé · 22/08/2026 · TERMINÉ
+
+`git push -u origin chantier/tronc-unique` — commits `4edd422` et `e7dbfce`.
+
+**Vérification après push : rien n'a été écrasé.** Six branches distantes, les cinq
+d'origine intactes (`Colaig_main` toujours sur `ac35483`, `dev`,
+`test-behavior-implementation`, deux `claude/*`) plus `chantier/tronc-unique`. Push en
+ajout, sans `--force`.
+
+À noter : D5 prévoyait d'archiver `Colaig_main` et une branche `claude/*` après import.
+**Non fait, et pas à faire sans arbitrage** — consigne de ne pas supprimer le travail
+existant. Point de vigilance consigné en fin de `DECISIONS.md`.
+
+---
+
 ## Prochaine action
 
-1. **Pousser** : `git push -u origin chantier/tronc-unique` (remote configuré,
-   `gh` authentifié comme `nic01asFr`).
-2. Créer le pod `colaig-dev` dans le namespace **`user-nicolaslaval`** et l'y binder.
+1. Créer le pod `colaig-dev` dans **`user-nicolaslaval`**, le binder sur
+   `chantier/tronc-unique`.
+2. Lancer `scripts/probe_s3.py` depuis le pod → lève **H3**, alimente H4 et H5.
 3. Trancher l'arbitrage reranker et l'inscrire dans `DECISIONS.md`.
-4. Obtenir les credentials du WebDAV de test — H3 tient telle qu'elle est formulée
-   (voir la correction ci-dessous : v3 implémente bien WebDAV, c'est même son défaut).
+4. Demander au datalab s'il délivre des credentials S3 **non expirantes** (H3bis).
 5. Corriger `ALBERT_API_URL` (ajout de `/v1`) au portage de la configuration.

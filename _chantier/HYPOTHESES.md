@@ -8,7 +8,8 @@ Si un lot bute dessus : arrêter le lot, inscrire le blocage dans `AVANCEMENT.md
 | **H1a** | **Albert** sert un chat **avec tool calling** + embeddings | ✅ **levée le 22/08/2026** | — | mesurée : `mesures/llm-capabilities-albert.md` |
 | **H1b** | **SSPCloud** sert un chat **avec tool calling** (`qwen3-6-35b-moe`) | ✅ **levée le 22/08/2026** | — | mesurée : `mesures/llm-capabilities-sspcloud.md` |
 | **H2** | Un reranker est disponible (SSPCloud ou Albert) | ⚠️ **levée pour Albert, PAS pour SSPCloud** | L4.1 — impose un arbitrage | Albert : `bge-reranker-v2-m3` OK (0,12 s). SSPCloud : **aucun reranker au catalogue**. Voir « Arbitrage reranker » ci-dessous. |
-| **H3** | La latence WebDAV Bnum est compatible avec une réponse < 10 s | ❌ **non levée — bloquante** | L1.1 et toute l'architecture de cache | `scripts/probe_webdav.py` (credentials requis) |
+| **H3** | La latence du **stockage S3 SSPCloud** est compatible avec une réponse < 10 s | ❌ **non levée — bloquante** | L1.1 et toute l'architecture de cache | `scripts/probe_s3.py` (bucket + credentials requis) |
+| **H3bis** | Les credentials S3 SSPCloud peuvent être **non expirantes** | ❌ **non levée — bloquante pour la production** | L3.6, exploitation | mesuré : les jetons STS Onyxia sont refusés en < 9 h. Demander au datalab s'il délivre un compte de service. |
 | **H4** | `colaig-0` a assez d'historique pour ≥ 200 cas dorés | ❌ non levée | L1.4 | compter les `.colaig/conversations/*.json` |
 | **H5** | Le corpus reste sous le seuil de `IndexFlatIP` (exact, O(n)) | ❌ non levée | L4.1 | compter documents et poids par espace |
 | **H6** | L'agent peut pousser sur GitHub et déployer sur SSPCloud | ✅ **levée pour GitHub le 22/08/2026** | — | PAT fine-grained vérifié : `push: true` sur `nic01asFr/Colaig`. Déploiement SSPCloud : voir L3.6. |
@@ -43,7 +44,7 @@ Réseau sortant : github 200 · pypi 200 · llm.lab.sspcloud.fr 200
 | **Clé API LLM SSPCloud** | lever H1 et H2 | tout le code |
 | **Token GitHub** (scope `repo`, push sur `nic01asFr/Colaig`) | D5, persistance du travail | tout |
 | **Compte bot Matrix/Tchap de test** + salon dédié (≠ production) | L1.2, tests bout en bout | phase 1 |
-| **Espace WebDAV de test** (URL, user, mdp) + quelques documents | L1.1, lever H3 | phase 1 |
+| **Bucket S3 SSPCloud** (endpoint, bucket, access/secret, éventuel session token) + quelques documents | L1.1, lever H3 | phase 1 |
 | **Accès aux conversations de `colaig-0`** + feu vert anonymisation | L1.4, jeu doré | phase 1, donc phase 4 |
 | Droit de créer/détruire des services Onyxia | L3.6, chart Helm | phase 3 |
 | Licence retenue + autorisation de publication Cerema | D4 | publication |
@@ -216,13 +217,20 @@ attendre les credentials WebDAV :
 - persistance de l'index et des artefacts entre deux pods ;
 - terrain de mesure pour la référence L1.5.
 
-**Il ne sert pas** :
-- **de substitut à H3.** La latence de MinIO au sein du datalab ne dit rien de celle du
-  WebDAV/Bnum traversant un réseau d'administration. H3 reste bloquée sur ses propres
-  credentials.
-- **de substitut à l'espace utilisateur.** Le principe fondateur — « un espace de stockage
-  + un dossier `.colaig` = une instance » — vise l'espace où les agents déposent
-  *réellement* leurs documents. Un bucket du datalab n'est pas cet espace.
+**Mise à jour du 22/08/2026 — arbitrage rendu.** Le stockage SSPCloud **remplace** le
+WebDAV comme stockage du chantier (voir D8 dans `DECISIONS.md`). H3 est donc reformulée :
+elle porte désormais sur la latence de MinIO, mesurée par `scripts/probe_s3.py`.
+
+Deux réserves subsistent et ne sont pas levées par cet arbitrage :
+
+- **La durabilité des credentials** devient une hypothèse à part entière (**H3bis**), et
+  elle est bloquante pour l'exploitation : jetons STS refusés en moins de neuf heures.
+- **Un bucket du datalab n'est pas l'espace où les agents déposent leurs documents.**
+  Le principe fondateur — « un espace de stockage + un dossier `.colaig` = une
+  instance » — vise l'espace de travail réel des utilisateurs. Que le chantier se
+  développe et se mesure sur S3 est un choix d'outillage ; il ne présume pas du backend
+  d'un déploiement chez un tiers, et c'est précisément ce que `StorageProtocol` protège.
+  `webdav.py` reste dans le tronc, testé au titre de L1.1.
 
 **Pour un usage de production il faudrait** une clé non expirante (compte de service
 SSPCloud, si le datalab en délivre) ou un mécanisme de renouvellement des jetons STS.

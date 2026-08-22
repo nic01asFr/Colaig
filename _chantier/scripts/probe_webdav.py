@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
 """
-Sonde WebDAV — lève H3, H4 et H5.
+Sonde WebDAV — CONSERVÉE MAIS DÉPRÉCIÉE pour la mesure de H3.
 
 STATUT: COMPLET
-VERSION: 2026-08-22 - v1.0
+VERSION: 2026-08-22 - v1.1
 LOT: L1.1 / L1.4
+
+⚠️ **Utiliser `probe_s3.py` pour lever H3.** Depuis la décision D8 (voir
+`DECISIONS.md`), le stockage du chantier est le stockage S3 SSPCloud (MinIO), pas un
+espace WebDAV : H3 porte désormais sur la latence de MinIO.
+
+Ce script reste dans le dépôt parce que `colaig/integrations/storage/webdav.py` reste
+une implémentation du tronc, testée au titre du contrat `StorageProtocol` (L1.1). Il
+sert si un déploiement chez un tiers utilise WebDAV. Il n'est simplement plus le chemin
+par défaut de la mesure.
 
 La latence WebDAV est la cause réelle de la quasi-totalité des timeouts de la version
 déployée (guards 20-25 s dans la pré-orchestration, préchargement 5 puis 50 contextes,
