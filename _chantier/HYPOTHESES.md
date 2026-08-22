@@ -1,0 +1,243 @@
+# Hypothèses à lever
+
+Une hypothèse non levée ne se remplace **jamais** par une valeur par défaut plausible.
+Si un lot bute dessus : arrêter le lot, inscrire le blocage dans `AVANCEMENT.md`, demander.
+
+| # | Hypothèse | Statut | Bloque | Comment lever |
+|---|---|---|---|---|
+| **H1a** | **Albert** sert un chat **avec tool calling** + embeddings | ✅ **levée le 22/08/2026** | — | mesurée : `mesures/llm-capabilities-albert.md` |
+| **H1b** | **SSPCloud** sert un chat **avec tool calling** (`qwen3-6-35b-moe`) | ✅ **levée le 22/08/2026** | — | mesurée : `mesures/llm-capabilities-sspcloud.md` |
+| **H2** | Un reranker est disponible (SSPCloud ou Albert) | ⚠️ **levée pour Albert, PAS pour SSPCloud** | L4.1 — impose un arbitrage | Albert : `bge-reranker-v2-m3` OK (0,12 s). SSPCloud : **aucun reranker au catalogue**. Voir « Arbitrage reranker » ci-dessous. |
+| **H3** | La latence WebDAV Bnum est compatible avec une réponse < 10 s | ❌ **non levée — bloquante** | L1.1 et toute l'architecture de cache | `scripts/probe_webdav.py` (credentials requis) |
+| **H4** | `colaig-0` a assez d'historique pour ≥ 200 cas dorés | ❌ non levée | L1.4 | compter les `.colaig/conversations/*.json` |
+| **H5** | Le corpus reste sous le seuil de `IndexFlatIP` (exact, O(n)) | ❌ non levée | L4.1 | compter documents et poids par espace |
+| **H6** | L'agent peut pousser sur GitHub et déployer sur SSPCloud | ✅ **levée pour GitHub le 22/08/2026** | — | PAT fine-grained vérifié : `push: true` sur `nic01asFr/Colaig`. Déploiement SSPCloud : voir L3.6. |
+
+---
+
+## Mesures déjà faites — pod `proj-colaig-refonte-jupyter-python-0`, 22/08/2026
+
+```
+Python 3.13.13 · git 2.55.0 · node ABSENT
+Disque /home/onyxia/work : 9,8 Go libres (vide)
+Réseau sortant : github 200 · pypi 200 · llm.lab.sspcloud.fr 200
+```
+
+**Résultats bloquants :**
+
+- `GET https://llm.lab.sspcloud.fr/api/models` → **401 `Not authenticated`**
+  → la clé LLM est indispensable, elle n'est pas dans l'environnement du pod.
+- `kubectl get secrets` → **403 Forbidden** :
+  `serviceaccount:user-nic01asfr:proj-colaig-refonte-jupyter-python cannot list secrets`
+  → **le pod ne peut pas lire le Secret `*-secretassistant` lui-même.** L'auto-découverte
+  de clé implémentée dans `platform/sspcloud.py` (PROD) suppose le rôle `edit` du chart
+  Helm ; ce pod-ci ne l'a pas. À reproduire au lot L3.6 avec le bon rôle.
+- Aucun token GitHub (`GH_TOKEN` absent), aucune clé SSH dans `~/.ssh`.
+
+---
+
+## Ce qui manque pour démarrer
+
+| Besoin | Pour quoi | Bloque |
+|---|---|---|
+| **Clé API LLM SSPCloud** | lever H1 et H2 | tout le code |
+| **Token GitHub** (scope `repo`, push sur `nic01asFr/Colaig`) | D5, persistance du travail | tout |
+| **Compte bot Matrix/Tchap de test** + salon dédié (≠ production) | L1.2, tests bout en bout | phase 1 |
+| **Espace WebDAV de test** (URL, user, mdp) + quelques documents | L1.1, lever H3 | phase 1 |
+| **Accès aux conversations de `colaig-0`** + feu vert anonymisation | L1.4, jeu doré | phase 1, donc phase 4 |
+| Droit de créer/détruire des services Onyxia | L3.6, chart Helm | phase 3 |
+| Licence retenue + autorisation de publication Cerema | D4 | publication |
+
+---
+
+## Mesures LLM — Albert, 22/08/2026
+
+Sonde exécutée depuis le poste local avec les credentials de `colaig-v3/.env`.
+Rapport intégral : `mesures/llm-capabilities-albert.md`.
+
+| | |
+|---|---|
+| Endpoint | `https://albert.api.etalab.gouv.fr/v1` |
+| Chat | `openai/gpt-oss-120b` — 200 en 0,20 s |
+| **Tool calling** | **présent**, `tool_calls` bien formé — 0,41 s |
+| Embeddings | `qwen3-vl-embedding-8b` — **dimension 4096** |
+| Reranker | `bge-reranker-v2-m3` — 0,12 s |
+
+**Piège de configuration hérité :** `ALBERT_API_URL` de v3 omet `/v1`, ce qui renvoie
+404 sur tous les appels. À corriger au portage de la configuration.
+
+**Ce qui n'est PAS mesuré :** SSPCloud. Le catalogue ci-dessus est celui d'Albert et rien
+ne permet de le transposer. `qwen3-6-35b-moe` reste **INCONNU**.
+
+**Conséquence sur H4/H5 :** une dimension d'embedding de 4096 est élevée — 16 Ko par
+vecteur en float32. Le seuil de `IndexFlatIP` de H5 doit être recalculé sur cette base,
+pas sur les 1024 d'un `bge-m3`.
+
+---
+
+## Mesures LLM — SSPCloud, 22/08/2026 · **cible de production (D3)**
+
+Sonde exécutée avec `sspcloud_api_key` (fourni dans le `.env` du chantier).
+Rapport intégral : `mesures/llm-capabilities-sspcloud.md`.
+
+| | |
+|---|---|
+| Endpoint | `https://llm.lab.sspcloud.fr/api/v1` (le suffixe `/v1` est optionnel ici, les deux répondent) |
+| Catalogue | 7 modèles : `gemma4-26b-moe`, `qwen3-6-35b-moe`, `qwen3-vl`, `qwen3-embedding-8b`, `chandra-ocr-2`, `qwen3-8-27b`, `qwen3-cursor` |
+| Chat | `qwen3-6-35b-moe` — 200 en 0,39 s |
+| **Tool calling** | **présent**, `tool_calls` bien formé — 1,19 s |
+| Embeddings | `qwen3-embedding-8b` — **dimension 4096** |
+| Reranker | **aucun au catalogue** |
+
+**La boucle agent native est réalisable sur la cible de production.** Les lots de la
+phase 4 gardent leur forme. Le repli « JSON imposé par prompt » est écarté.
+
+Le modèle expose son raisonnement dans `reasoning_content` et
+`provider_specific_fields.reasoning`, en plus de `tool_calls`. À prévoir au parsing :
+`content` vaut `null` quand un outil est appelé — un client qui suppose une chaîne
+plantera.
+
+**Latence à surveiller :** 1,19 s pour un tour avec outils, contre 0,41 s chez Albert.
+Sur une boucle agent à plusieurs itérations, c'est le poste dominant du budget des 10 s
+de H3. À mesurer pour de vrai au lot L1.5, pas à extrapoler d'un appel unique.
+
+### Arbitrage reranker — à trancher avant L4.1
+
+SSPCloud ne sert pas de reranker ; Albert sert `bge-reranker-v2-m3`. Trois options :
+
+| option | ce que ça coûte |
+|---|---|
+| **a. Bi-provider** — chat SSPCloud + rerank Albert | deux clés, deux dépendances externes, mais garde le gain le mieux documenté du pipeline RAG |
+| **b. MMR seul** | une seule dépendance, mais perte de qualité de reranking — **à mesurer contre la référence L1.5, pas à supposer** |
+| **c. Reranker local** | pas de dépendance externe ; coût RAM/CPU dans le pod, à chiffrer |
+
+Aucune de ces options n'est retenue par défaut. **C'est une décision, elle va dans
+`DECISIONS.md`.**
+
+---
+
+## Mesures GitHub — 22/08/2026 · H6 levée côté dépôt
+
+| | |
+|---|---|
+| Token | PAT **fine-grained** (pas de `x-oauth-scopes`), compte `nic01asFr` |
+| `nic01asFr/Colaig` | accessible, **droit de push confirmé** |
+| Branche par défaut | **`Colaig_main`** — et non `main`. Le bootstrap crée un `main` local : le nom de la branche poussée doit être choisi explicitement, pas subi. |
+| Visibilité | ⚠️ **dépôt PUBLIC** |
+
+**Conséquence du caractère public :** tout ce qui est poussé est immédiatement lisible
+par tous, et un historique git ne se rattrape pas par une suppression. Vérification faite
+avant de pousser quoi que ce soit — les 16 commits de v3 ne contiennent **aucun** `.env`,
+`.pem`, `.key` ni fichier de credentials. Seuls apparaissent du code (`auth/tokens.py`,
+`security/secrets_filter.py`), un template Helm (`deploy/helm/colaig/templates/secret.yaml`)
+et `config/.env.example`. **L'historique est propre, le push est sûr de ce point de vue.**
+
+Reste que la publication en open source est une **porte humaine** (point 8 du cadrage :
+licence retenue, autorisation Cerema). Pousser dans un dépôt déjà public revient de fait
+à publier : à confirmer avant le premier push, pas après.
+
+---
+
+## Inventaire des providers de v3 — 22/08/2026
+
+**Correction d'une affirmation erronée faite plus tôt dans la session.** Il avait été écrit
+que « v3 n'a aucune variable WebDAV, son stockage est MSGraph/Box/local », et qu'il fallait
+peut-être reformuler H3. **C'est faux.** L'absence de variables `WEBDAV_*` dans un `.env`
+donné ne renseigne que sur *l'instance configurée par ce fichier*, pas sur les
+implémentations disponibles. v3 est bien générique sur les trois axes :
+
+| axe | sélecteur | valeurs acceptées | défaut |
+|---|---|---|---|
+| Stockage | `STORAGE_BACKEND` | `local`, **`webdav`**, `bigfolder`, `s3`, `msgraph`, `box`, `gdrive` | **`webdav`** |
+| Messagerie | `MESSAGING_BACKEND` | `matrix`, `webchat`, `telegram`, `slack`, `none`/`noop` | `matrix` |
+| LLM | `LLM_BACKEND` | `albert`, `openai`, `azure`, `ollama` | `albert` |
+
+Fichiers correspondants : `colaig/integrations/storage/{local,webdav,bigfolder,s3,msgraph,box,gdrive}.py`,
+`colaig/messaging/{matrix,webchat,noop}.py` + `colaig/integrations/messaging/telegram.py`,
+`colaig/integrations/llm/{openai_client,azure_client,ollama_client,provider_registry,capability_chain}.py`.
+La validation de configuration de `config.py` vérifie les champs requis backend par backend
+et rejette un backend inconnu.
+
+**Conséquences :**
+
+1. **H3 tient telle qu'elle est formulée.** `probe_webdav.py` vise un backend réellement
+   implémenté — et qui est même le défaut du code. Il ne manque que des credentials de test.
+2. La bascule vers SSPCloud relève de `LLM_BACKEND=openai` + `LLM_API_URL`/`LLM_API_KEY`
+   (endpoint OpenAI-compatible), **pas** d'un nouveau provider à écrire. Ce qui confirme D3
+   et l'argument de D1 : le multi-provider est déjà construit, il n'est pas à refaire.
+3. Le `.env` de v3 configurait `msgraph` — c'est un **choix d'instance**, pas une limite du
+   code. Reste à établir quel backend l'instance de production utilise réellement, ce qui
+   détermine où porter l'effort de mesure de latence.
+
+---
+
+## Stockage S3 SSPCloud (MinIO) — mesuré le 22/08/2026
+
+**Question posée :** peut-on utiliser le stockage utilisateur SSPCloud comme backend ?
+
+**Réponse courte : oui pour le développement et les tests, non en l'état pour la
+production — et cela ne remplace pas H3.**
+
+### Ce qui est acquis
+
+| | |
+|---|---|
+| Backend | v3 implémente déjà `integrations/storage/s3.py` (boto3, compatible MinIO) |
+| Sélection | `STORAGE_BACKEND=s3` |
+| Variables | `S3_ENDPOINT_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET_NAME`, `S3_PREFIX`, `S3_REGION`, **`S3_SESSION_TOKEN`** |
+| Endpoint Onyxia | `https://minio.lab.sspcloud.fr`, région `us-east-1` |
+
+La présence de `S3_SESSION_TOKEN` dans la configuration de v3 montre que le cas des
+credentials temporaires avait été prévu.
+
+### Le fait qui décide — credentials non durables
+
+Test d'aller-retour sur un pod Onyxia âgé de **8 h 38** :
+
+```
+ClientError: An error occurred (InvalidAccessKeyId) when calling ListBuckets:
+The Access Key Id you provided does not exist in our records.
+```
+
+Les credentials sont pourtant bien chargés (`method=env`, session token présent) : ce
+sont des jetons **STS temporaires**, et ils sont **déjà refusés en moins de neuf heures**.
+
+**Conséquence directe :** une instance Colaig au long cours configurée sur les
+credentials S3 injectés par Onyxia **tombera en panne d'authentification** sans qu'aucune
+ligne de code n'ait changé. Le mode de défaillance est silencieux du point de vue du code
+et déroutant à diagnostiquer — exactement le genre de panne qui a produit des versions
+successives. À ne pas découvrir en production.
+
+### Ce à quoi S3 SSPCloud sert, et ce à quoi il ne sert pas
+
+**Il sert** — et cela débloque immédiatement le point 4 de la liste des blocages, sans
+attendre les credentials WebDAV :
+- tests de contrat `StorageProtocol` sur un backend distant réel plutôt que sur `LocalStorage` ;
+- persistance de l'index et des artefacts entre deux pods ;
+- terrain de mesure pour la référence L1.5.
+
+**Il ne sert pas** :
+- **de substitut à H3.** La latence de MinIO au sein du datalab ne dit rien de celle du
+  WebDAV/Bnum traversant un réseau d'administration. H3 reste bloquée sur ses propres
+  credentials.
+- **de substitut à l'espace utilisateur.** Le principe fondateur — « un espace de stockage
+  + un dossier `.colaig` = une instance » — vise l'espace où les agents déposent
+  *réellement* leurs documents. Un bucket du datalab n'est pas cet espace.
+
+**Pour un usage de production il faudrait** une clé non expirante (compte de service
+SSPCloud, si le datalab en délivre) ou un mécanisme de renouvellement des jetons STS.
+**Question ouverte : SSPCloud délivre-t-il des credentials S3 non expirantes ?** Sans
+réponse, aucune valeur par défaut n'est supposée.
+
+### Accès kubectl — limite constatée
+
+Le MCP SSPCloud de cette session s'authentifie comme
+`system:serviceaccount:user-nicolaslaval:jupyter-python-271780` et **ne peut pas atteindre
+le namespace `user-nic01asfr`** où tourne `proj-colaig-refonte-jupyter-python-0` :
+
+```
+pods "proj-colaig-refonte-jupyter-python-0" is forbidden
+```
+
+Deux comptes Onyxia coexistent (`nicolaslaval`, `nic01asfr`). **À trancher :** sur lequel
+le chantier travaille, car cela conditionne quel pod est pilotable depuis l'outillage.

@@ -1,68 +1,27 @@
-# Python
-__pycache__/
+﻿__pycache__/
 *.py[cod]
-*$py.class
-*.so
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 *.egg-info/
-dist/
-build/
-*.egg
 
-# Virtual environments
-.venv/
-venv/
-env/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Environment / secrets
+# Secrets — jamais commités
 .env
 .env.*
 !.env.example
-!config/.env.example
-.mcp.json
 secrets/
-config/clients.yml
+*.key
+*.pem
+**/matrix_token.json
+**/e2e_store/
 
-# Data (local storage, indexes, user data — non versionné)
-data/storage/
-data/faiss_cache/
-data/logs/
-data/test_nio_sync.py
+# Données locales
+data/
+_local/
 *.faiss
 *.pkl
 
-# Claude Code / session artifacts
-.claude-session
-.claude/
-
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Docker
-docker-compose.override.yml
-
-# Tests
-.pytest_cache/
-htmlcov/
-.coverage
-.coverage.*
-
-# mypy
-.mypy_cache/
-
-# ruff
-.ruff_cache/
-
-# Archives
-*.zip
-
-# WikiChat overlay (auto-added)
+# Overlays d'outillage
 .wikichat/
+.claude-session
