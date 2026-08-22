@@ -20,7 +20,8 @@ Ouvert : <ce qui reste, ou "rien">
 | | |
 |---|---|
 | **Phase en cours** | 0 — Socle |
-| **Lot en cours** | L0.1 — non démarré |
+| **Branche** | `chantier/tronc-unique` (compte Onyxia retenu : **`nicolaslaval`**) |
+| **Lot en cours** | L0.1 — **terminé en local**, reste à pousser |
 | **Bloqué par** | H3 (credentials WebDAV de test), H4/H5 (accès `colaig-0`) |
 | **Arbitrages en attente** | reranker absent de SSPCloud (voir HYPOTHESES) ; nom de branche poussée ; feu vert publication (dépôt public) |
 | **Dernière mise à jour** | 22/08/2026 |
@@ -142,11 +143,40 @@ porte humaine du point 8, à franchir avant le premier push.
 
 ---
 
+## L0.1 — Import du tronc et assainissement · 22/08/2026 · **TERMINÉ (local)**
+
+Critère de fin : le dépôt contient le tronc v3 et la suite de tests s'exécute → **atteint**.
+Commit : `4edd422` sur la branche `chantier/tronc-unique`.
+
+- 16 commits de v3 (`feat/reflexive-self-config`) importés **avec leur historique**.
+- `CLAUDE.md` de v3 archivé en `docs/CLAUDE.v3-original.md`.
+- `.gitignore` durci ; `.env` du chantier préservé et ignoré (vérifié).
+- **Rien n'a été détruit** : la quarantaine est vide, aucune des cinq scories visées
+  n'existait dans le dossier cible (non suivies par git, donc jamais importées).
+
+**Suite de tests : 1574 passent, 42 échouent.**
+
+| échec | nature |
+|---|---|
+| 41 dans `tests/test_live.py` | attendus — exigent une instance en fonctionnement (erreurs httpx de connexion) |
+| 1 dans `tests/test_executor.py` | **test instable** : passe isolé (8/8), échoue sous charge de la suite complète. Avertissement `coroutine ... was never awaited`. À traiter au harnais de test (L0.3), pas à ignorer. |
+
+**Le dépôt public contient déjà une génération antérieure de Colaig** (`app/`,
+`browser_use-0.1.41-py3-none-any.whl`, une vingtaine de `.md` en vrac), sous
+**Licence Ouverte / Open Licence 2.0** — la même que celle de v3. Branches distantes :
+`Colaig_main` (défaut), `dev`, `test-behavior-implementation`, deux `claude/*`.
+La question de la licence est donc de fait tranchée, et pousser le tronc n'est pas une
+première publication.
+
+**Ouvert :** le push reste à faire (voir « Prochaine action »).
+
+---
+
 ## Prochaine action
 
-1. **Arbitrer** : nom de branche à pousser, et feu vert publication (dépôt public).
-2. Exécuter `_chantier/scripts/bootstrap.ps1` (L0.1) — désormais non destructif,
-   puis `pytest -q`, puis commit local.
+1. **Pousser** : `git push -u origin chantier/tronc-unique` (remote configuré,
+   `gh` authentifié comme `nic01asFr`).
+2. Créer le pod `colaig-dev` dans le namespace **`user-nicolaslaval`** et l'y binder.
 3. Trancher l'arbitrage reranker et l'inscrire dans `DECISIONS.md`.
 4. Obtenir les credentials du WebDAV de test — H3 tient telle qu'elle est formulée
    (voir la correction ci-dessous : v3 implémente bien WebDAV, c'est même son défaut).
