@@ -22,7 +22,7 @@ Ouvert : <ce qui reste, ou "rien">
 | **Phase en cours** | 0 — Socle |
 | **Branche** | `chantier/tronc-unique` (compte Onyxia retenu : **`nicolaslaval`**) |
 | **Lot en cours** | L0.1 — **TERMINÉ et poussé** |
-| **Bloqué par** | H3 (jeton S3 à récupérer — 2 min sur `datalab.sspcloud.fr/account/storage`), H4/H5 (accès `colaig-0`) |
+| **Bloqué par** | H4/H5 (accès `colaig-0`), H3ter (corpus représentatif pour le listing récursif) |
 | **Arbitrages en attente** | reranker absent de SSPCloud (voir HYPOTHESES) |
 | **Dernière mise à jour** | 22/08/2026 |
 
@@ -327,3 +327,44 @@ avant tout déploiement.
 4. Créer un **compte de service** sur `minio-console.lab.sspcloud.fr` avant tout
    déploiement — credentials permanentes, rattachées au projet (H3bis).
 5. Corriger `ALBERT_API_URL` (ajout de `/v1`) au portage de la configuration.
+
+## H3 levée — stockage S3 mesuré sur le vrai bucket · 22/08/2026
+
+Le jeton OIDC fourni portait l'audience `minio-datanode` et la policy `stsonly` : c'est
+exactement ce qu'il faut pour frapper des credentials S3 par
+`AssumeRoleWithWebIdentity` contre `minio.lab.sspcloud.fr`. Obtenues, valides 7 jours.
+**C'est le chemin qu'aucun outillage ne pouvait emprunter sans jeton OIDC** — le point
+qui bloquait depuis le début.
+
+| opération | médiane |
+|---|---|
+| LIST non récursif | **31 ms** |
+| GET | **47 ms** |
+| PUT (1 Ko) | **86 ms** |
+| DELETE | **31 ms** |
+| LIST récursif | 641 ms — **sur 14 objets seulement** |
+
+Mesuré depuis le poste Windows via internet : c'est un **majorant** de la latence
+intra-datalab, ce qui rend le verdict d'autant plus solide.
+
+**H3 est levée pour les opérations unitaires.** 31 ms, très en deçà du seuil de 300 ms.
+Le budget de 10 s n'est pas menacé par le stockage — le poste dominant reste le LLM
+(1,19 s par tour outillé).
+
+**Correction en cours de route :** le premier PUT donnait 437 ms, ce qui suggérait une
+asymétrie lecture/écriture. Répété six fois, il retombe à 86 ms — les 437 ms étaient
+l'établissement TLS. Un chiffre unique ne vaut pas mesure.
+
+**H3ter créée.** Le listing récursif a été mesuré sur 14 objets. C'est l'opération qui
+faisait exploser les timeouts de la version déployée, et ce chiffre ne dit **rien** de
+son comportement à l'échelle. À remesurer sur un espace représentatif avant tout
+arbitrage d'indexation. Extrapoler serait précisément l'erreur que ce chantier veut
+éviter.
+
+**Innocuité vérifiée :** après six itérations, aucun objet résiduel sous `.colaig-probe/`.
+`qgis-workspace/` a été lu, jamais modifié.
+
+**Ouvert :** un espace de test représentatif pour H3ter ; le compte de service pour le
+déploiement (H3bis).
+
+---

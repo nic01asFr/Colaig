@@ -8,7 +8,8 @@ Si un lot bute dessus : arrêter le lot, inscrire le blocage dans `AVANCEMENT.md
 | **H1a** | **Albert** sert un chat **avec tool calling** + embeddings | ✅ **levée le 22/08/2026** | — | mesurée : `mesures/llm-capabilities-albert.md` |
 | **H1b** | **SSPCloud** sert un chat **avec tool calling** (`qwen3-6-35b-moe`) | ✅ **levée le 22/08/2026** | — | mesurée : `mesures/llm-capabilities-sspcloud.md` |
 | **H2** | Un reranker est disponible (SSPCloud ou Albert) | ⚠️ **levée pour Albert, PAS pour SSPCloud** | L4.1 — impose un arbitrage | Albert : `bge-reranker-v2-m3` OK (0,12 s). SSPCloud : **aucun reranker au catalogue**. Voir « Arbitrage reranker » ci-dessous. |
-| **H3** | La latence du **stockage S3 SSPCloud** est compatible avec une réponse < 10 s | ❌ **non levée — bloquante** | L1.1 et toute l'architecture de cache | `scripts/probe_s3.py` (bucket + credentials requis) |
+| **H3** | La latence du **stockage S3 SSPCloud** est compatible avec une réponse < 10 s | ✅ **levée le 22/08/2026 pour les opérations unitaires** | — | mesurée : `mesures/s3-sspcloud.md`. 31 ms en LIST non récursif. |
+| **H3ter** | Le **listing récursif** tient à l'échelle d'un corpus réel | ❌ **non levée** | L4.1, stratégie d'indexation | mesuré sur 14 objets seulement — ne dit rien de l'échelle. À remesurer sur un espace représentatif. |
 | **H3bis** | Les credentials S3 SSPCloud peuvent être **non expirantes** | ✅ **levée le 22/08/2026 par la documentation** | — | un **compte de service** MinIO donne un couple access/secret permanent, rattaché à un projet. Console : `minio-console.lab.sspcloud.fr`. Reste à le créer. |
 | **H4** | `colaig-0` a assez d'historique pour ≥ 200 cas dorés | ❌ non levée | L1.4 | compter les `.colaig/conversations/*.json` |
 | **H5** | Le corpus reste sous le seuil de `IndexFlatIP` (exact, O(n)) | ❌ non levée | L4.1 | compter documents et poids par espace |

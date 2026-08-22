@@ -172,11 +172,15 @@ def main() -> int:
     print("## 0. Credentials\n")
     if TOKEN:
         print("- Type : **temporaires (STS)** — un `session_token` est présent.")
-        print("- ⚠️ **Les jetons STS Onyxia ont été mesurés refusés en moins de 9 heures.**")
-        print("  Une instance au long cours tombera en panne d'authentification sans")
-        print("  qu'aucune ligne de code n'ait changé. Voir `HYPOTHESES.md`.")
+        print("- Durée de vie : 7 jours, régénérée automatiquement par Onyxia. Convient à")
+        print("  la mesure et au développement.")
+        print("- ⚠️ **Ne pas déployer une instance sur ces credentials.** Les services")
+        print("  créés avant une régénération perdent l'accès au stockage. Pour un")
+        print("  déploiement, utiliser un **compte de service** MinIO (permanent, rattaché")
+        print("  au projet) : `minio-console.lab.sspcloud.fr`. Voir H3bis.")
     else:
-        print("- Type : **permanentes** (aucun `session_token`).")
+        print("- Type : **permanentes** — aucun `session_token`, probablement un compte de")
+        print("  service. C'est ce qu'il faut pour un déploiement.")
     print()
 
     # ── Latence ──────────────────────────────────────────────────────────────
@@ -261,7 +265,8 @@ def main() -> int:
           "IndexFlatIP reste raisonnable en dessous de ~100 000 chunks — à recalculer "
           "sur une dimension d'embedding de 4096 (16 Ko par vecteur en float32).")
     if TOKEN:
-        print("- ⚠️ **Durabilité des credentials : NON RÉSOLUE.** Jetons STS temporaires.")
+        print("- ⚠️ **Credentials temporaires (7 j).** Bon pour mesurer, à remplacer par un")
+        print("  compte de service avant tout déploiement (H3bis).")
     return 0
 
 
