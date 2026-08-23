@@ -53,8 +53,8 @@ prétend pas.
 from __future__ import annotations
 
 import json
-import re
 import logging
+import re
 from dataclasses import dataclass
 
 from colaig.rag.verification_citations import FORMAT_CODE, articles_cites
@@ -204,6 +204,17 @@ async def verifier_fidelite(affirmation: str, extrait: str, client) -> Fidelite:
             "il faut une affirmation ET un extrait : on ne vérifie pas dans le vide"
         )
 
+    # NON BALISÉ, DÉLIBÉRÉMENT — seule exception du lot L2.1.
+    #
+    # Les marqueurs `AFFIRMATION :` / `EXTRAIT :` sont forgeables comme l'étaient les
+    # autres, et ce site devrait passer par `security/wrap.py`. Il n'y passe pas parce
+    # que son taux de détection — 82,7 %, D32 — est un **seuil de
+    # `_chantier/reference.json`**, calibré avec ce prompt exact. Le baliser change le
+    # prompt et invalide la calibration.
+    #
+    # « Rien n'est activé sans mesure » vaut aussi contre soi-même : le porter suppose
+    # de remesurer, ce qui est un lot en soi et non un effet de bord.
+    # TODO-HAUTE : baliser, puis rejouer `calibrer_verificateur.py` et réécrire le seuil.
     donnees = f"AFFIRMATION : {affirmation.strip()}\n\nEXTRAIT : {extrait.strip()}"
     brut = await client.chat(
         messages=[

@@ -45,6 +45,7 @@ from colaig.models import (
     ToolResult,
     WorkspaceContext,
 )
+from colaig.security.wrap import CONSIGNE, baliser, formater_skills
 
 logger = logging.getLogger(__name__)
 
@@ -328,7 +329,8 @@ class Orchestrator:
                     instructions = await client.get_server_instructions()
                     if instructions:
                         _mcp_instructions.append(
-                            f"### {connector.name}\n{instructions.strip()}"
+                            baliser(instructions.strip(), source=connector.name,
+                                    nature="serveur-mcp")
                         )
                 except Exception:
                     logger.warning(
@@ -336,10 +338,21 @@ class Orchestrator:
                         connector.name, exc_info=True,
                     )
 
-        # C4 — Injecter les instructions des serveurs MCP dans le system prompt de l'agent
+        # C4 — Indications des serveurs MCP connectés.
+        #
+        # Ce texte vient du champ `instructions` du handshake MCP, donc d'un TIERS
+        # RÉSEAU. Il était concaténé au message system sous le titre « Instructions des
+        # serveurs MCP connectés » : un serveur distant obtenait ainsi l'autorité du
+        # système, sans qu'aucune balise ne signale son origine. Le principe 4 de
+        # `CLAUDE.md` ne souffre pas d'exception pour MCP — il le nomme explicitement.
+        #
+        # Le texte reste transmis, car il porte une information utile (ce que le serveur
+        # sait faire), mais comme DONNÉE : balisé, et sous un titre qui ne lui confère
+        # plus le statut d'instruction (L2.1).
         if _mcp_instructions and agent_ctx is not None:
             agent_ctx.system_prompt += (
-                "\n\n## Instructions des serveurs MCP connectés\n"
+                "\n\n## Indications fournies par les serveurs MCP connectés\n"
+                + CONSIGNE + "\n\n"
                 + "\n\n".join(_mcp_instructions)
             )
 
@@ -445,8 +458,16 @@ class Orchestrator:
                     },
                 })
 
-                # Message de résultat
-                content = tool_result.result if tool_result.success else f"Erreur : {tool_result.error}"
+                # Message de résultat.
+                #
+                # Point de passage central : TOUS les résultats transitent ici — MCP
+                # externes, stockage, RAG, skills, délégation. Ils y entraient bruts, et
+                # un `role: "tool"` se lit comme une observation du système alors que
+                # c'est la parole d'un tiers. Baliser ici couvre les cinq familles d'un
+                # coup, à un seul endroit (L2.1).
+                brut = (tool_result.result if tool_result.success
+                        else f"Erreur : {tool_result.error}")
+                content = baliser(str(brut), source=tool_call.tool_name, nature="outil")
                 tool_results_messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.call_id or f"call_{len(plan.steps)}",
@@ -583,10 +604,15 @@ class Orchestrator:
 
         # Ajouter les skills du workspace si présents
         if agent_ctx.skills:
-            skills_text = "\n\nRessources disponibles (workspace) :\n"
-            for skill in agent_ctx.skills[:3]:  # Max 3 skills pour token budget
-                skills_text += f"\n### {skill['name']}\n{skill['content'][:500]}\n"
-            system += skills_text
+            # Deuxième mise en forme des skills du dépôt — l'orchestrateur en prenait
+            # trois, tronqués à 500 caractères pour le budget de jetons ; le
+            # synthétiseur les prenait tous, entiers. Les deux formes subsistent, mais
+            # le balisage n'est plus écrit deux fois (L2.1).
+            system += (
+                "\n\nRessources disponibles (déposées sur l'espace) :\n"
+                + CONSIGNE + "\n\n"
+                + formater_skills(agent_ctx.skills[:3], taille_max=500)
+            )
 
         # Couche 0 — Artefacts déjà connus (Principe 0 : éviter les re-retrievals)
         # Les ContextAnchors de la trame signalent les documents trouvés aux tours précédents

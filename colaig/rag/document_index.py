@@ -28,6 +28,7 @@ import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from colaig import paths
 from colaig.exceptions import DocumentAnalysisError
 from colaig.models import (
     ColaigConfig,
@@ -37,8 +38,8 @@ from colaig.models import (
 )
 from colaig.rag.classifier import ClassificationEngine
 from colaig.rag.faiss_store import FaissStore
+from colaig.security.wrap import CONSIGNE, baliser
 from colaig.utils.text import extract_text, is_supported
-from colaig import paths
 
 logger = logging.getLogger(__name__)
 
@@ -670,7 +671,11 @@ class DocumentIndex:
             f'  "virtual_path": "chemin de classement suggéré (ex: /Factures/EDF/2024/) ou null",\n'
             f'  "virtual_filename": "nom normalisé suggéré (ex: 2024-01_EDF_125€.pdf) ou null"\n'
             f'}}\n\n'
-            f"Document ({filename}) :\n{text}"
+            # Balisage (L2.1). Le nom de fichier entrait aussi brut : c'est le déposant
+            # qui le choisit, et ce prompt classe le document et en extrait des entités
+            # qui alimenteront ensuite d'autres prompts.
+            + baliser(text, source=filename, nature="document")
+            + f"\n\n{CONSIGNE}"
         )
 
         try:

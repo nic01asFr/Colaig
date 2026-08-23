@@ -34,6 +34,7 @@ from datetime import UTC, datetime
 from mcp import types as mcp_types
 from mcp.server.fastmcp import Context, FastMCP
 
+from colaig import paths
 from colaig.context.workspace import (
     add_conversation_to_workspace,
     create_workspace,
@@ -46,7 +47,7 @@ from colaig.models import (
     IncomingMessage,
 )
 from colaig.rag.document_index import _parse_json_from_response
-from colaig import paths
+from colaig.security.wrap import CONSIGNE, baliser
 
 logger = logging.getLogger(__name__)
 
@@ -2487,10 +2488,14 @@ async def _try_sampling_analysis(mcp: FastMCP, content: bytes, filename: str) ->
     if not text.strip():
         return None
 
+    # Balisage (L2.1). Ce prompt part vers le LLM du CLIENT MCP, pas le nôtre : le
+    # contenu sort de notre périmètre, raison de plus pour qu'il parte déclaré comme
+    # donnée et non comme consigne.
     prompt = (
         f"Analyse ce document et retourne UNIQUEMENT un JSON valide selon ce schéma :\n"
         f"{_ANALYSIS_SCHEMA}\n\n"
-        f"Document ({filename}) :\n{text[:4000]}"
+        f"{CONSIGNE}\n\n"
+        + baliser(text[:4000], source=filename, nature="document")
     )
 
     try:

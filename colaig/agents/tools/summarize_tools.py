@@ -11,6 +11,7 @@ import json
 from collections.abc import Callable
 
 from colaig.models import ToolDefinition, ToolParameter
+from colaig.security.wrap import CONSIGNE, baliser
 
 SUMMARIZE_TEXT_DEFINITION = ToolDefinition(
     name="summarize_text",
@@ -64,10 +65,15 @@ def create_summarize_handler(albert, model: str | None = None) -> Callable:
         max_s = max_sentences if max_sentences is not None else 5
         lang = language or "fr"
 
+        # Le texte à résumer vient typiquement de `fetch_document`, donc de l'espace de
+        # stockage. Un résumé n'est pas anodin : il est réinjecté dans la suite du
+        # pipeline, et une consigne obéie ici se propage sous une forme qui a l'air
+        # d'être notre propre production (L2.1).
         prompt = (
             f"Résume le texte suivant en {max_s} phrases maximum, en {lang}. "
-            f"Sois concis et factuel. Réponds uniquement avec le résumé.\n\n"
-            f"Texte :\n{text[:4000]}"  # Troncature pour éviter dépassement token
+            f"Sois concis et factuel. Réponds uniquement avec le résumé.\n"
+            f"{CONSIGNE}\n\n"
+            + baliser(text[:4000], source="texte fourni", nature="document")
         )
 
         summary = await albert.chat(

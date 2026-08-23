@@ -1368,3 +1368,98 @@ fonctionne est pire qu'absent : on le contourne, et tout ce qu'il protégeait av
 `undecryptable Megolm event from a unknown device` portant l'identité du bot lui-même.
 Tout redéploiement créant un nouvel appareil perd l'accès aux messages antérieurs — à
 connaître avant d'en déployer un.
+
+---
+
+## D35 — Le balisage des contenus non fiables passe par un point unique · 24/08/2026 · **actée**
+
+Lot L2.1. Le principe 4 de `CLAUDE.md` pose que tout contenu externe entre dans un
+prompt **balisé, jamais brut**, et il nomme cinq familles : documents d'un espace,
+résultats d'outils MCP, contenu web, skills, configuration lue depuis l'espace.
+
+**Ce qui existait ne balisait pas, il en donnait l'apparence.** Trois sites entouraient
+les passages de `<<<DOCUMENT>>>` … `<<<FIN DOCUMENT>>>` en insérant le contenu **tel
+quel** :
+
+    f"<<<DOCUMENT>>>\n{chunk.text}\n<<<FIN DOCUMENT>>>"
+
+Un document contenant lui-même ce marqueur **ferme sa propre balise**, et tout ce qui
+suit se lit comme du prompt. Ce n'était pas une clôture, c'était une convention que le
+contenu pouvait forger — et il suffit de déposer un fichier sur l'espace pour la forger.
+Le nom de la source était injecté de la même façon : **un nom de fichier est un contenu
+externe**, celui qui dépose le document en choisit le nom.
+
+Le motif était écrit **trois fois** — une dans `rag/generator.py`, deux dans
+`agents/synthesiser.py`. La duplication que la règle 3 du nouveau module annonce comme
+le danger s'était donc déjà produite, avant même que le module existe.
+
+**Ce qui est fait.** `colaig/security/wrap.py` devient le point de passage unique :
+`baliser(contenu, source, nature)` neutralise toute balise de la famille présente dans
+le contenu, échappe la source dans son attribut, et **signale** la neutralisation au
+lieu de supprimer en silence — même arbitrage que le garde-fou de provenance : annoter
+plutôt que retirer, sous peine de modifier un document que l'utilisateur croit lire
+intact.
+
+Onze sites ont été portés :
+
+| famille | site | ce qui entrait brut |
+|---|---|---|
+| documents | `rag/generator.py` | passages RAG + nom de fichier |
+| documents | `agents/synthesiser.py` ×2 | passages RAG, chemin classique et chemin agentique |
+| outils | `agents/orchestrator.py` | **tous** les `role: "tool"` — MCP, stockage, RAG, délégation |
+| outils | `agents/synthesiser.py` | résultats d'outils dans le prompt système |
+| MCP | `agents/orchestrator.py` | le champ `instructions` du handshake |
+| skills | `agents/synthesiser.py`, `agents/orchestrator.py` | contenu intégral des `.md` de l'espace |
+| documents | `rag/specializer.py` | échantillons du corpus |
+| documents | `rag/contextualizer.py` | extrait + titre, à l'indexation |
+| documents | `rag/document_index.py`, `mcp/server.py` | texte + nom de fichier, à l'analyse |
+| documents | `agents/tools/summarize_tools.py` | texte à résumer |
+
+**Deux sites méritent d'être nommés.**
+
+`orchestrator.py` concaténait le champ `instructions` du handshake MCP au message
+**system**, sous le titre « Instructions des serveurs MCP connectés ». Un tiers réseau
+obtenait ainsi l'autorité du système. Le texte reste transmis — il porte une information
+utile, ce que le serveur sait faire — mais comme **donnée** : balisé, et sous un titre
+qui ne lui confère plus le statut d'instruction.
+
+`specializer.py` dérive le persona de l'espace depuis son corpus et l'écrit dans la
+configuration. Un document déposé pouvait donc **réécrire le `system_prompt` de
+l'instance** : une injection qui survit à la conversation au lieu de s'éteindre avec
+elle. Son séparateur `---` était forgeable au passage — une ligne de tirets dans un
+document se faisait passer pour deux échantillons.
+
+**Un site est délibérément laissé de côté, et c'est mesurable.**
+`rag/verificateur_fidelite.py` interpole l'extrait dans un prompt `AFFIRMATION : … /
+EXTRAIT : …`. Son taux de détection — 82,7 %, D32 — est un **seuil de
+`_chantier/reference.json`**, calibré avec ce prompt exact. Le baliser modifierait le
+prompt et invaliderait la calibration. Le principe « rien n'est activé sans mesure »
+vaut aussi contre soi-même : le porter suppose de remesurer, ce qui est un lot en soi.
+
+**Ce que le balisage ne fait pas.** Il ne rend pas le modèle immunisé. Il **déclare** ce
+qui est donnée et ce qui est instruction ; il ne garantit pas que le modèle respecte la
+déclaration. C'est la condition nécessaire, jamais suffisante — la suffisance se mesure,
+et c'est l'objet de la suite adversariale du lot L2.5.
+
+**Constat annexe, qui vaut plus que le lot.** Vérifié en cherchant si ce changement
+affectait la référence L1.5 : **il ne l'affecte pas, parce que le harnais de mesure
+n'utilise pas le prompt de production.** `reference_generation.py` assemble ses passages
+avec `"\n\n---\n\n"` et n'appelle jamais `generator.py`. La référence mesure donc le
+modèle, le corpus et la recherche — pas l'assemblage de prompt réellement livré à
+l'utilisateur. Aucun seuil ne garde ce dernier.
+TODO-HAUTE : faire passer le harnais par `generator.py`, faute de quoi la porte de
+régression laisse le prompt de production dériver sans rien dire.
+
+**Trois défauts recensés et NON traités**, parce qu'ils relèvent d'un arbitrage et non
+d'un balisage :
+
+1. `agents/context_builder.py` — un `.md` déposé dans `.colaig/prompts/` **remplace
+   intégralement** le prompt système de l'agent, et `orchestrator.py` le place **avant**
+   le template Colaig, en priorité maximale. C'est peut-être l'intention (un espace
+   configure son agent) ; c'est aussi le fait que quiconque écrit sur l'espace possède
+   l'agent. À trancher, pas à corriger en passant.
+2. `agents/task_scheduler.py` construit son `WorkspaceContext` à la main et
+   court-circuite `sanitize_system_prompt`. Les tâches de fond n'ont donc aucun filtre
+   là où le chemin conversationnel en a un.
+3. `security/prompt_sanitizer.py::sanitize_description` est définie et **appelée nulle
+   part**. Un garde-fou qu'on n'a jamais vu se déclencher ne vaut rien.

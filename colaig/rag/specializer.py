@@ -18,13 +18,14 @@ import json
 import logging
 
 from colaig.rag.colaig_index import ColaigIndex
+from colaig.security.wrap import CONSIGNE, baliser
 
 logger = logging.getLogger(__name__)
 
 _SYSTEM = (
     "Tu es un expert en analyse de corpus documentaire. À partir d'extraits, "
     "tu dérives le profil d'un assistant spécialisé. Réponds UNIQUEMENT en JSON "
-    "valide, sans markdown ni commentaire."
+    "valide, sans markdown ni commentaire.\n\n" + CONSIGNE
 )
 
 _USER_TEMPLATE = (
@@ -84,7 +85,18 @@ class WorkspaceSpecializer:
         if not samples:
             return {"success": False, "error": "corpus vide", "applied": False}
 
-        prompt = _USER_TEMPLATE.format(samples="\n---\n".join(samples))
+        # Balisage des échantillons (L2.1). C'est le site le plus conséquent du chemin
+        # d'indexation : ce prompt DÉRIVE LE PERSONA DE L'ESPACE depuis le corpus, et
+        # l'écrit dans la configuration. Un document déposé pouvait donc réécrire le
+        # `system_prompt` de l'instance — une injection qui survit à la conversation,
+        # au lieu de s'éteindre avec elle.
+        #
+        # Le séparateur « --- » était lui aussi forgeable : un document contenant une
+        # ligne de tirets se faisait passer pour deux échantillons.
+        prompt = _USER_TEMPLATE.format(samples="\n\n".join(
+            baliser(echantillon, source=f"extrait {i}", nature="document")
+            for i, echantillon in enumerate(samples, 1)
+        ))
         try:
             raw = await self._albert.chat(
                 messages=[
