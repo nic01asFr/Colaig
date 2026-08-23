@@ -255,3 +255,70 @@ entre 4096 et 1024 est de **17 Mo contre 4 Mo**.
 l'empreinte, mais sur la **seule qualité de restitution**. La décision — 1024 par défaut,
 en flag, tranchée à L1.5 — reste inchangée ; sa justification, non. Voir `HYPOTHESES.md`,
 section « H5 — mesurée ».
+
+---
+
+## D11 — Sources synchronisées : le mode se déclare par source · 23/08/2026 · **actée**
+
+**Question posée :** tout ou partie du corpus interrogeable pourrait-il venir d'une
+source tenue à jour, plutôt que de fichiers déposés une fois ?
+
+**Réponse : oui, mais en déclarant un mode par source — et jamais pour un espace de
+mesure.**
+
+### Deux besoins opposés, tous deux non négociables
+
+| | corpus de **mesure** | corpus d'**exploitation** |
+|---|---|---|
+| exigence | **figé** | **à jour** |
+| pourquoi | un article modifié rend une réponse attendue fausse **sans qu'aucun test n'échoue** : la référence dérive en silence | un assistant qui cite un article abrogé est nuisible |
+| mécanisme | instantané épinglé + manifeste d'empreintes | synchronisation périodique |
+
+Ce n'est donc pas un choix global. Un espace déclare `source_mode: fige` ou
+`synchronise`. **Règle dure : un espace en mode synchronisé ne peut pas servir d'espace
+de mesure.** À faire respecter par un test, pas par la discipline.
+
+### Pour une source versionnée, le web n'est pas le bon tuyau
+
+Mesuré sur `AgentPublic/legi` : **24 instantanés publiés, un tous les 14 jours** — sept
+intervalles consécutifs de 14 jours exactement.
+
+Se synchroniser sur un jeu versionné donne ce qu'un scraping ne donnera jamais : un
+**numéro de version citable**, un diff entre deux états, une licence, et pas de page à
+parser. Accessoirement, `legifrance.gouv.fr` et `economie.gouv.fr` renvoient tous deux
+**403** à toute récupération automatique — vérifié.
+
+Le web reste utile pour ce qui n'est pas versionné. Il ne doit pas être le mécanisme par
+défaut d'une source qui l'est.
+
+### Ce que cela impose, au vu de l'histoire du projet
+
+**Trois des six anti-patrons consignés viennent du sous-système web.** Ce n'est pas une
+coïncidence, et toute reprise doit y répondre nommément :
+
+1. **Aucun repli génératif.** `extract_with_llm_summary` demandait au LLM d'**imaginer**
+   le contenu d'une page inaccessible et le présentait comme un extrait. Une source
+   inaccessible est une **erreur**, jamais une invite. Sur du droit, une page inventée
+   présentée comme du Légifrance produit une procédure irrégulière.
+2. **Un cache est lu, ou n'existe pas.** `web_search_cache.set()` sans `.get()`.
+3. **Les unités de découpage sont cohérentes.** `chunk_size` en caractères et `overlap`
+   en mots : 60 % de recouvrement, embeddings payés 2,5×.
+
+Et une quatrième, propre à cette décision :
+
+4. **La version doit être citable.** Si l'assistant cite `L2113-10`, il doit pouvoir dire
+   **depuis quel instantané**. Sinon « à jour » est une affirmation invérifiable — et
+   invérifiable, sur du droit, vaut faux.
+
+### Architecture
+
+Le synchroniseur **écrit dans l'espace via `StorageProtocol`**. Aucun nouveau Protocol :
+l'indexation incrémentale par etags — mesurée à 47 ms sur 63 objets — détecte les
+changements et ne réindexe que le nécessaire. La brique existe et elle est éprouvée.
+
+### Calendrier
+
+Rattaché au lot **L5.6** déjà prévu (« Web externalisé sur `webtools` MCP ; conserver la
+logique de fraîcheur »). **Pas avant L1.5.** Une source qui bouge avant que la référence
+existe est exactement la faute que le plan interdit : on ne saurait plus si une variation
+de qualité vient du pipeline ou du corpus.

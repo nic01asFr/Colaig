@@ -21,7 +21,7 @@ Ouvert : <ce qui reste, ou "rien">
 |---|---|
 | **Phase en cours** | 0 — Socle |
 | **Branche** | `chantier/tronc-unique` (compte Onyxia retenu : **`nicolaslaval`**) |
-| **Lot en cours** | L1.4 — **PARTIEL** : corpus fait, jeu doré amorcé à 20 cas sur 200. Suivant : compléter le jeu doré, puis L1.5 |
+| **Lot en cours** | L1.5 — **référence v1 établie**. L'interdit de phase 4 peut être levé une fois le jeu doré à son volume. |
 | **Bloqué par** | H4/H5 (accès `colaig-0`), H3ter (corpus représentatif pour le listing récursif) |
 | **Arbitrages en attente** | reranker absent de SSPCloud (voir HYPOTHESES) |
 | **Dernière mise à jour** | 22/08/2026 |
@@ -930,11 +930,79 @@ négatifs, part minimale de négatifs.
 
 ---
 
+## D11 et L1.5 — sources synchronisées, et la première référence · 23/08/2026
+
+### D11 — le mode se déclare par source
+
+Question posée : le corpus interrogé pourrait-il venir d'une source tenue à jour ?
+**Oui, mais par source, et jamais pour un espace de mesure.** Le corpus de mesure doit
+être figé, le corpus d'exploitation doit être à jour : deux exigences opposées, toutes
+deux non négociables. Un espace déclare son mode ; un espace synchronisé ne peut pas
+servir de référence.
+
+Pour Légifrance, le web n'est pas le bon tuyau : `AgentPublic/legi` publie **un
+instantané tous les 14 jours** — sept intervalles consécutifs de 14 jours, mesurés. Se
+synchroniser sur un jeu versionné donne un numéro de version citable et un diff ;
+scraper ne donne ni l'un ni l'autre, et les deux sites concernés renvoient 403.
+
+Rattaché à **L5.6**, déjà au plan, désormais dépendant de **L1.5**. Motif écrit dans
+D11 : trois des six anti-patrons du projet viennent du sous-système web, dont le repli
+hallucinatoire qui faisait **imaginer** au LLM le contenu d'une page inaccessible.
+
+### L1.5 — référence v1
+
+`docs/baseline-20260823.md`, produit par `_chantier/scripts/reference_l15.py`.
+
+**Choix assumé : la référence v1 ne mesure que ce qui est déterministe.** La
+récupération se rejoue à l'identique ; un score jugé par LLM varie d'une exécution à
+l'autre, et en faire le socle reproduirait le « ça a l'air mieux » que ce chantier
+combat. La génération est un palier distinct, à ajouter avec sa variance.
+
+| | |
+|---|---|
+| Corpus | 185 documents, **2 124 chunks** (`Chunker(800, 100)`) |
+| Embeddings | `bge-m3`, 1024 dimensions — défaut D10 |
+| Index | `IndexFlatIP`, 8,7 Mo |
+| **Récupération complète** | **11/17 — 65 %** |
+| Partielle | 3 — 18 % |
+| Nulle | 3 — 18 % |
+| Rang médian du bon article | **1** sur k=6 |
+| Latence de recherche | quelques ms |
+
+### Les trois échecs, diagnostiqués
+
+**Deux sur trois sont des échecs de découpage, pas de sémantique.** Vérifié : pour
+mp-004 et mp-009, le **bon document a bien été remonté**, mais pas le passage portant
+l'article. À 800 caractères, un document de 31 articles produit une vingtaine de chunks
+et celui qui porte l'article se fait devancer par ses voisins.
+
+Piste à **mesurer**, pas à appliquer : un découpage respectant la frontière d'article.
+À éprouver contre cette référence — c'est exactement ce à quoi elle sert.
+
+**Le troisième est le plus instructif.** mp-012 demande un seuil en euros : c'est un cas
+négatif, la réponse n'est pas dans le corpus. Le moteur remonte alors des documents qui
+**contiennent des montants** — précisément les mauvais. La question tire vers le piège et
+la récupération suit. Aucun cas positif ne révèle ce comportement : c'est la
+démonstration de l'utilité des cas négatifs.
+
+### Ce que cette référence ne vaut pas
+
+**17 cas seulement.** Un cas pèse 6 points. Un écart de moins de deux cas entre deux
+exécutions n'est pas un signal. Le jeu doré doit atteindre son volume avant que les
+variations fines soient interprétables — c'est écrit dans le rapport.
+
+**Ouvert :** compléter le jeu doré ; ajouter le palier génération avec sa variance.
+
+---
+
 ## Prochaine action
 
-1. **Compléter le jeu doré** vers 200 cas, et ajouter les CCAG comme second espace.
+1. **Compléter le jeu doré** vers 200 cas — la référence existe, elle attend du volume
+   pour être interprétable finement.
 2. **Revue humaine** du jeu doré — porte.
-3. Puis **L1.5**, la référence de mesure, qui lève l'interdit sur la phase 4.
+3. Éprouver le **découpage par article** contre la référence : deux des trois échecs
+   viennent de là.
+4. Ajouter le **palier génération**, avec sa variance mesurée sur plusieurs exécutions.
 2. **L1.4 / L1.5 restent bloqués** : le jeu doré et la référence de mesure exigent
    l'accès aux conversations de `colaig-0`. **Aucun lot de phase 4 avant L1.5.**
 2. Lancer `scripts/probe_s3.py` depuis le pod → lève **H3**, alimente H4 et H5.

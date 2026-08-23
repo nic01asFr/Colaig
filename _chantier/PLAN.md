@@ -90,7 +90,7 @@ complète. Aucune modification de `protocols.py` sans arbitrage.
 | L5.3 | Bus d'événements asyncio + taxonomie 25 types | L0.4 | `DOCUMENT_UPDATED` émis et reçu |
 | L5.4 | Webhooks refondés : sortant sur événements + HMAC ; entrant → tool MCP `colaig_notify` | L5.3, L5.1 | `webhook_service.py` et `webhook_handler.py` supprimés |
 | L5.5 | Retrait des behaviors JSON, migration vers skills (script, pas suppression sèche) | L4.2 | zéro référence `behavior` dans `colaig/` |
-| L5.6 | Web externalisé sur `webtools` MCP ; conserver la logique de fraîcheur | L3.4 | `!explorer_lien` sans Chromium dans l'image |
+| L5.6 | Sources synchronisées (**D11**) + web externalisé sur `webtools` MCP ; conserver la logique de fraîcheur | L3.4, **L1.5** | `!explorer_lien` sans Chromium dans l'image |
 
 ## Phase 6 — Écosystème · 3 agents
 
