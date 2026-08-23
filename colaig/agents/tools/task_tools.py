@@ -273,6 +273,31 @@ def create_task_handler(
         # Pour "once" sans next_run : exécution immédiate (next_run_at=None → is_due=True)
         delivery_target_resolved = delivery_target or _source_conversation_id
 
+        # Une livraison « document » fait écrire Colaig avec SES identifiants, à un
+        # chemin que le demandeur désigne. Sans contrôle, `.colaig/prompts/…` ferait de
+        # la réponse du modèle le prompt système de l'agent — une escalade qui contourne
+        # le partage de stockage, puisque l'écrivain n'est pas l'utilisateur.
+        #
+        # Refus à la création, pour que l'erreur soit lisible au moment où elle se
+        # commet. La barrière qui protège vraiment est à la livraison : une tâche
+        # enregistrée peut être éditée après coup.
+        if delivery_type == "document":
+            from colaig.security.path_validator import validate_storage_path
+            try:
+                delivery_target_resolved = validate_storage_path(
+                    delivery_target_resolved, allow_dotcolaig=False,
+                    context="create_task",
+                )
+            except Exception as exc:
+                return json.dumps({
+                    "success": False,
+                    "error": (
+                        f"destination refusée : {exc}. Une tâche livre un document dans "
+                        "l'espace documentaire, jamais dans le dossier d'instance "
+                        ".colaig/ — y écrire reviendrait à reconfigurer l'agent."
+                    ),
+                }, ensure_ascii=False)
+
         task = TaskDefinition(
             task_id=task_id,
             user_id=_user_id,
