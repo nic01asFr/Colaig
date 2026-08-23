@@ -1292,3 +1292,71 @@ avec un `score` qui vaut une cosinus [0, 1] derrière FAISS mais `1/(60+rang)` �
 D13 (aucune organisation nommée) · D14 (un test rouge pour raison d'environnement est un
 test à réparer) · D15 (le chiffrement Matrix est un prérequis, pas une option) ·
 D16 (référence de recherche sous-estimée) · D17 (le corpus omettait le droit applicable).
+
+---
+
+## L1.5d — l'instrument relu, et ce qu'il cachait · 23/08/2026
+
+**Où reprendre :** branche `lot/L1.5b-decoupage-par-article`, commit `3974a33`.
+1805 tests, 110 `skip`. Jeu doré à **124 cas**, dont 21 négatifs.
+
+### Le jeu doré avait 25 % de cas fautifs
+
+Quatre agents ont relu les 122 cas, chacun un quart, article par article contre le
+corpus figé : **31 fautifs, 29 douteux, 61 sains**. Tous corrigés (31 + 22).
+
+Le défaut était **systématique et toujours dans le même sens** : l'article porte une
+condition restrictive, la réponse attendue retient la règle et laisse tomber la borne.
+Un instrument construit ainsi **récompense la réponse incomplète et pénalise la réponse
+complète**.
+
+**`mp-032` et `mp-060` déclaraient absente une information présente.** `R2191-7` donne
+le taux de l'avance ; `R2143-11` le cadre des renseignements exigibles. Chaque mesure
+comptait donc comme un défaut de refus le comportement **correct** du modèle.
+
+> **À retenir sur la méthode.** Le contrôle mécanique écrit pour détecter ce défaut
+> (`controle_bornes.py`) en trouve **6 sur 101** ; la relecture en a trouvé **31**.
+> Ce défaut n'est pas mécaniquement détectable — il fallait lire.
+
+### La configuration de production est arbitrée
+
+| | avec raisonnement | **sans raisonnement** |
+|---|---|---|
+| refuse à chaque fois | 15/18 | **21/21** |
+| réponses tronquées | 39 | **2** |
+| cite l'article attendu | 66/101 | **88/102** |
+| latence médiane | ~15–20 s | **2 s** |
+| citation hors contexte | 0 | 22 |
+
+Le raisonnement n'achetait que la **discipline de provenance**, et c'est exactement ce
+que le garde-fou mécanique rattrape : 137 rendues, 23 annotées, 4 remplacées sur 164.
+`reasoning_effort` est **silencieusement ignoré** par l'endpoint. **H3 est tenue** —
+10 s visés, 2 s obtenus.
+
+### Le défaut qu'aucun garde-fou ne peut attraper
+
+**108 citations sur 469 — 23 % — portent sur un article hors du régime ordinaire**,
+presque toutes du livre défense-sécurité, dont les articles sont des jumeaux textuels
+aux seuils différents. Ces articles **étaient dans les passages** : la provenance est
+correcte. C'est une réponse **fidèle qui cite le mauvais droit**.
+
+Seul le **périmètre du corpus** peut le corriger. Mesure en cours au 23/08 sur un corpus
+restreint à la 2ᵉ partie livre Ier — 38 % du corpus, et les 117 articles attendus s'y
+trouvent tous.
+
+### Points ouverts, par ordre
+
+1. **Trancher la restriction du corpus** au vu de la mesure en cours. Elle refigerait le
+   corpus et invaliderait la référence une fois de plus — c'est le coût à peser.
+2. **Brancher le vérificateur de fidélité** (L1.6, écrit et testé). Attention : il ne
+   corrige **pas** le défaut ci-dessus — une réponse fidèle à un passage du mauvais
+   livre reste étayée. Il attrape l'inférence qui déborde, ce qui est autre chose.
+3. **Corpus CCAG** — décision de périmètre. `FORMAT_CLAUSE` est prêt côté reconnaissance
+   des citations ; `_extract_sources` ne rend toujours que des noms de fichiers.
+4. **`run()` de Matrix** — l'invitation en attente n'est pas acceptée, conformément à la
+   consigne : rien n'est accepté qui ne vienne de l'utilisateur ou de l'agent. Reste
+   l'obstacle libolm sous Windows, qui tombe en WSL ou en conteneur.
+5. **Editeur** — l'ancrage au rectangle n'est pas repris : `DocumentChunk` sait le
+   transporter (`metadata`), `GeneratedResponse.sources` ne sait pas le restituer, et
+   cette valeur est celle d'un poste de rédaction, pas d'un assistant conversationnel.
+   La **portée** (obligation / faculté) reste à prendre, elle est bon marché.
