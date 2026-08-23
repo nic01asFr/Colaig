@@ -85,6 +85,19 @@ K = int(os.environ.get("COLAIG_REF_K", "6"))
 # `enable_thinking: false` supprime la troncature ET divise la latence par neuf.
 # Reste a savoir si la reponse vaut autant : c'est ce que le jeu dore mesure.
 RAISONNEMENT = os.environ.get("COLAIG_REF_RAISONNEMENT", "1") != "0"
+
+# Perimetre du corpus. « article » = tout le code ; « article-livre1 » = la deuxieme
+# partie, livre Ier, soit le regime des marches publics ORDINAIRES.
+#
+# Mesure du 23/08/2026 : 108 citations sur 469 — 23 % — portent sur un article hors de
+# ce regime, presque toutes du livre defense-securite, dont les articles sont des
+# jumeaux textuels aux seuils differents. Aucun garde-fou ne peut l'attraper : ces
+# articles etaient dans les passages, donc la provenance est correcte. C'est une
+# reponse FIDELE QUI CITE LE MAUVAIS DROIT.
+#
+# Ce drapeau sert a mesurer si restreindre le perimetre supprime le defaut, avant de
+# decider de refiger le corpus — ce qui invaliderait la reference une fois de plus.
+PERIMETRE = os.environ.get("COLAIG_REF_PERIMETRE", "article")
 REPETITIONS_NEGATIFS = 3
 
 # Variante de consigne, choisie par argument.
@@ -207,7 +220,7 @@ def main() -> int:
     systeme = prompt_systeme()
     cas = [json.loads(l) for l in JEU.read_text(encoding="utf-8").splitlines() if l.strip()]
 
-    chunks = decouper("article")
+    chunks = decouper(PERIMETRE)
     articles_existants: set[str] = set()
     for f in CORPUS.glob("*.md"):
         articles_existants |= set(re.findall(r"^## Article ([A-Za-z0-9\- ]+)$",
@@ -365,11 +378,12 @@ def rapport(resultats, latences) -> int:
     # variante a des k differents s ecrasent en silence — ce qui est arrive le
     # 23/08/2026 : la passe k=15 a efface celle de k=6, rapport et reponses.
     suffixe = (("" if VARIANTE == "temoin" else f"-{VARIANTE}") + f"-k{K}"
-               + ("" if RAISONNEMENT else "-sansraisonnement"))
+               + ("" if RAISONNEMENT else "-sansraisonnement")
+               + ("" if PERIMETRE == "article" else "-livre1"))
     sortie = RACINE / "docs" / f"baseline-generation-{time.strftime('%Y%m%d')}{suffixe}.md"
     # Les réponses sont conservées : auditer un chiffre ne doit pas exiger de tout
     # relancer. C'est ce qui a manqué pour vérifier la liste de marqueurs de refus.
-    brut = RACINE / "_chantier" / "mesures" / f"reponses-{VARIANTE}-k{K}{'' if RAISONNEMENT else '-sansraisonnement'}-{time.strftime('%Y%m%d')}.json"
+    brut = RACINE / "_chantier" / "mesures" / f"reponses-{VARIANTE}-k{K}{'' if RAISONNEMENT else '-sansraisonnement'}{'' if PERIMETRE == 'article' else '-livre1'}-{time.strftime('%Y%m%d')}.json"
     brut.parent.mkdir(exist_ok=True)
     import json as _json
     brut.write_text(_json.dumps(
