@@ -41,8 +41,17 @@ def _suppress_mupdf_output():
         os.close(saved_out)
         os.close(saved_err)
 
-# Extensions supportées (en minuscule, avec le point)
+# Extensions dont on sait extraire du texte **nativement**, sans modèle.
 SUPPORTED_EXTENSIONS: set[str] = {".pdf", ".docx", ".odt", ".txt", ".md", ".html", ".htm"}
+
+# Extensions qui ne portent aucun texte extractible mais dont un OCR peut en tirer.
+#
+# Elles ne sont **pas** dans SUPPORTED_EXTENSIONS : `extract_text()` n'en tire rien, et
+# deux appelants (`mcp/server.py`, `rag/document_index.py`) s'appuient sur ce prédicat
+# pour décider s'ils obtiendront du texte. Les élargir leur ferait recevoir des chaînes
+# vides. C'est `is_indexable()` qui réunit les deux familles, et lui seul est utilisé
+# par l'indexeur.
+OCR_EXTENSIONS: set[str] = {".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp"}
 
 
 def extract_text(content: bytes, filename: str) -> str:
@@ -70,7 +79,12 @@ def extract_text(content: bytes, filename: str) -> str:
 
     extractor = extractors.get(ext)
     if extractor is None:
-        logger.warning("format non supporté : %s (ext=%s)", filename, ext)
+        if ext in OCR_EXTENSIONS:
+            # Rien à extraire nativement d'une image, et c'est normal : l'indexeur
+            # enchaînera sur l'OCR. Un warning ici ferait du bruit à chaque image.
+            logger.debug("image sans texte natif, OCR attendu : %s", filename)
+        else:
+            logger.warning("format non supporté : %s (ext=%s)", filename, ext)
         return ""
 
     try:
@@ -82,8 +96,28 @@ def extract_text(content: bytes, filename: str) -> str:
 
 
 def is_supported(filename: str) -> bool:
-    """Vérifie si le format de fichier est supporté pour l'extraction."""
+    """Le format se prête-t-il à une extraction de texte **native** ?
+
+    Répond `False` pour une image : `extract_text()` n'en tire rien. Pour savoir si
+    Colaig sait indexer un fichier — OCR compris — utiliser `is_indexable()`.
+    """
     return _get_extension(filename) in SUPPORTED_EXTENSIONS
+
+
+def needs_ocr(filename: str) -> bool:
+    """Le fichier ne peut livrer son texte que par OCR (image scannée)."""
+    return _get_extension(filename) in OCR_EXTENSIONS
+
+
+def is_indexable(filename: str) -> bool:
+    """Colaig sait-il indexer ce fichier, par extraction native **ou** par OCR ?
+
+    C'est le prédicat de l'indexeur. Avant le lot L1.3b il filtrait sur
+    `is_supported()`, donc **les images n'atteignaient jamais le chemin OCR** — une
+    image scannée déposée dans un espace était écartée en silence, alors même qu'un
+    modèle d'OCR était disponible et configuré.
+    """
+    return is_supported(filename) or needs_ocr(filename)
 
 
 def _get_extension(filename: str) -> str:

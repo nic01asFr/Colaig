@@ -21,7 +21,7 @@ Ouvert : <ce qui reste, ou "rien">
 |---|---|
 | **Phase en cours** | 0 — Socle |
 | **Branche** | `chantier/tronc-unique` (compte Onyxia retenu : **`nicolaslaval`**) |
-| **Lot en cours** | L1.2 — **TERMINÉ**. Suivant : L1.3 (contrat LLM) |
+| **Lot en cours** | L1.3b — **TERMINÉ**. Suivant : L1.3 (contrat LLM), corpus marchés publics |
 | **Bloqué par** | H4/H5 (accès `colaig-0`), H3ter (corpus représentatif pour le listing récursif) |
 | **Arbitrages en attente** | reranker absent de SSPCloud (voir HYPOTHESES) |
 | **Dernière mise à jour** | 22/08/2026 |
@@ -734,6 +734,59 @@ vrai serveur**, pas contre une doublure.
 
 **Ouvert :** un compte bot de **test** reste nécessaire pour lever le `skip` de `run()`
 en CI. Sur un compte dédié, l'auto-join est sans conséquence.
+
+---
+
+## L1.3b — OCR des images et fin des documents silencieusement absents · 23/08/2026 · **TERMINÉ**
+
+Branche `lot/L1.3b-ocr-images-et-signalement`. Issu de l'audit : deux défauts constatés
+sur un corpus réel, corrigés avec leurs tests.
+
+### 1. Les images n'atteignaient jamais l'OCR
+
+Deux verrous en série. Le repli portait sur `filename.lower().endswith(".pdf")` — donc
+jamais une image. Et de toute façon `is_supported()` les écartait **en amont**, dans
+`index_workspace`, avant même `index_document`.
+
+Un prédicat distinct plutôt qu'un élargissement : `is_supported()` garde son sens —
+extraction **native** — parce que `mcp/server.py` et `rag/document_index.py` s'y fient
+pour savoir s'ils obtiendront du texte. Les élargir leur ferait recevoir des chaînes
+vides. C'est **`is_indexable()`** qui réunit extraction native et OCR, et lui seul sert
+à l'indexeur. Les tests existants sur `is_supported("file.png") is False` restent verts.
+
+### 2. Plus rien n'est silencieux
+
+`logger.debug` puis `return False` : au niveau de log courant, rien. Désormais chaque
+document non indexé est journalisé en **`warning`** avec son motif, et exposé par
+`Indexer.documents_ignores` et `get_status()["ignored_documents"]`.
+
+Les motifs distinguent les causes, parce qu'elles n'envoient pas chercher au même
+endroit : « OCR en échec » désigne le modèle, « OCR sans résultat » le document,
+« aucun client OCR configuré » la **configuration**. Un motif générique aurait fait
+examiner le document alors que le problème est ailleurs.
+
+Trois finitions au passage : un document produisant du texte mais **zéro chunk** était
+encore muet ; un motif précis se faisait **écraser** par le motif générique en aval ; et
+un document réparé restait signalé indéfiniment — il sort maintenant de la liste dès
+qu'il s'indexe, sans quoi le signalement s'accumule et perd sa valeur.
+
+### Vérification de bout en bout, sur le corpus réel
+
+Le PNG et un PDF scanné, passés dans le **vrai** `Indexer` avec un OCR réel
+(`lightonocr-2-1b`) :
+
+```
+sans client OCR : 0 indexés, 2 ignorés — motifs explicites, warnings émis
+avec client OCR : 2 indexés, 16 chunks, 0 ignoré
+```
+
+**Le PNG s'indexe désormais** ; c'était impossible avant, à deux verrous près.
+
+13 tests dédiés. **1680 tests passent**, 68 sautent, aucune régression.
+
+**Ouvert :** rien. Le choix du modèle d'OCR par défaut reste suspendu à L1.5 — voir
+l'audit : `lightonocr` est 4× plus rapide et plus propre, mais n'atteint que 82 % du
+vocabulaire de `chandra`, et rien ne dit si les 80 mots d'écart sont du texte ou du bruit.
 
 ---
 

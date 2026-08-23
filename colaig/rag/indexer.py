@@ -15,7 +15,7 @@ import json
 import logging
 
 from colaig.models import ColaigConfig
-from colaig.utils.text import extract_text, is_supported
+from colaig.utils.text import extract_text, is_indexable, needs_ocr
 from colaig import paths
 
 logger = logging.getLogger(__name__)
@@ -66,6 +66,11 @@ class Indexer:
         self._workspace_vocabulary = workspace_vocabulary or []
         # Tracking des etags : source_path → etag
         self._known_etags: dict[str, str] = {}
+        # Documents rencontrés mais non indexés, avec le motif. Un document à zéro
+        # chunk était jusqu'ici invisible : `logger.debug` puis `return False`. Ni
+        # l'exploitant ni l'utilisateur ne savait qu'une partie du corpus n'était pas
+        # interrogeable — silencieusement absent est le pire état possible.
+        self._ignores: dict[str, str] = {}
 
     async def index_workspace(self, workspace_path: str) -> int:
         """Indexe tous les documents supportés d'un workspace.
@@ -82,7 +87,7 @@ class Indexer:
         for f in files:
             if f.is_directory:
                 continue
-            if not is_supported(f.name):
+            if not is_indexable(f.name):
                 continue
             # Ignorer les fichiers dans .colaig/
             if paths.is_instance_path(f.path):
@@ -119,23 +124,37 @@ class Indexer:
 
         filename = doc_path.rstrip("/").split("/")[-1]
 
-        # Extraire le texte
-        # PDFs : pymupdf en premier (natif, gratuit, instantané).
-        # OCR Albert uniquement si le texte extrait est vide (PDF scanné/image-only).
+        # Extraire le texte. Extraction native d'abord — pymupdf pour les PDF :
+        # gratuite, instantanée. L'OCR n'intervient qu'en second, si elle ne rend rien.
         text = extract_text(content, filename)
-        if not text.strip() and filename.lower().endswith(".pdf") and self._albert_client is not None:
-            logger.info("PDF sans texte natif, tentative OCR Albert: %s", doc_path)
+
+        # OCR pour tout ce dont on ne tire rien nativement : PDF scanné **et images**.
+        # La condition portait sur `.pdf` seul, donc une image n'y arrivait jamais —
+        # et de toute façon `is_supported()` l'avait déjà écartée en amont (L1.3b).
+        ocr_utile = needs_ocr(filename) or filename.lower().endswith(".pdf")
+        if not text.strip() and ocr_utile and self._albert_client is not None:
+            logger.info("aucun texte natif, tentative OCR : %s", doc_path)
             try:
                 text = await self._albert_client.ocr(content, filename)
                 if text.strip():
-                    logger.info("OCR réussi pour %s (%d chars)", doc_path, len(text))
+                    logger.info("OCR réussi pour %s (%d caractères)", doc_path, len(text))
                 else:
-                    logger.debug("OCR vide pour %s, document ignoré", doc_path)
+                    self._signaler_ignore(doc_path, "OCR sans résultat")
             except Exception:
-                logger.warning("OCR Albert échoué pour %s", doc_path, exc_info=True)
+                logger.warning("OCR échoué pour %s", doc_path, exc_info=True)
+                self._signaler_ignore(doc_path, "OCR en échec")
 
         if not text.strip():
-            logger.debug("document vide après extraction: %s", doc_path)
+            # Ne pas écraser un motif déjà posé par la branche OCR : « OCR en échec »
+            # dit où chercher, « aucun texte extrait » enverrait examiner le document.
+            if doc_path not in self._ignores:
+                if ocr_utile and self._albert_client is None:
+                    self._signaler_ignore(
+                        doc_path,
+                        "document sans texte natif et aucun client OCR configuré",
+                    )
+                else:
+                    self._signaler_ignore(doc_path, "aucun texte extrait")
             return False
 
         # Déterminer le type de document
@@ -153,6 +172,10 @@ class Indexer:
             doc_type=ext,
         )
         if not chunks:
+            # Du texte a été extrait, mais rien n'en subsiste après découpage — un
+            # document sous le seuil de 50 caractères, par exemple. Cas rare, mais
+            # aussi invisible que les autres jusqu'ici.
+            self._signaler_ignore(doc_path, "aucun chunk après découpage")
             return False
 
         # Contextualisation (Contextual Retrieval) — enrichit les chunks avec un préfixe LLM
@@ -186,6 +209,12 @@ class Indexer:
         if etag:
             self._known_etags[doc_path] = etag
 
+        # Le document est indexé : s'il figurait parmi les ignorés d'une passe
+        # précédente, il n'y a plus sa place. Sans cela un document réparé — OCR
+        # devenu disponible, fichier remplacé — resterait signalé indéfiniment, et
+        # le signalement perdrait sa valeur.
+        self._ignores.pop(doc_path, None)
+
         logger.debug("indexé %s → %d chunks", doc_path, len(chunks))
         return True
 
@@ -202,7 +231,7 @@ class Indexer:
             True si l'index a été modifié.
         """
         if event.type in ("file.created", "file.modified"):
-            if not is_supported(event.path.split("/")[-1]):
+            if not is_indexable(event.path.split("/")[-1]):
                 return False
             if paths.is_instance_path(event.path):
                 return False
@@ -232,7 +261,7 @@ class Indexer:
         current_paths: set[str] = set()
 
         for f in files:
-            if f.is_directory or not is_supported(f.name):
+            if f.is_directory or not is_indexable(f.name):
                 continue
             if paths.is_instance_path(f.path):
                 continue
@@ -346,6 +375,22 @@ class Indexer:
             self._bm25_store.reset()
         logger.info("indexer: reset complet (etags + FAISS + BM25 vidés)")
 
+    def _signaler_ignore(self, doc_path: str, motif: str) -> None:
+        """Enregistre et **journalise** un document non indexé.
+
+        Niveau `warning` délibérément : un document présent dans l'espace mais absent
+        de l'index est une anomalie de couverture, pas un détail de mise au point.
+        Mesuré sur un corpus réel de 59 documents, 8 étaient dans ce cas — 29 % du
+        poids — sans que rien ne l'indique.
+        """
+        self._ignores[doc_path] = motif
+        logger.warning("document non indexé (%s) : %s", motif, doc_path)
+
+    @property
+    def documents_ignores(self) -> dict[str, str]:
+        """Chemin → motif, pour les documents rencontrés mais non indexés."""
+        return dict(self._ignores)
+
     def get_status(self) -> dict:
         """Retourne l'état courant de l'index.
 
@@ -355,6 +400,9 @@ class Indexer:
         status = {
             "vector_count": self._store.count,
             "document_count": len(self._known_etags),
+            # Couverture : ce qui manque compte autant que ce qui est là.
+            "ignored_count": len(self._ignores),
+            "ignored_documents": dict(self._ignores),
         }
         if self._bm25_store is not None:
             status["bm25_count"] = self._bm25_store.count
