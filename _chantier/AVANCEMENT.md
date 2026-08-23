@@ -1360,3 +1360,71 @@ trouvent tous.
    transporter (`metadata`), `GeneratedResponse.sources` ne sait pas le restituer, et
    cette valeur est celle d'un poste de rédaction, pas d'un assistant conversationnel.
    La **portée** (obligation / faculté) reste à prendre, elle est bon marché.
+
+---
+
+## L2.1 — le balisage des contenus non fiables · 24/08/2026 · **TERMINÉ**
+
+**Critère de fin** : aucun contenu externe n'entre dans un prompt autrement que par un
+point de passage unique, et un test de portée dépôt le vérifie.
+**Commit** : `b578b9c` sur `lot/L1.5b-decoupage-par-article`. 1837 tests verts.
+
+### Ce qui existait ne balisait pas, il en donnait l'apparence
+
+Trois sites entouraient les passages de `<<<DOCUMENT>>>` … `<<<FIN DOCUMENT>>>` en
+insérant le contenu **tel quel**. Un document contenant ce marqueur ferme sa propre
+balise ; il suffit de déposer un fichier sur l'espace pour la forger. Le nom de la
+source entrait de la même façon — un nom de fichier est choisi par le déposant.
+
+Le motif était écrit **trois fois** : `rag/generator.py`, et deux fois dans
+`agents/synthesiser.py`. La duplication contre laquelle le nouveau module met en garde
+s'était déjà produite avant qu'il existe.
+
+### Ce qui est fait
+
+`colaig/security/wrap.py` — `baliser()`, `formater_skills()`, `CONSIGNE`. **Onze sites**
+portés sur les cinq familles du principe 4. Détail et raisonnement en **D35**.
+
+Deux valent d'être retenus :
+
+- Le champ `instructions` du handshake MCP était concaténé au **message system**. Un
+  tiers réseau obtenait l'autorité du système. Il reste transmis — il porte une
+  information utile — mais comme donnée, et sous un titre qui ne le présente plus comme
+  une instruction.
+- `rag/specializer.py` dérive le persona de l'espace depuis son corpus et **l'écrit dans
+  la configuration**. Un document déposé pouvait réécrire le `system_prompt` de
+  l'instance : une injection qui survit à la conversation au lieu de s'éteindre avec elle.
+
+Un site reste non balisé **délibérément** : `rag/verificateur_fidelite.py`, dont le taux
+de détection est un seuil de `reference.json` calibré avec ce prompt exact. Le baliser
+invaliderait la calibration. « Rien n'est activé sans mesure » vaut aussi contre soi.
+
+### Le constat annexe, qui vaut plus que le lot
+
+Vérifié en cherchant si ce changement affectait la référence L1.5 : **il ne l'affecte
+pas, parce que le harnais de mesure n'utilise pas le prompt de production.**
+`reference_generation.py` assemble ses passages avec `"\n\n---\n\n"` et n'appelle jamais
+`generator.py`.
+
+La référence mesure donc le **modèle, le corpus et la recherche** — pas l'assemblage de
+prompt réellement livré à l'utilisateur. Aucun des sept seuils ne garde ce dernier : on
+peut casser le prompt de production sans qu'une seule porte ne s'ouvre.
+
+C'est la même famille de défaut que les cinq copies du motif d'en-tête et que la CI qui
+n'avait jamais tourné sur une branche de lot : **l'instrument mesure autre chose que ce
+qu'on croit.**
+
+### Points ouverts, par ordre
+
+1. **Faire passer le harnais de mesure par `generator.py`.** Sans cela la porte de
+   régression laisse dériver le prompt de production en silence. C'est la suite
+   immédiate, avant tout autre lot de la phase 2.
+2. **Trois défauts recensés et non traités**, parce qu'ils relèvent d'un arbitrage :
+   un `.md` déposé dans `.colaig/prompts/` **remplace intégralement** le prompt système
+   et passe **avant** le template Colaig ; `task_scheduler.py` court-circuite
+   `sanitize_system_prompt` ; `sanitize_description` est définie et appelée nulle part.
+3. **Mesure perdue à reprendre** : l'essai « le raisonnement améliore-t-il le
+   vérificateur de fidélité » a rendu un code 0 et **une sortie vide** — la redirection
+   n'a rien capté. À relancer en écrivant dans un fichier.
+4. Le reste de la phase 2 — L2.2 à L2.6 — inchangé, et toujours marqué **bloquant avant
+   tout multi-utilisateurs**.
