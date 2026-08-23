@@ -1428,3 +1428,58 @@ qu'on croit.**
    n'a rien capté. À relancer en écrivant dans un fichier.
 4. Le reste de la phase 2 — L2.2 à L2.6 — inchangé, et toujours marqué **bloquant avant
    tout multi-utilisateurs**.
+
+---
+
+## La référence mesure enfin le prompt livré · 24/08/2026 · **TERMINÉ**
+
+Point 1 des points ouverts de L2.1, traité dans la foulée. **Commit** `94019f9`.
+
+`reference_generation.py` passe par `Generator._build_messages` — le point de couture
+qui sépare l'assemblage du prompt du client HTTP, pour que le harnais garde la main sur
+`max_tokens` et `enable_thinking`, dont ce chantier a mesuré qu'ils décident de tout.
+
+**Remesure complète** — 135 cas, k=10, durci, sans raisonnement, prompt de production :
+
+| indicateur | seuil | ancien prompt | **prompt livré** |
+|---|---|---|---|
+| refus systématique | ≥ 0,95 | 22/22 | **22/22** |
+| cite l'attendu | ≥ 0,78 | 0,836 (92/110) | **0,805 (91/113)** |
+| citation hors contexte | ≤ 34 | 24 | **20** |
+| citation fantôme | ≤ 10 | 5 | **8** |
+| montant inventé | ≤ 2 | 0 | **0** |
+| réponse tronquée | ≤ 12 | 3 | **0** |
+| latence médiane | — | 2 s | **2,1 s** |
+
+**Les sept seuils tiennent.** Deux indicateurs s'améliorent : plus aucune réponse
+tronquée, et quatre citations hors contexte de moins.
+
+`cite_attendu` baisse de 0,836 à 0,805, mais les dénominateurs diffèrent — 113 cas
+jugeables contre 110. Les trois de plus sont ceux qui n'étaient pas jugeables faute
+d'avoir été tronqués. En valeur absolue : 91 réponses correctes contre 92, sur trois
+tentatives de plus abouties.
+
+`garde_fou_rendues` n'a **pas** été remesuré : il vient d'une analyse distincte.
+
+## Deux défauts trouvés en chemin
+
+**D36 — le corpus n'a jamais compté 1026 articles, mais 1021.** Écrit dans
+`reference.json` puis repris cinq fois dans `DECISIONS.md`, dont une sous la forme
+« 1026 articles indexés sur 1026 » qui a l'air d'une vérification de complétude sans en
+être une. Aucun seuil n'en dépendait ; corrigé, avec la trace.
+
+**Six attentes d'horloge dans `test_executor.py`.** L'une a échoué une fois, en suite
+complète, sur une exécution à 93 s concomitante de la mesure LLM. **La cause n'est pas
+établie** : quatre tentatives de reproduction, dont deux sous forte charge à 79 s, sont
+toutes vertes. Les attentes sont désormais conditionnelles, et la docstring dit ce qui
+a été observé sans affirmer ce qui ne l'a pas été.
+
+## Points ouverts
+
+1. **Trois défauts de conception recensés, non traités** — un `.md` dans
+   `.colaig/prompts/` remplace intégralement le prompt système et passe **avant** le
+   template Colaig ; `task_scheduler.py` court-circuite `sanitize_system_prompt`. Le
+   troisième, `sanitize_description` jamais appelée, est **fait** (`414f1c9`).
+2. **Mesure à reprendre** : « le raisonnement améliore-t-il le vérificateur de
+   fidélité » — sortie vide au premier essai.
+3. **L2.2 à L2.6**, toujours **bloquants avant tout multi-utilisateurs**.
