@@ -1207,3 +1207,88 @@ arbitrage d'indexation. Extrapoler serait précisément l'erreur que ce chantier
 déploiement (H3bis).
 
 ---
+
+---
+
+## L1.5c — l'instrument de mesure réparé, puis les leviers arbitrés · 23/08/2026
+
+**Où reprendre :** branche `lot/L1.5b-decoupage-par-article`, commit `668d99c`.
+1791 tests passent, 110 `skip`.
+
+### Ce qui a été trouvé en étendant le jeu doré
+
+Le jeu doré est passé de **45 à 122 cas** (définition du besoin, spécifications
+techniques, labels, prix, durée, allotissement, marchés réservés, choix de la
+procédure). En l'écrivant, **deux défauts du corpus de référence** sont apparus.
+
+**Le corpus omettait du droit applicable.** Le filtre `status = 'VIGUEUR'` écartait
+`VIGUEUR_DIFF` (26 articles entrés en vigueur à effet différé) et `ABROGE_DIFF`
+(18 articles dont l'abrogation n'a pas pris effet). Le cas décisif : **`R2152-7`, qui
+définit les critères d'attribution**, existait en deux versions — l'ancienne abrogée au
+21/08/2026, la nouvelle en vigueur depuis. Le filtre écartait les deux.
+
+Trouvé **par une mesure** : sur 610 articles du CCP cités *à l'intérieur* du corpus,
+13 n'y figuraient pas. Un renvoi qui ne résout pas est le signal.
+
+Règle désormais temporelle, `DATE_REFERENCE` épinglée. **1806 articles au lieu de 1762,
+44 ajoutés, aucun retiré.**
+
+**Les articles longs étaient tronqués.** `chunk_index = 1` ne gardait que le premier
+fragment : 53 articles coupés en pleine phrase, les plus longs donc les plus denses.
+Recollés, sans recouvrement.
+
+### Ce que la remesure a donné
+
+| | avant | après |
+|---|---|---|
+| cas dorés porteurs d'articles | 40 | **103** |
+| tous les articles attendus remontés | 34 — 85 % | **88 — 85 %** |
+
+Le taux **tient sur un échantillon presque triple**, ce qui était le seul moyen de
+savoir s'il tenait.
+
+### Arbitrage H2 — enfin possible, et il révèle un défaut
+
+FAISS, BM25, RRF et MMR existaient dans `colaig/rag/` **sans avoir jamais été mesurés**.
+
+| variante | cas complets / 103 |
+|---|---|
+| dense k=6 *(référence)* | 88 |
+| **dense k=15** | **95** |
+| dense k=20 | 96 |
+| BM25 seul k=6 | 66 |
+| RRF dense+BM25 k=6 | 84 |
+| RRF dense+BM25 k=10 | 91 |
+
+**Le terme de pertinence de MMR était numériquement invisible.** `λ·score − (1−λ)·div`
+avec un `score` qui vaut une cosinus [0, 1] derrière FAISS mais `1/(60+rang)` — soit
+0,016 — derrière RRF. Normalisation min-max : `RRF+MMR` 50 → 76, `dense+MMR` 76 → **88**.
+
+> **Correction consignée :** j'avais conclu « MMR coûte 12 points de rappel ». Faux.
+> MMR n'était pas nuisible, il était privé de son terme de pertinence.
+
+### Ce qui reste ouvert, par ordre
+
+1. **k=6 contre k=15 à la génération** — mesure lancée le 23/08, deux passes du prompt
+   durci. k=15 gagne 7 points de rappel mais met 15 passages dans le prompt : plus de
+   contexte, plus de latence, et peut-être **moins de refus**. Ne se tranche pas au
+   niveau de la recherche.
+2. **Brancher le vérificateur de fidélité** (L1.6, écrit et testé, non branché). Il
+   ferme `mp-032`, seul cas du jeu doré qu'aucun contrôle mécanique n'attrape.
+3. **Le jeu doré à 200 cas** — 122 aujourd'hui, dont 21 négatifs en deux familles
+   (`absence` et `premisse`).
+4. **Corpus CCAG.** Cinq échecs de recherche sont **hors de portée de tout réglage** :
+   « clauses administratives particulières », « règlement de consultation », « acte
+   d'engagement » ont **0 occurrence** dans le code. Ce sont des mots des CCAG, qui sont
+   des arrêtés absents du corpus. C'est une décision de corpus, pas de moteur.
+5. **`run()` de Matrix** — deux motifs distincts de `skip` : un arbitrage (auto-join sur
+   un compte de production, une invitation en attente) et un environnement (libolm
+   indisponible sous Windows). Le second tombe sous WSL ou en conteneur.
+6. **Relecture humaine du jeu doré** — porte explicite. Je garantis la fidélité à
+   l'article cité, pas la pertinence pratique en droit.
+
+### Décisions actées ce jour
+
+D13 (aucune organisation nommée) · D14 (un test rouge pour raison d'environnement est un
+test à réparer) · D15 (le chiffrement Matrix est un prérequis, pas une option) ·
+D16 (référence de recherche sous-estimée) · D17 (le corpus omettait le droit applicable).
