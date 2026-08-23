@@ -1199,3 +1199,40 @@ arrêtée.
 Toutes convergent désormais : le vocabulaire est constitué une fois depuis les passages,
 et passé à la reconnaissance. **Une chose qui doit être vraie partout ne doit être écrite
 qu'une fois.**
+
+## Référence L1.5 — corpus d'expert, 23/08/2026
+
+1026 articles (code livre Ier, six CCAG, quatre annexes), 135 cas dorés, prompt durci,
+`k=6`, raisonnement coupé.
+
+| | code seul — 124 cas | **expert — 135 cas** |
+|---|---|---|
+| refuse **à chaque fois** sur cas négatif | 21/21 | **22/22** |
+| tous les articles attendus remontés | 89/104 — 86 % | **98/113 — 87 %** |
+| cite l'article attendu | 84/100 — 84 % | 86/112 — 77 % |
+| citation hors contexte | 18 | **33** |
+| citation fantôme · montant inventé | 6 · 2 | 7 · **0** |
+| réponses tronquées | 3 | 3 |
+| garde-fou : rendues / annotées / remplacées | 140 / 16 / 7 | 138 / 27 / **11** |
+| réponses propres | 140/163 — 86 % | 138/176 — **78 %** |
+
+### Ce que l'enrichissement gagne et ce qu'il coûte
+
+**Il gagne de la couverture.** Dix questions de plus trouvent leur article, et surtout des
+questions que le corpus du code ne pouvait pas traiter du tout : ordre de priorité des
+pièces contractuelles, calcul des pénalités, délai des opérations préalables à la
+réception, seuils européens chiffrés. La recherche tient à **87 %** sur un corpus qui a
+grossi de moitié — c'était le résultat qui comptait.
+
+**Il coûte de la précision.** Les citations hors contexte passent de 18 à 33. Un corpus
+plus riche donne au modèle davantage d'articles réels à convoquer de mémoire, et
+davantage de passages voisins qui se ressemblent. La proportion de réponses rendues sans
+réserve tombe de 86 % à 78 %.
+
+**Le garde-fou absorbe l'écart** : 27 réponses annotées et 11 remplacées, contre 16 et 7.
+L'utilisateur reçoit la réponse **et** l'avertissement ; rien ne passe en silence. C'est
+précisément ce pour quoi ce garde-fou existe, et c'est ce qui rend l'enrichissement
+soutenable.
+
+**Le refus reste parfait — 22/22.** C'était 0/8 au premier jour de mesure. Sur un corpus
+deux fois plus large et avec cinq cas négatifs entièrement nouveaux, il ne bouge pas.
