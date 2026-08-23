@@ -21,7 +21,7 @@ Ouvert : <ce qui reste, ou "rien">
 |---|---|
 | **Phase en cours** | 0 — Socle |
 | **Branche** | `chantier/tronc-unique` (compte Onyxia retenu : **`nicolaslaval`**) |
-| **Lot en cours** | L1.3b — **TERMINÉ**. Suivant : L1.3 (contrat LLM), corpus marchés publics |
+| **Lot en cours** | L1.3 — **TERMINÉ**. Les trois contrats de Protocol sont posés. Suivant : corpus marchés publics + jeu doré (L1.4) |
 | **Bloqué par** | H4/H5 (accès `colaig-0`), H3ter (corpus représentatif pour le listing récursif) |
 | **Arbitrages en attente** | reranker absent de SSPCloud (voir HYPOTHESES) |
 | **Dernière mise à jour** | 22/08/2026 |
@@ -790,11 +790,80 @@ vocabulaire de `chandra`, et rien ne dit si les 80 mots d'écart sont du texte o
 
 ---
 
+## L1.3 — Contrat `LLMClientProtocol` · 23/08/2026 · **TERMINÉ**
+
+Critère de fin : « `docs/llm-capabilities.md` rempli par la sonde » → **atteint**.
+47 tests, hors ligne, sur les cinq implémentations (`albert`, `openai`, `azure`,
+`ollama`, `fake`). Branche `lot/L1.3-llm-contrat`.
+
+Troisième et dernier contrat de Protocol. **Il a de nouveau condamné ma propre
+doublure** — troisième fois sur trois.
+
+### Le Protocol sous-déclare : cinq méthodes, huit appelées
+
+| capacité | appelée par | au Protocol | albert | openai | azure | ollama |
+|---|---|---|---|---|---|---|
+| socle (5 méthodes) | partout | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `ocr` | `rag/indexer.py` | ❌ | ✅ | — | — | — |
+| `rerank` | `rag/retriever.py` | ❌ | ✅ | ✅ | — | — |
+| `transcribe` | `messaging/handlers.py` | ❌ | ✅ | ✅ | — | — |
+
+`main.py` injecte le même client partout, quel que soit `LLM_BACKEND`. Avec `ollama`,
+indexer un PDF scanné levait donc un `AttributeError`, rattrapé par un `except Exception`
+générique et rapporté — depuis L1.3b — comme « OCR en échec ». **Un diagnostic faux, qui
+envoie chercher du côté du modèle alors que le backend n'a simplement pas la capacité.**
+
+Ces trois méthodes ne peuvent pas devenir obligatoires : exiger un OCR d'Ollama n'a pas
+de sens. Elles deviennent **demandables** — `integrations/llm/capabilities.py` —, et
+`indexer.py` interroge avant d'appeler. `motif_absence()` distingue « aucun client
+configuré » de « ce backend n'a pas la capacité », parce que les deux n'envoient pas
+chercher au même endroit.
+
+### La doublure divergeait, encore
+
+`FakeLLM` n'acceptait pas `priority`, déclaré par le Protocol sur `chat`, `chat_stream`
+et `chat_with_tools`. Ce n'est pas un détail : `"background"` — OCR, indexation — prend
+un **sémaphore réduit** pour toujours laisser un créneau aux requêtes des usagers. Un
+travail de fond qui s'annoncerait `"user"` affamerait les conversations **sans erreur ni
+trace**.
+
+La doublure l'accepte désormais et **enregistre les priorités**, ce qui rend ce défaut
+assertionnable — seule façon de l'attraper, il ne se voit ni dans un log ni dans un test
+fonctionnel.
+
+### Un test qui documente sans exiger
+
+`test_la_matrice_des_capacites_est_celle_attendue` fige l'état constaté sans rien
+imposer. Un backend qui gagne ou perd une capacité fait échouer le test et doit le
+déclarer. Détecter la dérive, sans forcer une uniformité qui n'a pas lieu d'être.
+
+**1727 tests passent**, 68 sautent.
+
+**Ouvert :** rien. Deux arbitrages restent portés par L1.5 — le reranker et le modèle
+d'OCR par défaut.
+
+---
+
+## Les trois contrats de Protocol sont posés
+
+| lot | Protocol | implémentations vertes | ce que le contrat a trouvé |
+|---|---|---|---|
+| L1.1 | `StorageProtocol` | `fake`, `local`, **`s3` réel** | la doublure levait `FileNotFoundError` là où les **sept** implémentations lèvent `StorageFileNotFoundError` |
+| L1.2 | `MessagingProtocol` | `fake`, `noop`, `webchat` | `reply_to` inventé, `is_status` oublié, `run()` qui rendait la main ; `send_typing` positionnel cassé sur `noop` |
+| L1.3 | `LLMClientProtocol` | les 4 backends + `fake` | trois capacités appelées mais non déclarées ; `priority` absent de la doublure |
+
+**Les trois fois, le contrat a d'abord convaincu la doublure d'être fausse.** C'est
+précisément son intérêt : une doublure plus permissive que le contrat laisse écrire du
+code que la production refuse, et une doublure plus stricte fait échouer des tests qui
+devraient passer. Dans les deux cas on mesure autre chose que la production.
+
+---
+
 ## Prochaine action
 
-1. **L1.3** — contrat `LLMClientProtocol` + `capability_chain`. H1 est déjà levée et
-   les mesures existent (`mesures/llm-capabilities-*.md`) : reste à en faire un contrat
-   exécutable.
+1. **L1.4 reformulé** — corpus de référence **marchés publics**, public et commitable,
+   et son jeu doré. C'est le chemin critique : il débloque L1.5, qui débloque toute la
+   phase 4.
 2. **L1.4 / L1.5 restent bloqués** : le jeu doré et la référence de mesure exigent
    l'accès aux conversations de `colaig-0`. **Aucun lot de phase 4 avant L1.5.**
 2. Lancer `scripts/probe_s3.py` depuis le pod → lève **H3**, alimente H4 et H5.

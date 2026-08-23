@@ -203,7 +203,7 @@ async def test_absence_de_client_ocr_est_signalee_explicitement():
     indexeur = _indexeur(storage, client=None)
     assert await indexeur.index_document("/ws/scan.png") is False
     motif = indexeur.documents_ignores["/ws/scan.png"]
-    assert "aucun client OCR configuré" in motif
+    assert "aucun client LLM configuré" in motif
 
 
 async def test_le_signalement_remonte_en_warning(caplog):

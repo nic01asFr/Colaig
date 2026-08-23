@@ -263,19 +263,29 @@ class FakeLLM:
         ]
         self.tool_call_responses: list = []
         self.appels_chat: list[list] = []
+        # `priority` de chaque appel, dans l'ordre. Ce n'est pas un détail : les
+        # appels « background » (OCR, indexation) prennent un sémaphore réduit pour
+        # toujours laisser un créneau aux requêtes utilisateur. Un travail de fond
+        # qui s'annoncerait « user » affamerait les conversations, sans erreur ni
+        # trace. La doublure permet de l'assertionner.
+        self.priorites: list[str] = []
         self._chat_call_count = 0
         self._tool_call_count = 0
 
-    async def chat(self, messages, model=None, temperature=0.3, max_tokens=2048) -> str:
+    async def chat(
+        self, messages, model=None, temperature=0.3, max_tokens=2048, priority="user"
+    ) -> str:
         self.appels_chat.append(messages)
+        self.priorites.append(priority)
         reponse = self.chat_responses[
             min(self._chat_call_count, len(self.chat_responses) - 1)
         ]
         self._chat_call_count += 1
         return reponse
 
-    async def chat_stream(self, messages, **kwargs):
-        reponse = await self.chat(messages, **kwargs)
+    async def chat_stream(self, messages, model=None, temperature=0.3, max_tokens=2048,
+                          priority="user"):
+        reponse = await self.chat(messages, model, temperature, max_tokens, priority)
         for mot in reponse.split():
             yield mot + " "
 
@@ -287,15 +297,17 @@ class FakeLLM:
         temperature=0.3,
         max_tokens=2048,
         tool_choice="auto",
+        priority="user",
     ):
         from colaig.models import ChatCompletionResult
 
         if self.tool_call_responses:
+            self.priorites.append(priority)
             idx = min(self._tool_call_count, len(self.tool_call_responses) - 1)
             resultat = self.tool_call_responses[idx]
             self._tool_call_count += 1
             return resultat
-        texte = await self.chat(messages, model, temperature, max_tokens)
+        texte = await self.chat(messages, model, temperature, max_tokens, priority)
         return ChatCompletionResult(content=texte, finish_reason="stop")
 
     async def embed(self, text: str) -> list[float]:

@@ -15,6 +15,7 @@ import json
 import logging
 
 from colaig.models import ColaigConfig
+from colaig.integrations.llm.capabilities import motif_absence, supporte
 from colaig.utils.text import extract_text, is_indexable, needs_ocr
 from colaig import paths
 
@@ -132,7 +133,8 @@ class Indexer:
         # La condition portait sur `.pdf` seul, donc une image n'y arrivait jamais —
         # et de toute façon `is_supported()` l'avait déjà écartée en amont (L1.3b).
         ocr_utile = needs_ocr(filename) or filename.lower().endswith(".pdf")
-        if not text.strip() and ocr_utile and self._albert_client is not None:
+        ocr_disponible = supporte(self._albert_client, "ocr")
+        if not text.strip() and ocr_utile and ocr_disponible:
             logger.info("aucun texte natif, tentative OCR : %s", doc_path)
             try:
                 text = await self._albert_client.ocr(content, filename)
@@ -148,10 +150,15 @@ class Indexer:
             # Ne pas écraser un motif déjà posé par la branche OCR : « OCR en échec »
             # dit où chercher, « aucun texte extrait » enverrait examiner le document.
             if doc_path not in self._ignores:
-                if ocr_utile and self._albert_client is None:
+                if ocr_utile and not ocr_disponible:
+                    # `motif_absence` distingue « aucun client configuré » de
+                    # « ce backend n'a pas d'OCR ». Avant, les deux cas finissaient
+                    # en AttributeError rapporté comme « OCR en échec », ce qui
+                    # envoyait chercher du côté du modèle.
                     self._signaler_ignore(
                         doc_path,
-                        "document sans texte natif et aucun client OCR configuré",
+                        "document sans texte natif — "
+                        + motif_absence(self._albert_client, "ocr"),
                     )
                 else:
                     self._signaler_ignore(doc_path, "aucun texte extrait")
