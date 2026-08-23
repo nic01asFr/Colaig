@@ -31,6 +31,7 @@ gain si elle est plus pauvre — la vérification de fond reste le jeu doré.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import time
 import urllib.error
@@ -72,10 +73,29 @@ REGIMES = {
 
 
 def cle_ssp() -> str:
-    for ligne in open(RACINE / ".env", encoding="utf-8"):
-        if ligne.strip().lower().startswith("sspcloud_api_key="):
-            return ligne.split("=", 1)[1].strip()
-    raise SystemExit("clé SSPCloud introuvable")
+    """Clé SSPCloud : l'environnement d'abord, un `.env` local ensuite.
+
+    Huitième exemplaire de cette fonction dans le chantier. Toutes lisaient
+    **uniquement** un fichier local, ce qui rendait les harnais inexécutables en
+    intégration continue — la porte de régression aurait été inerte sans que rien ne le
+    signale.
+    """
+    depuis_env = os.environ.get("SSPCLOUD_API_KEY")
+    if depuis_env:
+        return depuis_env.strip()
+    for fichier in (RACINE / ".env", RACINE.parent / "colaig-v3" / ".env"):
+        try:
+            for ligne in open(fichier, encoding="utf-8"):
+                if ligne.strip().lower().startswith("sspcloud_api_key="):
+                    valeur = ligne.split("=", 1)[1].strip()
+                    if valeur:
+                        return valeur
+        except OSError:
+            continue
+    raise SystemExit(
+        "SSPCLOUD_API_KEY introuvable : ni dans l'environnement, ni dans un .env local. "
+        "En intégration continue, l'ajouter aux secrets du dépôt."
+    )
 
 
 def prompt_systeme() -> str:

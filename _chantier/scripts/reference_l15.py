@@ -30,6 +30,7 @@ chose que ce qui tourne.
 from __future__ import annotations
 
 import json
+import os
 import re
 import statistics
 import sys
@@ -51,7 +52,12 @@ JEU = RACINE / "tests" / "golden" / "v1.jsonl"
 MODELE_EMBED = "BAAI/bge-m3"
 DIMENSION = 1024
 BASE_ALBERT = "https://albert.api.etalab.gouv.fr/v1"
-K = 6  # max_results de la configuration de l'espace
+# Profondeur de recherche, alignee sur la generation (D33).
+#
+# Elle valait 6 en dur, alors que la generation est passee a 10 : mesurer la
+# recherche a une profondeur que la production n emploie pas ne dit rien de la
+# production. k n est pas une constante, c est une fonction de la taille du corpus.
+K = int(os.environ.get("COLAIG_REF_K", "10"))
 
 # Stratégie de découpage, choisie par argument. `article` respecte la frontière
 # d'article ; `chunker` est le découpage en vigueur (800/100), qui sert de témoin.
@@ -61,11 +67,37 @@ K = 6  # max_results de la configuration de l'espace
 STRATEGIE = sys.argv[1] if len(sys.argv) > 1 else "chunker"
 
 
+def _cle(nom: str, *fichiers) -> str:
+    """La clé vient de l'environnement, ou à défaut d'un `.env` local.
+
+    L'ordre compte. Les harnais lisaient **uniquement** un `.env` du poste — ce qui les
+    rendait inexécutables ailleurs, et notamment en intégration continue, où la porte de
+    régression aurait été inerte sans que rien ne le signale.
+
+    L'environnement d'abord : c'est ainsi qu'un secret est fourni par une chaîne
+    d'intégration. Le fichier ensuite, pour le confort du poste de développement.
+    """
+    depuis_env = os.environ.get(nom)
+    if depuis_env:
+        return depuis_env.strip()
+    for fichier in fichiers:
+        try:
+            for ligne in open(fichier, encoding="utf-8"):
+                if ligne.strip().lower().startswith(nom.lower() + "="):
+                    valeur = ligne.split("=", 1)[1].strip()
+                    if valeur:
+                        return valeur
+        except OSError:
+            continue
+    raise SystemExit(
+        f"{nom} introuvable : ni dans l'environnement, ni dans un .env local. "
+        f"En intégration continue, l'ajouter aux secrets du dépôt."
+    )
+
+
 def cle_albert() -> str:
-    for ligne in open(RACINE.parent / "colaig-v3" / ".env", encoding="utf-8"):
-        if ligne.strip().startswith("ALBERT_API_KEY="):
-            return ligne.split("=", 1)[1].strip()
-    raise SystemExit("clé Albert introuvable")
+    return _cle("ALBERT_API_KEY",
+                RACINE.parent / "colaig-v3" / ".env", RACINE / ".env")
 
 
 def embed(textes: list[str], cle: str, lot: int = 32) -> list[list[float]]:

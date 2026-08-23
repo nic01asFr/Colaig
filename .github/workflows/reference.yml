@@ -1,0 +1,94 @@
+# Porte de régression sur la référence L1.5.
+#
+# POURQUOI CE WORKFLOW EXISTE
+#
+# Tout ce que le chantier a mesuré tient dans des chiffres écrits dans des documents.
+# Un chiffre écrit dans un document ne bloque rien : il se lit après coup, quand la
+# dégradation est déjà livrée. Ce workflow en fait une contrainte.
+#
+# Il rejoue la mesure et échoue si un seuil de `_chantier/reference.json` est franchi —
+# rappel de la recherche, refus systématique sur cas négatifs, citations hors contexte,
+# fantômes, montants inventés, réponses tronquées, réponses rendues sans réserve.
+#
+# POURQUOI PAS À CHAQUE POUSSÉE
+#
+# Il consomme des appels au modèle : embeddings pour la recherche, génération pour les
+# 135 cas dorés, soit une vingtaine de minutes. Le passer sur chaque commit coûterait
+# sans rien apprendre — la mesure ne bouge que si le corpus, le jeu doré, le prompt ou
+# les réglages changent.
+#
+# La suite hors ligne, elle, tourne à chaque fois (voir `ci.yml`) : elle vérifie
+# l'ancrage du jeu doré, l'empreinte du corpus et les garde-fous, sans un seul appel
+# réseau.
+#
+# CE QU'IL FAUT POUR QU'IL SERVE
+#
+# Deux secrets de dépôt, et il est inerte tant qu'ils manquent :
+#   ALBERT_API_KEY     — embeddings
+#   SSPCLOUD_API_KEY   — génération
+# Le job le dit explicitement plutôt que d'échouer pour une mauvaise raison : un
+# workflow rouge faute de clé apprend à ignorer le rouge.
+
+name: Référence L1.5
+
+on:
+  schedule:
+    # Lundi matin : la semaine commence en sachant si la mesure a bougé.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+    inputs:
+      variante:
+        description: "Variante de consigne (temoin | durci)"
+        default: "durci"
+
+jobs:
+  mesurer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,s3]"
+
+      - name: Vérifier que les clés sont présentes
+        # Sans elles le job échouerait au premier appel réseau, avec un message qui ne
+        # dirait pas pourquoi. On préfère un échec qui s'explique.
+        env:
+          ALBERT: ${{ secrets.ALBERT_API_KEY }}
+          SSPCLOUD: ${{ secrets.SSPCLOUD_API_KEY }}
+        run: |
+          manquants=""
+          [ -z "$ALBERT" ] && manquants="$manquants ALBERT_API_KEY"
+          [ -z "$SSPCLOUD" ] && manquants="$manquants SSPCLOUD_API_KEY"
+          if [ -n "$manquants" ]; then
+            echo "::error::secrets manquants :$manquants — la porte de régression ne peut pas mesurer."
+            echo "Les ajouter dans Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Porte de régression
+        env:
+          ALBERT_API_KEY: ${{ secrets.ALBERT_API_KEY }}
+          SSPCLOUD_API_KEY: ${{ secrets.SSPCLOUD_API_KEY }}
+          COLAIG_LOG_LEVEL: WARNING
+        run: python _chantier/scripts/verifier_reference.py
+
+      - name: Conserver les rapports
+        # Même en cas d'échec, et surtout en cas d'échec : le rapport est ce qui permet
+        # de diagnostiquer sans rejouer vingt minutes de mesure.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapports-reference
+          path: |
+            docs/baseline-*.md
+            _chantier/mesures/*.json
+          retention-days: 30

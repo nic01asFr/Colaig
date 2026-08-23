@@ -1,0 +1,117 @@
+{
+  "_pourquoi": [
+    "La reference L1.5 vivait dans des documents Markdown. Un chiffre ecrit dans un",
+    "document ne bloque rien : il se lit apres coup, quand la degradation est deja",
+    "livree. Ce fichier en fait une CONTRAINTE VERIFIABLE.",
+    "",
+    "Chaque seuil porte son motif. Un seuil sans motif se relache au premier echec,",
+    "parce que personne ne sait plus ce qu'il protegeait."
+  ],
+  "_mesure_le": "2026-08-23",
+  "_configuration": {
+    "corpus": "code de la commande publique 2e partie livre Ier + titre preliminaire, six CCAG, annexes 2/7/12/13",
+    "articles": 1026,
+    "jeu_dore": 135,
+    "cas_negatifs": 22,
+    "k": 10,
+    "variante": "durci",
+    "raisonnement": false,
+    "modele": "qwen3-6-35b-moe"
+  },
+
+  "recherche": {
+    "complets_sur_attendus": {
+      "valeur": 0.929,
+      "minimum": 0.88,
+      "_motif": [
+        "105 cas sur 113 dont tous les articles attendus remontent. La marge de 5 points",
+        "absorbe le remplacement de quelques cas dores ; en dessous, c'est le moteur ou le",
+        "corpus qui a bouge, et il faut le savoir avant que la generation ne le masque."
+      ]
+    }
+  },
+
+  "generation": {
+    "refus_systematique": {
+      "valeur": 1.0,
+      "minimum": 0.95,
+      "_motif": [
+        "22 cas negatifs sur 22 refuses aux trois executions. C'etait 0 sur 8 au premier",
+        "point de mesure. C'est la propriete la plus chere du systeme et la plus fragile —",
+        "elle a ete perdue et regagnee trois fois dans la journee. Le seuil est presque",
+        "exact a dessein : une seule regression doit arreter la chaine."
+      ]
+    },
+    "cite_attendu": {
+      "valeur": 0.836,
+      "minimum": 0.78,
+      "_motif": [
+        "92 reponses sur 110 jugeables citent l'article attendu. Le modele varie d'une",
+        "execution a l'autre meme a temperature basse ; la marge couvre cette variance",
+        "sans couvrir une degradation reelle."
+      ]
+    },
+    "hors_contexte_max": {
+      "valeur": 24,
+      "maximum": 34,
+      "_motif": [
+        "Articles reels cites hors des passages fournis — le modele puise dans sa memoire.",
+        "Le plafond est fixe au niveau mesure a k=6, soit l'etat degrade connu : y revenir",
+        "signifierait avoir perdu le benefice de D33."
+      ]
+    },
+    "fantomes_max": {
+      "valeur": 5,
+      "maximum": 10,
+      "_motif": [
+        "Articles cites qui n'existent nulle part. Rare et grave : une reference fausse",
+        "sous une forme juste ne se voit pas a la lecture."
+      ]
+    },
+    "montants_inventes_max": {
+      "valeur": 0,
+      "maximum": 2,
+      "_motif": [
+        "Un seuil fabrique produit une procedure irreguliere. Zero mesure, et la tolerance",
+        "est minimale — elle n'existe que pour la variance du modele."
+      ]
+    },
+    "tronquees_max": {
+      "valeur": 3,
+      "maximum": 12,
+      "_motif": [
+        "Reponses coupees par epuisement du budget. C'etait 39 avec le raisonnement",
+        "active. Une remontee signalerait que le raisonnement a ete rallume, ou que",
+        "max_tokens ne suffit plus."
+      ]
+    },
+    "garde_fou_rendues": {
+      "valeur": 0.847,
+      "minimum": 0.78,
+      "_motif": [
+        "149 reponses sur 176 rendues sans reserve par le garde-fou. C'est la mesure la",
+        "plus proche de ce que l'utilisateur recoit reellement : le reste est annote ou",
+        "remplace."
+      ]
+    }
+  },
+
+  "verificateur_fidelite": {
+    "faux_negatifs_max": {
+      "valeur": 0.0,
+      "maximum": 0.1,
+      "_motif": [
+        "Sur 30 couples fideles par construction, aucun verdict negatif. Un verificateur",
+        "qui accuse a tort serait ignore, et tout ce qu'il protege avec lui."
+      ]
+    },
+    "detection_derives": {
+      "valeur": 0.827,
+      "minimum": 0.75,
+      "_motif": [
+        "86 derives detectees sur 104 fabriquees. Il voit ce qu'on ajoute (100 %) et non",
+        "ce qu'on retire (50 %) : le taux global masque cet ecart, que D32 documente."
+      ]
+    }
+  }
+}
