@@ -8,7 +8,14 @@ import json, re, sys
 from pathlib import Path
 
 CORPUS = Path(__file__).resolve().parents[2] / "tests" / "golden" / "corpus-marches-publics"
-_ART = re.compile(r"^#{1,6}\s*Article\s+([LRD]\.?\s?\d{1,4}-\d+(?:-\d+)?|[LRD]\.?\s?[1-9]\d{0,3})\s*$", re.M)
+# Tout identifiant d en-tete, pas seulement les numeros du code.
+#
+# Le motif exigeait un prefixe L, R ou D suivi de chiffres — celui du Code de la
+# commande publique. Il ne voyait donc AUCUN article du CCAG, dont les en-tetes
+# portent « CCAG Travaux 20 ». Un index aveugle a la moitie de son corpus le
+# declare simplement absent, sans erreur : exactement le mode de defaillance
+# silencieux que ce chantier passe son temps a fermer.
+_ART = re.compile(r"^#{1,6}\s*Article\s+([A-Za-z0-9\-. ]+?)\s*$", re.M)
 
 
 def index() -> dict[str, dict]:

@@ -185,7 +185,12 @@ def decouper(strategie: str):
                 position = ligne[2:].strip()
         corps = contenu.split("---", 1)[-1]
         for bloc in re.split(r"(?=^## Article )", corps, flags=re.M):
-            m = re.match(r"## Article ([A-Za-z0-9\- ]+)", bloc)
+            # Tout identifiant, accents compris : « ([A-Za-z0-9- ]+) » tronquait
+            # « CCAG Travaux Préambule » en « CCAG Travaux Pr », et le passage
+            # entrait dans l'index sous un nom qui n'existe nulle part. Le
+            # cas doré le cherchait alors en vain, alors qu'il remontait au
+            # rang 1. Quatrième copie de ce motif dans le chantier.
+            m = re.match(r"## Article (.+)", bloc)
             if not m:
                 continue
             numero = m.group(1).strip()
@@ -200,7 +205,30 @@ def decouper(strategie: str):
     return chunks
 
 
-from colaig.rag.verification_citations import articles_cites as articles_du_chunk  # noqa: E402
+from colaig.rag.verification_citations import articles_cites  # noqa: E402
+
+_TITRE_ARTICLE = re.compile(r"^Article (.+)$", re.M)
+
+
+def articles_du_chunk(texte: str) -> set[str]:
+    """Articles d'un passage : ceux de son EN-TÊTE, et ceux cités dans son corps.
+
+    L'en-tête est indispensable, et son omission a faussé une mesure entière. Le
+    reconnaisseur de `verification_citations` ne lit que les numéros du Code —
+    « L2113-10 », « R. 2122-8 ». Il ne voit donc **aucun** article du CCAG, dont les
+    en-têtes portent « Article CCAG Travaux 4 ».
+
+    Mesuré : les six cas dorés ajoutés sur le CCAG étaient tous comptés en échec, avec
+    des scores de 0,62 à 0,72 et le bon passage effectivement remonté. L'instrument
+    déclarait absent ce qu'il ne savait pas nommer.
+
+    Les deux sources sont réunies : un passage porte l'article dont il est le texte, et
+    ceux auxquels ce texte renvoie.
+    """
+    trouves = articles_cites(texte)
+    for m in _TITRE_ARTICLE.finditer(texte or ""):
+        trouves.add(m.group(1).strip())
+    return trouves
 
 # Cette fonction était réécrite ici, et son motif — « [LRD] suivi de quatre chiffres »,
 # sans point ni espace tolérés — ne reconnaissait **aucune** référence de la forme

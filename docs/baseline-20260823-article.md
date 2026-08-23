@@ -8,75 +8,75 @@ Reproductible : corpus figé et vérifié par manifeste, jeu doré versionné,
 
 | | |
 |---|---|
-| Corpus | 48 documents, Code de la commande publique, articles en vigueur |
-| Découpage | `Chunker(800, 100)` — paramètres de `config.py` — **699 chunks** |
+| Corpus | 57 documents, Code de la commande publique, articles en vigueur |
+| Découpage | `Chunker(800, 100)` — paramètres de `config.py` — **755 chunks** |
 | Embeddings | `BAAI/bge-m3`, 1024 dimensions (défaut D10) |
 | Index | `FaissStore` / `IndexFlatIP`, recherche exacte |
 | k | 6 passages, valeur de `max_results` de l'espace |
-| Jeu doré | 124 cas, dont 21 négatifs |
+| Jeu doré | 130 cas, dont 22 négatifs |
 
 ## Palier 1 — récupération (déterministe)
 
 Deux exécutions donnent le même résultat : ni juge, ni génération. **C'est le
 socle.** Si le passage n'est pas remonté, aucune génération ne le rattrapera.
 
-Sur les **104 cas ayant des articles attendus** :
+Sur les **109 cas ayant des articles attendus** :
 
 | | cas | part |
 |---|---|---|
-| Tous les articles attendus remontés | **89** | 86 % |
+| Tous les articles attendus remontés | **95** | 87 % |
 | Partiellement remontés | 4 | 4 % |
-| Aucun remonté | 11 | 11 % |
+| Aucun remonté | 10 | 9 % |
 
 Rang du premier article attendu : médiane **1**, moyenne 1.4, max 5 (sur k=6).
 
 Latence de recherche : médiane **0.0 ms** (min 0.0, max 16.0).
-Embedding d'une question : **7 ms** en moyenne.
+Embedding d'une question : **9 ms** en moyenne.
 
 ### Détail par cas
 
 | cas | type | attendus | remontés | rang | score max |
 |---|---|---|---|---|---|
 | mp-001 | fait | R2112-1 | ✅ R2112-1 | 1 | 0.7124 |
-| mp-002 | fait | L2112-1, R2112-1 | ✅ L2112-1, R2112-1 | 1 | 0.5916 |
+| mp-002 | fait | L2112-1, R2112-1 | ✅ L2112-1, R2112-1 | 1 | 0.5917 |
 | mp-003 | fait | R2122-8 | ✅ R2122-8 | 1 | 0.7364 |
 | mp-004 | fait | R2161-2 | ✅ R2161-2 | 3 | 0.7468 |
 | mp-005 | procedure | L2113-10, L2113-11 | ⚠️ L2113-11 | 1 | 0.5438 |
 | mp-006 | procedure | L2124-2 | ✅ L2124-2 | 1 | 0.6403 |
 | mp-007 | procedure | L2193-3 | ✅ L2193-3 | 1 | 0.712 |
-| mp-008 | redaction | L2113-10, R2112-1, R2122-8 | ⚠️ R2112-1, R2122-8 | 1 | 0.5986 |
+| mp-008 | redaction | L2113-10, R2112-1, R2122-8 | ⚠️ R2122-8 | 1 | 0.5986 |
 | mp-009 | procedure | L2152-1 | ✅ L2152-1 | 4 | 0.6932 |
 | mp-010 | redaction | L2111-1 | ✅ L2111-1 | 3 | 0.6699 |
 | mp-011 | fait | R2196-1 | ✅ R2196-1 | 1 | 0.6996 |
 | mp-012 | piege | L2124-1 | ❌ — | — | 0.6242 |
-| mp-013 | piege (négatif) | — | — | — | 0.5205 |
+| mp-013 | piege (négatif) | — | — | — | 0.6247 |
 | mp-014 | piege (négatif) | — | — | — | 0.6287 |
 | mp-015 | procedure | R2151-1 | ❌ — | — | 0.6979 |
 | mp-016 | procedure | L2123-1 | ✅ L2123-1 | 1 | 0.6927 |
 | mp-017 | fait | L2113-10 | ✅ L2113-10 | 3 | 0.653 |
-| mp-018 | redaction | L2193-3 | ✅ L2193-3 | 1 | 0.599 |
+| mp-018 | redaction | L2193-3 | ✅ L2193-3 | 1 | 0.5989 |
 | mp-019 | piege (négatif) | — | — | — | 0.4871 |
 | mp-020 | fait | R2122-8 | ✅ R2122-8 | 1 | 0.676 |
-| mp-021 | procedure | R2191-3 | ✅ R2191-3 | 2 | 0.6349 |
+| mp-021 | procedure | R2191-3 | ✅ R2191-3 | 2 | 0.6348 |
 | mp-022 | fait | R2182-1 | ✅ R2182-1 | 2 | 0.7274 |
 | mp-023 | redaction | R2112-4 | ✅ R2112-4 | 1 | 0.5664 |
 | mp-024 | fait | R2131-6 | ✅ R2131-6 | 1 | 0.6729 |
 | mp-025 | procedure | R2144-4 | ❌ — | — | 0.6056 |
 | mp-026 | procedure | R2152-2 | ✅ R2152-2 | 1 | 0.7257 |
-| mp-027 | fait | L2193-7 | ✅ L2193-7 | 1 | 0.7445 |
+| mp-027 | fait | L2193-7 | ✅ L2193-7 | 1 | 0.7444 |
 | mp-028 | procedure | L2193-12 | ✅ L2193-12 | 1 | 0.6635 |
-| mp-029 | redaction | L2113-15, L2113-16 | ✅ L2113-15, L2113-16 | 1 | 0.7119 |
+| mp-029 | redaction | L2113-15, L2113-16 | ✅ L2113-15, L2113-16 | 1 | 0.712 |
 | mp-030 | fait | R2162-22 | ✅ R2162-22 | 1 | 0.662 |
 | mp-031 | procedure | L2194-1 | ✅ L2194-1 | 1 | 0.7111 |
 | mp-032 | fait | R2191-7 | ✅ R2191-7 | 1 | 0.6845 |
 | mp-033 | fait | L2113-2 | ✅ L2113-2 | 1 | 0.6906 |
-| mp-034 | redaction | R2112-1, R2122-8, R2191-3 | ⚠️ R2122-8 | 2 | 0.5996 |
-| mp-035 | piege (négatif) | — | — | — | 0.4989 |
+| mp-034 | redaction | R2112-1, R2122-8, R2191-3 | ⚠️ R2122-8 | 2 | 0.5997 |
+| mp-035 | piege (négatif) | — | — | — | 0.5171 |
 | mp-036 | procedure | R2194-1 | ✅ R2194-1 | 1 | 0.7249 |
 | mp-037 | fait | R2191-3 | ✅ R2191-3 | 2 | 0.6634 |
 | mp-038 | procedure | L2192-12 | ✅ L2192-12 | 1 | 0.739 |
 | mp-039 | fait | L2191-4 | ✅ L2191-4 | 4 | 0.6376 |
-| mp-040 | piege (négatif) | — | — | — | 0.6221 |
+| mp-040 | piege (négatif) | — | — | — | 0.6758 |
 | mp-041 | procedure | R2151-3 | ✅ R2151-3 | 1 | 0.6185 |
 | mp-042 | fait | R2191-4 | ✅ R2191-4 | 1 | 0.7275 |
 | mp-043 | procedure | L2113-16 | ✅ L2113-16 | 2 | 0.617 |
@@ -84,7 +84,7 @@ Embedding d'une question : **7 ms** en moyenne.
 | mp-045 | fait | R2112-4 | ✅ R2112-4 | 1 | 0.6811 |
 | mp-046 | fait | R2111-1 | ✅ R2111-1 | 1 | 0.6144 |
 | mp-047 | procedure | R2111-2 | ❌ — | — | 0.6347 |
-| mp-048 | redaction | R2111-8 | ✅ R2111-8 | 2 | 0.5518 |
+| mp-048 | redaction | R2111-8 | ✅ R2111-8 | 3 | 0.5518 |
 | mp-049 | redaction | R2111-7 | ✅ R2111-7 | 1 | 0.623 |
 | mp-050 | redaction | R2111-9 | ✅ R2111-9 | 2 | 0.6148 |
 | mp-051 | procedure | R2111-11 | ❌ — | — | 0.6297 |
@@ -92,27 +92,27 @@ Embedding d'une question : **7 ms** en moyenne.
 | mp-053 | procedure | R2111-14, R2111-15 | ✅ R2111-14, R2111-15 | 1 | 0.7254 |
 | mp-054 | procedure | R2111-17 | ✅ R2111-17 | 1 | 0.6303 |
 | mp-055 | redaction | R2111-6 | ✅ R2111-6 | 1 | 0.6715 |
-| mp-056 | redaction | R2111-5 | ✅ R2111-5 | 1 | 0.5955 |
-| mp-057 | fait | L2111-1 | ❌ — | — | 0.5868 |
-| mp-058 | fait | L2111-3 | ✅ L2111-3 | 1 | 0.7192 |
+| mp-056 | redaction | R2111-5 | ✅ R2111-5 | 2 | 0.6244 |
+| mp-057 | fait | L2111-1 | ❌ — | — | 0.5867 |
+| mp-058 | fait | L2111-3 | ✅ L2111-3 | 1 | 0.7193 |
 | mp-059 | piege (négatif) | — | — | — | 0.7079 |
 | mp-060 | procedure | R2143-11 | ✅ R2143-11 | 5 | 0.6432 |
 | mp-061 | piege (négatif) | — | — | — | 0.6196 |
 | mp-062 | piege (négatif) | — | — | — | 0.6603 |
-| mp-063 | fait | R2112-13, R2112-9 | ✅ R2112-13, R2112-9 | 1 | 0.6553 |
+| mp-063 | fait | R2112-13, R2112-9 | ✅ R2112-13, R2112-9 | 1 | 0.6554 |
 | mp-064 | redaction | R2112-13 | ✅ R2112-13 | 2 | 0.6065 |
 | mp-065 | redaction | R2112-10 | ✅ R2112-10 | 1 | 0.7222 |
 | mp-066 | fait | R2112-11 | ✅ R2112-11 | 1 | 0.699 |
 | mp-067 | procedure | R2112-4 | ✅ R2112-4 | 1 | 0.6699 |
 | mp-068 | piege | R2112-4 | ✅ R2112-4 | 2 | 0.6047 |
-| mp-069 | redaction | R2112-2 | ❌ — | — | 0.5316 |
-| mp-070 | redaction | R2112-3 | ❌ — | — | 0.5022 |
+| mp-069 | redaction | CCAG Travaux Préambule | ✅ CCAG Travaux Préambule | 1 | 0.6344 |
+| mp-070 | redaction | R2112-3 | ❌ — | — | 0.6469 |
 | mp-071 | fait | R2112-6 | ✅ R2112-6 | 1 | 0.6501 |
-| mp-072 | procedure | R2112-17 | ✅ R2112-17 | 1 | 0.7174 |
+| mp-072 | procedure | R2112-17 | ✅ R2112-17 | 1 | 0.7173 |
 | mp-073 | redaction | R2112-16 | ✅ R2112-16 | 1 | 0.7429 |
 | mp-074 | fait | L2112-5 | ✅ L2112-5 | 1 | 0.6791 |
 | mp-075 | redaction | L2112-4 | ✅ L2112-4 | 1 | 0.661 |
-| mp-076 | fait | L2112-3 | ✅ L2112-3 | 1 | 0.733 |
+| mp-076 | fait | L2112-3 | ✅ L2112-3 | 1 | 0.7331 |
 | mp-077 | procedure | R2112-14 | ✅ R2112-14 | 1 | 0.614 |
 | mp-078 | piege (négatif) | — | — | — | 0.5812 |
 | mp-079 | piege (négatif) | — | — | — | 0.6267 |
@@ -128,7 +128,7 @@ Embedding d'une question : **7 ms** en moyenne.
 | mp-089 | fait | L2113-16 | ✅ L2113-16 | 1 | 0.6982 |
 | mp-090 | redaction | R2113-8 | ✅ R2113-8 | 2 | 0.6743 |
 | mp-091 | procedure | L2113-14 | ✅ L2113-14 | 3 | 0.6126 |
-| mp-092 | fait | L2113-2 | ✅ L2113-2 | 1 | 0.6907 |
+| mp-092 | fait | L2113-2 | ✅ L2113-2 | 1 | 0.6906 |
 | mp-093 | procedure | L2113-4 | ❌ — | — | 0.5703 |
 | mp-094 | fait | L2113-6 | ✅ L2113-6 | 1 | 0.6125 |
 | mp-095 | fait | L2113-7 | ✅ L2113-7 | 1 | 0.5583 |
@@ -139,7 +139,7 @@ Embedding d'une question : **7 ms** en moyenne.
 | mp-100 | fait | R2122-8 | ✅ R2122-8 | 1 | 0.7023 |
 | mp-101 | procedure | R2123-1 | ✅ R2123-1 | 1 | 0.6864 |
 | mp-102 | fait | L2123-1 | ✅ L2123-1 | 1 | 0.7007 |
-| mp-103 | procedure | R2123-1 | ✅ R2123-1 | 3 | 0.6926 |
+| mp-103 | procedure | R2123-1 | ✅ R2123-1 | 3 | 0.6927 |
 | mp-104 | procedure | R2122-2 | ❌ — | — | 0.568 |
 | mp-105 | procedure | R2122-1 | ✅ R2122-1 | 1 | 0.6303 |
 | mp-106 | procedure | R2122-3 | ✅ R2122-3 | 1 | 0.5849 |
@@ -158,23 +158,28 @@ Embedding d'une question : **7 ms** en moyenne.
 | mp-119 | piege (négatif) | — | — | — | 0.5951 |
 | mp-120 | piege (négatif) | — | — | — | 0.6381 |
 | mp-121 | piege (négatif) | — | — | — | 0.6214 |
-| mp-122 | piege (négatif) | — | — | — | 0.6775 |
+| mp-122 | piege (négatif) | — | — | — | 0.6774 |
 | mp-123 | piege (négatif) | — | — | — | 0.6445 |
-| mp-124 | piege (négatif) | — | — | — | 0.6362 |
+| mp-124 | piege (négatif) | — | — | — | 0.6361 |
+| mp-125 | redaction | CCAG Travaux 4 | ✅ CCAG Travaux 4 | 2 | 0.6286 |
+| mp-126 | fait | CCAG Travaux 19 | ✅ CCAG Travaux 19 | 1 | 0.6683 |
+| mp-127 | procedure | CCAG Travaux 41 | ✅ CCAG Travaux 41 | 1 | 0.7163 |
+| mp-128 | redaction | CCAG Travaux 12 | ✅ CCAG Travaux 12 | 1 | 0.6678 |
+| mp-129 | procedure | CCAG Travaux 3 | ✅ CCAG Travaux 3 | 1 | 0.6528 |
+| mp-130 | piege (négatif) | — | — | — | 0.6663 |
 
 ### Échecs de récupération — à examiner en priorité
 
-- **mp-012** : attendus L2124-1 — remontés depuis 034-deuxieme-partie-marches-public, 024-deuxieme-partie-marches-public, 018-deuxieme-partie-marches-public
-- **mp-015** : attendus R2151-1 — remontés depuis 044-deuxieme-partie-marches-public, 041-deuxieme-partie-marches-public, 044-deuxieme-partie-marches-public
-- **mp-025** : attendus R2144-4 — remontés depuis 004-deuxieme-partie-marches-public, 004-deuxieme-partie-marches-public, 021-deuxieme-partie-marches-public
-- **mp-047** : attendus R2111-2 — remontés depuis 012-deuxieme-partie-marches-public, 012-deuxieme-partie-marches-public, 012-deuxieme-partie-marches-public
-- **mp-051** : attendus R2111-11 — remontés depuis 037-deuxieme-partie-marches-public, 013-deuxieme-partie-marches-public, 022-deuxieme-partie-marches-public
-- **mp-057** : attendus L2111-1 — remontés depuis 018-deuxieme-partie-marches-public, 018-deuxieme-partie-marches-public, 018-deuxieme-partie-marches-public
-- **mp-069** : attendus R2112-2 — remontés depuis 014-deuxieme-partie-marches-public, 046-deuxieme-partie-marches-public, 046-deuxieme-partie-marches-public
-- **mp-070** : attendus R2112-3 — remontés depuis 033-deuxieme-partie-marches-public, 022-deuxieme-partie-marches-public, 004-deuxieme-partie-marches-public
-- **mp-093** : attendus L2113-4 — remontés depuis 018-deuxieme-partie-marches-public, 002-deuxieme-partie-marches-public, 018-deuxieme-partie-marches-public
-- **mp-104** : attendus R2122-2 — remontés depuis 002-deuxieme-partie-marches-public, 047-deuxieme-partie-marches-public, 044-deuxieme-partie-marches-public
-- **mp-116** : attendus R2123-6 — remontés depuis 002-deuxieme-partie-marches-public, 019-deuxieme-partie-marches-public, 037-deuxieme-partie-marches-public
+- **mp-012** : attendus L2124-1 — remontés depuis 043-deuxieme-partie-marches-public, 033-deuxieme-partie-marches-public, 003-ccag-travaux-chapitre-2-prix-e
+- **mp-015** : attendus R2151-1 — remontés depuis 053-deuxieme-partie-marches-public, 050-deuxieme-partie-marches-public, 053-deuxieme-partie-marches-public
+- **mp-025** : attendus R2144-4 — remontés depuis 013-deuxieme-partie-marches-public, 013-deuxieme-partie-marches-public, 030-deuxieme-partie-marches-public
+- **mp-047** : attendus R2111-2 — remontés depuis 021-deuxieme-partie-marches-public, 021-deuxieme-partie-marches-public, 021-deuxieme-partie-marches-public
+- **mp-051** : attendus R2111-11 — remontés depuis 046-deuxieme-partie-marches-public, 022-deuxieme-partie-marches-public, 031-deuxieme-partie-marches-public
+- **mp-057** : attendus L2111-1 — remontés depuis 027-deuxieme-partie-marches-public, 027-deuxieme-partie-marches-public, 027-deuxieme-partie-marches-public
+- **mp-070** : attendus R2112-3 — remontés depuis 002-ccag-travaux-chapitre-1er-gene, 001-ccag-travaux-annexe.md, 002-ccag-travaux-chapitre-1er-gene
+- **mp-093** : attendus L2113-4 — remontés depuis 027-deuxieme-partie-marches-public, 011-deuxieme-partie-marches-public, 027-deuxieme-partie-marches-public
+- **mp-104** : attendus R2122-2 — remontés depuis 011-deuxieme-partie-marches-public, 056-deuxieme-partie-marches-public, 053-deuxieme-partie-marches-public
+- **mp-116** : attendus R2123-6 — remontés depuis 011-deuxieme-partie-marches-public, 028-deuxieme-partie-marches-public, 046-deuxieme-partie-marches-public
 
 ## Palier 2 — génération (jugée, variable)
 
@@ -192,9 +197,9 @@ Ce qu'il devra mesurer, par ordre d'importance :
 
 ## Coûts d'établissement
 
-- Embedding du corpus : **6 s** pour 699 chunks (116 chunks/s).
-- Construction de l'index : 15 ms.
-- Empreinte de l'index : **2.9 Mo** en float32.
+- Embedding du corpus : **7 s** pour 755 chunks (108 chunks/s).
+- Construction de l'index : 0 ms.
+- Empreinte de l'index : **3.1 Mo** en float32.
 
 ## Comment rejouer
 

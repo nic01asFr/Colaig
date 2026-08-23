@@ -66,10 +66,16 @@ def _cas() -> list[dict]:
 
 
 def _articles_du_corpus() -> set[str]:
-    """Tous les numéros d'article réellement présents dans les documents."""
+    """Tous les numéros d'article réellement présents dans les documents.
+
+    Le motif accepte **tout identifiant** d'en-tête, accents compris. Il exigeait
+    d'abord `[A-Za-z0-9- ]`, ce qui excluait « CCAG Travaux Préambule » — et aurait
+    conduit à débaptiser un document du corpus pour plaire à une expression régulière.
+    Quand le contrôle et la chose contrôlée divergent, c'est le contrôle qui cède.
+    """
     numeros: set[str] = set()
     for fichier in CORPUS.glob("*.md"):
-        numeros.update(re.findall(r"^## Article ([A-Za-z0-9\- ]+)$", fichier.read_text(encoding="utf-8"), re.M))
+        numeros.update(re.findall(r"^## Article ([^\n]+?)$", fichier.read_text(encoding="utf-8"), re.M))
     return {n.strip() for n in numeros}
 
 
@@ -146,7 +152,11 @@ def test_les_reponses_chiffrees_se_retrouvent_dans_le_corpus():
     for fichier in CORPUS.glob("*.md"):
         contenu = fichier.read_text(encoding="utf-8")
         for bloc in re.split(r"(?=^## Article )", contenu, flags=re.M):
-            m = re.match(r"## Article ([A-Za-z0-9\- ]+)", bloc)
+            # Gourmand, et sans ancre de fin : « +? » ne capturerait qu'un seul
+            # caractère, et les clés du dictionnaire seraient fausses sans qu'aucune
+            # erreur ne le dise — le contrôle des montants passerait alors à côté de
+            # tout ce qu'il prétend vérifier.
+            m = re.match(r"## Article (.+)", bloc)
             if m:
                 textes.setdefault(m.group(1).strip(), "")
                 textes[m.group(1).strip()] += bloc

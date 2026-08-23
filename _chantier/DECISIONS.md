@@ -1014,3 +1014,65 @@ ensuite — ce qui le distingue de HyDE, payé à chaque question.
 
 Deux cas restent près du bruit : à confirmer sur un corpus plus large avant d'en faire un
 défaut.
+
+## D29 — Le CCAG Travaux entre au corpus · 23/08/2026 · **actée**
+
+Le constat qui l'imposait : « clauses administratives particulières », « règlement de
+consultation », « acte d'engagement » avaient **zéro occurrence** dans les 1806 articles
+du code. Cinq échecs de recherche étaient **hors de portée de tout réglage** — leur
+article attendu au-delà du rang 60 — parce que la question et le corpus n'avaient aucun
+mot en commun. Ce ne sont pas des mots du code, ce sont des mots des CCAG.
+
+### Un seul CCAG, et lequel
+
+Il en existe six — travaux, prestations intellectuelles, TIC, fournitures courantes et
+services, maîtrise d'œuvre, marchés industriels. Ce sont des **régimes parallèles** :
+l'article 20 du CCAG Travaux n'est pas celui du CCAG PI. Les verser tous rejouerait
+exactement le défaut que D24 vient de supprimer.
+
+Or **un marché relève d'un seul CCAG**, choisi par son objet. Un dossier, une instance,
+un périmètre : l'espace porte le cahier de son marché. C'est le CCAG Travaux ici.
+
+### Source et lecture
+
+`legi_arrete` du même instantané épinglé. La partition pèse **4,7 Go en 18 fichiers** et
+le CCAG y est dispersé. DuckDB lit le parquet distant par plages et ne rapatrie que ce
+que le filtre retient : **8 secondes** au lieu d'un téléchargement de plusieurs
+gigaoctets.
+
+**61 articles, 117 fragments, 8 chapitres.** Le corpus passe à **760 articles** dont 55
+du CCAG, 57 documents, 0,82 Mo.
+
+### Trois défauts silencieux attrapés en construisant
+
+**1. L'arrêté écrasait son propre cahier.** L'arrêté porte ses articles 1 à 5 — « le CCAG
+travaux est approuvé », son application outre-mer — **de même numéro** que ceux du cahier
+annexé. Sans filtre, « article 4 » rendait *l'application à Saint-Barthélemy* au lieu des
+*Pièces contractuelles* : un article faux sous un numéro juste, que nul contrôle de
+provenance n'aurait vu. Seul `subtitles LIKE 'Annexe%'` est retenu.
+
+**2. La mention de source mentait.** Chaque document annonçait « Source : Code de la
+commande publique » — faux en tête d'un CCAG, et c'est le genre d'étiquette qu'un lecteur
+croit sans vérifier. Elle suit désormais le document.
+
+**3. Le motif d'en-tête tronquait les identifiants.** `([A-Za-z0-9- ]+)` s'arrête sur le
+« é » de « Préambule » : le passage entrait dans l'index sous « CCAG Travaux Pr », un nom
+qui n'existe nulle part. `mp-069` le cherchait en vain **alors qu'il remontait au rang 1**.
+Quatrième copie de ce motif dans le chantier, quatrième divergence.
+
+### Ce que cela donne
+
+| | avant CCAG | après |
+|---|---|---|
+| articles attendus remontés | 89/104 — 86 % | **95/109 — 87 %** |
+| jeu doré | 124 cas | **130 cas**, 22 négatifs |
+
+Cinq des six cas ajoutés sur le CCAG passent, la plupart **au rang 1** : ordre de priorité
+des pièces, calcul des pénalités, délai des opérations préalables à la réception, projet
+de décompte mensuel, forme des notifications. Ce sont les questions de celui qui rédige,
+et le code seul n'y répondait pas.
+
+`mp-070` échoue toujours — mais il échouait déjà avant. Pas de régression, un cas gagné.
+
+**Vocabulaire enfin présent :** CCAP 9 occurrences, CCAG 99, acte d'engagement 4, décompte
+général 22, ordre de service 39 — tous à zéro auparavant.

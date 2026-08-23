@@ -108,6 +108,32 @@ PERIMETRE = ("DEUXIÈME PARTIE", "Livre Ier")
 HORS_PERIMETRE_RETENUS = ("Titre Préliminaire",)
 FICHIER_HF = f"data/{SNAPSHOT}/legi_code_de_la_commande_publique/legi_code_de_la_commande_publique_part_0.parquet"
 
+# CCAG : le cahier des clauses administratives generales applicable a l'espace.
+#
+# POURQUOI UN SEUL, ET LEQUEL. Il en existe six — travaux, prestations
+# intellectuelles, TIC, fournitures courantes et services, maitrise d'oeuvre, marches
+# industriels. Ce sont des REGIMES PARALLELES : l'article 20 du CCAG Travaux n'est pas
+# celui du CCAG PI. Les verser tous rejouerait exactement le defaut que D24 vient de
+# supprimer — des jumeaux textuels aux contenus differents, et un modele qui cite le
+# bon article du mauvais cahier sans que rien ne le signale.
+#
+# Or un marche releve d'UN SEUL CCAG, choisi par son objet. Un dossier, une instance,
+# un perimetre : l'espace porte le cahier de son marche.
+#
+# POURQUOI IL FALLAIT LES AJOUTER. Mesure du 23/08/2026 : « clauses administratives
+# particulieres », « reglement de consultation », « acte d'engagement » ont ZERO
+# occurrence dans les 1806 articles du code. Cinq echecs de recherche etaient hors de
+# portee de tout reglage — leur article attendu au-dela du rang 60 — parce que la
+# question et le corpus n'avaient aucun mot en commun. Ce ne sont pas des mots du
+# code, ce sont des mots des CCAG.
+CCAG_MOTIF = "%clauses administratives g%n%rales%des march%s publics de travaux%"
+CCAG_NOM = "CCAG Travaux"
+FICHIERS_ARRETES = [
+    f"https://huggingface.co/datasets/AgentPublic/legi/resolve/{REVISION}"
+    f"/data/{SNAPSHOT}/legi_arrete/legi_arrete_part_{i}.parquet"
+    for i in range(18)
+]
+
 
 def ardoise(texte: str, longueur: int = 60) -> str:
     t = unicodedata.normalize("NFKD", texte).encode("ascii", "ignore").decode()
@@ -140,6 +166,61 @@ def grouper(articles):
                 nouveaux[tuple(chemin_hierarchique(art["subtitles"])[:profondeur])].append(art)
         groupes = nouveaux
     return groupes
+
+
+def articles_ccag(con):
+    """Les articles du CCAG retenu, lus a distance.
+
+    La partition des arretes pese 4,7 Go repartis en 18 fichiers, et le CCAG y est
+    disperse. DuckDB lit le parquet distant par plages et ne rapatrie que ce que le
+    filtre retient : 8 secondes contre un telechargement de plusieurs gigaoctets.
+
+    Les fragments sont recolles comme pour le code — meme decoupage a la source, meme
+    piege : garder le premier fragment tronquerait les articles les plus longs, qui
+    sont les plus substantiels.
+    """
+    con.execute("INSTALL httpfs; LOAD httpfs;")
+    urls = ", ".join(f"'{u}'" for u in FICHIERS_ARRETES)
+    lignes = con.execute(
+        f"""
+        SELECT doc_id,
+               any_value(number)     AS number,
+               any_value(subtitles)  AS subtitles,
+               any_value(full_title) AS full_title,
+               string_agg(text, ' ' ORDER BY chunk_index) AS text,
+               any_value(start_date) AS start_date
+        FROM read_parquet([{urls}])
+        WHERE full_title ILIKE '{CCAG_MOTIF}'
+          AND status = 'VIGUEUR'
+          -- SEUL LE CAHIER ANNEXE, jamais les articles de l'arrete lui-meme.
+          --
+          -- L'arrete porte ses propres articles 1 a 5 — « le CCAG travaux est
+          -- approuve », son application outre-mer — qui n'interessent pas un
+          -- redacteur ET QUI ECRASENT les articles 1 a 5 du cahier, de meme
+          -- numero. Sans ce filtre, « article 4 » rendait l'application a
+          -- Saint-Barthelemy au lieu des Pieces contractuelles : un article faux
+          -- sous un numero juste, ce qu'aucun controle de provenance ne verrait.
+          AND subtitles ILIKE 'Annexe%'
+        GROUP BY doc_id
+        ORDER BY any_value(subtitles), any_value(number)
+        """
+    ).fetchall()
+    articles = [
+        {"doc_id": d,
+         # Le numero est PREFIXE pour lever l'ambiguite avec le code. Dans un corpus
+         # qui porte les deux, « Article 20 » ne dit pas de quel texte il s'agit — et
+         # c'est exactement le genre de confusion qui produit du droit faux presente
+         # comme juste (D21). L'article sans numero est le preambule et le sommaire.
+         "number": f"{CCAG_NOM} {n}" if n else f"{CCAG_NOM} Préambule",
+         # Le chemin hierarchique du CCAG est refait pour que le regroupement le
+         # distingue du code : sans cela, ses chapitres se melangeraient aux titres du
+         # code dans les memes documents.
+         "subtitles": f"{CCAG_NOM} - " + (s or "Dispositions diverses").replace("Annexe - ", ""),
+         "full_title": ft, "text": t, "date": dt}
+        for d, n, s, ft, t, dt in lignes
+    ]
+    print(f"{CCAG_NOM} : {len(articles)} articles")
+    return articles
 
 
 def main():
@@ -179,6 +260,8 @@ def main():
               f"retenus sur {avant}")
     print(f"articles en vigueur : {len(articles)}")
 
+    articles += articles_ccag(con)
+
     groupes = grouper(articles)
     print(f"documents produits  : {len(groupes)}")
     tailles = sorted(len(a) for a in groupes.values())
@@ -195,6 +278,7 @@ def main():
     for rang, (cle, arts) in enumerate(sorted(groupes.items()), 1):
         arts.sort(key=lambda a: (a["number"] or ""))
         titre = cle[-1] if cle else "Dispositions diverses"
+        est_ccag = bool(cle) and cle[0] == CCAG_NOM
         # Deux premiers niveaux dans le nom : « partie-reglementaire » puis la matière.
         prefixe = ardoise(" ".join(cle[1:3]), 40) if len(cle) > 2 else ardoise(cle[0] if cle else "", 40)
         nom = f"{rang:03d}-{prefixe}-{ardoise(titre, 50)}.md"
@@ -209,9 +293,15 @@ def main():
             f"{arts[0]['number']} à {arts[-1]['number']}." if len(arts) > 1
             else f"**Article {arts[0]['number']}**, en vigueur.",
             "",
-            "*Source : Code de la commande publique, version consolidée (LEGI, DILA). "
-            "Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — "
-            "aucun article modifié ni abrogé.*",
+            # La mention de source suit le document : annoncer « Code de la commande
+            # publique » en tete d'un CCAG serait faux, et c'est precisement le genre
+            # d'etiquette erronee qu'un lecteur croit sans verifier.
+            (f"*Source : {CCAG_NOM}, arrêté du 30 mars 2021 (LEGI, DILA). "
+             "Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici.*"
+             if est_ccag else
+             "*Source : Code de la commande publique, version consolidée (LEGI, DILA). "
+             "Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — "
+             "aucun article modifié ni abrogé.*"),
             "",
             "---",
             "",
