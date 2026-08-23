@@ -10,7 +10,21 @@
   "_mesure_le": "2026-08-23",
   "_configuration": {
     "corpus": "code de la commande publique 2e partie livre Ier + titre preliminaire, six CCAG, annexes 2/7/12/13",
-    "articles": 1026,
+    "articles": 1021,
+    "_articles_corrige": [
+      "1026 etait faux, et ne l'a jamais ete. Le corpus a compte 699, puis 755, puis 1021",
+      "articles ; jamais 1026. Le chiffre a ete ecrit ici et repete cinq fois dans",
+      "DECISIONS.md sans qu'aucune source ne le porte : le sommaire genere par le",
+      "constructeur dit 1021 depuis le commit 8e8a86d.",
+      "",
+      "AUCUN SEUIL N'EN DEPEND — c'est un champ descriptif. Mais une reference dont la",
+      "description est fausse est exactement ce que ce chantier traque : le jour ou",
+      "quelqu'un verifie la reproductibilite du corpus, il cherche 1026 articles et",
+      "conclut a une derive qui n'existe pas.",
+      "",
+      "Corrige le 24/08/2026, au lot L2.1, en verifiant si le passage au balisage",
+      "invalidait la reference."
+    ],
     "jeu_dore": 135,
     "cas_negatifs": 22,
     "k": 10,

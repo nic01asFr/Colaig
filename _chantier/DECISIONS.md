@@ -1463,3 +1463,36 @@ d'un balisage :
    là où le chemin conversationnel en a un.
 3. `security/prompt_sanitizer.py::sanitize_description` est définie et **appelée nulle
    part**. Un garde-fou qu'on n'a jamais vu se déclencher ne vaut rien.
+
+---
+
+## D36 — Le corpus n'a jamais compté 1026 articles · 24/08/2026 · **actée**
+
+**1021.** Le sommaire du corpus, généré par `construire_corpus_mp.py`, l'écrit depuis le
+commit `8e8a86d`. Le harnais de mesure le confirme à chaque exécution : « 1021 chunks,
+1021 articles ». Un `grep` des titres sur le dépôt donne le même chiffre.
+
+**1026 n'a jamais été vrai.** La séquence réelle est 699 (D24) → 755 (D29) → 1021 (D30).
+Le chiffre a été écrit dans `_chantier/reference.json`, puis repris **cinq fois** dans
+`DECISIONS.md` — dont une sous la forme « 1026 articles indexés sur 1026 », qui a l'air
+d'une vérification de complétude et n'en est pas une, puisqu'aucune source ne portait le
+dénominateur.
+
+**Ce qui n'est pas touché.** Aucun seuil n'en dépend : `_configuration.articles` est un
+champ descriptif, `verifier_reference.py` ne fait que l'afficher. Les conclusions
+adossées à ce chiffre tiennent, leur libellé seul était faux — « 843 articles reconnus
+sur 1026 » se lit 843 sur 1021, et le constat qu'il portait (un cinquième du corpus
+invisible au compteur de fantômes) est inchangé.
+
+**Pourquoi le corriger quand même.** Une référence dont la description est fausse est
+exactement ce que ce chantier traque. Le jour où quelqu'un vérifie la reproductibilité
+du corpus, il cherche 1026 articles, en trouve 1021, et conclut à une dérive qui n'existe
+pas. Un instrument qui ment sur lui-même coûte plus qu'un instrument absent.
+
+`reference.json` est corrigé et porte la trace de l'erreur. Les entrées antérieures de
+`DECISIONS.md` ne sont **pas** réécrites : elles consignent ce qui était cru au moment
+où il l'était, et c'est leur fonction.
+
+**Comment il a été trouvé.** En vérifiant si le passage au balisage `<untrusted>` (D35)
+invalidait la référence. Deux défauts pour une vérification : celui-ci, et le fait que
+le harnais ne mesurait pas le prompt de production.
