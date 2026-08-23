@@ -228,7 +228,20 @@ def main() -> int:
                 # milieu de la formule de refus elle-même. La compter comme un
                 # non-refus fabrique un échec qui n'existe pas.
                 "tronquee": tronquee,
-                "fantomes": sorted(cites - articles_existants),
+                # Une référence **présente dans les passages fournis** n'est jamais un
+                # fantôme, quel que soit le code dont elle relève.
+                #
+                # Mesuré le 23/08/2026 : la métrique signalait `L5132-4` et `L5213-13`
+                # comme inventés. Ce sont des articles du **code du travail**, cités mot
+                # pour mot à l'intérieur de `L2113-13` et `L2113-12`, qui étaient dans
+                # les passages. Le modèle relayait correctement un renvoi ; la mesure
+                # l'accusait d'inventer. Sur trois fantômes annoncés, **un seul** était
+                # réel — `L2161-1`, là où le code écrit `R2161-1`, un L à la place d'un R.
+                #
+                # Le corpus est un seul code ; les articles qu'il cite ne le sont pas.
+                # Confondre « absent de ce corpus » et « inexistant » fabrique des
+                # anomalies, et une métrique qui crie au loup finit ignorée.
+                "fantomes": sorted(cites - articles_existants - fournis),
                 "hors_contexte": sorted((cites & articles_existants) - fournis),
                 "montants_inventes": sorted(montants(reponse) - montants_fournis
                                             - montants(c["question"])),
