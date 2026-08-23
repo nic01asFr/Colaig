@@ -90,6 +90,25 @@ def embed(textes: list[str], cle: str, lot: int = 32) -> list[list[float]]:
     return vecteurs
 
 
+_LIVRE_IER: dict[str, bool] = {}
+
+
+def _du_livre_ier(nom_fichier: str) -> bool:
+    """Le document appartient-il a la deuxieme partie, livre Ier ?"""
+    if nom_fichier not in _LIVRE_IER:
+        contenu = (CORPUS / nom_fichier).read_text(encoding="utf-8")
+        entete = contenu.split("---", 1)[0]
+        position = ""
+        for ligne in entete.splitlines():
+            if ligne.startswith("> ") and "›" in ligne:
+                position = ligne
+        _LIVRE_IER[nom_fichier] = (
+            "DEUXI" in position and "Livre Ier" in position
+            and "Livre II" not in position.replace("Livre Ier", "")
+        )
+    return _LIVRE_IER[nom_fichier]
+
+
 def decouper(strategie: str):
     """Produit les chunks selon la stratégie demandée."""
     from colaig.models import DocumentChunk
@@ -102,6 +121,23 @@ def decouper(strategie: str):
                 content=fichier.read_text(encoding="utf-8"),
                 source_path=fichier.name, doc_type="md"))
         return chunks
+
+    if strategie == "article-livre1":
+        # Meme decoupage que « article », restreint au regime des MARCHES PUBLICS
+        # ORDINAIRES — deuxieme partie, livre Ier.
+        #
+        # Mesure : ce livre ne represente que 38 % du corpus. Les 62 % restants sont le
+        # livre defense-securite (23 %), les concessions, les marches de partenariat et
+        # l'outre-mer. Or les 117 articles attendus par le jeu dore sont TOUS dans le
+        # livre Ier : aucun cas ne mobilise le reste.
+        #
+        # Le probleme n'est pas seulement le bruit. Le livre defense-securite contient
+        # des JUMEAUX TEXTUELS aux seuils differents — R2122-8 dit 60 000 euros,
+        # R2322-14 dit 100 000 euros pour la meme regle. Une question posee sans ancrage
+        # de livre est donc ambigue, et un systeme remontant le bon article du mauvais
+        # livre serait compte faux sans avoir rien invente.
+        tous = decouper("article")
+        return [c for c in tous if _du_livre_ier(c.source_path)]
 
     if strategie == "markdown":
         # Le decoupage REELLEMENT en production : Chunker._chunk_markdown coupe sur

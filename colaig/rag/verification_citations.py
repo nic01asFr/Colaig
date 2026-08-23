@@ -51,7 +51,22 @@ from dataclasses import dataclass, field
 # prose, à une coquille près dans la source — « L. 2339 11-1 », espace au lieu d'un tiret
 # — qui produit une entrée fantôme côté passages, donc sans effet : elle ne peut que
 # rendre le contrôle plus permissif d'une référence que personne ne citera.
-_MOTIF_ARTICLE = re.compile(r"\b([LRD])\.?\s?(\d{1,4}-\d+(?:-\d+)?|[1-9]\d{0,3})\b")
+#
+# UN NOMBRE A QUATRE CHIFFRES SANS TIRET N'EST PAS UN ARTICLE.
+#
+# Le corpus ne compte que six articles en forme courte — L1 a L6, plus L3-1. Tout
+# autre article du code porte quatre chiffres ET un tiret. « R2161 » ou « L2123 »
+# designent donc une SECTION : « les articles R2161 et suivants » est une facon
+# legitime d'ecrire, et la compter comme une citation d'article la faisait ensuite
+# ressortir en fantome.
+#
+# Mesure : sur 124 cas, quatre des dix fantomes annonces etaient de cette nature. Une
+# metrique qui signale comme invention une maniere correcte d'ecrire gonfle son propre
+# compte et perd la confiance qu'on lui accorde.
+#
+# Les formes courtes restent reconnues, et c'est necessaire dans les deux sens : L2 est
+# un vrai article, et « L30 » — cite par une reponse mesuree — est une vraie invention.
+_MOTIF_ARTICLE = re.compile(r"\b([LRD])\.?\s?(\d{4}-\d+(?:-\d+)?|\d{1,3}(?:-\d+)?)\b")
 
 
 # Un article de cahier des clauses : « article 20.1 », « 46.2.3 ».

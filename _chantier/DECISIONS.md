@@ -635,3 +635,75 @@ le livre défense/sécurité, dont les articles sont des **jumeaux textuels aux 
 différents** (R2122-8 : 60 000 € ; R2322-14 : 100 000 €). Toute question posée sans
 ancrage de livre est ambiguë, et un système remontant le bon article du mauvais livre
 serait compté faux sans avoir rien inventé.
+
+## D21 — Une réponse fidèle qui cite le mauvais droit · 23/08/2026 · **actée**
+
+Le corpus contient **1806 articles, dont 38 % seulement** relèvent du régime des marchés
+publics ordinaires (2ᵉ partie, livre Ier). Le reste : livre **défense-sécurité** (23 %),
+concessions, marchés de partenariat, outre-mer.
+
+Or **les 117 articles attendus par le jeu doré sont tous dans le livre Ier.** Aucun cas
+ne mobilise les 62 % restants.
+
+### Ce que la restriction change, et ce qu'elle ne change pas
+
+| | recherche |
+|---|---|
+| corpus entier | 88/104 |
+| restreint au livre Ier | **89/104** |
+
+**Un seul cas.** Le bruit ne coûte presque rien à la recherche — l'hypothèse du bruit
+est donc largement infirmée.
+
+**La mesure décisive est ailleurs.** Sur les réponses produites, **108 citations sur 469
+— 23 % — portent sur un article hors du régime ordinaire**, presque toutes du livre
+défense-sécurité. `R2312-11` est le jumeau de `R2112-14` ; `R2322-12` celui de
+`R2122-x` : même règle, seuils différents.
+
+### Pourquoi aucun garde-fou ne peut l'attraper
+
+Ces articles **étaient dans les passages fournis**. La provenance est donc correcte, et
+`verification_citations` les valide à juste titre. C'est une réponse **fidèle qui cite le
+mauvais droit** — un mode de défaillance qu'aucun contrôle de provenance ne verra jamais,
+par construction.
+
+La correction n'est pas dans le moteur, elle est dans le **périmètre du corpus**. Un
+espace dédié aux marchés publics ordinaires ne doit pas contenir le livre défense. C'est
+exactement le principe fondateur : un dossier, une instance, un périmètre.
+
+## D22 — Un nombre à quatre chiffres sans tiret n'est pas un article · 23/08/2026 · **actée**
+
+Le corpus ne compte que six articles en forme courte — `L1` à `L6`, plus `L3-1`. Tout
+autre porte **quatre chiffres et un tiret**.
+
+« Les articles R2161 et suivants » désigne donc une **section**, et c'est une façon
+correcte d'écrire. Le motif élargi la comptait comme une citation d'article, qui
+ressortait ensuite en fantôme.
+
+Mesuré : sur 124 cas, **quatre des dix fantômes annoncés** étaient de cette nature. Après
+resserrement : **8 au lieu de 10**.
+
+Une métrique qui signale comme invention une manière correcte d'écrire gonfle son propre
+compte et perd la confiance qu'on lui accorde. Les formes courtes restent reconnues, et
+c'est nécessaire dans les deux sens : `L2` est un vrai article, `L30` — cité par une
+réponse mesurée — est une vraie invention. Le motif ne peut pas les distinguer ; c'est la
+comparaison au corpus qui tranche.
+
+## Référence L1.5 sur le jeu doré corrigé — 23/08/2026
+
+Configuration retenue : prompt durci, k=6, **raisonnement coupé** (D18), 124 cas.
+
+| | |
+|---|---|
+| refuse **à chaque fois** sur cas négatif | **21/21** |
+| cite l'article attendu | **88/102** — 86 % |
+| tous les articles attendus remontés | **88/104** — 85 % |
+| citation fantôme | 8/124 |
+| citation hors contexte | 22/124 |
+| montant inventé | 2/124 |
+| réponses tronquées | **2** |
+| latence médiane | **~2 s** |
+| garde-fou : rendues / annotées / remplacées | **137 / 23 / 4** sur 164 |
+
+Le refus est désormais **systématique** — c'était 0/8 au premier jour de mesure, 6/8 avec
+le prompt durci, 15/18 avec raisonnement. H3 est tenue : 10 s visés, 2 s obtenus.

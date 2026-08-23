@@ -205,3 +205,31 @@ def test_les_deux_cotes_du_controle_emploient_le_meme_format():
     # le contrôle reste cohérent, il ne voit simplement rien.
     v = verifier("Selon 20.1, le délai est de trente jours.", [passage])
     assert v.citations == set() and v.fournies == set()
+
+
+def test_une_reference_de_section_n_est_pas_une_citation_d_article():
+    """« les articles R2161 et suivants » désigne une section, pas un article.
+
+    Le corpus ne compte que six articles en forme courte — L1 à L6, plus L3-1. Tout
+    autre porte quatre chiffres **et** un tiret. Un nombre à quatre chiffres nu est
+    donc une section, et cette façon d'écrire est correcte.
+
+    Mesuré : quatre des dix « fantômes » annoncés sur 124 cas étaient de cette nature.
+    Une métrique qui signale comme invention une manière correcte d'écrire gonfle son
+    propre compte et perd la confiance qu'on lui accorde.
+    """
+    assert articles_cites("Voir les articles R2161 et suivants.") == set()
+    assert articles_cites("La sous-section R2113 traite de l'allotissement.") == set()
+
+
+def test_les_formes_courtes_restent_reconnues_dans_les_deux_sens():
+    """Nécessaire pour le vrai comme pour le faux.
+
+    `L2` définit le marché public — c'est un vrai article. `L30` a été cité par une
+    réponse mesurée et n'existe pas — c'est une vraie invention. Le contrôle doit voir
+    les deux, et il ne peut pas les distinguer par la forme : c'est la comparaison au
+    corpus qui tranche, pas le motif.
+    """
+    assert articles_cites("Selon L2, un marché est un contrat.") == {"L2"}
+    assert articles_cites("Voir l'article L30 du code.") == {"L30"}
+    assert articles_cites("L. 511-16 du code monétaire") == {"L511-16"}
