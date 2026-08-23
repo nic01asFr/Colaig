@@ -29,6 +29,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 
+from colaig.utils.reponses_llm import extraire_contenu
 from colaig.exceptions import LLMError, LLMRateLimitError, LLMUnavailableError
 from colaig.integrations.llm.utils import normalize_tool_call_id as _normalize_id
 from colaig.models import ChatCompletionResult, ToolCall
@@ -180,7 +181,7 @@ class AzureClient:
         async with sem:
             response = await self._request_with_retry(self._chat_url(), payload, self._chat_timeout)
         try:
-            return response.json()["choices"][0]["message"]["content"]
+            return extraire_contenu(response.json(), "Azure", max_tokens)
         except (KeyError, IndexError, ValueError) as e:
             raise LLMError(f"Réponse Azure inattendue: {e}") from e
 

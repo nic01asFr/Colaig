@@ -25,6 +25,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 
+from colaig.utils.reponses_llm import extraire_contenu
 from colaig.exceptions import LLMError, LLMRateLimitError, LLMUnavailableError
 from colaig.integrations.llm.utils import normalize_tool_call_id as _normalize_id
 from colaig.models import ChatCompletionResult, ToolCall
@@ -177,10 +178,7 @@ class OpenAIClient:
         }
         async with sem:
             response = await self._request_with_retry(url, payload, self._chat_timeout)
-        try:
-            return response.json()["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, ValueError) as e:
-            raise LLMError(f"Réponse {self._backend} inattendue: {e}") from e
+        return extraire_contenu(response.json(), self._backend, max_tokens)
 
     async def chat_stream(
         self,

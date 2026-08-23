@@ -19,6 +19,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 
+from colaig.utils.reponses_llm import extraire_contenu
 from colaig.exceptions import AlbertError, AlbertRateLimitError, AlbertUnavailableError
 from colaig.models import ChatCompletionResult, ColaigConfig, ToolCall
 
@@ -261,7 +262,7 @@ class AlbertClient:
         data = response.json()
         self._record_usage(data)
         try:
-            return data["choices"][0]["message"]["content"]
+            return extraire_contenu(data, "Albert", max_tokens)
         except (KeyError, IndexError) as e:
             raise AlbertError(f"Réponse Albert inattendue: {e}") from e
 

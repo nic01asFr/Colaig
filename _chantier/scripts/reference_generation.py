@@ -1,0 +1,267 @@
+"""
+Palier 2 de la référence — la génération.
+
+STATUT: COMPLET
+VERSION: 2026-08-23 - v1.0
+LOT: L1.5
+
+La génération varie d'une exécution à l'autre. **Son évaluation, elle, ne doit pas.**
+Tout ce qui est mesuré ici est vérifiable mécaniquement sur la réponse produite :
+
+| indicateur | ce qu'il détecte |
+|---|---|
+| **citation fantôme** | un numéro d'article cité qui **n'existe pas** dans le corpus |
+| **citation hors contexte** | un article qui existe mais n'était **pas** dans les passages fournis — le modèle a puisé dans sa mémoire, pas dans le corpus |
+| **montant inventé** | une somme en euros absente des passages fournis |
+| **refus** | sur cas négatif, la réponse dit-elle que l'information manque ? |
+| **citation attendue** | l'article attendu est-il cité ? |
+
+Les trois premiers sont les seuls qui comptent vraiment. Sur un corpus juridique, un
+article inventé ou un seuil fabriqué produit une procédure irrégulière, et **rien dans
+la réponse ne le signale** : elle est fluide, plausible, et fausse.
+
+Variance
+--------
+Les cas négatifs — les plus coûteux — sont rejoués **trois fois**. Un refus obtenu une
+fois ne prouve pas un comportement ; c'est la constance qui compte. Le reste est mesuré
+une fois, et c'est écrit.
+"""
+from __future__ import annotations
+
+import json
+import re
+import sys
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+RACINE = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(RACINE))
+
+SRC = (RACINE / "_chantier" / "scripts" / "reference_l15.py").read_text(encoding="utf-8")
+_ns: dict = {"__name__": "gen", "__file__": str(RACINE / "_chantier" / "scripts" / "reference_l15.py")}
+sys.argv = ["gen", "article"]
+exec(compile(SRC.replace("raise SystemExit(main())", "pass"), "reference_l15.py", "exec"), _ns)
+decouper, embed, cle_albert = _ns["decouper"], _ns["embed"], _ns["cle_albert"]
+articles_du_chunk, FaissStore, CORPUS = _ns["articles_du_chunk"], _ns["FaissStore"], _ns["CORPUS"]
+
+JEU = RACINE / "tests" / "golden" / "v1.jsonl"
+CONFIG = RACINE / "tests" / "golden" / "corpus-marches-publics-config.yaml"
+
+# Cible de production (D3). Mesurer sur autre chose mesurerait autre chose.
+BASE_SSP = "https://llm.lab.sspcloud.fr/api/v1"
+MODELE = "qwen3-6-35b-moe"
+K = 6
+REPETITIONS_NEGATIFS = 3
+
+MARQUEURS_REFUS = (
+    "ne figure pas", "ne figurent pas", "ne contient pas", "ne permet pas",
+    "pas dans ce corpus", "pas dans le corpus", "n'y sont pas", "ne se déduit",
+    "je ne dispose pas", "n'est pas dans", "ne relève pas", "aucun élément",
+    "hors du corpus", "n'apparaît pas",
+)
+
+
+def cle_ssp() -> str:
+    for ligne in open(RACINE / ".env", encoding="utf-8"):
+        if ligne.strip().lower().startswith("sspcloud_api_key="):
+            return ligne.split("=", 1)[1].strip()
+    raise SystemExit("clé SSPCloud introuvable")
+
+
+def prompt_systeme() -> str:
+    texte = CONFIG.read_text(encoding="utf-8")
+    bloc = texte.split("system_prompt: |", 1)[1]
+    lignes = []
+    for ligne in bloc.splitlines()[1:]:
+        if ligne.strip() and not ligne.startswith("  "):
+            break
+        lignes.append(ligne[2:] if ligne.startswith("  ") else ligne)
+    return "\n".join(lignes).strip()
+
+
+def repondre(systeme: str, question: str, passages: list[str], cle: str) -> tuple[str, float]:
+    contexte = "\n\n---\n\n".join(passages)
+    charge = json.dumps({
+        "model": MODELE,
+        "messages": [
+            {"role": "system", "content": systeme},
+            {"role": "user", "content":
+                f"Passages du Code de la commande publique :\n\n{contexte}\n\n"
+                f"Question : {question}"},
+        ],
+        "temperature": 0.1,
+        # 4000, pas 2048. `qwen3-6-35b-moe` est un modèle à raisonnement : mesuré,
+        # il produit 10 170 caractères de raisonnement pour 2 959 de réponse — un
+        # facteur 3,4. À 900 la réponse est **vide** ; à 2048, le défaut du Protocol,
+        # elle est tronquée. Voir docs/baseline-generation.
+        "max_tokens": 4000,
+    }).encode()
+    req = urllib.request.Request(BASE_SSP + "/chat/completions", data=charge, method="POST")
+    req.add_header("Authorization", "Bearer " + cle)
+    req.add_header("Content-Type", "application/json")
+    t0 = time.monotonic()
+    with urllib.request.urlopen(req, timeout=300) as rep:
+        choix = json.loads(rep.read().decode())["choices"][0]
+    contenu = choix["message"].get("content") or ""
+    if choix.get("finish_reason") == "length":
+        print(f"  ATTENTION réponse tronquée (finish_reason=length)", file=sys.stderr)
+    return contenu, time.monotonic() - t0
+
+
+def articles_cites(texte: str) -> set[str]:
+    """Numéros d'article cités, quelle que soit la typographie (L. 2113-10, L2113-10…)."""
+    bruts = re.findall(r"\b([LRD])\.?\s?(\d{4}-\d+(?:-\d+)?)\b", texte)
+    return {f"{lettre}{numero}" for lettre, numero in bruts}
+
+
+def montants(texte: str) -> set[str]:
+    return {m.replace(" ", " ").replace("\xa0", " ")
+            for m in re.findall(r"\b\d{1,3}(?:[   \xa0]\d{3})+\b", texte)}
+
+
+def main() -> int:
+    cle_a, cle_s = cle_albert(), cle_ssp()
+    systeme = prompt_systeme()
+    cas = [json.loads(l) for l in JEU.read_text(encoding="utf-8").splitlines() if l.strip()]
+
+    chunks = decouper("article")
+    articles_existants: set[str] = set()
+    for f in CORPUS.glob("*.md"):
+        articles_existants |= set(re.findall(r"^## Article ([A-Za-z0-9\- ]+)$",
+                                             f.read_text(encoding="utf-8"), re.M))
+    articles_existants = {a.strip() for a in articles_existants}
+    print(f"{len(chunks)} chunks, {len(articles_existants)} articles, {len(cas)} cas", file=sys.stderr)
+
+    store = FaissStore(dimension=1024)
+    store.add(embed([c.text for c in chunks], cle_a), chunks)
+    vq = embed([c["question"] for c in cas], cle_a)
+
+    resultats = []
+    latences = []
+    for i, (c, v) in enumerate(zip(cas, vq), 1):
+        trouves = store.search(v, k=K)
+        passages = [r.chunk.text for r in trouves]
+        fournis: set[str] = set()
+        for p in passages:
+            fournis |= articles_du_chunk(p)
+        montants_fournis = set().union(*(montants(p) for p in passages)) if passages else set()
+
+        essais = REPETITIONS_NEGATIFS if c.get("attendu_refus") else 1
+        observations = []
+        for _ in range(essais):
+            try:
+                reponse, duree = repondre(systeme, c["question"], passages, cle_s)
+            except Exception as e:  # noqa: BLE001
+                print(f"  {c['id']} : appel en échec ({type(e).__name__})", file=sys.stderr)
+                continue
+            latences.append(duree)
+            cites = articles_cites(reponse)
+            observations.append({
+                "fantomes": sorted(cites - articles_existants),
+                "hors_contexte": sorted((cites & articles_existants) - fournis),
+                "montants_inventes": sorted(montants(reponse) - montants_fournis
+                                            - montants(c["question"])),
+                "refus": any(m in reponse.lower() for m in MARQUEURS_REFUS),
+                "cite_attendus": bool(set(c.get("articles_attendus", [])) & cites),
+            })
+        print(f"  {i}/{len(cas)} {c['id']}", end="\r", file=sys.stderr)
+        resultats.append({"cas": c, "obs": observations})
+    print(file=sys.stderr)
+    return rapport(resultats, latences)
+
+
+def rapport(resultats, latences) -> int:
+    import statistics
+
+    positifs = [r for r in resultats if not r["cas"].get("attendu_refus") and r["obs"]]
+    negatifs = [r for r in resultats if r["cas"].get("attendu_refus") and r["obs"]]
+
+    def compte(sous_ensemble, cle_obs):
+        return sum(1 for r in sous_ensemble if any(o[cle_obs] for o in r["obs"]))
+
+    fantomes = compte(resultats, "fantomes")
+    hors_ctx = compte(resultats, "hors_contexte")
+    inventes = compte(resultats, "montants_inventes")
+    cite_ok = compte(positifs, "cite_attendus")
+    refus_tjs = sum(1 for r in negatifs if all(o["refus"] for o in r["obs"]))
+    refus_parf = sum(1 for r in negatifs if any(o["refus"] for o in r["obs"])
+                     and not all(o["refus"] for o in r["obs"]))
+    refus_jam = sum(1 for r in negatifs if not any(o["refus"] for o in r["obs"]))
+
+    L = [
+        "# Palier génération — première mesure",
+        "",
+        f"**{time.strftime('%d/%m/%Y')}.** Complète `baseline-{time.strftime('%Y%m%d')}.md`.",
+        "",
+        f"Montage : découpage par article (D12), `bge-m3` 1024 dim, k={K}, génération par",
+        f"**`{MODELE}` sur SSPCloud** — la cible de production (D3). Prompt système : celui",
+        "de l'espace, mot pour mot.",
+        "",
+        "La génération varie ; **son évaluation est mécanique**. Tout ce qui suit se vérifie",
+        "sur le texte produit, sans juge.",
+        "",
+        "## Ce qui compte le plus : le modèle invente-t-il ?",
+        "",
+        "| | cas concernés |",
+        "|---|---|",
+        f"| **Citation fantôme** — article cité inexistant dans le corpus | **{fantomes}/{len(resultats)}** |",
+        f"| **Citation hors contexte** — article réel, absent des passages fournis | **{hors_ctx}/{len(resultats)}** |",
+        f"| **Montant inventé** — somme absente des passages | **{inventes}/{len(resultats)}** |",
+        "",
+        "Une citation fantôme est le pire résultat possible : elle est indétectable pour qui",
+        "ne vérifie pas, et elle fonde une procédure sur un texte qui n'existe pas.",
+        "",
+        f"## Le refus sur cas négatif — {len(negatifs)} cas, {REPETITIONS_NEGATIFS} exécutions chacun",
+        "",
+        "| | cas |",
+        "|---|---|",
+        f"| Refuse **à chaque fois** | **{refus_tjs}/{len(negatifs)}** |",
+        f"| Refuse *parfois* | {refus_parf}/{len(negatifs)} |",
+        f"| Ne refuse **jamais** | **{refus_jam}/{len(negatifs)}** |",
+        "",
+        "Le refus intermittent est presque aussi problématique que l'absence de refus : on ne",
+        "peut pas s'y fier, et rien n'indique à l'utilisateur dans quel cas il se trouve.",
+        "",
+        "## Citation de l'article attendu",
+        "",
+        f"**{cite_ok}/{len(positifs)}** cas positifs citent au moins un article attendu.",
+        "",
+        f"Latence de génération : médiane **{statistics.median(latences):.1f} s** "
+        f"(min {min(latences):.1f}, max {max(latences):.1f}) sur {len(latences)} appels.",
+        "",
+        "## Détail des anomalies",
+        "",
+    ]
+    anomalies = False
+    for r in resultats:
+        c = r["cas"]
+        for j, o in enumerate(r["obs"], 1):
+            if o["fantomes"] or o["hors_contexte"] or o["montants_inventes"]:
+                anomalies = True
+                suffixe = f" (exécution {j})" if len(r["obs"]) > 1 else ""
+                L.append(f"- **{c['id']}**{suffixe} — "
+                         + " · ".join(filter(None, [
+                             f"fantômes : {', '.join(o['fantomes'])}" if o["fantomes"] else "",
+                             f"hors contexte : {', '.join(o['hors_contexte'])}" if o["hors_contexte"] else "",
+                             f"montants : {', '.join(o['montants_inventes'])}" if o["montants_inventes"] else "",
+                         ])))
+    if not anomalies:
+        L.append("*Aucune.*")
+    L += ["", "## Rejouer", "", "```bash",
+          "python _chantier/scripts/reference_generation.py", "```"]
+
+    sortie = RACINE / "docs" / f"baseline-generation-{time.strftime('%Y%m%d')}.md"
+    sortie.write_text("\n".join(L) + "\n", encoding="utf-8")
+
+    print(f"\nfantômes {fantomes} · hors contexte {hors_ctx} · montants inventés {inventes}")
+    print(f"refus toujours {refus_tjs}/{len(negatifs)} · parfois {refus_parf} · jamais {refus_jam}")
+    print(f"cite l'attendu : {cite_ok}/{len(positifs)}")
+    print(f"latence médiane : {statistics.median(latences):.1f} s")
+    print(f"\nrapport : {sortie}", file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
