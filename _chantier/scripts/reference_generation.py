@@ -343,11 +343,14 @@ def rapport(resultats, latences) -> int:
     L += ["", "## Rejouer", "", "```bash",
           "python _chantier/scripts/reference_generation.py", "```"]
 
-    suffixe = "" if VARIANTE == "temoin" else f"-{VARIANTE}"
+    # Le nom du rapport porte la profondeur, sinon deux executions de la meme
+    # variante a des k differents s ecrasent en silence — ce qui est arrive le
+    # 23/08/2026 : la passe k=15 a efface celle de k=6, rapport et reponses.
+    suffixe = ("" if VARIANTE == "temoin" else f"-{VARIANTE}") + f"-k{K}"
     sortie = RACINE / "docs" / f"baseline-generation-{time.strftime('%Y%m%d')}{suffixe}.md"
     # Les réponses sont conservées : auditer un chiffre ne doit pas exiger de tout
     # relancer. C'est ce qui a manqué pour vérifier la liste de marqueurs de refus.
-    brut = RACINE / "_chantier" / "mesures" / f"reponses-{VARIANTE}-{time.strftime('%Y%m%d')}.json"
+    brut = RACINE / "_chantier" / "mesures" / f"reponses-{VARIANTE}-k{K}-{time.strftime('%Y%m%d')}.json"
     brut.parent.mkdir(exist_ok=True)
     import json as _json
     brut.write_text(_json.dumps(
