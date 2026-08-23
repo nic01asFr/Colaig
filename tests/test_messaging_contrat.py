@@ -34,7 +34,32 @@ plutôt que masqué par une assertion creuse.
 | `fake` | ✅ | ✅ | ✅ |
 | `noop` | ✅ | ✅ | — jette par construction |
 | `webchat` | ✅ | ✅ | ✅ via une WebSocket factice |
-| `matrix` | ⏭️ homeserver requis |
+| `matrix` | ⏭️ en CI — **vérifié manuellement** le 23/08/2026, voir ci-dessous |
+
+Le backend `matrix`, et pourquoi il reste en `skip`
+---------------------------------------------------
+Ses sémantiques d'envoi ont été **vérifiées contre le vrai serveur Tchap**
+(`agent.dev-durable.tchap.gouv.fr`), dans un salon créé pour l'occasion :
+
+    m.text     'message simple'
+    m.text     'gras'  html='<b>gras</b>'
+    m.notice   'indexation en cours'
+
+Soit : `formatted` produit bien un `formatted_body`, `is_status=True` produit bien un
+`m.notice`, et le défaut reste `m.text`.
+
+**`run()` n'a pas été vérifié, et ne le sera pas sur ce compte.** `matrix.py::_on_invite`
+fait un **auto-join de toute invitation reçue**, et `run()` déclenche ce callback via
+`sync_forever`. Démarrer la boucle d'écoute avec les credentials de production ferait
+donc rejoindre des salons — un effet de bord sur l'instance déployée, pas sur un banc
+d'essai. C'est un `skip` motivé, pas un oubli.
+
+La vérification a été bornée par une **liste blanche d'envoi** : le script ne pouvait
+émettre que vers les salons qu'il venait lui-même de créer. Contrôle fait en tentant
+d'abord un envoi vers un salon réel à 53 membres — refusé avant l'appel réseau.
+
+Pour lever ce `skip` en CI il faut un **compte bot de test**, distinct de la production.
+Sur un tel compte, l'auto-join est sans conséquence et `run()` devient vérifiable.
 """
 from __future__ import annotations
 

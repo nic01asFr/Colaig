@@ -691,6 +691,52 @@ livraison.
 
 ---
 
+## L1.2 — complément : backend `matrix` vérifié sur le vrai Tchap · 23/08/2026
+
+Sur autorisation explicite, et sous contrainte : **aucun envoi dans un salon existant**,
+uniquement un salon créé pour l'occasion.
+
+### Ce qui a été trouvé avant d'exécuter
+
+Le compte bot de production est joignable **depuis le poste** : ses credentials sont dans
+`colaig-v3/.env`. Il n'a jamais été nécessaire d'approcher le pod `colaig-0` — et ce
+n'était pas possible, son namespace `user-nic01asfr` étant fermé à l'outillage.
+
+Passe en lecture seule : **14 salons**, dont un à **53 membres répartis sur cinq
+ministères**. Rien de tout cela n'entre dans le dépôt.
+
+**`matrix.py::_on_invite` fait un auto-join de toute invitation**, et `run()` déclenche
+ce callback via `sync_forever`. Démarrer la boucle d'écoute sur ce compte lui ferait
+rejoindre des salons : un effet de bord sur la production. `run()` n'a donc **pas** été
+exécuté, et le contrat porte ce `skip` avec sa raison.
+
+### Le dispositif
+
+Liste blanche d'envoi : le script ne pouvait émettre que vers les salons créés dans son
+exécution. **Vérifié en tentant d'abord un envoi vers le salon à 53 membres** — refusé
+avant l'appel réseau. Un garde-fou dont on n'a pas vu le rouge ne prouve rien ; celui-ci
+a été mis en rouge exprès.
+
+Salon `colaig-chantier-L1.2` créé, Nicolas Laval invité. Déconnexion et révocation
+d'appareil à la fin de chaque passe.
+
+### Résultat — relu depuis le serveur
+
+```
+m.text     'message simple'
+m.text     'gras'  html='<b>gras</b>'
+m.notice   'indexation en cours'
+```
+
+`formatted` produit un `formatted_body`, `is_status=True` produit un `m.notice`, le
+défaut reste `m.text`. **La sémantique d'envoi du backend matrix est vérifiée contre le
+vrai serveur**, pas contre une doublure.
+
+**Ouvert :** un compte bot de **test** reste nécessaire pour lever le `skip` de `run()`
+en CI. Sur un compte dédié, l'auto-join est sans conséquence.
+
+---
+
 ## Prochaine action
 
 1. **L1.3** — contrat `LLMClientProtocol` + `capability_chain`. H1 est déjà levée et
