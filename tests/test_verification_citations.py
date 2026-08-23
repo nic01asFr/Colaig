@@ -43,6 +43,36 @@ def test_les_graphies_usuelles_sont_reconnues(texte, attendu):
     assert articles_cites(texte) == attendu
 
 
+@pytest.mark.parametrize(
+    "texte,attendu",
+    [
+        ("Selon L2, un marché est un contrat conclu à titre onéreux.", {"L2"}),
+        ("L'article L. 3 énonce les principes.", {"L3"}),
+        ("Voir L. 3-1 pour les concessions.", {"L3-1"}),
+        ("Les articles L1 à L6 forment le titre préliminaire.", {"L1", "L6"}),
+    ],
+)
+def test_les_articles_preliminaires_sont_reconnus(texte, attendu):
+    """`L1` à `L6` définissent *marché*, *marché public*, *acheteur*.
+
+    Ce sont les plus cités par un assistant à la rédaction, et le motif d'origine —
+    quatre chiffres obligatoires — ne les voyait pas. L'angle mort n'était pas une
+    lacune passive : voir `test_une_reponse_fondee_sur_un_article_preliminaire_survit`.
+    """
+    assert articles_cites(texte) == attendu
+
+
+def test_ce_qui_n_est_pas_une_reference_ne_l_est_pas_devenu():
+    """Élargir un motif, c'est risquer de tout attraper. Contrôle du revers.
+
+    Sans ce test, `L1` reconnu partout ferait passer des fragments de prose pour des
+    citations — et le garde-fou déclarerait « ancrées » des réponses qui ne le sont pas.
+    """
+    assert articles_cites("5 lots pour 3 candidats et 2 tranches") == set()
+    assert articles_cites("le lot n° 4 et la tranche 2") == set()
+    assert articles_cites("aucune référence ici") == set()
+
+
 # ── Le contrôle ─────────────────────────────────────────────────────────────
 
 

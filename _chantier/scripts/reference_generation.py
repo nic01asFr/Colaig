@@ -154,10 +154,18 @@ def repondre(systeme: str, question: str, passages: list[str], cle: str) -> tupl
     return contenu, time.monotonic() - t0, tronquee
 
 
-def articles_cites(texte: str) -> set[str]:
-    """Numéros d'article cités, quelle que soit la typographie (L. 2113-10, L2113-10…)."""
-    bruts = re.findall(r"\b([LRD])\.?\s?(\d{4}-\d+(?:-\d+)?)\b", texte)
-    return {f"{lettre}{numero}" for lettre, numero in bruts}
+# La reconnaissance des références vient du **module de production**, pas d'une copie.
+#
+# Elle était dupliquée ici. Les deux exemplaires ont divergé une première fois — le côté
+# réponse tolérait « L. 2113-10 », le côté passages non — et 53,7 % des références du
+# corpus étant écrites avec un point, la mesure a conclu à tort que le modèle puisait
+# dans sa mémoire. La conclusion était fausse ; la duplication l'avait rendue possible.
+#
+# Elle a divergé une seconde fois le 23/08/2026, quand le motif du module a été élargi
+# aux articles préliminaires (L1 à L6). D'où cet import : une mesure qui n'utilise pas le
+# code mesuré ne mesure pas ce qu'elle croit.
+from colaig.rag.verification_citations import articles_cites  # noqa: E402
+
 
 
 def montants(texte: str) -> set[str]:

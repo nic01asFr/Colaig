@@ -33,9 +33,25 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
-# Un numéro d'article du Code de la commande publique, sous ses graphies usuelles :
-# « L2113-10 », « L. 2113-10 », « article R. 2122-8 ».
-_MOTIF_ARTICLE = re.compile(r"\b([LRD])\.?\s?(\d{4}-\d+(?:-\d+)?)\b")
+# Un numéro d'article, sous ses graphies usuelles : « L2113-10 », « L. 2113-10 »,
+# « article R. 2122-8 » — mais aussi « L2 », « L. 3-1 ».
+#
+# Les articles **préliminaires** du code (L1 à L6, L3-1) définissent *contrat de la
+# commande publique*, *marché*, *marché public*, *acheteur* : ce sont les plus cités par
+# un assistant à la rédaction. Un motif exigeant quatre chiffres ne les voyait pas.
+#
+# L'angle mort n'était pas une simple lacune, il était **destructeur** : une réponse
+# entièrement fondée qui n'aurait cité que « L2 » était vue comme ne citant rien, donc
+# remplacée par un refus dans `garde_fou_reponse.appliquer()`. Le garde-fou détruisait la
+# bonne réponse qu'il était censé protéger.
+#
+# Le motif élargi ajoute 229 occurrences sur le corpus figé (4519 → 4748). Elles ont été
+# relues : références à d'autres codes citées **dans** les articles du CCP (code de
+# commerce, code monétaire et financier) et articles préliminaires. Aucun faux positif de
+# prose, à une coquille près dans la source — « L. 2339 11-1 », espace au lieu d'un tiret
+# — qui produit une entrée fantôme côté passages, donc sans effet : elle ne peut que
+# rendre le contrôle plus permissif d'une référence que personne ne citera.
+_MOTIF_ARTICLE = re.compile(r"\b([LRD])\.?\s?(\d{1,4}-\d+(?:-\d+)?|[1-9]\d{0,3})\b")
 
 
 def articles_cites(texte: str) -> set[str]:

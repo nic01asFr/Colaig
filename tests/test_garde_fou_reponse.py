@@ -66,6 +66,29 @@ def test_une_reference_ecrite_avec_un_point_est_reconnue():
     assert d.action == "rendue", d.motif
 
 
+def test_une_reponse_fondee_sur_un_article_preliminaire_survit():
+    """Le garde-fou détruisait la bonne réponse qu'il était censé protéger.
+
+    Tant que le motif exigeait quatre chiffres, une réponse citant `L2` — l'article qui
+    **définit le marché public** — était vue comme ne citant rien. `appliquer()` la
+    remplaçait alors par un refus, au motif d'une « réponse sans aucune référence aux
+    passages », alors qu'elle était entièrement fondée.
+
+    C'est le pire mode de défaillance possible pour un garde-fou : silencieux, et dirigé
+    contre les réponses justes. Découvert en indexant le corpus pour étendre le jeu doré
+    — 1754 articles indexés sur 1762 annoncés, et les 8 manquants étaient précisément
+    ceux-là.
+    """
+    passages = [
+        "Titre préliminaire" + chr(10) * 2 + "Article L2" + chr(10) * 2 +
+        "Un marché est un contrat conclu à titre onéreux par un acheteur "
+        "avec un ou plusieurs opérateurs économiques.",
+    ]
+    d = appliquer("D'après L2, le marché suppose un contrat à titre onéreux.", passages)
+    assert d.action == "rendue", f"{d.action} — {d.motif}"
+    assert d.fiable
+
+
 # ── Ce qui est annoté ───────────────────────────────────────────────────────
 
 

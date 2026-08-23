@@ -136,13 +136,20 @@ def decouper(strategie: str):
     return chunks
 
 
-def articles_du_chunk(texte: str) -> set[str]:
-    """Numéros d'article présents dans un passage.
+from colaig.rag.verification_citations import articles_cites as articles_du_chunk  # noqa: E402
 
-    Le découpage peut couper au milieu d'un article : on retient donc aussi les numéros
-    cités en corps de texte, pas seulement les titres `## Article`.
-    """
-    return set(re.findall(r"\b([LRD]\d{4}-\d+(?:-\d+)?)\b", texte))
+# Cette fonction était réécrite ici, et son motif — « [LRD] suivi de quatre chiffres »,
+# sans point ni espace tolérés — ne reconnaissait **aucune** référence de la forme
+# « L. 2113-10 », soit 53,7 % de celles du corpus. Sa docstring annonçait pourtant
+# retenir les numéros cités en corps de texte.
+#
+# Conséquence sur la mesure de recherche : un article attendu présent dans un passage
+# sous sa seule forme pointée comptait comme non trouvé. Le score publié était donc
+# **sous-estimé**, dans une proportion qu'il a fallu remesurer.
+#
+# Troisième copie de la même fonction dans ce chantier, troisième divergence. Toutes
+# pointent désormais sur le module de production.
+
 
 
 def main() -> int:
