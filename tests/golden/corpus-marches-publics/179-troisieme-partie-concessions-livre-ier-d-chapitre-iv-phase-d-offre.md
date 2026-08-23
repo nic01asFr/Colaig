@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie réglementaire › TROISIÈME PARTIE : CONCESSIONS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre II : PROCÉDURE DE PASSATION › Chapitre IV : PHASE D'OFFRE
 
-**5 articles en vigueur** — R3124-1 à R3124-6.
+**6 articles en vigueur** — R3124-1 à R3124-6.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -27,6 +27,13 @@ L'autorité concédante fixe le délai de remise des offres en fonction notammen
 *En vigueur depuis le 2019-04-01.*
 
 Lorsque les offres ne peuvent être déposées qu'à la suite d'une visite sur les lieux d'exécution du contrat ou après consultation sur place de documents complémentaires, le délai de réception des offres est fixé de manière à permettre aux opérateurs économiques concernés de prendre connaissance des informations nécessaires au dépôt de leur offre.
+
+## Article R3124-4
+
+*En vigueur depuis le 2026-08-21.*
+
+Pour attribuer le contrat de concession, l'autorité concédante se fonde, conformément aux dispositions de l'article L. 3124-5, sur une pluralité de critères non discriminatoires dont au moins l'un d'entre eux prend en compte les caractéristiques environnementales de l'offre. Au nombre de ces critères peuvent également figurer des critères sociaux ou relatifs à l'innovation. 
+Les critères et leur description sont indiqués dans l'avis de concession, dans l'invitation à présenter une offre ou dans tout autre document de la consultation.
 
 ## Article R3124-5
 

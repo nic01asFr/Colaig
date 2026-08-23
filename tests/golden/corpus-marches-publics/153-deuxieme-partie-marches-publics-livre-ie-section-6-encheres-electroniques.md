@@ -3,11 +3,17 @@
 > **Position dans le Code de la commande publique**  
 > Partie réglementaire › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre VI : RÈGLES APPLICABLES AUX PROCÉDURES DE PASSATION ET AUX TECHNIQUES D'ACHAT › Chapitre II : RÈGLES APPLICABLES AUX TECHNIQUES D'ACHAT › Section 6 : Enchères électroniques
 
-**9 articles en vigueur** — R2162-58 à R2162-66.
+**10 articles en vigueur** — R2162-57 à R2162-66.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
 ---
+
+## Article R2162-57
+
+*En vigueur depuis le 2026-08-21.*
+
+L'enchère électronique porte sur le prix ou sur d'autres éléments quantifiables indiqués dans les documents de la consultation.
 
 ## Article R2162-58
 

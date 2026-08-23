@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie législative › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre III : ENGAGEMENT DE LA PROCÉDURE DE PASSATION
 
-**2 articles en vigueur** — L2131-1 à L2132-1.
+**3 articles en vigueur** — L2131-1 à L2132-2.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -20,3 +20,9 @@ Afin de susciter la plus large concurrence, les acheteurs procèdent à une publ
 *En vigueur depuis le 2019-04-01.*
 
 L'acheteur ne peut communiquer les informations confidentielles dont il a eu connaissance lors de la procédure de passation, telles que celles dont la divulgation violerait le secret des affaires, ou celles dont la communication pourrait nuire à une concurrence loyale entre les opérateurs économiques, telle que la communication en cours de consultation du montant total ou du prix détaillé des offres.Toutefois, l'acheteur peut demander aux opérateurs économiques de consentir à ce que certaines informations confidentielles qu'ils ont fournies, précisément désignées, puissent être divulguées.L'acheteur peut imposer aux opérateurs économiques des exigences visant à protéger la confidentialité des informations qu'il communique dans le cadre de la procédure de passation d'un marché.
+
+## Article L2132-2
+
+*En vigueur depuis le 2019-04-01.*
+
+Les communications et les échanges d'informations effectués dans le cadre de la procédure de passation d'un marché sont réalisés par voie électronique, selon des modalités et sous réserve des exceptions prévues par voie réglementaire.

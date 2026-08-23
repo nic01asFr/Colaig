@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie législative › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre V : PHASE D'OFFRE
 
-**12 articles en vigueur** — L2151-1 à L2153-2.
+**13 articles en vigueur** — L2151-1 à L2153-2.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -57,6 +57,15 @@ Une offre anormalement basse est une offre dont le prix est manifestement sous-�
 *En vigueur depuis le 2019-04-01.*
 
 L'acheteur met en œuvre tous moyens lui permettant de détecter les offres anormalement basses.Lorsque une offre semble anormalement basse, l'acheteur exige que l'opérateur économique fournisse des précisions et justifications sur le montant de son offre.Si, après vérification des justifications fournies par l'opérateur économique, l'acheteur établit que l'offre est anormalement basse, il la rejette dans des conditions prévues par décret en Conseil d'Etat.
+
+## Article L2152-7
+
+*En vigueur depuis le 2026-08-22.*
+
+Le marché est attribué au soumissionnaire ou, le cas échéant, aux soumissionnaires qui ont présenté l'offre économiquement la plus avantageuse sur la base d'un ou plusieurs critères objectifs, précis et liés à l'objet du marché ou à ses conditions d'exécution. Au moins un de ces critères prend en compte les caractéristiques environnementales de l'offre. Les modalités d'application du présent alinéa sont prévues par voie réglementaire.
+Sans préjudice des dispositions spéciales applicables à certains acheteurs, le marché peut être attribué à une société constituée ou en cours de formation entre l'acheteur et le ou les soumissionnaires déclarés attributaires et, le cas échéant, un tiers investisseur, si les documents de la consultation le prévoient. Cette société est constituée pour une durée limitée en vue de la conclusion et de l'exécution de ce marché.
+Les offres sont appréciées lot par lot, sauf lorsque les entités adjudicatrices ont autorisé les opérateurs économiques à présenter des offres variables selon le nombre de lots susceptibles d'être obtenus en application du second alinéa de l'article L. 2151-1.
+Le lien avec l'objet du marché ou ses conditions d'exécution s'apprécie conformément aux articles L. 2112-2 à L. 2112-4.
 
 ## Article L2152-8
 

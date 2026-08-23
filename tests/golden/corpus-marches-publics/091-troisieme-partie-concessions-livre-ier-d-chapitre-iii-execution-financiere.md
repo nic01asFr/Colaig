@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie législative › TROISIÈME PARTIE : CONCESSIONS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre III : EXÉCUTION DU CONTRAT DE CONCESSION › Chapitre III : Exécution financière
 
-**12 articles en vigueur** — L3133-1 à L3133-8.
+**13 articles en vigueur** — L3133-1 à L3133-8.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -69,6 +69,15 @@ Les articles L. 3133-2 et L. 3133-3 ne sont pas applicables aux contrats de conc
 *En vigueur depuis le 2019-07-22.*
 
 Les modalités d'application de la présente sous-section, notamment les éléments essentiels que doivent contenir les factures électroniques, sont définies par voie réglementaire.
+
+## Article L3133-6
+
+*En vigueur depuis le 2026-02-21.*
+
+Une solution mutualisée, mise à disposition par l'Etat et dénommée “ portail public de facturation ”, permet le dépôt, la réception et la transmission des factures sous forme électronique ainsi que des données relatives aux mentions figurant sur les factures électroniques conformément au second alinéa de l'article 289 E du code général des impôts.
+Pour la mise en œuvre des obligations résultant de la sous-section 1 de la présente section, utilisent le portail public de facturation :
+1° L'Etat, les collectivités territoriales et les établissements publics ;
+2° Les titulaires de contrats de concession conclus avec une autorité concédante mentionnée au 1°.
 
 ## Article L3133-7
 

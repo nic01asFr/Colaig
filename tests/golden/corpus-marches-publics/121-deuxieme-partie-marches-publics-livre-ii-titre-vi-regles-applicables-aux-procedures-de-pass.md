@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie réglementaire › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre III : DISPOSITIONS APPLICABLES AUX MARCHÉS DE DÉFENSE OU DE SÉCURITÉ › Titre VI : RÈGLES APPLICABLES AUX PROCÉDURES DE PASSATION ET AUX TECHNIQUES D'ACHAT
 
-**36 articles en vigueur** — R2361-1 à R2362-9.
+**37 articles en vigueur** — R2361-1 à R2362-9.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -146,6 +146,14 @@ Les catalogues électroniques sont établis par les candidats ou les soumissionn
 *En vigueur depuis le 2019-04-01.*
 
 Les dispositions de l'article R. 2162-55 s'appliquent.
+
+## Article R2362-13
+
+*En vigueur depuis le 2026-08-21.*
+
+L'enchère électronique porte :
+ 1° Soit uniquement sur le prix lorsque le marché est attribué sur la base de ce seul critère ;
+ 2° Soit sur le prix ou sur d'autres éléments quantifiables indiqués dans les documents de la consultation lorsque le marché est attribué sur la base du coût ou d'une pluralité de critères.
 
 ## Article R2362-14
 

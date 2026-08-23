@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie législative › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre Ier : PRÉPARATION DU MARCHÉ
 
-**25 articles en vigueur** — L2111-1 à L2113-9.
+**28 articles en vigueur** — L2111-1 à L2113-9.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -15,6 +15,12 @@
 
 La nature et l'étendue des besoins à satisfaire sont déterminées avec précision avant le lancement de la consultation en prenant en compte des objectifs de développement durable dans leurs dimensions économique, sociale et environnementale.
 A ce titre, pour leurs marchés répondant à un besoin dont la valeur estimée hors taxe est égale ou supérieure aux seuils européens figurant dans un avis annexé au présent code, les acheteurs prennent en compte l'efficacité et la sobriété énergétiques.
+
+## Article L2111-2
+
+*En vigueur depuis le 2026-08-22.*
+
+Les travaux, fournitures ou services à réaliser dans le cadre du marché public sont définis par référence à des spécifications techniques. Ces spécifications techniques prennent en compte des objectifs de développement durable dans leurs dimensions économique, sociale et environnementale.
 
 ## Article L2111-3
 
@@ -30,6 +36,25 @@ Les éléments mentionnés au deuxième alinéa du présent article peuvent êtr
 *En vigueur depuis le 2019-04-01.*
 
 Le marché répondant à un besoin dont la valeur estimée est égale ou supérieure à un seuil fixé par voie réglementaire est conclu par écrit.
+
+## Article L2112-2
+
+*En vigueur depuis le 2026-08-22.*
+
+Les clauses du marché précisent les conditions d'exécution des prestations, qui doivent être liées à son objet.
+Les conditions d'exécution prennent en compte des considérations relatives à l'environnement. Elles peuvent également prendre en compte des considérations relatives à l'économie, à l'innovation, au domaine social, à l'emploi ou à la lutte contre les discriminations.
+
+## Article L2112-2-1
+
+*En vigueur depuis le 2026-08-22.*
+
+I.-L'acheteur prévoit des conditions d'exécution prenant en compte des considérations relatives au domaine social ou à l'emploi, notamment en faveur des personnes défavorisées, dans ses marchés dont la valeur estimée est égale ou supérieure aux seuils européens figurant dans un avis annexé au présent code.
+II.-L'acheteur peut décider de ne pas prévoir de conditions d'exécution prenant en compte des considérations relatives au domaine social ou à l'emploi dans l'un des cas suivants :
+1° Le besoin peut être satisfait par une solution immédiatement disponible ;
+2° Une telle prise en compte n'est pas susceptible de présenter un lien suffisant avec l'objet du marché ;
+3° Une telle prise en compte est de nature à restreindre la concurrence ou à rendre techniquement ou économiquement difficile l'exécution de la prestation ;
+4° Lorsqu'il s'agit d'un marché de travaux d'une durée inférieure à six mois.
+III.-Lorsque, pour les marchés mentionnés au I, l'acheteur ne prévoit pas de conditions d'exécution prenant en compte des considérations relatives au domaine social ou à l'emploi, il en indique les motifs dans les documents conservés en application de l'article L. 2184-1 lorsqu'il agit en tant que pouvoir adjudicateur ou par tout moyen approprié lorsqu'il agit en tant qu'entité adjudicatrice.
 
 ## Article L2112-3
 

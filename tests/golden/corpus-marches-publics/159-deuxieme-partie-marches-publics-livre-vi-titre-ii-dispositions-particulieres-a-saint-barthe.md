@@ -48,7 +48,46 @@ b)  Les mots : " de l'Union européenne dans les conditions prévues aux article
 12° L' article R. 2131-17  est supprimé ;
 13° L' article R. 2131-19 est supprimé ;
 14° L' article R. 2131-20 est supprimé ;
-15° L' article R. 2132-2 est remplacé par les dispositions suivantes :
+15° L' article R. 2132-2 est remplacé par les dispositions suivantes : "  Art. R. 2132-2.-Les documents de la consultation sous format papier sont gratuitement mis à disposition des opérateurs économiques. Ils peuvent être mis en ligne sur un profil d'acheteur à compter de la publication de l'avis d'appel à la concurrence selon des modalités figurant en annexe du présent code. L'adresse du profil d'acheteur sur lequel les documents de la consultation sont accessibles est indiquée dans l'avis ou, le cas échéant, l'invitation. "  ;
+16° L' article R. 2132-4 est ainsi rédigé :
+"  Art. R. 2132-4.-Lorsque l'appel à la concurrence est effectué au moyen d'un avis de préinformation ou d'un avis périodique indicatif, l'accès aux documents de la consultation est offert à compter de l'envoi de l'invitation à confirmer l'intérêt.
+" Lorsque l'appel à la concurrence est effectué au moyen d'un avis sur l'existence d'un système de qualification, cet accès est offert dès que possible et au plus tard à la date d'envoi de l'invitation à soumissionner. "  ;
+17° L' article R. 2132-5  est supprimé ;
+18° Le  premier alinéa de l'article R. 2132-7  est remplacé par les dispositions suivantes :
+" Dans toutes les procédures de passation des marchés, les communications et les échanges d'informations peuvent être effectués soit sous forme papier soit par voie électronique. "  ;
+19° Les articles R. 2132-11 et R. 2132-12  sont supprimés ;
+20° L' article R. 2132-13  est remplacé par les dispositions suivantes :
+"  Art. R. 2132-13.-Pour chaque étape de la procédure, les candidats et soumissionnaires appliquent le même mode de transmission à l'ensemble des documents qu'ils transmettent à l'acheteur. "  ;
+21° L' article R. 2143-4  est supprimé ;
+22° Le  premier alinéa de l'article R. 2143-7 est ainsi rédigé : " Le candidat établi dans la collectivité produit les certificats délivrés par les administrations et organismes compétents localement. Les impôts, taxes, contributions ou contributions sociales figurant dans l'arrêté annexé au présent code sont remplacés, en tant que de besoin, par les impôts, taxes, contributions ou cotisations sociales ayant le même objet applicables localement. "  ;
+23° L' article R. 2143-15  est supprimé ;
+24° A l'article R. 2151-13, les mots : " au sens de la recommandation 2003/361/ CE de la Commission du 6 mai 2003 concernant la définition des micro, petites et moyennes entreprises " sont remplacés par les mots : " qui occupent moins de deux cent cinquante personnes et dont le chiffre d'affaires annuel n'excède pas 50 millions d'euros ou dont le total du bilan annuel n'excède pas 43 millions d'euros "  ;
+25° A l'article R. 2151-14,  les mots : " au règlement (CE) n° 75/2008 du Parlement européen et du Conseil du 9 juillet 2008 fixant les prescriptions relatives à l'accréditation et à la surveillance du marché pour la commercialisation des produits et abrogeant le règlement (CEE) n° 339/93 du Conseil " sont remplacés par les mots : " aux règles nationales en vigueur "  ;
+26° A l'article R. 2152-4, les mots : " par le droit de l'Union européenne " sont supprimés ;
+27° L'article R. 2152-5  est supprimé ;
+28° A l'article R. 2162-23, la référence au préfet est remplacée par la référence au représentant de l'Etat ;
+29° L'article R. 2162-28 est ainsi rédigé :
+" Pour mettre en place un système de qualification, l'entité adjudicatrice publie un avis sur l'existence d'un tel système au Journal officiel de la collectivité de Saint-Barthélemy. Cet avis mentionne son objet, sa durée et les modalités d'accès aux règles qui le gouvernent. " ; 30° L' article R. 2162-29 est ainsi rédigé :
+"  Art. R. 2162-29 . -L'entité adjudicatrice notifie au Journal officiel de la collectivité de Saint-Barthélemy tout changement de la durée du système en utilisant :
+" 1° Un avis sur l'existence d'un système de qualification lorsque sa durée de validité est modifiée sans qu'il y soit mis un terme ;
+" 2° Un avis d'attribution lorsqu'il est mis fin au système. " ;
+31° L' article R. 2162-36  est supprimé ;
+32° L'article R. 2162-40 est ainsi rédigé :
+"  Art. R. 2162-40 . -Lorsque la valeur estimée du besoin est égale ou supérieure aux seuils de procédure formalisée, l'acheteur notifie au Journal officiel de la collectivité de Saint-Barthélemy tout changement de la durée de validité du système d'acquisition dynamique en utilisant :
+" 1° Le formulaire utilisé pour l'appel à la concurrence pour le système d'acquisition dynamique lorsque la durée de validité est modifiée sans qu'il soit mis un terme au système ;
+" 2° Un avis d'attribution lorsqu'il est mis fin au système. " ;
+32° bis A l'article R. 2172-2, les références aux articles  L. 411-2  et  L. 481-1  du code de la construction et de l'habitation sont remplacées par les références aux dispositions applicables localement ayant le même objet ;
+33°  Aux articles R. 2172-15 et R. 2172-18,  les mots : " directeur régional des affaires culturelles " sont remplacés par les mots : " directeur des affaires culturelles de Guadeloupe " et les mots " préfet de région "  par les mots " représentant de l'Etat " ;
+34° (Abrogé) ;
+35° L' article R. 2183-1 est ainsi rédigé :
+"  Art. R. 2183-1 . -Pour les marchés répondant à un besoin d'un montant égal ou supérieur aux seuils européens publiés au Journal officiel de la République française, l'acheteur envoie pour publication, dans un délai maximal de trente jours à compter de la signature du marché, un avis d'attribution dans le support qui a été utilisé à titre principal pour la publicité préalable. " ;
+36° L' article R. 2183-2  est supprimé ;
+37° L' article R. 2184-6  est supprimé ;
+38° L' article R. 2184-11  est supprimé ;
+38° bis Le deuxième alinéa de l'article R. 2192-3 n'est applicable que si les titulaires de marchés ou leurs sous-traitants admis au paiement direct choisissent de transmettre leurs factures sous forme électronique ;
+39° Le dernier alinéa de l'article R. 2194-10 est ainsi rédigé :
+" Cet avis est publié dans le support qui a été utilisé à titre principal pour la publicité préalable. "
+40° Saint-Barthélemy peut relever d'une circonscription d'un comité interrégional ou interdépartemental prévu à l'article R. 2197-3.
 
 ## Article R2621-3
 

@@ -15,10 +15,38 @@ noie la réponse. Entre les deux, le chapitre est l'unité que consulte quelqu'u
 
 Ce qui est retenu
 -----------------
-**Uniquement les articles en `VIGUEUR`.** Les 773 articles `MODIFIE` et les 19 `ABROGE`
-sont écartés : un assistant de rédaction qui cite un article abrogé est pire qu'un
-assistant muet. C'est aussi ce qui rend le corpus **figé et rejouable** — condition d'un
-jeu doré qui mesure quelque chose.
+**Les articles en vigueur à une date de référence explicite.** Un assistant de rédaction
+qui cite un article abrogé est pire qu'un assistant muet — mais un assistant à qui l'on
+cache l'article applicable ne vaut pas mieux.
+
+La première version filtrait sur `status = 'VIGUEUR'`. C'était faux, et silencieusement :
+
+- `VIGUEUR_DIFF` désigne une version **entrée en vigueur à effet différé**. Au 23/08/2026,
+  26 articles du code sont dans cet état — leur texte applicable était écarté.
+- `ABROGE_DIFF` désigne une abrogation **à effet différé**. L'article reste applicable
+  jusqu'à sa date d'effet ; 18 l'étaient encore et étaient pourtant écartés.
+
+Le cas décisif est `R2152-7`, qui définit les **critères d'attribution** — la question la
+plus centrale pour quelqu'un qui rédige. Il existe en deux versions : l'ancienne abrogée
+au 21/08/2026, la nouvelle en vigueur depuis cette même date. Le filtre par statut
+écartait les deux, et le corpus ne pouvait donc pas répondre sur les critères
+d'attribution, alors que d'autres articles du corpus y renvoient explicitement.
+
+La règle est désormais temporelle : `start_date <= DATE_REFERENCE < end_date`, en
+excluant `MODIFIE_MORT_NE` — des modifications qui n'ont jamais pris effet. Résultat :
+1806 articles au lieu de 1762, **44 ajoutés, aucun retiré**.
+
+`DATE_REFERENCE` est épinglée, comme le sont l'instantané et la révision : un corpus dont
+le périmètre dépend du jour où on l'exécute n'est pas une référence.
+
+Recollage des fragments
+-----------------------
+La source découpe les articles longs en `chunk_index` successifs. La première version ne
+gardait que `chunk_index = 1` : **53 articles étaient tronqués en pleine phrase**, et ce
+sont les plus longs, donc les plus substantiels. Mesuré sur `L2511-7`, le fragment 1
+s'arrêtait sur « au moins 80 % de son chiffre » et le fragment 2 reprenait sur
+« d'affaires » — la coupe avait mangé une espace, sans recouvrement. Les fragments sont
+donc recollés par une espace simple, dans l'ordre de `chunk_index`.
 """
 import re
 import unicodedata
@@ -36,6 +64,10 @@ SORTIE = Path(r"C:\Users\Omen\AppData\Local\Temp\corpus-marches-publics")
 # empêcher.
 SNAPSHOT = "legi-20260801"
 REVISION = "67be48b3d4a8df343d7dc6597b88bb896d02236e"
+# Date à laquelle l'applicabilité des articles est appréciée. Épinglée pour la même
+# raison que l'instantané : un corpus dont le périmètre change selon le jour de son
+# exécution ne peut pas servir de référence de mesure.
+DATE_REFERENCE = "2026-08-23"
 FICHIER_HF = f"data/{SNAPSHOT}/legi_code_de_la_commande_publique/legi_code_de_la_commande_publique_part_0.parquet"
 
 
@@ -80,10 +112,18 @@ def main():
     con = duckdb.connect()
     lignes = con.execute(
         f"""
-        SELECT doc_id, number, subtitles, full_title, text, start_date
+        SELECT doc_id,
+               any_value(number)      AS number,
+               any_value(subtitles)   AS subtitles,
+               any_value(full_title)  AS full_title,
+               string_agg(text, ' ' ORDER BY chunk_index) AS text,
+               any_value(start_date)  AS start_date
         FROM {chemin!r}
-        WHERE status = 'VIGUEUR' AND chunk_index = 1
-        ORDER BY subtitles, number
+        WHERE start_date <= '{DATE_REFERENCE}'
+          AND end_date   >  '{DATE_REFERENCE}'
+          AND status <> 'MODIFIE_MORT_NE'
+        GROUP BY doc_id
+        ORDER BY any_value(subtitles), any_value(number)
         """
     ).fetchall()
     articles = [
@@ -154,10 +194,19 @@ def main():
         "**Licence Ouverte 2.0 (Etalab)** — réutilisation libre, y compris commerciale, "
         "sous réserve de mentionner la source.\n\n"
         "## Périmètre\n\n"
-        "Seuls les articles au statut `VIGUEUR` sont retenus. Les articles `MODIFIE`, "
-        "`ABROGE`, `PERIME` et `TRANSFERE` sont écartés : **un assistant qui cite un "
-        "article abrogé est pire qu'un assistant muet.** C'est aussi ce qui rend ce "
-        "corpus figé, donc rejouable — condition d'un jeu doré qui mesure quelque chose.\n\n"
+        f"Sont retenus les articles **applicables au {DATE_REFERENCE}** : "
+        f"`start_date <= {DATE_REFERENCE} < end_date`, à l'exclusion des modifications "
+        "n'ayant jamais pris effet (`MODIFIE_MORT_NE`). Les articles abrogés ou "
+        "remplacés sont donc écartés — **un assistant qui cite un article abrogé est "
+        "pire qu'un assistant muet** — mais les versions à **effet différé** déjà "
+        "entrées en vigueur sont retenues, ce qu'un filtre sur le seul statut `VIGUEUR` "
+        "manquait.\n\n"
+        "Ce filtre par statut écartait notamment `R2152-7`, qui définit les **critères "
+        "d'attribution** : sa version applicable porte le statut `VIGUEUR_DIFF`. Le "
+        "corpus ne pouvait donc pas répondre sur la question la plus centrale de la "
+        "rédaction, alors que d'autres articles y renvoient explicitement.\n\n"
+        "La date de référence est épinglée au même titre que l'instantané : un corpus "
+        "dont le périmètre dépend du jour de son exécution n'est pas une référence.\n\n"
         "## Documents\n\n"
         "| fichier | articles | position dans le code |\n|---|---|---|\n"
         + "\n".join(index_lignes) + "\n",

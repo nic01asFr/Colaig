@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie réglementaire › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre V : PHASE D'OFFRE
 
-**34 articles en vigueur** — D2151-7-1 à R2153-5.
+**35 articles en vigueur** — D2151-7-1 à R2153-5.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -170,6 +170,20 @@ L'acheteur qui constate qu'une offre est anormalement basse du fait de l'obtenti
 *En vigueur depuis le 2019-04-01.*
 
 Les offres régulières, acceptables et appropriées, et qui n'ont pas été rejetées en application des articles R. 2152-3 à R. 2152-5 et R. 2153-3, sont classées par ordre décroissant en appliquant les critères d'attribution.
+
+## Article R2152-7
+
+*En vigueur depuis le 2026-08-21.*
+
+Pour attribuer le marché au soumissionnaire ou, le cas échéant, aux soumissionnaires qui ont présenté l'offre économiquement la plus avantageuse, l'acheteur se fonde sur un ou plusieurs critères non discriminatoires et liés à l'objet du marché ou à ses conditions d'exécution qui peuvent être : 
+1° Soit le critère unique du coût, déterminé selon une approche globale qui peut être fondée sur le coût du cycle de vie défini à l'article R. 2152-9 et qui prend en compte les caractéristiques environnementales de l'offre ; 
+2° Soit une pluralité de critères parmi lesquels figurent le prix ou le coût. Au moins l'un d'entre eux prend en compte les caractéristiques environnementales de l'offre. Ces critères peuvent également comprendre des aspects qualitatifs ou sociaux. 
+Ces critères peuvent porter notamment sur les éléments suivants : 
+a) La qualité, y compris la valeur technique et les caractéristiques esthétiques ou fonctionnelles, l'accessibilité, l'apprentissage, la diversité, les conditions de production et de commercialisation, la garantie de la rémunération équitable des producteurs, le caractère innovant, les performances en matière de protection de l'environnement, de développement des approvisionnements directs de produits de l'agriculture, d'insertion professionnelle des publics en difficulté, la biodiversité, le bien-être animal ; 
+b) Les délais d'exécution, les conditions de livraison, le service après-vente et l'assistance technique, la sécurité des approvisionnements, l'interopérabilité et les caractéristiques opérationnelles ; 
+c) L'organisation, les qualifications et l'expérience du personnel assigné à l'exécution du marché lorsque la qualité du personnel assigné peut avoir une influence significative sur le niveau d'exécution du marché. 
+D'autres critères peuvent être pris en compte s'ils sont justifiés par l'objet du marché ou ses conditions d'exécution. 
+Les critères d'attribution retenus doivent pouvoir être appliqués tant aux variantes qu'aux offres de base.
 
 ## Article R2152-8
 

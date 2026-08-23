@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie législative › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre IX : EXÉCUTION DU MARCHÉ › Chapitre II : Modalités de facturation et de paiement
 
-**12 articles en vigueur** — L2192-1 à L2192-7.
+**13 articles en vigueur** — L2192-1 à L2192-7.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -68,6 +68,15 @@ Sans préjudice de l'article L. 2192-2, les acheteurs acceptent les factures con
 *En vigueur depuis le 2019-07-22.*
 
 Les modalités d'application de la présente sous-section, notamment les mentions obligatoires que doivent contenir les factures électroniques, sont définies par voie réglementaire.
+
+## Article L2192-5
+
+*En vigueur depuis le 2026-02-21.*
+
+Une solution mutualisée, mise à disposition par l'Etat et dénommée “ portail public de facturation ”, permet le dépôt, la réception et la transmission des factures sous forme électronique ainsi que des données relatives aux mentions figurant sur les factures électroniques conformément au second alinéa de l'article 289 E du code général des impôts.
+Pour la mise en œuvre des obligations fixées à la sous-section 1 de la présente section, utilisent le portail public de facturation :
+1° L'Etat, les collectivités territoriales et les établissements publics ;
+2° Les titulaires de marchés conclus avec un acheteur mentionné au 1° ainsi que leurs sous-traitants admis au paiement direct.
 
 ## Article L2192-6
 

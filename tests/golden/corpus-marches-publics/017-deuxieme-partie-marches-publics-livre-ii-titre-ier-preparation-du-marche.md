@@ -3,11 +3,36 @@
 > **Position dans le Code de la commande publique**  
 > Partie législative › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre III : DISPOSITIONS APPLICABLES AUX MARCHÉS DE DÉFENSE OU DE SÉCURITÉ › Titre Ier : PRÉPARATION DU MARCHÉ
 
-**8 articles en vigueur** — L2312-2 à L2313-6.
+**12 articles en vigueur** — L2311-1 à L2313-6.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
 ---
+
+## Article L2311-1
+
+*En vigueur depuis le 2026-08-22.*
+
+Les articles L. 2111-1 et L. 2111-3 sont applicables aux marchés régis par le présent livre.
+
+## Article L2311-2
+
+*En vigueur depuis le 2026-08-22.*
+
+Les travaux, fournitures ou services à réaliser dans le cadre du marché public sont définis par référence à des spécifications techniques.
+
+## Article L2312-1
+
+*En vigueur depuis le 2026-08-22.*
+
+Les articles L. 2112-1 et L. 2112-3 à L. 2112-6 sont applicables aux marchés régis par le présent livre.
+
+## Article L2312-1-1
+
+*En vigueur depuis le 2026-08-22.*
+
+Les clauses du marché précisent les conditions d'exécution des prestations, qui sont liées à son objet.
+Les conditions d'exécution peuvent prendre en compte des considérations relatives à l'économie, à l'innovation, à l'environnement, au domaine social, à l'emploi ou à la lutte contre les discriminations.
 
 ## Article L2312-2
 

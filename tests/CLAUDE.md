@@ -82,13 +82,20 @@ modification et héritent du déterminisme. Le nom canonique est `Fake*`.
 ## Exécuter
 
 ```bash
-python -m pytest -q --ignore=tests/test_live.py
+python -m pytest -q
 ```
 
-**1626 tests, 21 s.** Le critère du lot L0.4 est « suite complète hors ligne < 60 s ».
+**1778 tests, 33 s** (110 `skip`). Le critère du lot L0.4 est « suite complète hors
+ligne < 60 s ».
 
-`tests/test_live.py` est exclu : ses 41 tests exigent une instance en fonctionnement.
-Il n'est pas hors ligne, et n'entre donc pas dans cette mesure.
+`--ignore=tests/test_live.py` n'est plus nécessaire. Ses 41 tests exigeaient une instance
+en écoute et **échouaient** sur un dépôt sain : un `pytest` nu sortait 41 rouges pour une
+raison d'environnement. Ils **skippent** désormais, avec le motif et l'action à mener
+(D14). Une suite dont on sait qu'elle est rouge « pour de mauvaises raisons » cesse
+d'être lue, et le jour où un vrai défaut s'y ajoute, personne ne le voit.
+
+Effet de bord mesurable : la suite est passée de 195 s à 33 s, parce que 41 tests
+n'attendent plus un délai réseau.
 
 ## Deux tests qui gardent les autres
 

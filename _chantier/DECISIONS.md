@@ -445,3 +445,51 @@ moitié de la question est répondable, et pénalisait donc le comportement corr
 le découpage par article reste supérieur au découpage glissant, et la dispersion reste
 prédictive de l'échec. Ce qu'elle change, c'est le statut du chiffre : 85 % n'est pas
 « mieux que 82 % », c'est **la même mesure enfin juste**. Les deux ne se comparent pas.
+
+## D17 — Le corpus de référence omettait le droit applicable · 23/08/2026 · **actée**
+
+Deux défauts dans `construire_corpus_mp.py`, trouvés en étendant le jeu doré.
+
+**1. Le filtre par statut écartait des articles en vigueur.** La requête retenait
+`status = 'VIGUEUR'`. Or LEGI distingue les effets différés :
+
+- `VIGUEUR_DIFF` — version **entrée en vigueur à effet différé**. 26 articles au 23/08/2026 ;
+- `ABROGE_DIFF` — abrogation **à effet différé**. 18 articles restaient applicables.
+
+Le cas décisif est **`R2152-7`, qui définit les critères d'attribution** — la question la
+plus centrale pour quelqu'un qui rédige. Il existe en deux versions : l'ancienne abrogée
+au 21/08/2026, la nouvelle en vigueur depuis cette même date. Le filtre écartait les
+deux. Le corpus ne pouvait donc pas répondre sur les critères d'attribution, alors que
+d'autres articles du corpus y renvoient explicitement.
+
+Trouvé par une mesure, pas par relecture : sur 610 articles du CCP cités **à l'intérieur**
+du corpus, 13 n'y figuraient pas. Un renvoi qui ne résout pas est le signal.
+
+La règle est désormais temporelle — `start_date <= DATE_REFERENCE < end_date`, hors
+`MODIFIE_MORT_NE` — avec une `DATE_REFERENCE` **épinglée** au même titre que l'instantané.
+Un corpus dont le périmètre dépend du jour de son exécution n'est pas une référence.
+
+**Résultat : 1806 articles au lieu de 1762. 44 ajoutés, aucun retiré.**
+
+**2. Les articles longs étaient tronqués.** La requête gardait `chunk_index = 1`, soit le
+**premier fragment seulement**. 53 articles étaient coupés en pleine phrase — et ce sont
+les plus longs, donc les plus substantiels. Mesuré sur `L2511-7` : le fragment 1
+s'arrêtait sur « au moins 80 % de son chiffre », le fragment 2 reprenait sur
+« d'affaires ». Les fragments sont contigus, sans recouvrement ; ils sont désormais
+recollés par une espace simple.
+
+Aucune réponse attendue du jeu doré n'était fausse de ce fait — un seul cas s'appuyait sur
+un article tronqué, et sur sa partie visible. Mais l'instrument était amputé de 4,1 %,
+précisément là où le texte est le plus dense.
+
+**Ce que cela invalide.** Les références de mesure publiées portaient sur l'ancien corpus.
+La recherche a été remesurée : **88/103 cas complets, 85 %** — le taux tient sur un
+échantillon presque triple (103 cas contre 40), ce qui était le seul moyen de savoir s'il
+tenait. La référence de génération reste à refaire.
+
+**Ce que la remesure révèle.** Les 11 échecs complets ne sont pas répartis au hasard :
+plusieurs opposent le **vocabulaire du praticien** à celui du code. « Rendre le CCAG
+applicable » ne remonte pas `R2112-2`, qui parle de « documents généraux » et écrit
+« cahiers des clauses administratives générales » en toutes lettres — l'acronyme ne figure
+nulle part. Idem pour « déroger dans mon CCAP » et `R2112-3`. C'est un angle mort que
+l'ancien jeu doré, trop petit, ne pouvait pas montrer.

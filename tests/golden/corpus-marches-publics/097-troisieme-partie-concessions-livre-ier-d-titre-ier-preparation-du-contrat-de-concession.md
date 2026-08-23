@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie législative › TROISIÈME PARTIE : CONCESSIONS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre Ier : PRÉPARATION DU CONTRAT DE CONCESSION
 
-**18 articles en vigueur** — L3111-1 à L3114-9.
+**21 articles en vigueur** — L3111-1 à L3114-9.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -15,6 +15,12 @@
 
 La nature et l'étendue des besoins à satisfaire sont déterminées avant le lancement de la consultation en prenant en compte des objectifs de développement durable dans leurs dimensions économique, sociale et environnementale.
 A ce titre, pour leurs contrats de concession répondant à un besoin dont la valeur estimée hors taxe est égale ou supérieure aux seuils européens figurant dans un avis annexé au présent code, les autorités concédantes prennent en compte l'efficacité et la sobriété énergétiques.
+
+## Article L3111-2
+
+*En vigueur depuis le 2026-08-22.*
+
+Les travaux ou services faisant l'objet du contrat de concession sont définis par référence à des spécifications techniques et fonctionnelles. Pour les contrats de concession qui ne sont pas des contrats de concession de défense ou de sécurité, ces spécifications techniques et fonctionnelles prennent en compte des objectifs de développement durable dans leurs dimensions économique, sociale et environnementale.
 
 ## Article L3112-1
 
@@ -76,6 +82,24 @@ Le contrat de concession est conclu par écrit.Il ne peut contenir de clauses pa
 *En vigueur depuis le 2019-04-01.*
 
 Ne sont pas considérés comme tiers les opérateurs économiques qui se sont groupés pour obtenir des contrats de concession, non plus que les entreprises qui leur sont liées au sens de l'article L. 3211-8.
+
+## Article L3114-2
+
+*En vigueur depuis le 2026-08-22.*
+
+Les conditions d'exécution d'un contrat de concession sont liées à son objet.
+Pour les contrats de concession qui ne sont pas des contrats de concession de défense ou de sécurité, les conditions d'exécution du contrat prennent en compte des considérations relatives à l'environnement. Elles peuvent également prendre en compte des considérations relatives à l'économie, à l'innovation, au domaine social ou à l'emploi.
+Pour les contrats de concession de défense ou de sécurité, les conditions d'exécution peuvent prendre en compte des considérations relatives à l'économie, à l'innovation, à l'environnement, au domaine social ou à l'emploi.
+
+## Article L3114-2-1
+
+*En vigueur depuis le 2026-08-22.*
+
+I.-L'autorité concédante prévoit des conditions d'exécution prenant en compte des considérations relatives au domaine social ou à l'emploi, notamment en faveur des personnes défavorisées, dans ses contrats de concession dont la valeur estimée est égale ou supérieure au seuil européen figurant dans un avis annexé au présent code.
+II.-L'autorité concédante peut décider de ne pas prévoir de conditions d'exécution prenant en compte des considérations relatives au domaine social ou à l'emploi dans l'un des cas suivants :
+1° Une telle prise en compte n'est pas susceptible de présenter un lien suffisant avec l'objet du contrat de concession ;
+2° Une telle prise en compte est de nature à restreindre la concurrence ou à rendre techniquement ou économiquement difficile l'exécution du contrat de concession.
+III.-Lorsque, pour les contrats de concession mentionnés au I, l'autorité concédante ne prévoit pas des considérations relatives au domaine social ou à l'emploi, elle en consigne les motifs par tout moyen approprié.
 
 ## Article L3114-3
 

@@ -1,9 +1,9 @@
-# Titre III : EXÉCUTION DU CONTRAT DE CONCESSION
+# Chapitre III : EXÉCUTION FINANCIÈRE
 
 > **Position dans le Code de la commande publique**  
-> Partie réglementaire › TROISIÈME PARTIE : CONCESSIONS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre III : EXÉCUTION DU CONTRAT DE CONCESSION
+> Partie réglementaire › TROISIÈME PARTIE : CONCESSIONS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre III : EXÉCUTION DU CONTRAT DE CONCESSION › Chapitre III : EXÉCUTION FINANCIÈRE
 
-**40 articles en vigueur** — D3133-1 à R3135-9.
+**22 articles en vigueur** — D3133-1 à R3133-3.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -40,35 +40,6 @@ Pour les émetteurs ne disposant pas du numéro d'identité mentionné à l'alin
 *En vigueur depuis le 2019-04-01.*
 
 Le montant de l'indemnité forfaitaire pour frais de recouvrement est fixé à 40 euros.
-
-## Article R3131-1
-
-*En vigueur depuis le 2024-01-01.*
-
-L'autorité concédante publie sur le portail national de données ouvertes les données essentielles du contrat de concession avant le début d'exécution du contrat ou dans les deux mois suivant sa modification.
-Ces données essentielles portent sur :
-1° La passation du contrat ;
-2° Le contenu du contrat ;
-3° L'exécution du contrat et, le cas échéant, sa modification.
-Un arrêté du ministre chargé de l'économie qui figure en annexe au présent code fixe la liste de ces données essentielles ainsi que les modalités de leur publication.
-
-## Article R3131-2
-
-*En vigueur depuis le 2019-04-01.*
-
-Le rapport prévu par l'article L. 3131-5 est produit chaque année par le concessionnaire, avant le 1er juin. Il tient compte des spécificités du secteur d'activité concerné et respecte les principes comptables d'indépendance des exercices et de permanence des méthodes retenues pour l'élaboration de chacune de ses parties, tout en permettant la comparaison entre l'année en cours et la précédente. Toutes les pièces justificatives des éléments de ce rapport sont tenues par le concessionnaire à la disposition de l'autorité concédante, dans le cadre de son droit de contrôle.
-
-## Article R3131-4
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque la gestion d'un service public est concédée, le rapport comprend également :1° Les données comptables suivantes :a) Un compte rendu de la situation des biens et immobilisations nécessaires à l'exploitation du service public concédé, comportant notamment une description des biens et, le cas échéant, le programme d'investissement, y compris au regard des normes environnementales et de sécurité ;b) Un état du suivi du programme contractuel d'investissements en premier établissement et du renouvellement des biens et immobilisations nécessaires à l'exploitation du service public concédé ainsi qu'une présentation de la méthode de calcul de la charge économique imputée au compte annuel de résultat d'exploitation de la concession ;c) Un inventaire des biens désignés au contrat comme biens de retour et de reprise du service concédé ;d) Les engagements à incidences financières, y compris en matière de personnel, liés à la concession et nécessaires à la continuité du service public ;2° Une annexe comprenant un compte rendu technique et financier comportant les informations utiles relatives à l'exécution du service, notamment les tarifs pratiqués, leur mode de détermination et leur évolution, ainsi que les autres recettes d'exploitation.
-
-## Article R3131-5
-
-*En vigueur depuis le 2019-04-01.*
-
-Les travaux de l'Observatoire économique de la commande publique prévus aux articles R. 2196-2 à R. 2196-4 portent également sur les contrats de concession.
 
 ## Article R3133-10
 
@@ -186,87 +157,3 @@ Les intérêts moratoires et l'indemnité forfaitaire pour frais de recouvrement
 
 Un arrêté du ministre chargé du budget, annexé au présent code, définit les modalités techniques selon lesquelles le dépôt, la transmission et la réception des factures sont effectués sur le portail public de facturation en application de l'article L. 3133-6. Ces modalités garantissent la réception immédiate et intégrale des factures et assure la fiabilité de l'identification de l'émetteur, l'intégrité des données, la sécurité, la confidentialité et la traçabilité des échanges. 
 L'utilisation du portail public de facturation est exclusive de tout autre mode de transmission. Lorsqu'une facture lui est transmise en dehors de ce portail, la personne publique destinataire ne peut la rejeter qu'après avoir informé l'émetteur par tout moyen de l'obligation prévue à l'article L. 3133-1 et l'avoir invité à s'y conformer en utilisant ce portail.
-
-## Article R3134-1
-
-*En vigueur depuis le 2019-04-01.*
-
-Le concessionnaire indique à l'autorité concédante, après l'attribution du contrat et, au plus tard, au début de son exécution, le nom, les coordonnées et les représentants légaux des tiers participant à ces services ou travaux dans la mesure où ces informations sont connues à ce stade.
-
-## Article R3134-2
-
-*En vigueur depuis le 2019-04-01.*
-
-Le concessionnaire informe l'autorité concédante de tout changement relatif aux informations mentionnées à l'article R. 3134-1 intervenant au cours de l'exécution du contrat de concession ainsi que des informations requises pour tout nouveau tiers qui participe ultérieurement à ces services ou travaux.
-
-## Article R3134-3
-
-*En vigueur depuis le 2019-04-01.*
-
-Pour l'application de l'article L. 3134-2, l'autorité concédante exige le remplacement du tiers concerné dans un délai de dix jours à compter de la réception de sa demande par le concessionnaire.
-
-## Article R3134-4
-
-*En vigueur depuis le 2019-10-27.*
-
-Les contrats de concession relevant de l'article L. 3134-3 sont soumis aux dispositions du présent titre, à l'exception des dispositions du présent chapitre.
-
-## Article R3135-1
-
-*En vigueur depuis le 2019-04-01.*
-
-Le contrat de concession peut être modifié lorsque les modifications, quel que soit leur montant, ont été prévues dans les documents contractuels initiaux, sous la forme de clauses de réexamen ou d'options claires, précises et sans équivoque.Ces clauses indiquent le champ d'application et la nature des modifications ou options envisageables, ainsi que les conditions dans lesquelles il peut en être fait usage.
-
-## Article R3135-10
-
-*En vigueur depuis le 2019-04-01.*
-
-Pour les contrats de concession ne relevant pas du chapitre VI du titre II du présent livre, l'autorité concédante publie un avis de modification du contrat de concession dans les hypothèses prévues aux articles R. 3135-2 et R. 3135-5. Cet avis est publié au Journal officiel de l'Union européenne dans les conditions fixées aux articles R. 3122-4 à R. 3122-6, conformément au modèle fixé par le règlement d'exécution (UE) 2015/1986 de la Commission du 11 novembre 2015 établissant les formulaires standard pour la publication d'avis dans le cadre de la passation des marchés publics et abrogeant le règlement d'exécution (UE) n° 842/2011.
-
-## Article R3135-2
-
-*En vigueur depuis le 2019-04-01.*
-
-Le contrat de concession peut être modifié lorsque, sous réserve de la limite fixée à l'article R. 3135-3, des travaux ou services supplémentaires sont devenus nécessaires et ne figuraient pas dans le contrat de concession initial, à la condition qu'un changement de concessionnaire soit impossible pour des raisons économiques ou techniques tenant notamment aux exigences d'interchangeabilité ou d'interopérabilité avec les équipements, services ou installations existants acquis dans le cadre de la concession initiale.
-
-## Article R3135-3
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque le contrat de concession est conclu par un pouvoir adjudicateur, le montant de la modification prévue à l'article R. 3135-2 ne peut être supérieur à 50 % du montant du contrat de concession initial. Lorsque plusieurs modifications successives sont effectuées dans le respect des dispositions du présent article, cette limite s'applique au montant de chaque modification. Ces modifications consécutives ne doivent pas avoir pour objet de contourner les obligations de publicité et de mise en concurrence.
-
-## Article R3135-4
-
-*En vigueur depuis le 2019-04-01.*
-
-Pour le calcul du montant de la modification mentionnée à l'article R. 3135-2, le montant actualisé du contrat de concession initial est le montant de référence lorsque le contrat de concession comporte une clause d'indexation. Dans le cas contraire, le montant actualisé du contrat de concession initial est calculé en tenant compte de l'inflation moyenne.
-
-## Article R3135-5
-
-*En vigueur depuis le 2019-04-01.*
-
-Le contrat de concession peut être modifié lorsque la modification est rendue nécessaire par des circonstances qu'une autorité concédante diligente ne pouvait pas prévoir. Dans ce cas, les dispositions des articles R. 3135-3 et R. 3135-4 sont applicables.
-
-## Article R3135-6
-
-*En vigueur depuis le 2019-04-01.*
-
-Le contrat de concession peut être modifié lorsqu'un nouveau concessionnaire se substitue à celui auquel l'autorité concédante a initialement attribué le contrat de concession, dans l'un des cas suivants : 1° En application d'une clause de réexamen ou d'une option définie à l'article R. 3135-1 ; 2° Dans le cas d'une cession du contrat de concession, à la suite d'opérations de restructuration du concessionnaire initial. Le nouveau concessionnaire justifie des capacités économiques, financières, techniques et professionnelles fixées initialement par l'autorité concédante. Cette cession ne peut être effectuée dans le but de soustraire le contrat de concession aux obligations de publicité et de mise en concurrence.
-
-## Article R3135-7
-
-*En vigueur depuis le 2019-04-01.*
-
-Le contrat de concession peut être modifié sans nouvelle procédure de mise en concurrence lorsque les modifications, quel qu'en soit le montant, ne sont pas substantielles. Pour l'application de l'article L. 3135-1, une modification est considérée comme substantielle, notamment, lorsqu'au moins une des conditions suivantes est remplie : 1° Elle introduit des conditions qui, si elles avaient figuré dans la procédure de passation initiale, auraient attiré davantage de participants ou permis l'admission de candidats ou soumissionnaires autres que ceux initialement admis ou le choix d'une offre autre que celle initialement retenue ; 2° Elle modifie l'équilibre économique de la concession en faveur du concessionnaire d'une manière qui n'était pas prévue dans le contrat de concession initial ; 3° Elle étend considérablement le champ d'application du contrat de concession ; 4° Elle a pour effet de remplacer le concessionnaire auquel l'autorité concédante a initialement attribué le contrat de concession par un nouveau concessionnaire, en dehors des hypothèses visées à l'article R. 3135-6.
-
-## Article R3135-8
-
-*En vigueur depuis le 2019-04-01.*
-
-Le contrat de concession peut être modifié lorsque le montant de la modification est inférieur au seuil européen qui figure dans l'avis annexé au présent code et à 10 % du montant du contrat de concession initial, sans qu'il soit nécessaire de vérifier si les conditions énoncées à l'article R. 3135-7 sont remplies. Les dispositions de l'article R. 3135-4 sont applicables au cas de modification prévu au présent article.
-
-## Article R3135-9
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque plusieurs modifications successives relevant de l'article R. 3135-8 sont effectuées, l'autorité concédante prend en compte leur montant cumulé.

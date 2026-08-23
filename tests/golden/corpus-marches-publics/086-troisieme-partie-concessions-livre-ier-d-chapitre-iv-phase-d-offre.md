@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie législative › TROISIÈME PARTIE : CONCESSIONS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre II : PROCÉDURE DE PASSATION › Chapitre IV : Phase d'offre
 
-**6 articles en vigueur** — L3124-1 à L3124-7.
+**7 articles en vigueur** — L3124-1 à L3124-7.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -32,6 +32,15 @@ Une offre est irrégulière lorsqu'elle ne respecte pas les conditions et caract
 *En vigueur depuis le 2019-04-01.*
 
 Une offre est inappropriée lorsqu'elle n'est manifestement pas en mesure, sans modifications substantielles, de répondre aux besoins et aux exigences de l'autorité concédante spécifiés dans les documents de la consultation.
+
+## Article L3124-5
+
+*En vigueur depuis le 2026-08-22.*
+
+Le contrat de concession est attribué au soumissionnaire qui a présenté la meilleure offre au regard de l'avantage économique global pour l'autorité concédante sur la base de plusieurs critères objectifs, précis et liés à l'objet du contrat de concession ou à ses conditions d'exécution. Parmi ces critères peuvent figurer notamment des critères environnementaux, sociaux ou relatifs à l'innovation. Pour les contrats de concession qui ne sont pas des contrats de concession de défense ou de sécurité, au moins un de ces critères prend en compte les caractéristiques environnementales de l'offre. Lorsque la gestion d'un service public est concédée, l'autorité concédante se fonde également sur la qualité du service rendu aux usagers.
+Sans préjudice des dispositions spéciales applicables à certaines autorités concédantes, le contrat de concession peut être attribué à une société constituée ou en cours de formation entre l'autorité concédante et le ou les soumissionnaires déclarés attributaires et, le cas échéant, un tiers investisseur, si les documents de la consultation le prévoient. Cette société est constituée pour une durée limitée en vue de la conclusion et de l'exécution de ce contrat de concession.
+Les critères d'attribution n'ont pas pour effet de conférer une liberté de choix illimitée à l'autorité concédante et garantissent une concurrence effective. Ils sont rendus publics dans des conditions prévues par décret en Conseil d'Etat.
+Les modalités d'application du présent article sont prévues par voie réglementaire.
 
 ## Article L3124-6
 

@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie législative › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre III : DISPOSITIONS APPLICABLES AUX MARCHÉS DE DÉFENSE OU DE SÉCURITÉ › Titre V : PHASE D'OFFRE
 
-**3 articles en vigueur** — L2351-1 à L2353-2.
+**5 articles en vigueur** — L2351-1 à L2353-2.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -14,6 +14,20 @@
 *En vigueur depuis le 2019-04-01.*
 
 Les dispositions de l'article L. 2151-1 s'appliquent.
+
+## Article L2352-1
+
+*En vigueur depuis le 2026-08-22.*
+
+Les dispositions des articles L. 2152-1 à, L. 2152-4, concernant les offres irrégulières, inacceptables ou inappropriées, des articles L. 2152-5 et L. 2152-6, concernant les offres anormalement basses, ainsi que de l'article L. 2152-8, concernant le choix de l'offre économiquement la plus avantageuse, s'appliquent.
+
+## Article L2352-2
+
+*En vigueur depuis le 2026-08-22.*
+
+Le marché est attribué au soumissionnaire ou, le cas échéant, aux soumissionnaires qui ont présenté l'offre économiquement la plus avantageuse, sur la base d'un ou de plusieurs critères objectifs, précis et liés à l'objet du marché ou à ses conditions d'exécution. Les modalités d'application du présent alinéa sont prévues par voie réglementaire.
+Les offres sont appréciées lot par lot.
+Le lien avec l'objet du marché ou avec ses conditions d'exécution s'apprécie selon les modalités prévues aux articles L. 2112-3, L. 2112-4 et L. 2312-1-1.
 
 ## Article L2353-1
 

@@ -6,7 +6,7 @@ Merci de votre intérêt ! Colaig est diffusé sous Licence Ouverte 2.0.
 
 ```bash
 pip install -e ".[dev]"
-pytest -q --ignore=tests/test_live.py   # ~1570 tests
+pytest -q   # 1778 tests, 110 skip
 ruff check colaig
 ```
 
