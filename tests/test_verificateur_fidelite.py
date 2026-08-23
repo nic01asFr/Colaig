@@ -246,3 +246,91 @@ async def test_un_seul_fragment_faux_suffit_a_signaler():
                                   "d'une garantie à première demande"}),
     )
     assert not d.appui_dans_extrait, "le second fragment n'est pas dans l'extrait"
+
+
+# ── Quand appeler le vérificateur, et sur quoi ──────────────────────────────
+
+PASSAGE_RECONDUCTION = (
+    "Titre Ier\n\nArticle R2112-4\n\nUn marché peut prévoir une ou plusieurs "
+    "reconductions. Sauf stipulation contraire, la reconduction prévue dans le marché "
+    "est tacite et le titulaire ne peut s'y opposer."
+)
+PASSAGE_LOTS = (
+    "Titre II\n\nArticle L2113-10\n\nLes marchés sont passés en lots séparés, sauf si "
+    "leur objet ne permet pas l'identification de prestations distinctes."
+)
+
+
+def test_une_phrase_synthetisant_deux_articles_recoit_les_deux_extraits():
+    """La réunion, jamais le premier passage — et c'est mesuré.
+
+    L'appariement au premier article seul produisait **30 % de faux négatifs** sur des
+    couples fidèles par construction : une phrase qui synthétise deux articles est jugée
+    « ne dit pas cela » contre chacun pris isolément. Le vérificateur avait raison, le
+    découpage avait tort.
+    """
+    from colaig.rag.verificateur_fidelite import couples_a_verifier
+
+    phrase = ("Les marchés sont passés en lots séparés selon L2113-10, et R2112-4 "
+              "permet d'y prévoir des reconductions tacites.")
+    couples = couples_a_verifier(phrase, [PASSAGE_RECONDUCTION, PASSAGE_LOTS])
+    assert len(couples) == 1
+    _, extrait = couples[0]
+    assert "R2112-4" in extrait and "L2113-10" in extrait
+
+
+def test_les_phrases_sans_reference_sont_ecartees():
+    """`garde_fou_reponse` les traite déjà — vérifier deux fois coûterait sans apprendre."""
+    from colaig.rag.verificateur_fidelite import couples_a_verifier
+
+    texte = "Cette procédure est délicate et mérite l'attention du rédacteur du marché."
+    assert couples_a_verifier(texte, [PASSAGE_LOTS]) == []
+
+
+def test_une_phrase_citant_un_article_absent_des_passages_est_ecartee():
+    """Sans extrait, il n'y a rien à confronter.
+
+    Ce cas relève de `verification_citations`, qui le signale comme hors contexte :
+    le vérificateur n'a pas à le redire, et ne le pourrait pas.
+    """
+    from colaig.rag.verificateur_fidelite import couples_a_verifier
+
+    texte = "Selon L9999-1, le seuil applicable est de cent mille euros hors taxes."
+    assert couples_a_verifier(texte, [PASSAGE_LOTS]) == []
+
+
+def test_la_porte_laisse_passer_les_reponses_courtes():
+    """Une réponse qui cite un article et s'arrête n'a pas besoin d'être vérifiée.
+
+    Mesuré : les réponses saines portent 2 couples, les suspectes 5,5. Le nombre de
+    couples est **à la fois le coût et le risque**, ce qui en fait le bon déclencheur.
+    """
+    from colaig.rag.verificateur_fidelite import couples_a_verifier, merite_verification
+
+    texte = "D'après L2113-10, les marchés sont passés en lots séparés par principe."
+    assert not merite_verification(couples_a_verifier(texte, [PASSAGE_LOTS]))
+
+
+def test_la_porte_declenche_sur_une_reponse_dense():
+    from colaig.rag.verificateur_fidelite import couples_a_verifier, merite_verification
+
+    texte = (
+        "D'après L2113-10, les marchés sont passés en lots séparés par principe. "
+        "L'article R2112-4 permet de prévoir une ou plusieurs reconductions du marché. "
+        "Selon ce même R2112-4, la reconduction est tacite sauf stipulation contraire. "
+        "Enfin L2113-10 laisse l'acheteur déterminer le nombre et la taille des lots."
+    )
+    couples = couples_a_verifier(texte, [PASSAGE_RECONDUCTION, PASSAGE_LOTS])
+    assert merite_verification(couples), f"{len(couples)} couples, seuil non atteint"
+
+
+def test_le_seuil_est_un_parametre_et_non_une_verite():
+    """Échantillon de 39 réponses : le sens de la séparation est net, le seuil non.
+
+    Le figer en constante donnerait à un chiffre provisoire l'apparence d'un acquis.
+    """
+    from colaig.rag.verificateur_fidelite import merite_verification
+
+    couples = [("a", "b"), ("c", "d")]
+    assert not merite_verification(couples, seuil=3)
+    assert merite_verification(couples, seuil=2)

@@ -152,12 +152,21 @@ async def main() -> int:
         passages = [r.chunk.text for r in store.search(v, k=6)]
         reponse = (reponses[c["id"]]["reponses"] or [""])[0]
 
+        # L'extrait est la REUNION des passages portant les articles cites par la
+        # phrase, jamais un seul.
+        #
+        # La premiere version appariait la phrase avec le passage du PREMIER article
+        # cite. Une phrase qui synthetise deux articles etait alors jugee « ne dit pas
+        # cela » contre chacun pris isolement — le verificateur avait raison, et le
+        # banc avait tort. Mesure sur des couples fideles par construction : 30 % de
+        # faux negatifs disparaissaient en reunissant les extraits.
         couples = []
         for phrase in phrases(reponse):
-            for article in sorted(articles_cites(phrase)):
-                extrait = passage_de(article, passages)
-                if extrait:
-                    couples.append((phrase, article, extrait))
+            cites = sorted(articles_cites(phrase))
+            morceaux = [p for art in cites if (p := passage_de(art, passages))]
+            morceaux = list(dict.fromkeys(morceaux))  # dedoublonne, garde l'ordre
+            if morceaux:
+                couples.append((phrase, "+".join(cites), (chr(10) * 2).join(morceaux)))
 
         verdicts = []
         for phrase, article, extrait in couples:

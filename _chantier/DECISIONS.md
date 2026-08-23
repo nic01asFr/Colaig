@@ -888,3 +888,47 @@ signalé comme non vérifié. Le vérificateur sert donc mieux à **signaler** q
 qui déborde. Il faudrait des couples dont on sait qu'ils sont infidèles ; le jeu doré
 n'en contient pas. On peut en fabriquer, et c'est la suite naturelle de ce banc. Tant
 qu'il manque, **on ne sait pas ce que vaut un « étayé »**.
+
+## D26 — Le vérificateur s'appelle sur un signal mesuré, pas sur une intuition · 23/08/2026 · **actée**
+
+Le vérificateur coûte ~1 s par couple, sur une réponse qui en prend 2. Le passer sur
+tout triplerait la latence gagnée en coupant le raisonnement (D18). D'où la question :
+peut-on ne l'appeler que là où il sert ?
+
+**Contrainte qui élimine la plupart des idées :** le signal doit être calculable au
+moment de la réponse, à partir de la question, des passages et du texte produit. Tout ce
+qui suppose de connaître la bonne réponse est disponible sur un jeu doré et jamais chez
+l'utilisateur — ce qui écarte d'emblée la difficulté déclarée du cas.
+
+Mesuré sur 39 réponses, dont 12 portent au moins un verdict négatif :
+
+| signal | réponses saines | réponses suspectes | |
+|---|---|---|---|
+| couples à vérifier | 2 | **5,5** | **sépare** |
+| articles cités | 2 | **4** | **sépare** |
+| longueur | 956 car. | **1913 car.** | **sépare** |
+| score du 1er passage | 0,663 | 0,671 | ne sépare pas |
+| **dispersion des scores** | 0,114 | 0,105 | **ne sépare pas** |
+
+### Ce qui ne marche pas mérite d'être retenu
+
+**La dispersion des scores de recherche ne prédit pas l'infidélité.** Elle prédit
+l'échec de *récupération* (D11), et s'en servir ici aurait paru naturel : c'était le
+signal déjà mesuré, déjà validé, déjà disponible. Il n'attrape que **2 suspects sur 12**
+au même taux d'appel. Deux modes de défaillance, deux signaux.
+
+### Le déclencheur retenu
+
+**Le nombre de couples à vérifier** — il est à la fois le coût et le risque, ce qui en
+fait le bon candidat. Seuil à 3 : **56 % des réponses vérifiées, 10 suspects sur 12
+attrapés.** Un seuil sur la longueur (≥ 1105 caractères) fait légèrement mieux — 51 % des
+appels, 11 sur 12 — mais la longueur ne dit rien du coût, alors que le nombre de couples
+le donne exactement.
+
+L'interprétation tient debout : une réponse longue citant beaucoup d'articles est une
+réponse où le modèle a **synthétisé**, et c'est là qu'il déborde. Une réponse courte qui
+cite un article et s'arrête reste fidèle.
+
+**Le seuil est un paramètre, pas une constante.** Échantillon de 39 réponses : le sens de
+la séparation est net, le seuil exact ne l'est pas. Le figer donnerait à un chiffre
+provisoire l'apparence d'un acquis — un test l'interdit.

@@ -57,6 +57,8 @@ import re
 import logging
 from dataclasses import dataclass
 
+from colaig.rag.verification_citations import FORMAT_CODE, articles_cites
+
 logger = logging.getLogger(__name__)
 
 VERDICTS = ("etaye", "etaye_partiellement", "ne_dit_pas_cela", "contredit")
@@ -223,3 +225,77 @@ async def verifier_fidelite(affirmation: str, extrait: str, client) -> Fidelite:
         passage_appui=appui,
         appui_dans_extrait=bool(appui) and _ancre(appui, extrait),
     )
+
+
+# ── Quand appeler le vérificateur, et sur quoi ──────────────────────────────
+
+SEUIL_COUPLES = 3
+
+
+def couples_a_verifier(reponse: str, passages: list[str],
+                       formats: tuple[str, ...] = (FORMAT_CODE,)) -> list[tuple[str, str]]:
+    """Découpe la réponse en couples (affirmation, extrait) vérifiables.
+
+    Une réponse entière n'est pas une affirmation : la vérifier d'un bloc ne donnerait
+    qu'un verdict global inexploitable — « partiellement étayé » ne dit pas *quelle*
+    phrase déborde.
+
+    Le découpage retenu : **une phrase portant une référence d'article, confrontée à la
+    réunion des passages qui portent les articles qu'elle cite.**
+
+    La réunion, et non le premier passage. Mesuré sur des couples fidèles par
+    construction, l'appariement au premier article seul produisait **30 % de faux
+    négatifs** : une phrase qui synthétise deux articles est jugée « ne dit pas cela »
+    contre chacun pris isolément. Le vérificateur avait raison, le découpage avait tort.
+
+    Les phrases sans référence sont écartées : `garde_fou_reponse` les traite déjà, en
+    remplaçant par un refus toute réponse sans attache.
+    """
+    fournis = [(p, articles_cites(p, formats)) for p in passages]
+    couples: list[tuple[str, str]] = []
+    for phrase in re.split(r"(?<=[.;])\s+", " ".join((reponse or "").split())):
+        if len(phrase) < 40:
+            continue  # ni un titre, ni un fragment de liste : une règle s'énonce
+        cites = articles_cites(phrase, formats)
+        if not cites:
+            continue
+        morceaux = [p for p, arts in fournis if cites & arts]
+        if morceaux:
+            couples.append((phrase, "\n\n".join(dict.fromkeys(morceaux))))
+    return couples
+
+
+def merite_verification(couples: list[tuple[str, str]],
+                        seuil: int = SEUIL_COUPLES) -> bool:
+    """Cette réponse justifie-t-elle le coût d'une vérification de fidélité ?
+
+    Le vérificateur coûte environ **une seconde par couple**, sur une réponse qui en
+    prend deux. Le passer sur tout triplerait la latence gagnée en coupant le
+    raisonnement du modèle (D18).
+
+    **Le nombre de couples est à la fois le coût et le risque**, ce qui en fait le bon
+    déclencheur. Mesuré sur 39 réponses dont 12 portent au moins un verdict négatif :
+
+    | | réponses saines | réponses suspectes |
+    |---|---|---|
+    | couples à vérifier | 2 | **5,5** |
+    | articles cités | 2 | **4** |
+    | longueur | 956 car. | **1913 car.** |
+    | score du 1er passage | 0,663 | 0,671 — *ne sépare pas* |
+    | dispersion des scores | 0,114 | 0,105 — *ne sépare pas* |
+
+    Seuil à 3 couples : **56 % des réponses vérifiées, 10 suspects sur 12 attrapés.**
+
+    L'interprétation tient : une réponse longue citant beaucoup d'articles est une
+    réponse où le modèle a **synthétisé**, et c'est là qu'il déborde. Une réponse courte
+    qui cite un article et s'arrête reste fidèle.
+
+    **Ce qui ne marche pas mérite d'être retenu** : la dispersion des scores de
+    recherche prédit l'échec de *récupération* (D11) et **ne prédit pas** l'infidélité.
+    Deux modes de défaillance, deux signaux — s'en servir ici aurait paru naturel et
+    n'aurait rien attrapé : 2 suspects sur 12 au même taux d'appel.
+
+    Échantillon de 39 réponses : le sens de la séparation est net, le seuil exact ne
+    l'est pas. À remesurer avant d'en faire une constante de production.
+    """
+    return len(couples) >= seuil
