@@ -47,8 +47,29 @@ pytestmark = pytest.mark.live
 
 @pytest.fixture(scope="session")
 def client():
-    """Client httpx synchrone partagé pour toute la session."""
+    """Client httpx synchrone partagé pour toute la session.
+
+    **Absence de container = `skip`, pas `fail`.** Sans cette vérification, un `pytest`
+    nu sortait 41 échecs sur un dépôt sain : ces tests exigent un service HTTP en écoute,
+    et l'absence d'un prérequis d'environnement n'est pas un défaut du code.
+
+    La distinction n'est pas cosmétique. Une suite dont on sait qu'elle est rouge « pour
+    de mauvaises raisons » cesse d'être lue : le jour où un vrai défaut s'y ajoute,
+    personne ne le voit. C'est le même réflexe que pour les garde-fous — un contrôle qui
+    ne discrimine pas ne contrôle rien.
+
+    Le marqueur `live` reste : `pytest -m live` exprime l'intention de les exécuter, et
+    la vérification dit alors précisément ce qui manque.
+    """
     with httpx.Client(base_url=BASE_URL, timeout=30.0) as c:
+        try:
+            c.get("/health", timeout=2.0)
+        except httpx.HTTPError as exc:
+            pytest.skip(
+                f"aucun service Colaig sur {BASE_URL} ({type(exc).__name__}) — "
+                "démarrer le container (docker-compose up -d) ou pointer "
+                "COLAIG_TEST_URL vers une instance en écoute"
+            )
         yield c
 
 

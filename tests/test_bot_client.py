@@ -44,6 +44,22 @@ class TestMatrixMessagingInit:
 class TestMatrixMessagingConnect:
     """Tests de connexion."""
 
+    @pytest.fixture(autouse=True)
+    def _sans_prerequis_crypto(self):
+        """Neutralise la vérification de `python-olm` — ce n'est pas l'objet ici.
+
+        Ces tests portent sur la **logique de session** : réutilisation du token,
+        `whoami()`, re-login. Ils remplacent déjà `AsyncClient` et `AsyncClientConfig`
+        par des doubles, donc n'ont jamais touché la couche crypto.
+
+        `_exiger_e2e()` a été ajouté dans `connect()` le 23/08/2026 et les faisait
+        échouer sur toute machine sans libolm — un échec qui ne disait rien sur ce
+        qu'ils vérifient. Le prérequis lui-même est couvert par
+        `tests/test_matrix_prerequis.py`, où il est l'objet du test et non son décor.
+        """
+        with patch("colaig.messaging.matrix._exiger_e2e"):
+            yield
+
     async def test_connect_success(self, messaging, tmp_path):
         from nio import LoginResponse
         mock_client = AsyncMock()

@@ -388,3 +388,38 @@ d'organisation.
 Les mentions restantes dans `docs/CLAUDE.v3-original.md` ne sont pas touchées : ce
 fichier est une **archive** datée, conservée telle quelle, et porte déjà une bannière
 « NE PAS SUIVRE ».
+
+---
+
+## D14 — Un test rouge pour une raison d'environnement est un test à réparer · 23/08/2026 · **actée**
+
+Un `pytest` nu sur un dépôt sain sortait **41 échecs** : `tests/test_live.py` interroge un
+service HTTP en écoute, absent d'une machine de développement. Ces tests portent le
+marqueur `live`, mais rien ne les désélectionnait par défaut.
+
+Ils **skippent** désormais quand rien n'écoute, avec le motif et l'action. `pytest -m live`
+exprime toujours l'intention de les exécuter.
+
+Ce n'est pas de la cosmétique. Une suite dont on sait qu'elle est rouge « pour de
+mauvaises raisons » cesse d'être lue, et le jour où un vrai défaut s'y ajoute personne ne
+le voit. C'est la cinquième fois dans ce chantier qu'un contrôle est vert — ou rouge —
+pour la mauvaise raison. **Effet de bord mesurable :** la suite passe de 195 s à 26 s,
+parce que 41 tests n'attendent plus un délai réseau.
+
+## D15 — Le chiffrement du backend Matrix est un prérequis, pas une option · 23/08/2026 · **actée**
+
+`requirements.txt` déclare `matrix-nio[e2e]` depuis toujours. L'extra apporte
+`python-olm`, qui se compile contre **libolm** ; sous Windows aucune roue n'est publiée,
+l'installation de l'extra échoue **sans empêcher `matrix-nio` de s'installer**. On
+obtient un environnement où la dépendance paraît satisfaite et où le chiffrement est
+absent — jusqu'à la première connexion, qui lève un `ImportWarning` remonté de
+`nio/client/base_client.py`. Il ne nomme ni le paquet, ni la bibliothèque système, ni la
+plateforme.
+
+`matrix.py::_exiger_e2e()` lève désormais une `MessagingError` qui nomme les trois, et
+dit pourquoi couper `encryption_enabled` n'est pas une échappatoire : **sur Tchap, tous
+les salons sont chiffrés**, un client sans olm démarrerait et ne lirait aucun message.
+C'est une panne bien plus coûteuse à diagnostiquer que l'erreur d'origine.
+
+Découvert en tentant de lever le `skip` de `run()` : la vérification s'est arrêtée avant
+d'atteindre le réseau, sur une erreur qui ne disait pas quoi faire.

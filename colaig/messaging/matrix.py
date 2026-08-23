@@ -177,6 +177,37 @@ def _strip_markdown(text: str) -> str:
     return text.strip()
 
 
+def _exiger_e2e() -> None:
+    """Vérifie que le chiffrement de bout en bout est réellement disponible.
+
+    `requirements.txt` déclare `matrix-nio[e2e]`, mais l'extra apporte `python-olm`, qui
+    se compile contre **libolm** — absent des environnements Windows sans chaîne de
+    build, où `pip install` échoue sans que le paquet de base en pâtisse. On se retrouve
+    donc avec `matrix-nio` installé et le chiffrement indisponible, ce qui est
+    silencieux jusqu'à la première connexion.
+
+    Sans cette vérification, `AsyncClientConfig(encryption_enabled=True)` lève un
+    `ImportWarning` remonté des entrailles de nio : il ne nomme ni le paquet à
+    installer, ni la dépendance système en cause, ni le fait que Tchap chiffre tous ses
+    salons — donc que désactiver le chiffrement n'est pas une échappatoire.
+
+    Ce n'est pas une dépendance optionnelle qu'on pourrait contourner : **sur Tchap,
+    sans olm, il n'y a pas de lecture possible des messages.**
+    """
+    try:
+        import olm  # noqa: F401
+    except ImportError as exc:
+        raise MessagingError(
+            "Le backend Matrix exige le chiffrement de bout en bout (Tchap chiffre "
+            "tous ses salons), or python-olm est absent : "
+            f"{exc}.\n"
+            "Installer l'extra : pip install 'matrix-nio[e2e]'\n"
+            "Il se compile contre libolm — sous Debian/Ubuntu : apt install libolm-dev. "
+            "Sous Windows, aucune roue n'est publiée : utiliser WSL, un conteneur, ou un "
+            "autre backend de messagerie."
+        ) from exc
+
+
 class MatrixMessaging:
     """Client Matrix/Tchap pour Colaig.
 
@@ -215,6 +246,8 @@ class MatrixMessaging:
                 saved_device_id = json.loads(self._token_store.read_text()).get("device_id", "")
             except Exception:
                 pass
+
+        _exiger_e2e()
 
         # Créer le répertoire du store E2E (clés Olm/Megolm — requis par Tchap E2E)
         self._store_path.mkdir(parents=True, exist_ok=True)

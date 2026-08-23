@@ -60,6 +60,28 @@ d'abord un envoi vers un salon réel à 53 membres — refusé avant l'appel ré
 
 Pour lever ce `skip` en CI il faut un **compte bot de test**, distinct de la production.
 Sur un tel compte, l'auto-join est sans conséquence et `run()` devient vérifiable.
+
+Tentative de levée du 23/08/2026, et second obstacle
+-----------------------------------------------------
+Le premier obstacle est resté entier : une invitation adressée au compte bot était en
+attente, `run()` l'aurait donc rejointe. Elle relève d'un arbitrage humain, pas d'un test.
+
+Le contournement — débrancher `_on_invite` le temps de la vérification — a buté sur autre
+chose : **`connect()` échouait avant même d'atteindre le réseau**, `python-olm` étant
+absent. `requirements.txt` déclare bien `matrix-nio[e2e]`, mais l'extra se compile contre
+libolm, indisponible sous Windows ; l'installation de l'extra échoue **sans empêcher
+`matrix-nio` de s'installer**. La dépendance paraissait satisfaite et le chiffrement
+était absent.
+
+Ce que la tentative a produit : `matrix.py::_exiger_e2e()` et
+`tests/test_matrix_prerequis.py`. L'erreur nomme désormais le paquet, la bibliothèque
+système, la plateforme, et la raison pour laquelle couper le chiffrement n'est pas une
+échappatoire — sur Tchap, tous les salons le sont.
+
+`run()` reste donc non vérifié, pour deux raisons distinctes qu'il ne faut pas confondre :
+un **arbitrage** (l'auto-join sur un compte de production) et un **environnement** (libolm
+sous Windows). La seconde tombe sous WSL ou en conteneur ; la première demande un compte
+de test.
 """
 from __future__ import annotations
 
