@@ -7,6 +7,7 @@ Pipeline simple : contexte + résultats RAG → prompt → Albert API → répon
 
 from __future__ import annotations
 
+import os
 import logging
 import time
 
@@ -92,6 +93,60 @@ class Generator:
         # Audit anti-hallucination : citations sans source → log + confiance pénalisée.
         from colaig.security.citation_checker import audit_and_adjust
         confidence = audit_and_adjust(text, sources, confidence)
+
+        # GARDE-FOU DE PROVENANCE — `COLAIG_GARDE_FOU_ENABLED`, **défaut inactif**.
+        #
+        # POURQUOI IL N'EST PAS ACTIF PAR DÉFAUT, et c'est le point important.
+        #
+        # Ce garde-fou juge une réponse à l'aune des **numéros d'article** qu'elle cite.
+        # Sur un corpus juridique c'est le bon critère : une affirmation de droit sans
+        # référence n'est pas utilisable, celui qui rédige devra la justifier.
+        #
+        # Mais Colaig est multi-tenant par construction — un dossier, une instance. Un
+        # espace de procédures RH, une FAQ technique, un fonds de notes internes ne
+        # contiennent aucun numéro d'article. Actif par défaut, ce garde-fou y
+        # **remplacerait toute réponse par un refus**, au motif qu'elle « ne cite
+        # rien ». Le service serait muet, et le journal dirait qu'il protège.
+        #
+        # Ce n'est pas une hypothèse : activé par défaut, il a fait échouer
+        # `test_generate_confidence_score`, dont la réponse cite `[guide.txt]` — une
+        # source de fichier, pas un article. C'est le test qui avait raison.
+        #
+        # Le critère de citation est donc une **politique de corpus**, pas un réglage
+        # global. Il s'active sur les espaces dont les sources portent des références
+        # normalisées.
+        # TODO-HAUTE : porter ce réglage dans `workspace.yaml`, où il a sa place —
+        # une variable d'environnement est globale, or la décision ne l'est pas.
+        #
+        # Il compare les numéros d'article cités à ceux des passages réellement fournis,
+        # et adapte la réponse : rendue telle quelle, annotée d'un avertissement, ou
+        # remplacée par un refus quand elle n'a **aucune** attache.
+        #
+        # Ce n'est pas un raffinement. Mesuré sur 122 cas dorés, il est ce qui rend
+        # exploitable le régime sans raisonnement du modèle — neuf fois plus rapide et
+        # sans troncature, mais qui puise dans sa mémoire 26 fois sur 122 :
+        #
+        #   | | avec raisonnement | sans raisonnement |
+        #   | réponses complètes et propres | 121/164 | **134/164** |
+        #   | annotées par le garde-fou     |       4 |          24 |
+        #   | remplacées par un refus       |       0 |           5 |
+        #   | tronquées, donc inutilisables |      39 |           1 |
+        #   | latence médiane               |  ~15 s  |       2,0 s |
+        #
+        # Sans lui, ce régime serait plus rapide et moins fiable. Avec lui, il est plus
+        # rapide **et** plus fiable — les 26 dérives sont signalées ou écartées.
+        #
+        # Le drapeau existe pour pouvoir revenir en arrière sans redéployer, et il est
+        # daté : à retirer au 31/12/2026 si aucune mesure ne le remet en cause.
+        if os.environ.get("COLAIG_GARDE_FOU_ENABLED", "0") == "1" and search_results:
+            from colaig.rag.garde_fou_reponse import appliquer
+
+            decision = appliquer(text, [r.chunk.text for r in search_results])
+            if decision.action != "rendue":
+                logger.info("garde-fou : réponse %s — %s", decision.action, decision.motif)
+                text = decision.reponse
+                if decision.action == "remplacée":
+                    confidence = 0.0
 
         return GeneratedResponse(
             text=text,

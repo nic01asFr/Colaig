@@ -68,6 +68,23 @@ MODELE = "qwen3-6-35b-moe"
 # latence, et peut-être en refus — plus de passages, c'est plus d'occasions de trouver
 # quelque chose de plausible à dire sur une question sans réponse.
 K = int(os.environ.get("COLAIG_REF_K", "6"))
+
+# Raisonnement du modele, desactivable par COLAIG_REF_RAISONNEMENT=0.
+#
+# Sonde du 23/08/2026 sur cinq cas reellement tronques :
+#
+#   temoin 4000        2/5 coupees   1281 car.   20,3 s
+#   max_tokens 8000    0/5 coupees   2339 car.   20,8 s
+#   sans raisonnement  0/5 coupees   1202 car.    2,2 s
+#   reasoning_effort   3/5 coupees   1196 car.   20,8 s
+#
+# `reasoning_effort: low` est SILENCIEUSEMENT IGNORE par l'endpoint : 16 373
+# caracteres de raisonnement malgre lui. Un reglage accepte sans effet est pire
+# qu'un reglage refuse — on croit l'avoir applique.
+#
+# `enable_thinking: false` supprime la troncature ET divise la latence par neuf.
+# Reste a savoir si la reponse vaut autant : c'est ce que le jeu dore mesure.
+RAISONNEMENT = os.environ.get("COLAIG_REF_RAISONNEMENT", "1") != "0"
 REPETITIONS_NEGATIFS = 3
 
 # Variante de consigne, choisie par argument.
@@ -151,6 +168,7 @@ def repondre(systeme: str, question: str, passages: list[str], cle: str) -> tupl
         # facteur 3,4. À 900 la réponse est **vide** ; à 2048, le défaut du Protocol,
         # elle est tronquée. Voir docs/baseline-generation.
         "max_tokens": 4000,
+        **({} if RAISONNEMENT else {"chat_template_kwargs": {"enable_thinking": False}}),
     }).encode()
     req = urllib.request.Request(BASE_SSP + "/chat/completions", data=charge, method="POST")
     req.add_header("Authorization", "Bearer " + cle)
@@ -346,11 +364,12 @@ def rapport(resultats, latences) -> int:
     # Le nom du rapport porte la profondeur, sinon deux executions de la meme
     # variante a des k differents s ecrasent en silence — ce qui est arrive le
     # 23/08/2026 : la passe k=15 a efface celle de k=6, rapport et reponses.
-    suffixe = ("" if VARIANTE == "temoin" else f"-{VARIANTE}") + f"-k{K}"
+    suffixe = (("" if VARIANTE == "temoin" else f"-{VARIANTE}") + f"-k{K}"
+               + ("" if RAISONNEMENT else "-sansraisonnement"))
     sortie = RACINE / "docs" / f"baseline-generation-{time.strftime('%Y%m%d')}{suffixe}.md"
     # Les réponses sont conservées : auditer un chiffre ne doit pas exiger de tout
     # relancer. C'est ce qui a manqué pour vérifier la liste de marqueurs de refus.
-    brut = RACINE / "_chantier" / "mesures" / f"reponses-{VARIANTE}-k{K}-{time.strftime('%Y%m%d')}.json"
+    brut = RACINE / "_chantier" / "mesures" / f"reponses-{VARIANTE}-k{K}{'' if RAISONNEMENT else '-sansraisonnement'}-{time.strftime('%Y%m%d')}.json"
     brut.parent.mkdir(exist_ok=True)
     import json as _json
     brut.write_text(_json.dumps(

@@ -61,6 +61,7 @@ exec(  # noqa: S102
 decouper, embed, cle_albert = _ns["decouper"], _ns["embed"], _ns["cle_albert"]
 
 from colaig.rag.faiss_store import FaissStore  # noqa: E402
+from colaig.rag.garde_fou_reponse import appliquer  # noqa: E402
 from colaig.rag.verification_citations import articles_cites  # noqa: E402
 
 JEU = RACINE / "tests" / "golden" / "v1.jsonl"
@@ -109,6 +110,10 @@ def main() -> int:
         existants |= articles_cites(ch.text)
     vq = embed([c["question"] for c in cas], cle)
 
+    # Ce que le garde-fou mecanique fait de chaque reponse. C'est la seule facon de
+    # savoir si un regime plus rapide mais moins discipline reste utilisable : le
+    # garde-fou est precisement ce qui rattrape une reference hors contexte.
+    garde = {"rendue": 0, "annotée": 0, "remplacée": 0}
     n = coupees = fantomes = hors_ctx = inventes = cite_ok = positifs = 0
     positifs_jugeables = cite_ok_jugeables = 0
     refus_toujours = refus_parfois = refus_jamais = negatifs_jugeables = 0
@@ -143,6 +148,9 @@ def main() -> int:
                 inventes += 1
                 anomalies.append(f"- **{c['id']}** — montant inventé : {', '.join(m)}")
 
+        for t in jugeables:
+            garde[appliquer(t, passages).action] += 1
+
         if c.get("attendu_refus"):
             if jugeables:
                 negatifs_jugeables += 1
@@ -176,6 +184,9 @@ def main() -> int:
           f"{cite_ok_jugeables}/{positifs_jugeables} (reponses jugeables)")
     print(f"refus — toujours {refus_toujours} · parfois {refus_parfois} · "
           f"jamais {refus_jamais}  (sur {negatifs_jugeables} négatifs jugeables)")
+    total_garde = sum(garde.values())
+    print(f"garde-fou            : rendue {garde['rendue']} · annotée {garde['annotée']} "
+          f"· remplacée {garde['remplacée']}  (sur {total_garde} réponses jugeables)")
     if anomalies:
         print("\n" + "\n".join(anomalies))
     return 0

@@ -493,3 +493,66 @@ applicable » ne remonte pas `R2112-2`, qui parle de « documents généraux » 
 « cahiers des clauses administratives générales » en toutes lettres — l'acronyme ne figure
 nulle part. Idem pour « déroger dans mon CCAP » et `R2112-3`. C'est un angle mort que
 l'ancien jeu doré, trop petit, ne pouvait pas montrer.
+
+## D18 — Couper le raisonnement du modèle, et laisser le garde-fou rattraper · 23/08/2026 · **actée**
+
+27 à 33 % des réponses étaient coupées à `max_tokens=4000`. `qwen3-6-35b-moe` est un
+modèle à raisonnement : raisonnement et réponse puisent au **même** budget.
+
+Sonde sur cinq cas réellement tronqués :
+
+| régime | coupées | réponse moyenne | latence médiane |
+|---|---|---|---|
+| témoin 4000 | 2/5 | 1281 car. | 20,3 s |
+| `max_tokens` 8000 | 0/5 | 2339 car. | 20,8 s |
+| **`enable_thinking: false`** | **0/5** | 1202 car. | **2,2 s** |
+| `reasoning_effort: low` | 3/5 | 1196 car. | 20,8 s |
+
+**`reasoning_effort` est silencieusement ignoré** — 16 373 caractères de raisonnement
+malgré lui. Un réglage accepté sans effet est pire qu'un réglage refusé : on croit
+l'avoir appliqué.
+
+### L'arbitrage réel, mesuré sur les 122 cas
+
+| | avec raisonnement | sans raisonnement |
+|---|---|---|
+| citation hors contexte | **0/122** | 26/122 |
+| refuse à chaque fois | 15/18 | **21/21** |
+| réponses tronquées | 39 | **1** |
+| cite l'article attendu | 66/101 | **88/101** |
+| latence médiane | ~15–20 s | **2,0 s** |
+
+Le raisonnement achetait **la discipline de provenance**, et rien d'autre. Sans lui, le
+modèle est plus rapide, plus complet, refuse parfaitement — et puise dans sa mémoire.
+
+### Ce qui rend l'arbitrage tranchable
+
+Le garde-fou mécanique attrape exactement ces 26 dérives :
+
+| | avec raisonnement | sans raisonnement |
+|---|---|---|
+| réponses complètes et propres | 121/164 — 74 % | **134/164 — 82 %** |
+| annotées | 4 | 24 |
+| remplacées par un refus | 0 | 5 |
+
+**Sans raisonnement gagne même sur la lecture la plus stricte**, pour un neuvième de la
+latence. Le garde-fou n'est pas un raffinement : il est ce qui rend ce régime possible.
+C'est aussi ce qui ramène H3 dans son budget — 10 s visés, 15 s mesurés, 2 s obtenus.
+
+## D19 — Le garde-fou est une politique de corpus, pas un réglage global · 23/08/2026 · **actée**
+
+Branché avec un défaut **actif**, le garde-fou a fait échouer un test existant dont la
+réponse cite `[guide.txt]` — une source de fichier, pas un article.
+
+Le test avait raison. Ce garde-fou juge une réponse à l'aune des **numéros d'article**
+qu'elle cite. Colaig est multi-tenant par construction : un espace de procédures RH, une
+FAQ technique, un fonds de notes internes n'en contiennent aucun. Actif par défaut, il y
+remplacerait **toute** réponse par un refus — le service serait muet, et le journal
+dirait qu'il protège.
+
+`COLAIG_GARDE_FOU_ENABLED` est donc **inactif par défaut**, et s'active sur les espaces
+dont les sources portent des références normalisées. Sa vraie place est
+`workspace.yaml` : une variable d'environnement est globale, or la décision ne l'est pas.
+
+Huit tests fixent les deux moitiés — inactif il ne touche à rien, actif il fait ce pour
+quoi il existe. Un garde-fou dont on n'a vérifié qu'une des deux ne prouve rien.
