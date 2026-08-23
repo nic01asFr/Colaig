@@ -4,6 +4,29 @@
 > Établi le 24/08/2026 sur le code du tronc, lot L2.1b. Chaque affirmation de ce
 > document a été vérifiée dans le dépôt ; les points non vérifiés sont marqués comme tels.
 
+## La topologie — de quoi on parle exactement
+
+Colaig dispose de **son propre espace de stockage**. Un collègue **partage un dossier
+depuis le sien** ; ce dossier apparaît à la racine de celui de Colaig, et devient un
+espace de travail. Le collègue crée ensuite son salon Tchap et y invite qui de droit.
+
+Dans le Bureau numérique du MTES, salon et dossier étaient créés **ensemble** depuis le
+Nextcloud professionnel, portaient le même nom, et les politiques d'usage se
+transposaient des droits de lecture et d'écriture de chacun.
+
+Deux conséquences structurent tout ce document :
+
+1. **Un partage porte un niveau de droit**, choisi par celui qui partage — lecture, ou
+   lecture et écriture. Rien n'oblige un collègue à accorder l'écriture.
+2. **La population du salon et celle du dossier sont la même**, par construction. Qui
+   peut écrire dans le dossier est donc, en principe, qui est dans le salon.
+
+Le code implémente cette topologie : `run_workspace_discovery_loop` (`main.py`) balaie
+la racine à chaque cycle, adopte tout dossier portant un `.colaig/config.yaml`, et
+**amorce lui-même** `.colaig/` pour ceux qui n'en ont pas. Un fichier `.colaig-ignore`
+vaut exclusion explicite. La boucle est **opt-in** — `COLAIG_AUTO_DISCOVER_ENABLED`,
+désactivée par défaut.
+
 ## En une phrase
 
 **Écrire dans `.colaig/` d'un espace, c'est administrer l'assistant de cet espace.**
@@ -109,6 +132,60 @@ corpus.
 3. **Un espace à écrivain unique** — un dossier que Colaig et un seul administrateur
    partagent — est le seul cas où le remplacement de prompt système est sûr sans
    convention externe.
+
+## Lecture ou écriture — ce qui se passe réellement
+
+### Un partage en lecture seule n'est pas un espace dégradé — il n'est pas un espace
+
+C'est le comportement d'aujourd'hui, vérifié et désormais couvert par
+`tests/test_partage_lecture_seule.py` :
+
+> Colaig découvre le dossier, tente d'écrire `.colaig/config.yaml`, prend un 403, et
+> **abandonne le dossier définitivement** — sans nouvel essai, pour ne pas marteler le
+> serveur à chaque cycle.
+
+C'est correct : sans dossier d'instance, il n'y a ni index, ni historique, ni mémoire.
+Mais rien ne le disait, et le message ne le disait pas non plus — `create_workspace`
+emballe l'erreur de droits dans un `WorkspaceConfigError`, et la distinction ne survit
+que par le chaînage. Le journal nomme désormais la cause et le geste : *« Colaig n'a que
+la LECTURE sur ce dossier… accordez-lui l'ÉCRITURE sur ce partage, ou déposez un fichier
+`.colaig-ignore` pour assumer l'exclusion. »*
+
+**Donc, à la question « lecture ou écriture ? » : aujourd'hui, écriture — sinon rien.**
+
+### Une piste pour prendre en charge les deux : l'entrée et la sortie
+
+Elle n'est pas retenue ici, elle est posée. Le partage entre le **corpus** et l'**état**
+existe déjà en filigrane :
+
+| | vit où | écrit par |
+|---|---|---|
+| documents, `.colaig/config.yaml`, `prompts/`, `skills/`, `behaviors/` | le dossier partagé | **les gens de l'espace** |
+| index, conversations, mémoire, tâches, jetons, trame | *aujourd'hui le même dossier* | **Colaig seul** |
+
+La configuration est une **entrée** ; l'état est une **sortie**. Les deux ne demandent ni
+les mêmes droits ni la même confiance. Si la sortie vivait dans l'espace propre de
+Colaig — où `/.colaig/federation/` existe **déjà** comme précédent —, alors :
+
+- un partage en **lecture seule** suffirait, et deviendrait un mode de plein exercice ;
+- personne d'autre que Colaig n'écrirait son état, ce qui referme la question du
+  périmètre de confiance sans rien interdire à l'administrateur de l'espace ;
+- l'écriture ne resterait requise que pour ce qui la mérite : livrer un document
+  demandé, appliquer une auto-spécialisation.
+
+Cela contredit la **lettre** du principe fondateur — « un espace + un dossier `.colaig`
+= une instance complète » — en en servant peut-être mieux l'esprit. **Arbitrage humain
+requis** ; rien n'est engagé dans cette direction.
+
+### L'autre signal disponible, et inexploité
+
+Salon et dossier partagent leur population. Colaig **voit** la composition du salon via
+Matrix, et il ne s'en sert pas : `user_ids` et `owners` sont **déclarés** dans
+`config.yaml`, jamais dérivés de l'appartenance au salon ni des droits de stockage.
+
+C'est une piste, pas une recommandation : elle demanderait de vérifier que la
+correspondance salon/dossier tient encore hors du Bureau numérique, ce qui **n'a pas été
+mesuré**.
 
 ## Ce qui reste à trancher
 

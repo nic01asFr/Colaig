@@ -1587,3 +1587,74 @@ d'un arbitrage humain et n'est pas prise ici.** Trois options :
    du principe fondateur, en sert peut-être mieux l'esprit.
 3. **Retirer le champ** — un drapeau inerte vaut moins que son absence, parce qu'il se
    lit comme une garantie.
+
+---
+
+## D38 — Un partage en lecture seule n'est pas un espace · 24/08/2026 · **actée**
+
+Complète D37 avec la topologie réelle, rappelée par l'auteur du projet.
+
+### La topologie
+
+Colaig a **son propre espace de stockage**. Un collègue **partage un dossier depuis le
+sien** ; ce dossier apparaît à la racine de celui de Colaig et devient un espace de
+travail. Le collègue crée ensuite son salon Tchap et y invite qui de droit. Dans le
+Bureau numérique du MTES, salon et dossier étaient créés **ensemble**, portaient le même
+nom, et les usages se transposaient des droits de lecture et d'écriture de chacun.
+
+`run_workspace_discovery_loop` implémente exactement cela : balayage de la racine,
+adoption de tout dossier portant un `.colaig/config.yaml`, **amorçage automatique** pour
+ceux qui n'en ont pas, `.colaig-ignore` pour l'exclusion explicite. Opt-in, désactivé par
+défaut.
+
+### Ce que cela ajoute à D37
+
+**Un partage porte un niveau de droit.** Le collègue choisit lecture, ou lecture et
+écriture. Cette question n'était pas une hypothèse d'architecture : c'est un réglage que
+quelqu'un pose, à chaque partage.
+
+**Salon et dossier ont la même population.** Colaig *voit* la composition du salon par
+Matrix, et ne s'en sert pas : `user_ids` et `owners` sont **déclarés** dans `config.yaml`,
+jamais dérivés de l'appartenance au salon ni des droits de stockage. Piste notée, non
+recommandée — il faudrait d'abord vérifier que la correspondance tient hors du Bureau
+numérique, ce qui **n'a pas été mesuré**.
+
+### Le comportement d'aujourd'hui, vérifié et fixé
+
+**Un partage en lecture seule n'est pas un espace dégradé : il n'est pas un espace.**
+Colaig découvre le dossier, tente d'écrire `.colaig/config.yaml`, prend un 403, et
+l'abandonne **définitivement** — `_perm_skip`, aucun nouvel essai.
+
+C'est **correct** : sans dossier d'instance, ni index, ni historique, ni mémoire. Mais
+rien ne le disait, et le message ne le disait pas non plus. `create_workspace` **emballe**
+l'erreur de droits dans un `WorkspaceConfigError` ; la distinction ne survit que par le
+chaînage `from e`. L'exploitant lisait « WorkspaceConfigError: … WebDAV 403 » et restait
+devant un espace qui n'apparaît jamais.
+
+Le journal nomme désormais la cause et le geste : Colaig n'a que la lecture, accordez-lui
+l'écriture sur ce partage, ou déposez un `.colaig-ignore` pour assumer l'exclusion.
+`tests/test_partage_lecture_seule.py` inscrit le comportement — il n'était couvert par
+aucun test, et la doublure `FakeStorage` ne sait d'ailleurs pas représenter un répertoire,
+si bien qu'aucun test n'exerçait la découverte d'espaces.
+
+**Réponse à la question posée : aujourd'hui, écriture — sinon rien.**
+
+### La piste posée, non retenue
+
+La configuration est une **entrée**, l'état est une **sortie**, et les deux ne demandent
+ni les mêmes droits ni la même confiance :
+
+| | vit où | écrit par |
+|---|---|---|
+| documents, `config.yaml`, `prompts/`, `skills/`, `behaviors/` | le dossier partagé | les gens de l'espace |
+| index, conversations, mémoire, tâches, jetons, trame | *aujourd'hui le même dossier* | Colaig seul |
+
+Si la sortie vivait dans l'espace propre de Colaig — où `/.colaig/federation/` existe
+**déjà** comme précédent —, un partage en lecture seule suffirait et deviendrait un mode
+de plein exercice ; personne d'autre que Colaig n'écrirait son état ; et l'écriture ne
+resterait requise que pour ce qui la mérite — livrer un document demandé, appliquer une
+auto-spécialisation.
+
+Cela contredit la **lettre** du principe fondateur en en servant peut-être mieux
+l'esprit. **Arbitrage humain requis, rien n'est engagé.** Les trois options de D37
+restent ouvertes, celle-ci en précise une.

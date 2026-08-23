@@ -17,7 +17,7 @@ from colaig.config import load_config
 
 # Context & Generator
 from colaig.context.resolver import ContextResolver
-from colaig.exceptions import StorageError
+from colaig.exceptions import StorageAuthError, StorageError
 from colaig.messaging.handlers import MessageHandler
 from colaig.models import ColaigConfig
 from colaig.rag.behavior_indexer import BehaviorIndexer
@@ -38,8 +38,8 @@ from colaig.web.routes import create_app
 logger = logging.getLogger(__name__)
 
 # Suivi d'usage LLM par tenant — process-global (zéro-DB, reconstructible au restart).
-from colaig.metrics import UsageTracker
 from colaig import paths
+from colaig.metrics import UsageTracker
 
 _USAGE_TRACKER = UsageTracker()
 
@@ -891,10 +891,37 @@ async def run_workspace_discovery_loop(
                                 entry_path, ws.workspace_id,
                             )
                 except (StorageError, _WorkspaceConfigError) as exc:
-                    logger.warning(
-                        "scaffold ignoré définitivement pour %s (%s: %s)",
-                        entry_path, type(exc).__name__, exc,
-                    )
+                    # Distinguer le manque de DROITS du reste, parce que l'un se corrige
+                    # et l'autre se diagnostique.
+                    #
+                    # Le cas courant : le collègue a partagé son dossier avec Colaig en
+                    # LECTURE SEULE. Colaig ne peut alors pas créer `.colaig/` — donc ni
+                    # index, ni historique, ni mémoire — et abandonne le dossier
+                    # définitivement. Le comportement est le bon ; le message ne l'était
+                    # pas : « WorkspaceConfigError: … WebDAV 403 » ne dit ni la cause ni
+                    # le geste, et l'exploitant reste devant un espace qui n'apparaît
+                    # jamais sans savoir pourquoi.
+                    #
+                    # `create_workspace` EMBALLE l'erreur de droits dans un
+                    # `WorkspaceConfigError` — la distinction ne survit que par le
+                    # chaînage `from e`, d'où la lecture de `__cause__`.
+                    if isinstance(exc, StorageAuthError) or isinstance(
+                        exc.__cause__, StorageAuthError
+                    ):
+                        logger.warning(
+                            "espace ignoré définitivement : %s — Colaig n'a que la "
+                            "LECTURE sur ce dossier et ne peut pas y créer son dossier "
+                            "d'instance %s. Accordez-lui l'ÉCRITURE sur ce partage, ou "
+                            "déposez un fichier %s pour assumer l'exclusion. "
+                            "Détail : %s",
+                            entry_path, paths.colaig_dir(entry_path),
+                            paths.ignore_file(entry_path), exc,
+                        )
+                    else:
+                        logger.warning(
+                            "scaffold ignoré définitivement pour %s (%s: %s)",
+                            entry_path, type(exc).__name__, exc,
+                        )
                     _perm_skip.add(entry_path)
                 except Exception:
                     logger.warning(
