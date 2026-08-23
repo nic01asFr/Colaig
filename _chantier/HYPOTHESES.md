@@ -374,7 +374,13 @@ est établi, c'est que le mécanisme n'est pas intrinsèquement lent ; ce qui re
 c'est son comportement sur un espace de plusieurs milliers de documents. À ne pas
 extrapoler.
 
-### H5 — l'index pèse dix fois le corpus
+### H5 — corrigé : l'index pèse ~3 fois le corpus, pas dix
+
+> **Correction du 23/08/2026.** Ce qui suit dimensionnait sur `qwen3-vl-embedding-8b`
+> (4096), parce que la sonde prenait le premier modèle d'embedding du catalogue. Or
+> `colaig-v3/.env` configure `BAAI/bge-m3`, mesuré à **1024**. À 1024 l'index estimé
+> tombe à **~120 Mo** pour 44 Mo de corpus, et non 479 Mo. Le raisonnement ci-dessous
+> reste valable en tant que borne haute, et la décision est en **D10**.
 
 59 documents, 43,8 Mo de source. En estimant ~1500 octets de texte utile par chunk :
 **~29 000 chunks**, soit **~479 Mo d'index** en float32.

@@ -191,3 +191,56 @@ même lot :
 **Ce que cela n'exclut pas.** Un opérateur de plateforme qui veut contraindre son parc
 renseigne `allowed_llm_endpoints` dans `clients.yml` — le mécanisme existe, il est
 testé, et il est désormais solide. C'est là que la souveraineté se décide.
+
+---
+
+## D10 — Dimension d'embedding : 1024 par défaut, en flag · 23/08/2026 · **proposée**
+
+**Question posée :** faut-il des embeddings en 1024 plutôt qu'en 4096 ?
+
+**Réponse : oui, très probablement — mais en flag, et tranché par la mesure à L1.5.**
+
+### Correction préalable
+
+L'estimation de H5 à 479 Mo portait sur `qwen3-vl-embedding-8b` (4096), parce que la
+sonde prenait le **premier** modèle d'embedding du catalogue. Or `colaig-v3/.env`
+configure `ALBERT_MODEL_EMBED=BAAI/bge-m3`, mesuré à **1024**. Le chiffre annoncé ne
+correspondait donc pas à la configuration réelle.
+
+### Ce qui est mesuré
+
+| dimensions | top-1 correct | accord avec 4096 | Spearman | index estimé (corpus 44 Mo) |
+|---|---|---|---|---|
+| 4096 | 6/6 | — | 1,0000 | 479 Mo |
+| 2048 | 6/6 | 6/6 | 0,9819 | 239 Mo |
+| **1024** | 6/6 | 6/6 | 0,9546 | **120 Mo** |
+| 512 | 6/6 | 6/6 | 0,9376 | 60 Mo |
+
+**Le top-1 est parfait à toutes les dimensions, y compris 512 : l'échantillon est trop
+facile pour discriminer.** Six questions et dix documents ne prouvent rien. Le signal
+utile est le Spearman, qui se dégrade régulièrement — c'est le classement **fin** qui
+souffre, et c'est lui qui compte quand des dizaines de chunks se ressemblent.
+
+### Trois façons d'obtenir 1024, à ne pas confondre
+
+| voie | comment | ce que ça coûte |
+|---|---|---|
+| **a. Troncature Matryoshka** | tronquer `qwen3-embedding-8b` à 1024 puis renormaliser L2 | reste sur SSPCloud (D3), aucun provider ajouté. On paie le calcul du 4096, on n'économise que l'index. **Le paramètre `dimensions` est refusé côté serveur** (`litellm.UnsupportedParamsError`) : la troncature est donc **côté client**. |
+| **b. `bge-m3` chez Albert** | modèle **nativement** entraîné en 1024 | vraisemblablement meilleur qu'un 4096 tronqué à taille égale — mais Albert n'est pas la cible de production, donc bi-provider, comme pour le reranker |
+| **c. Embeddings locaux** | `llm.localEmbeddings=true`, déjà prévu dans le chart Helm | aucune dépendance externe pour l'indexation ; coût RAM/CPU dans le pod, à chiffrer |
+
+Une troncature d'un modèle 4096 et un modèle nativement 1024 **ne sont pas équivalents**,
+et rien dans ce qui est mesuré ici ne permet de les départager.
+
+### Décision
+
+1. La dimension devient un **paramètre de configuration**, défaut **1024**.
+2. Le choix entre (a), (b) et (c) est **suspendu à la référence L1.5**. Trancher
+   maintenant, c'est décider au jugé — précisément ce que le principe 6 interdit.
+3. L'estimation d'index est recalculée à **~120 Mo pour 44 Mo de corpus**, et reste une
+   **estimation** : le nombre de chunks dépend du découpage, donc du format. À confirmer
+   par une indexation réelle.
+
+**Ce qui rend la question importante :** à 4096, dix espaces de 44 Mo font 5 Go d'index
+en mémoire pour un `IndexFlatIP`. À 1024, 1,2 Go. Ce n'est plus un réglage, c'est du
+dimensionnement de pod.
