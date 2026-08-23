@@ -21,7 +21,7 @@ Ouvert : <ce qui reste, ou "rien">
 |---|---|
 | **Phase en cours** | 0 — Socle |
 | **Branche** | `chantier/tronc-unique` (compte Onyxia retenu : **`nicolaslaval`**) |
-| **Lot en cours** | L1.5 — **référence v1 établie**. L'interdit de phase 4 peut être levé une fois le jeu doré à son volume. |
+| **Lot en cours** | L1.5b — **première décision arbitrée par la mesure**. Reste : volume du jeu doré, palier génération. |
 | **Bloqué par** | H4/H5 (accès `colaig-0`), H3ter (corpus représentatif pour le listing récursif) |
 | **Arbitrages en attente** | reranker absent de SSPCloud (voir HYPOTHESES) |
 | **Dernière mise à jour** | 22/08/2026 |
@@ -992,6 +992,51 @@ exécutions n'est pas un signal. Le jeu doré doit atteindre son volume avant qu
 variations fines soient interprétables — c'est écrit dans le rapport.
 
 **Ouvert :** compléter le jeu doré ; ajouter le palier génération avec sa variance.
+
+---
+
+## L1.5b — le découpage par article, mesuré avant d'être appliqué · 23/08/2026
+
+**Première utilisation de la référence pour arbitrer une modification.** C'est le moment
+où l'appareil sert à ce pour quoi il a été construit.
+
+| | témoin `Chunker(800,100)` | par article |
+|---|---|---|
+| chunks | 2 124 | **1 762** |
+| index | 8,7 Mo | **7,2 Mo** |
+| récupération complète | 11/17 — 65 % | **13/17 — 76 %** |
+
+### L'hypothèse est confirmée par le mécanisme
+
+Les **deux cas diagnostiqués** dans la référence — `mp-004` et `mp-009`, « bon document,
+mauvais passage » — sont **précisément ceux qui se corrigent**. Plus `mp-002`, qui passe
+de partiel à complet. Les rangs s'améliorent largement : 2→1, 3→1, 4→3.
+
+Un gain agrégé aurait pu venir du hasard. Un gain sur les cas exactement prédits vient du
+mécanisme.
+
+### Mais une régression, et elle enseigne
+
+**`mp-015` passe de ✅ à ❌.** L'article attendu, R2151-1, est **court et général** —
+« l'acheteur fixe les délais en tenant compte de la complexité ». Au découpage par
+document il vivait du contexte de ses voisins ; isolé, il se fait devancer par 1 761
+autres articles qui parlent de délais plus spécifiquement.
+
+Le compromis est réel : gain de précision sur les articles identifiables, perte sur les
+articles courts qui vivaient de leur contexte. Ce n'est pas un défaut de la mesure, c'est
+une propriété du choix.
+
+### Ce que je n'ai pas conclu
+
+Le solde est **+3 / −1** sur 17, soit deux cas nets — **précisément le seuil en dessous
+duquel la référence déclare qu'il n'y a pas de signal**. Je l'avais écrit avant de
+mesurer ; je m'y tiens. Le découpage reste un **paramètre**, défaut inchangé, décision
+reportée au volume.
+
+La régression suggère une troisième voie à éprouver : un article **enrichi de ses voisins
+immédiats** plutôt qu'isolé, qui prendrait les deux gains sans la perte.
+
+`docs/comparaison-decoupage-20260823.md`.
 
 ---
 

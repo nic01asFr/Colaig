@@ -53,6 +53,13 @@ DIMENSION = 1024
 BASE_ALBERT = "https://albert.api.etalab.gouv.fr/v1"
 K = 6  # max_results de la configuration de l'espace
 
+# Stratégie de découpage, choisie par argument. `article` respecte la frontière
+# d'article ; `chunker` est le découpage en vigueur (800/100), qui sert de témoin.
+# La référence du 23/08 a diagnostiqué deux échecs sur trois comme des défauts de
+# granularité : le bon document remontait, pas le bon passage. C'est une hypothèse,
+# et elle se mesure contre le témoin — elle ne se décrète pas.
+STRATEGIE = sys.argv[1] if len(sys.argv) > 1 else "chunker"
+
 
 def cle_albert() -> str:
     for ligne in open(RACINE.parent / "colaig-v3" / ".env", encoding="utf-8"):
@@ -83,6 +90,52 @@ def embed(textes: list[str], cle: str, lot: int = 32) -> list[list[float]]:
     return vecteurs
 
 
+def decouper(strategie: str):
+    """Produit les chunks selon la stratégie demandée."""
+    from colaig.models import DocumentChunk
+
+    if strategie == "chunker":
+        chunker = Chunker(chunk_size=800, chunk_overlap=100)
+        chunks = []
+        for fichier in sorted(CORPUS.glob("*.md")):
+            chunks.extend(chunker.chunk_document(
+                content=fichier.read_text(encoding="utf-8"),
+                source_path=fichier.name, doc_type="md"))
+        return chunks
+
+    if strategie != "article":
+        raise SystemExit(f"stratégie inconnue : {strategie}")
+
+    # Un chunk = un article, préfixé du titre du document et de sa position dans le
+    # code. Le préfixe est essentiel : sans lui, « Les marchés sont passés en lots
+    # séparés » perd le contexte qui permet de le retrouver depuis une question posée
+    # en termes de procédure.
+    chunks = []
+    for fichier in sorted(CORPUS.glob("*.md")):
+        contenu = fichier.read_text(encoding="utf-8")
+        entete = contenu.split("---", 1)[0].strip()
+        titre = entete.splitlines()[0].lstrip("# ").strip() if entete else fichier.stem
+        position = ""
+        for ligne in entete.splitlines():
+            if ligne.startswith("> ") and "›" in ligne:
+                position = ligne[2:].strip()
+        corps = contenu.split("---", 1)[-1]
+        for bloc in re.split(r"(?=^## Article )", corps, flags=re.M):
+            m = re.match(r"## Article ([A-Za-z0-9\- ]+)", bloc)
+            if not m:
+                continue
+            numero = m.group(1).strip()
+            corps_article = re.sub(
+                r"^## Article.*?$|^\*En vigueur.*?$", "", bloc, flags=re.M
+            ).strip()
+            texte = chr(10).join([titre, position, "", f"Article {numero}", "", corps_article])
+            chunks.append(DocumentChunk(
+                text=texte, source_path=fichier.name, source_name=fichier.name,
+                section=f"Article {numero}", position=len(chunks), doc_type="md",
+            ))
+    return chunks
+
+
 def articles_du_chunk(texte: str) -> set[str]:
     """Numéros d'article présents dans un passage.
 
@@ -98,17 +151,8 @@ def main() -> int:
     print(f"jeu doré : {len(cas)} cas", file=sys.stderr)
 
     # ── Indexation ──────────────────────────────────────────────────────────
-    chunker = Chunker(chunk_size=800, chunk_overlap=100)
-    chunks = []
-    for fichier in sorted(CORPUS.glob("*.md")):
-        chunks.extend(
-            chunker.chunk_document(
-                content=fichier.read_text(encoding="utf-8"),
-                source_path=fichier.name,
-                doc_type="md",
-            )
-        )
-    print(f"chunks : {len(chunks)}", file=sys.stderr)
+    chunks = decouper(STRATEGIE)
+    print(f"stratégie : {STRATEGIE} — {len(chunks)} chunks", file=sys.stderr)
 
     t0 = time.monotonic()
     vecteurs = embed([c.text for c in chunks], cle)
@@ -163,7 +207,8 @@ def rapport(cas, resultats, chunks, latences, duree_embed, duree_index, duree_q)
     rangs = [r["rang_premier"] for r in avec_attendus if r["rang_premier"]]
 
     jour = time.strftime("%Y%m%d")
-    sortie = Path(__file__).resolve().parent.parent.parent / "docs" / f"baseline-{jour}.md"
+    suffixe = "" if STRATEGIE == "chunker" else f"-{STRATEGIE}"
+    sortie = Path(__file__).resolve().parent.parent.parent / "docs" / f"baseline-{jour}{suffixe}.md"
 
     L = []
     L.append(f"# Rapport de référence — {time.strftime('%d/%m/%Y')}")
