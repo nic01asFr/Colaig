@@ -13,22 +13,22 @@ Reproductible : corpus figé et vérifié par manifeste, jeu doré versionné,
 | Embeddings | `BAAI/bge-m3`, 1024 dimensions (défaut D10) |
 | Index | `FaissStore` / `IndexFlatIP`, recherche exacte |
 | k | 6 passages, valeur de `max_results` de l'espace |
-| Jeu doré | 122 cas, dont 21 négatifs |
+| Jeu doré | 124 cas, dont 21 négatifs |
 
 ## Palier 1 — récupération (déterministe)
 
 Deux exécutions donnent le même résultat : ni juge, ni génération. **C'est le
 socle.** Si le passage n'est pas remonté, aucune génération ne le rattrapera.
 
-Sur les **103 cas ayant des articles attendus** :
+Sur les **104 cas ayant des articles attendus** :
 
 | | cas | part |
 |---|---|---|
 | Tous les articles attendus remontés | **88** | 85 % |
 | Partiellement remontés | 4 | 4 % |
-| Aucun remonté | 11 | 11 % |
+| Aucun remonté | 12 | 12 % |
 
-Rang du premier article attendu : médiane **1**, moyenne 1.6, max 5 (sur k=6).
+Rang du premier article attendu : médiane **1**, moyenne 1.5, max 5 (sur k=6).
 
 Latence de recherche : médiane **0.0 ms** (min 0.0, max 16.0).
 Embedding d'une question : **7 ms** en moyenne.
@@ -37,11 +37,11 @@ Embedding d'une question : **7 ms** en moyenne.
 
 | cas | type | attendus | remontés | rang | score max |
 |---|---|---|---|---|---|
-| mp-001 | fait | R2112-1 | ✅ R2112-1 | 1 | 0.7125 |
-| mp-002 | fait | L2112-1, R2112-1 | ✅ L2112-1, R2112-1 | 1 | 0.5917 |
+| mp-001 | fait | R2112-1 | ✅ R2112-1 | 1 | 0.7124 |
+| mp-002 | fait | L2112-1, R2112-1 | ✅ L2112-1, R2112-1 | 1 | 0.5916 |
 | mp-003 | fait | R2122-8 | ✅ R2122-8 | 1 | 0.7364 |
 | mp-004 | fait | R2161-2 | ✅ R2161-2 | 3 | 0.7468 |
-| mp-005 | procedure | L2113-10, L2113-11 | ⚠️ L2113-11 | 1 | 0.5439 |
+| mp-005 | procedure | L2113-10, L2113-11 | ⚠️ L2113-11 | 1 | 0.5438 |
 | mp-006 | procedure | L2124-2 | ✅ L2124-2 | 1 | 0.6403 |
 | mp-007 | procedure | L2193-3 | ✅ L2193-3 | 1 | 0.712 |
 | mp-008 | redaction | L2113-10, R2112-1, R2122-8 | ⚠️ R2112-1, R2122-8 | 1 | 0.5986 |
@@ -52,23 +52,23 @@ Embedding d'une question : **7 ms** en moyenne.
 | mp-013 | piege (négatif) | — | — | — | 0.5205 |
 | mp-014 | piege (négatif) | — | — | — | 0.6287 |
 | mp-015 | procedure | R2151-1 | ❌ — | — | 0.6979 |
-| mp-016 | procedure | L2123-1 | ✅ L2123-1 | 1 | 0.6926 |
+| mp-016 | procedure | L2123-1 | ✅ L2123-1 | 1 | 0.6927 |
 | mp-017 | fait | L2113-10 | ✅ L2113-10 | 4 | 0.653 |
-| mp-018 | redaction | L2193-3 | ✅ L2193-3 | 1 | 0.5989 |
-| mp-019 | piege (négatif) | — | — | — | 0.5001 |
-| mp-020 | fait | R2122-8 | ✅ R2122-8 | 1 | 0.645 |
+| mp-018 | redaction | L2193-3 | ✅ L2193-3 | 1 | 0.5991 |
+| mp-019 | piege (négatif) | — | — | — | 0.5 |
+| mp-020 | fait | R2122-8 | ✅ R2122-8 | 1 | 0.676 |
 | mp-021 | procedure | R2191-3 | ✅ R2191-3 | 3 | 0.6348 |
 | mp-022 | fait | R2182-1 | ✅ R2182-1 | 2 | 0.7274 |
 | mp-023 | redaction | R2112-4 | ✅ R2112-4 | 1 | 0.5664 |
-| mp-024 | fait | R2131-6 | ✅ R2131-6 | 1 | 0.719 |
+| mp-024 | fait | R2131-6 | ✅ R2131-6 | 1 | 0.6729 |
 | mp-025 | procedure | R2144-4 | ❌ — | — | 0.583 |
 | mp-026 | procedure | R2152-2 | ✅ R2152-2 | 1 | 0.7256 |
 | mp-027 | fait | L2193-7 | ✅ L2193-7 | 1 | 0.7444 |
 | mp-028 | procedure | L2193-12 | ✅ L2193-12 | 1 | 0.6635 |
-| mp-029 | redaction | L2113-16 | ✅ L2113-16 | 1 | 0.712 |
+| mp-029 | redaction | L2113-15, L2113-16 | ✅ L2113-15, L2113-16 | 1 | 0.7119 |
 | mp-030 | fait | R2162-22 | ✅ R2162-22 | 1 | 0.662 |
 | mp-031 | procedure | L2194-1 | ✅ L2194-1 | 1 | 0.7111 |
-| mp-032 | piege | R2191-3 | ✅ R2191-3 | 5 | 0.6845 |
+| mp-032 | fait | R2191-7 | ✅ R2191-7 | 1 | 0.6845 |
 | mp-033 | fait | L2113-2 | ✅ L2113-2 | 1 | 0.6906 |
 | mp-034 | redaction | R2112-1, R2122-8, R2191-3 | ⚠️ R2122-8 | 2 | 0.5996 |
 | mp-035 | piege (négatif) | — | — | — | 0.5151 |
@@ -77,7 +77,7 @@ Embedding d'une question : **7 ms** en moyenne.
 | mp-038 | procedure | L2192-12 | ✅ L2192-12 | 1 | 0.739 |
 | mp-039 | fait | L2191-4 | ✅ L2191-4 | 4 | 0.6376 |
 | mp-040 | piege (négatif) | — | — | — | 0.6221 |
-| mp-041 | procedure | R3124-3 | ✅ R3124-3 | 1 | 0.6284 |
+| mp-041 | procedure | R2151-3 | ✅ R2151-3 | 2 | 0.6284 |
 | mp-042 | fait | R2191-4 | ✅ R2191-4 | 1 | 0.7275 |
 | mp-043 | procedure | L2113-16 | ✅ L2113-16 | 2 | 0.617 |
 | mp-044 | piege | L2141-7 | ✅ L2141-7 | 1 | 0.681 |
@@ -96,22 +96,22 @@ Embedding d'une question : **7 ms** en moyenne.
 | mp-057 | fait | L2111-1 | ❌ — | — | 0.5868 |
 | mp-058 | fait | L2111-3 | ✅ L2111-3 | 1 | 0.7192 |
 | mp-059 | piege (négatif) | — | — | — | 0.7079 |
-| mp-060 | piege (négatif) | — | — | — | 0.6524 |
+| mp-060 | procedure | R2143-11 | ❌ — | — | 0.6524 |
 | mp-061 | piege (négatif) | — | — | — | 0.6196 |
 | mp-062 | piege (négatif) | — | — | — | 0.6603 |
 | mp-063 | fait | R2112-13, R2112-9 | ✅ R2112-13, R2112-9 | 1 | 0.6554 |
-| mp-064 | redaction | R2112-13 | ✅ R2112-13 | 2 | 0.6048 |
+| mp-064 | redaction | R2112-13 | ✅ R2112-13 | 2 | 0.6047 |
 | mp-065 | redaction | R2112-10 | ✅ R2112-10 | 1 | 0.7222 |
 | mp-066 | fait | R2112-11 | ✅ R2112-11 | 1 | 0.7073 |
-| mp-067 | procedure | R2112-4 | ✅ R2112-4 | 1 | 0.67 |
+| mp-067 | procedure | R2112-4 | ✅ R2112-4 | 1 | 0.6699 |
 | mp-068 | piege | R2112-4 | ✅ R2112-4 | 2 | 0.6047 |
 | mp-069 | redaction | R2112-2 | ❌ — | — | 0.5316 |
 | mp-070 | redaction | R2112-3 | ❌ — | — | 0.5022 |
-| mp-071 | fait | R2112-6 | ✅ R2112-6 | 1 | 0.6917 |
+| mp-071 | fait | R2112-6 | ✅ R2112-6 | 1 | 0.6501 |
 | mp-072 | procedure | R2112-17 | ✅ R2112-17 | 1 | 0.7173 |
 | mp-073 | redaction | R2112-16 | ✅ R2112-16 | 1 | 0.7429 |
 | mp-074 | fait | L2112-5 | ✅ L2112-5 | 1 | 0.6791 |
-| mp-075 | redaction | L2112-4 | ✅ L2112-4 | 1 | 0.661 |
+| mp-075 | redaction | L2112-4 | ✅ L2112-4 | 1 | 0.6609 |
 | mp-076 | fait | L2112-3 | ✅ L2112-3 | 1 | 0.7331 |
 | mp-077 | procedure | R2112-14 | ✅ R2112-14 | 1 | 0.614 |
 | mp-078 | piege (négatif) | — | — | — | 0.5989 |
@@ -130,10 +130,10 @@ Embedding d'une question : **7 ms** en moyenne.
 | mp-091 | procedure | L2113-14 | ✅ L2113-14 | 3 | 0.6126 |
 | mp-092 | fait | L2113-2 | ✅ L2113-2 | 1 | 0.6906 |
 | mp-093 | procedure | L2113-4 | ❌ — | — | 0.5703 |
-| mp-094 | fait | L2113-6 | ✅ L2113-6 | 1 | 0.6125 |
-| mp-095 | fait | L2113-7 | ✅ L2113-7 | 1 | 0.5583 |
-| mp-096 | procedure | L2113-17 | ✅ L2113-17 | 2 | 0.6061 |
-| mp-097 | piege (négatif) | — | — | — | 0.6532 |
+| mp-094 | fait | L2113-6 | ✅ L2113-6 | 1 | 0.6124 |
+| mp-095 | fait | L2113-7 | ✅ L2113-7 | 1 | 0.5582 |
+| mp-096 | procedure | L2113-17 | ✅ L2113-17 | 1 | 0.6104 |
+| mp-097 | piege (négatif) | — | — | — | 0.6533 |
 | mp-098 | piege (négatif) | — | — | — | 0.656 |
 | mp-099 | piege (négatif) | — | — | — | 0.6425 |
 | mp-100 | fait | R2122-8 | ✅ R2122-8 | 1 | 0.7525 |
@@ -141,24 +141,26 @@ Embedding d'une question : **7 ms** en moyenne.
 | mp-102 | fait | L2123-1 | ✅ L2123-1 | 1 | 0.7007 |
 | mp-103 | procedure | R2123-1 | ✅ R2123-1 | 3 | 0.6926 |
 | mp-104 | procedure | R2122-2 | ❌ — | — | 0.568 |
-| mp-105 | procedure | R2122-1 | ✅ R2122-1 | 1 | 0.6302 |
+| mp-105 | procedure | R2122-1 | ✅ R2122-1 | 1 | 0.6303 |
 | mp-106 | procedure | R2122-3 | ✅ R2122-3 | 2 | 0.5861 |
 | mp-107 | procedure | R2122-7 | ✅ R2122-7 | 2 | 0.6664 |
-| mp-108 | procedure | R2122-6 | ✅ R2122-6 | 1 | 0.6923 |
+| mp-108 | procedure | R2122-6 | ✅ R2122-6 | 1 | 0.6924 |
 | mp-109 | fait | R2122-9-1 | ✅ R2122-9-1 | 2 | 0.5769 |
 | mp-110 | fait | R2122-9 | ✅ R2122-9 | 1 | 0.6567 |
-| mp-111 | fait | L2124-2, L2124-3 | ✅ L2124-2, L2124-3 | 1 | 0.6488 |
+| mp-111 | fait | L2124-2, L2124-3 | ✅ L2124-2, L2124-3 | 1 | 0.6487 |
 | mp-112 | procedure | R2124-3 | ✅ R2124-3 | 1 | 0.7331 |
 | mp-113 | piege | R2124-4 | ✅ R2124-4 | 2 | 0.6744 |
-| mp-114 | fait | L2124-4, R2124-5 | ✅ L2124-4, R2124-5 | 1 | 0.6894 |
+| mp-114 | fait | L2124-4, R2124-5 | ✅ L2124-4, R2124-5 | 1 | 0.6893 |
 | mp-115 | redaction | R2123-5 | ✅ R2123-5 | 1 | 0.6789 |
 | mp-116 | piege | R2123-6 | ❌ — | — | 0.642 |
 | mp-117 | procedure | R2123-2 | ✅ R2123-2 | 1 | 0.6437 |
 | mp-118 | redaction | R2123-7 | ✅ R2123-7 | 4 | 0.6402 |
 | mp-119 | piege (négatif) | — | — | — | 0.5951 |
-| mp-120 | piege (négatif) | — | — | — | 0.6382 |
+| mp-120 | piege (négatif) | — | — | — | 0.6381 |
 | mp-121 | piege (négatif) | — | — | — | 0.6214 |
 | mp-122 | piege (négatif) | — | — | — | 0.6775 |
+| mp-123 | piege (négatif) | — | — | — | 0.6445 |
+| mp-124 | piege (négatif) | — | — | — | 0.6362 |
 
 ### Échecs de récupération — à examiner en priorité
 
@@ -168,6 +170,7 @@ Embedding d'une question : **7 ms** en moyenne.
 - **mp-047** : attendus R2111-2 — remontés depuis 035-deuxieme-partie-marches-public, 035-deuxieme-partie-marches-public, 005-deuxieme-partie-marches-public
 - **mp-051** : attendus R2111-11 — remontés depuis 147-deuxieme-partie-marches-public, 036-deuxieme-partie-marches-public, 132-deuxieme-partie-marches-public
 - **mp-057** : attendus L2111-1 — remontés depuis 128-deuxieme-partie-marches-public, 128-deuxieme-partie-marches-public, 128-deuxieme-partie-marches-public
+- **mp-060** : attendus R2143-11 — remontés depuis 109-deuxieme-partie-marches-public, 129-deuxieme-partie-marches-public, 108-deuxieme-partie-marches-public
 - **mp-069** : attendus R2112-2 — remontés depuis 037-deuxieme-partie-marches-public, 156-deuxieme-partie-marches-public, 156-deuxieme-partie-marches-public
 - **mp-070** : attendus R2112-3 — remontés depuis 143-deuxieme-partie-marches-public, 167-deuxieme-partie-marches-public, 166-deuxieme-partie-marches-public
 - **mp-093** : attendus L2113-4 — remontés depuis 128-deuxieme-partie-marches-public, 105-deuxieme-partie-marches-public, 105-deuxieme-partie-marches-public
@@ -190,7 +193,7 @@ Ce qu'il devra mesurer, par ordre d'importance :
 
 ## Coûts d'établissement
 
-- Embedding du corpus : **17 s** pour 1806 chunks (104 chunks/s).
+- Embedding du corpus : **16 s** pour 1806 chunks (116 chunks/s).
 - Construction de l'index : 47 ms.
 - Empreinte de l'index : **7.4 Mo** en float32.
 

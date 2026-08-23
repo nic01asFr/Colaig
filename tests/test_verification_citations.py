@@ -151,3 +151,57 @@ def test_le_controle_sait_echouer():
     fautif = verifier("Selon L9999-1.", [PASSAGE_1])
     assert conforme.conforme and not fautif.conforme
     assert fautif.avertissement() != "" and conforme.avertissement() == ""
+
+
+# ── Le format de citation est une propriété du corpus ───────────────────────
+
+
+def test_une_citation_de_cahier_de_clauses_est_invisible_par_defaut():
+    """Et c'est voulu — mais il fallait le savoir avant d'ajouter un tel corpus.
+
+    Les CCAG numérotent « article 20.1 ». Le motif par défaut est celui des codes
+    juridiques, donc une réponse citant le CCAG serait vue comme ne citant **rien**,
+    et `garde_fou_reponse` la remplacerait par un refus. C'est le mode de défaillance
+    déjà corrigé pour les articles préliminaires, transposé à un autre corpus.
+    """
+    assert articles_cites("Voir l'article 20.1 du CCAG Travaux.") == set()
+
+
+def test_le_format_clause_reconnait_les_cahiers():
+    from colaig.rag.verification_citations import FORMAT_CLAUSE, FORMAT_CODE
+
+    deux = (FORMAT_CODE, FORMAT_CLAUSE)
+    assert articles_cites("Voir l'article 20.1 du CCAG.", deux) == {"20.1"}
+    assert articles_cites("L'article 46.2.3 précise.", deux) == {"46.2.3"}
+    assert articles_cites("L2113-10 et l'article 20.1", deux) == {"L2113-10", "20.1"}
+
+
+def test_pourquoi_le_format_clause_n_est_pas_actif_partout():
+    """La mesure qui justifie le défaut, et qui doit rester lisible.
+
+    Sur le corpus du code, ce motif relève 188 occurrences, **toutes** « 2.0 » — la
+    mention « Licence Ouverte 2.0 » du pied de page. Inoffensif là ; mais sur un fonds
+    de procédures, « 2.5 » est un taux ou un numéro de version. Un contrôle qui prend
+    des fragments pour des citations déclare ancrées des réponses qui ne le sont pas :
+    il est alors **pire qu'absent**.
+    """
+    from colaig.rag.verification_citations import FORMAT_CLAUSE, FORMAT_CODE
+
+    prose = "Le taux passe de 2.5 à 3.5 selon la version 1.2 du document."
+    assert articles_cites(prose) == set(), "le défaut ne doit rien voir dans cette prose"
+    assert articles_cites(prose, (FORMAT_CODE, FORMAT_CLAUSE)) == {"2.5", "3.5", "1.2"}
+
+
+def test_les_deux_cotes_du_controle_emploient_le_meme_format():
+    """Reconnaître une graphie dans la réponse et pas dans les passages est le défaut
+    qui a déjà fait conclure à tort que le modèle puisait dans sa mémoire.
+    """
+    from colaig.rag.verification_citations import FORMAT_CLAUSE, FORMAT_CODE
+
+    deux = (FORMAT_CODE, FORMAT_CLAUSE)
+    passage = "Article 20.1 — Le titulaire dispose d'un délai de trente jours."
+    assert verifier("Selon 20.1, le délai est de trente jours.", [passage], deux).conforme
+    # Avec le format par défaut, ni la réponse ni le passage ne portent de citation :
+    # le contrôle reste cohérent, il ne voit simplement rien.
+    v = verifier("Selon 20.1, le délai est de trente jours.", [passage])
+    assert v.citations == set() and v.fournies == set()

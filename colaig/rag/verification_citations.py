@@ -54,9 +54,49 @@ from dataclasses import dataclass, field
 _MOTIF_ARTICLE = re.compile(r"\b([LRD])\.?\s?(\d{1,4}-\d+(?:-\d+)?|[1-9]\d{0,3})\b")
 
 
-def articles_cites(texte: str) -> set[str]:
-    """Numéros d'article mentionnés dans un texte, normalisés (`L2113-10`)."""
-    return {f"{lettre}{numero}" for lettre, numero in _MOTIF_ARTICLE.findall(texte or "")}
+# Un article de cahier des clauses : « article 20.1 », « 46.2.3 ».
+#
+# LE FORMAT DE CITATION EST UNE PROPRIÉTÉ DU CORPUS, pas du code.
+#
+# Le motif ci-dessus est celui du Code de la commande publique. Les **CCAG** — cahiers
+# des clauses administratives générales, qui sont des arrêtés — numérotent tout
+# autrement : « article 20.1 ». Une réponse citant le CCAG était donc vue comme ne
+# citant **rien**, et `garde_fou_reponse.appliquer()` l'aurait remplacée par un refus :
+# exactement le mode de défaillance corrigé pour les articles préliminaires, transposé
+# à un autre corpus.
+#
+# Ce second motif n'est **pas actif par défaut**, et c'est mesuré : sur le corpus du
+# code, `\d+\.\d+` relève 188 occurrences, toutes « 2.0 » — la mention « Licence
+# Ouverte 2.0 » du pied de page. Inoffensif ici, mais sur un fonds de procédures ou de
+# notes internes, « 2.5 » est un taux, un numéro de version, une date. Un contrôle qui
+# prendrait ces fragments pour des citations déclarerait ancrées des réponses qui ne le
+# sont pas — il serait pire qu'absent.
+#
+# Le format se déclare donc par corpus, comme le garde-fou lui-même (D19).
+# TODO-HAUTE : porter ce choix dans `workspace.yaml`, avec le drapeau du garde-fou.
+_MOTIF_CLAUSE = re.compile(r"\b(\d{1,2}(?:\.\d{1,2}){1,2})\b")
+
+FORMAT_CODE = "code"          # L2113-10, R. 2122-8 — codes juridiques
+FORMAT_CLAUSE = "clause"      # 20.1, 46.2.3 — CCAG, CCTG, cahiers de clauses
+
+_MOTIFS = {FORMAT_CODE: _MOTIF_ARTICLE, FORMAT_CLAUSE: _MOTIF_CLAUSE}
+
+
+def articles_cites(texte: str, formats: tuple[str, ...] = (FORMAT_CODE,)) -> set[str]:
+    """Numéros d'article mentionnés dans un texte, normalisés (`L2113-10`).
+
+    Args:
+        texte: le texte à examiner.
+        formats: formats de citation reconnus. Par défaut celui des codes juridiques.
+            Ajouter `FORMAT_CLAUSE` pour un corpus de cahiers de clauses — voir la note
+            ci-dessus sur les faux positifs qu'il entraîne ailleurs.
+    """
+    trouves: set[str] = set()
+    for nom in formats:
+        motif = _MOTIFS[nom]
+        for capture in motif.findall(texte or ""):
+            trouves.add("".join(capture) if isinstance(capture, tuple) else capture)
+    return trouves
 
 
 @dataclass
@@ -87,12 +127,19 @@ class Verification:
         )
 
 
-def verifier(reponse: str, passages: list[str]) -> Verification:
-    """Compare les articles cités dans la réponse à ceux présents dans les passages."""
-    citations = articles_cites(reponse)
+def verifier(reponse: str, passages: list[str],
+             formats: tuple[str, ...] = (FORMAT_CODE,)) -> Verification:
+    """Compare les articles cités dans la réponse à ceux présents dans les passages.
+
+    `formats` doit être le **même des deux côtés** : reconnaître une graphie dans la
+    réponse et pas dans les passages ferait passer pour hors contexte des citations
+    légitimes. C'est déjà arrivé — deux motifs divergents avaient fait conclure à tort
+    que le modèle puisait dans sa mémoire.
+    """
+    citations = articles_cites(reponse, formats)
     fournies: set[str] = set()
     for passage in passages:
-        fournies |= articles_cites(passage)
+        fournies |= articles_cites(passage, formats)
     return Verification(
         citations=citations,
         fournies=fournies,
