@@ -55,7 +55,7 @@
       ]
     },
     "cite_attendu": {
-      "valeur": 0.836,
+      "valeur": 0.805,
       "minimum": 0.78,
       "_motif": [
         "92 reponses sur 110 jugeables citent l'article attendu. Le modele varie d'une",
@@ -64,7 +64,7 @@
       ]
     },
     "hors_contexte_max": {
-      "valeur": 24,
+      "valeur": 20,
       "maximum": 34,
       "_motif": [
         "Articles reels cites hors des passages fournis — le modele puise dans sa memoire.",
@@ -73,7 +73,7 @@
       ]
     },
     "fantomes_max": {
-      "valeur": 5,
+      "valeur": 8,
       "maximum": 10,
       "_motif": [
         "Articles cites qui n'existent nulle part. Rare et grave : une reference fausse",
@@ -89,7 +89,7 @@
       ]
     },
     "tronquees_max": {
-      "valeur": 3,
+      "valeur": 0,
       "maximum": 12,
       "_motif": [
         "Reponses coupees par epuisement du budget. C'etait 39 avec le raisonnement",
@@ -187,6 +187,52 @@
       "",
       "UN SEUL REPLICAT NE FAIT PAS UNE VARIANCE. Ces ecarts sont un ordre de grandeur, pas",
       "un intervalle de confiance. Si une porte echoue de peu, le rejouer avant de conclure."
+    ]
+  },
+  "_bascule_prompt_production": {
+    "_pourquoi": [
+      "Jusqu'au 24/08/2026, le harnais assemblait ses passages lui-meme avec",
+      "'\n\n---\n\n'.join(...) et n'appelait jamais generator.py. La reference mesurait",
+      "donc le modele, le corpus et la recherche -- PAS l'assemblage de prompt livre a",
+      "l'utilisateur. Aucun des sept seuils ne gardait ce dernier.",
+      "",
+      "Trouve au lot L2.1 en verifiant si le passage au balisage <untrusted> invalidait",
+      "la reference. Il ne l'invalidait pas, et c'etait le probleme.",
+      "",
+      "reference_generation.py passe desormais par Generator._build_messages -- le point",
+      "de couture qui separe l'assemblage du prompt du client HTTP, pour que le harnais",
+      "garde la main sur max_tokens et enable_thinking, dont ce chantier a mesure qu'ils",
+      "decident de tout."
+    ],
+    "_mesure_le": "2026-08-24",
+    "_ce_qui_change_dans_le_prompt": [
+      "Les documents passent du message UTILISATEUR au message SYSTEME.",
+      "Ils sont balises <untrusted source=... nature=...> au lieu d'etre separes par ---.",
+      "La consigne de non-execution accompagne le bloc.",
+      "Le message utilisateur ne porte plus que la question."
+    ],
+    "_resultat": "les sept seuils tiennent",
+    "valeurs_ancien_prompt": {
+      "cite_attendu": 0.836,
+      "hors_contexte": 24,
+      "fantomes": 5,
+      "tronquees": 3,
+      "jugeables": 110
+    },
+    "_lecture": [
+      "Deux indicateurs s'ameliorent : zero reponse tronquee contre trois, et 20",
+      "citations hors contexte contre 24.",
+      "",
+      "cite_attendu passe de 0,836 a 0,805, mais les denominateurs different : 91 sur",
+      "113 cas jugeables contre 92 sur 110. Les trois cas de plus sont ceux qui",
+      "n'etaient pas jugeables faute d'avoir ete tronques. En valeur absolue, 91",
+      "reponses correctes contre 92, sur trois tentatives de plus abouties.",
+      "",
+      "UN SEUL PASSAGE. Ces valeurs remplacent les precedentes parce que le harnais",
+      "mesure desormais autre chose, pas parce qu'elles seraient mieux etablies. Le",
+      "replicat de _variance_observee porte encore sur l'ancien prompt.",
+      "",
+      "garde_fou_rendues N'A PAS ete remesure : il vient d'une analyse distincte."
     ]
   }
 }

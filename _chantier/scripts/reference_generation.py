@@ -55,6 +55,13 @@ exec(compile(SRC.replace("raise SystemExit(main())", "pass"), "reference_l15.py"
 decouper, embed, cle_albert = _ns["decouper"], _ns["embed"], _ns["cle_albert"]
 articles_du_chunk, FaissStore, CORPUS = _ns["articles_du_chunk"], _ns["FaissStore"], _ns["CORPUS"]
 
+from colaig.models import ContextMode, WorkspaceConfig, WorkspaceContext  # noqa: E402
+from colaig.rag.generator import Generator  # noqa: E402
+
+# Le générateur n'est instancié que pour son assemblage de prompt : `_build_messages`
+# ne touche pas au client, et le harnais garde son propre transport (voir plus bas).
+_GENERATEUR = Generator(albert=None)
+
 JEU = RACINE / "tests" / "golden" / "v1.jsonl"
 CONFIG = RACINE / "tests" / "golden" / "corpus-marches-publics-config.yaml"
 
@@ -184,16 +191,45 @@ def prompt_systeme() -> str:
     return "\n".join(lignes).strip()
 
 
-def repondre(systeme: str, question: str, passages: list[str], cle: str) -> tuple[str, float]:
-    contexte = "\n\n---\n\n".join(passages)
+def messages_de_production(systeme: str, question: str, resultats: list) -> list[dict]:
+    """Le prompt réellement livré à l'utilisateur, pas une imitation.
+
+    POURQUOI CETTE FONCTION EXISTE
+    -------------------------------
+    Ce harnais assemblait ses passages lui-même, avec `"\\n\\n---\\n\\n".join(...)`, et
+    n'appelait jamais `generator.py`. La référence mesurait donc le **modèle, le corpus
+    et la recherche** — pas l'assemblage de prompt effectivement envoyé. Aucun des sept
+    seuils de `reference.json` ne gardait ce dernier : le prompt de production pouvait
+    dériver sans qu'une seule porte ne s'ouvre.
+
+    Découvert au lot L2.1, en vérifiant si le passage au balisage `<untrusted>`
+    invalidait la référence. Il ne l'invalidait pas, et c'était le problème.
+
+    POURQUOI `_build_messages` ET NON `Generator.generate()`
+    ---------------------------------------------------------
+    C'est le point de couture qui sépare l'**assemblage du prompt** du **client HTTP**.
+    Le harnais garde ainsi la main sur `max_tokens` et `enable_thinking`, que le client
+    de production n'expose pas — et dont ce chantier a mesuré qu'ils décident de tout :
+    à 2048 jetons la réponse est tronquée, avec le raisonnement actif elle l'est 39 fois
+    sur 164. Passer par `generate()` mesurerait le transport en même temps que le
+    prompt, et l'on ne saurait plus lequel des deux a bougé.
+    """
+    ctx = WorkspaceContext(
+        workspace=WorkspaceConfig(
+            workspace_id="reference",
+            name="Marchés publics",
+            storage_path="/reference/",
+        ),
+        mode=ContextMode.ASSISTANT,
+        system_prompt=systeme,
+    )
+    return _GENERATEUR._build_messages(question, ctx, resultats, None, None)
+
+
+def repondre(systeme: str, question: str, resultats: list, cle: str) -> tuple[str, float]:
     charge = json.dumps({
         "model": MODELE,
-        "messages": [
-            {"role": "system", "content": systeme},
-            {"role": "user", "content":
-                f"Passages du Code de la commande publique :\n\n{contexte}\n\n"
-                f"Question : {question}"},
-        ],
+        "messages": messages_de_production(systeme, question, resultats),
         "temperature": 0.1,
         # 4000, pas 2048. `qwen3-6-35b-moe` est un modèle à raisonnement : mesuré,
         # il produit 10 170 caractères de raisonnement pour 2 959 de réponse — un
@@ -288,7 +324,7 @@ def main() -> int:
         observations = []
         for _ in range(essais):
             try:
-                reponse, duree, tronquee = repondre(systeme, c["question"], passages, cle_s)
+                reponse, duree, tronquee = repondre(systeme, c["question"], trouves, cle_s)
             except Exception as e:  # noqa: BLE001
                 print(f"  {c['id']} : appel en échec ({type(e).__name__})", file=sys.stderr)
                 continue
