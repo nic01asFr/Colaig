@@ -1155,3 +1155,47 @@ l'interdit. Le corpus dit **5 404 000**. Le garde-fou existe exactement pour cel
 
 Le taux tient à corpus multiplié par 1,5 et à jeu doré élargi — ce qui est le résultat
 qui comptait : enrichir sans dégrader.
+
+## D31 — Le vocabulaire du corpus se lit, il ne se devine pas · 23/08/2026 · **actée**
+
+### La reconnaissance littérale
+
+Les CCAG et les annexes ne numérotent pas selon un motif : « CCAG Travaux 4 »,
+« Annexe 2 — Seuils de procédure — texte 1 ». **Aucune expression régulière ne les
+décrit**, et en écrire une assez large pour les couvrir attraperait la moitié de la
+prose.
+
+Mais ces identifiants sont **connus** — le corpus les porte en en-tête. `articles_cites`
+accepte donc un vocabulaire, cherché **littéralement**. C'est exact par construction :
+la méthode ne peut trouver que ce qui existe, donc elle n'a pas de faux positif.
+
+Sans elle, une réponse citant correctement le CCAG était vue comme ne citant **rien**, et
+`garde_fou_reponse` l'aurait remplacée par un refus. C'est le mode de défaillance déjà
+rencontré deux fois — sur les articles préliminaires `L1` à `L6`, puis sur les CCAG.
+
+**Le piège du préfixe est fermé** : sans frontière de fin, « CCAG Travaux 4 » se
+retrouverait dans « CCAG Travaux 41 », et une réponse citant correctement l'article 41 se
+verrait attribuer un article 4 qu'elle ne cite pas. La frontière interdit ce qui
+**prolonge** le numéro — un chiffre, un « .4 », un « -4 » — et rien d'autre : une
+première version excluait tout point, et « CCAG Travaux 41. » en fin de phrase n'était
+plus reconnu.
+
+### Cinq copies du même motif, cinq divergences
+
+Le motif d'en-tête `[A-Za-z0-9\- ]+` existait en **cinq exemplaires** dans le chantier.
+Chacun a produit une mesure fausse avant d'être trouvé :
+
+| copie | conséquence mesurée |
+|---|---|
+| `test_jeu_dore.py` | refusait « CCAG Travaux Préambule » comme inexistant |
+| `index_corpus.py` | **183 articles absents de l'index** sur 1026 |
+| `reference_l15.py` — découpage | passages indexés sous « CCAG Travaux Pr », tronqué |
+| `reference_l15.py` — reconnaissance | six cas dorés comptés en échec, le bon passage remonté |
+| `reference_generation.py` | **843 articles reconnus sur 1026** — une citation juste comptée comme fantôme |
+
+La dernière a été trouvée **pendant** la mesure qu'elle faussait, et l'exécution a été
+arrêtée.
+
+Toutes convergent désormais : le vocabulaire est constitué une fois depuis les passages,
+et passé à la reconnaissance. **Une chose qui doit être vraie partout ne doit être écrite
+qu'une fois.**

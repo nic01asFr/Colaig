@@ -233,3 +233,50 @@ def test_les_formes_courtes_restent_reconnues_dans_les_deux_sens():
     assert articles_cites("Selon L2, un marché est un contrat.") == {"L2"}
     assert articles_cites("Voir l'article L30 du code.") == {"L30"}
     assert articles_cites("L. 511-16 du code monétaire") == {"L511-16"}
+
+
+# ── Les identifiants propres au corpus ──────────────────────────────────────
+
+IDENTIFIANTS = {"CCAG Travaux 4", "CCAG Travaux 41", "CCAG Travaux — texte 1",
+                "Annexe 2 — Seuils de procédure — texte 1"}
+
+
+def test_un_identifiant_de_corpus_est_reconnu_litteralement():
+    """Certains corpus ne numérotent pas selon un motif.
+
+    « CCAG Travaux 4 », « Annexe 2 — Seuils de procédure — texte 1 » : aucune
+    expression régulière ne les décrit, et en écrire une qui les couvre attraperait la
+    moitié de la prose. Mais ils sont **connus** — le corpus les porte en en-tête — et
+    les chercher tels quels est exact par construction.
+    """
+    assert articles_cites("Selon CCAG Travaux 4, l'acte d'engagement prime.",
+                          identifiants=IDENTIFIANTS) == {"CCAG Travaux 4"}
+    assert articles_cites("Voir Annexe 2 — Seuils de procédure — texte 1.",
+                          identifiants=IDENTIFIANTS) == {"Annexe 2 — Seuils de procédure — texte 1"}
+
+
+def test_un_identifiant_n_est_pas_reconnu_dans_un_plus_long():
+    """Le piège du préfixe, et il produirait une citation fausse à partir d'une juste.
+
+    Sans frontière de fin, « CCAG Travaux 4 » se retrouve à l'intérieur de « CCAG
+    Travaux 41 » : une réponse citant correctement l'article 41 se verrait attribuer
+    aussi l'article 4, qu'elle ne cite pas — et le contrôle de provenance jugerait
+    ensuite une citation qui n'existe pas.
+    """
+    trouves = articles_cites("La réception relève de CCAG Travaux 41.",
+                             identifiants=IDENTIFIANTS)
+    assert trouves == {"CCAG Travaux 41"}
+
+
+def test_les_deux_voies_se_cumulent():
+    """Un corpus mixte cite dans les deux vocabulaires, souvent dans la même phrase."""
+    trouves = articles_cites("R2112-3 impose de le signaler, et CCAG Travaux 4 en donne l'effet.",
+                             identifiants=IDENTIFIANTS)
+    assert trouves == {"R2112-3", "CCAG Travaux 4"}
+
+
+def test_sans_vocabulaire_rien_n_est_invente():
+    """La voie littérale ne cherche que ce qu'on lui donne : pas de vocabulaire, pas de
+    citation. C'est ce qui la rend sans faux positif possible.
+    """
+    assert articles_cites("Selon CCAG Travaux 4, l'acte d'engagement prime.") == set()

@@ -97,7 +97,35 @@ FORMAT_CLAUSE = "clause"      # 20.1, 46.2.3 — CCAG, CCTG, cahiers de clauses
 _MOTIFS = {FORMAT_CODE: _MOTIF_ARTICLE, FORMAT_CLAUSE: _MOTIF_CLAUSE}
 
 
-def articles_cites(texte: str, formats: tuple[str, ...] = (FORMAT_CODE,)) -> set[str]:
+def _litteraux(texte: str, identifiants) -> set[str]:
+    """Identifiants du corpus retrouvés **littéralement** dans un texte.
+
+    Certains corpus ne numérotent pas leurs articles selon un motif. « CCAG Travaux 4 »,
+    « Annexe 2 — Seuils de procédure — texte 1 » : aucune expression régulière ne les
+    décrit, et en écrire une qui les couvre attraperait la moitié de la prose.
+
+    Mais ces identifiants sont **connus** — le corpus les porte en en-tête. On les
+    cherche donc tels quels, ce qui est à la fois exact et sans faux positif possible.
+
+    Les plus longs d'abord, et la frontière de mot est nécessaire : sans elle,
+    « CCAG Travaux 4 » se retrouverait à l'intérieur de « CCAG Travaux 41 », et une
+    citation juste en produirait une fausse.
+    """
+    plat = " ".join((texte or "").split())
+    trouves: set[str] = set()
+    for identifiant in sorted(identifiants, key=len, reverse=True):
+        motif = re.escape(" ".join(identifiant.split()))
+        # La frontière interdit ce qui PROLONGE le numéro — un chiffre, un « .4 », un
+        # « -4 » — et rien d'autre. Une première version excluait tout point : « CCAG
+        # Travaux 41. » en fin de phrase n'était alors plus reconnu, et une citation
+        # parfaitement formée passait pour absente.
+        if re.search(motif + r"(?![0-9]|\.[0-9]|-[0-9])", plat):
+            trouves.add(identifiant)
+    return trouves
+
+
+def articles_cites(texte: str, formats: tuple[str, ...] = (FORMAT_CODE,),
+                   identifiants=()) -> set[str]:
     """Numéros d'article mentionnés dans un texte, normalisés (`L2113-10`).
 
     Args:
@@ -105,12 +133,17 @@ def articles_cites(texte: str, formats: tuple[str, ...] = (FORMAT_CODE,)) -> set
         formats: formats de citation reconnus. Par défaut celui des codes juridiques.
             Ajouter `FORMAT_CLAUSE` pour un corpus de cahiers de clauses — voir la note
             ci-dessus sur les faux positifs qu'il entraîne ailleurs.
+        identifiants: identifiants propres au corpus, cherchés **littéralement**. C'est
+            la voie des textes qui ne numérotent pas selon un motif — les CCAG, les
+            annexes. Exacte par construction, puisqu'elle ne cherche que ce qui existe.
     """
     trouves: set[str] = set()
     for nom in formats:
         motif = _MOTIFS[nom]
         for capture in motif.findall(texte or ""):
             trouves.add("".join(capture) if isinstance(capture, tuple) else capture)
+    if identifiants:
+        trouves |= _litteraux(texte, identifiants)
     return trouves
 
 
@@ -143,7 +176,8 @@ class Verification:
 
 
 def verifier(reponse: str, passages: list[str],
-             formats: tuple[str, ...] = (FORMAT_CODE,)) -> Verification:
+             formats: tuple[str, ...] = (FORMAT_CODE,),
+             identifiants=()) -> Verification:
     """Compare les articles cités dans la réponse à ceux présents dans les passages.
 
     `formats` doit être le **même des deux côtés** : reconnaître une graphie dans la
@@ -151,10 +185,10 @@ def verifier(reponse: str, passages: list[str],
     légitimes. C'est déjà arrivé — deux motifs divergents avaient fait conclure à tort
     que le modèle puisait dans sa mémoire.
     """
-    citations = articles_cites(reponse, formats)
+    citations = articles_cites(reponse, formats, identifiants)
     fournies: set[str] = set()
     for passage in passages:
-        fournies |= articles_cites(passage, formats)
+        fournies |= articles_cites(passage, formats, identifiants)
     return Verification(
         citations=citations,
         fournies=fournies,

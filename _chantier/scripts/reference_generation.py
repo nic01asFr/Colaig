@@ -206,7 +206,20 @@ def repondre(systeme: str, question: str, passages: list[str], cle: str) -> tupl
 # Elle a divergé une seconde fois le 23/08/2026, quand le motif du module a été élargi
 # aux articles préliminaires (L1 à L6). D'où cet import : une mesure qui n'utilise pas le
 # code mesuré ne mesure pas ce qu'elle croit.
-from colaig.rag.verification_citations import articles_cites  # noqa: E402
+from colaig.rag.verification_citations import articles_cites as _articles_cites  # noqa: E402
+
+# LE VOCABULAIRE DU CORPUS, passe a chaque reconnaissance.
+#
+# Les CCAG et les annexes ne numerotent pas selon un motif : « CCAG Travaux 4 »,
+# « Annexe 2 — Seuils de procedure — texte 1 ». Sans ce vocabulaire, une reponse qui
+# les cite correctement est vue comme ne citant RIEN — et le garde-fou la remplacerait
+# par un refus. C'est le mode de defaillance deja rencontre deux fois : sur les
+# articles preliminaires L1 a L6, puis sur les CCAG.
+_IDENTIFIANTS: set[str] = set()
+
+
+def articles_cites(texte: str) -> set[str]:
+    return _articles_cites(texte, identifiants=_IDENTIFIANTS)
 
 
 
@@ -221,11 +234,21 @@ def main() -> int:
     cas = [json.loads(l) for l in JEU.read_text(encoding="utf-8").splitlines() if l.strip()]
 
     chunks = decouper(PERIMETRE)
-    articles_existants: set[str] = set()
-    for f in CORPUS.glob("*.md"):
-        articles_existants |= set(re.findall(r"^## Article ([A-Za-z0-9\- ]+)$",
-                                             f.read_text(encoding="utf-8"), re.M))
-    articles_existants = {a.strip() for a in articles_existants}
+    for _ch in chunks:
+        if _ch.section.startswith("Article "):
+            _IDENTIFIANTS.add(_ch.section[len("Article "):])
+    print(f"vocabulaire du corpus : {len(_IDENTIFIANTS)} identifiants")
+    # Les articles du corpus viennent du VOCABULAIRE deja constitue, pas d'une
+    # cinquieme copie du motif d'en-tete.
+    #
+    # Cette ligne portait « ([A-Za-z0-9- ]+) », qui perd les accents et le tiret
+    # cadratin : 843 articles reconnus sur 1026. Une reponse citant « CCAG Travaux 4 »
+    # ou « Annexe 2 — Seuils » aurait donc ete comptee comme un FANTOME — une citation
+    # juste declaree inventee.
+    #
+    # Cinquieme copie de ce motif dans le chantier, cinquieme divergence. Chacune a
+    # produit une mesure fausse avant d'etre trouvee.
+    articles_existants = set(_IDENTIFIANTS)
     print(f"{len(chunks)} chunks, {len(articles_existants)} articles, {len(cas)} cas", file=sys.stderr)
 
     store = FaissStore(dimension=1024)
