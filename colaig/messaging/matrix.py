@@ -180,31 +180,40 @@ def _strip_markdown(text: str) -> str:
 def _exiger_e2e() -> None:
     """Vérifie que le chiffrement de bout en bout est réellement disponible.
 
-    `requirements.txt` déclare `matrix-nio[e2e]`, mais l'extra apporte `python-olm`, qui
-    se compile contre **libolm** — absent des environnements Windows sans chaîne de
-    build, où `pip install` échoue sans que le paquet de base en pâtisse. On se retrouve
-    donc avec `matrix-nio` installé et le chiffrement indisponible, ce qui est
-    silencieux jusqu'à la première connexion.
+    ON TESTE LA CAPACITÉ, PAS SON IMPLÉMENTATION.
 
-    Sans cette vérification, `AsyncClientConfig(encryption_enabled=True)` lève un
-    `ImportWarning` remonté des entrailles de nio : il ne nomme ni le paquet à
-    installer, ni la dépendance système en cause, ni le fait que Tchap chiffre tous ses
-    salons — donc que désactiver le chiffrement n'est pas une échappatoire.
+    La première version faisait `import olm`. C'était juste pour `matrix-nio` 0.25 et
+    **faux à partir de 0.26**, qui a remplacé libolm par `vodozemac`, sa réimplémentation
+    en Rust. Vérifié en conteneur : avec nio 0.26, `olm` est absent, `vodozemac` est là,
+    et `AsyncClientConfig(encryption_enabled=True)` passe sans broncher.
+
+    Le contrôle aurait donc **refusé de démarrer sur une installation parfaitement
+    capable** — un garde-fou qui bloque ce qui fonctionne, et pour une raison que son
+    message d'erreur aurait rendue incompréhensible : « installez python-olm » sur un
+    système qui n'en a pas besoin.
+
+    D'où la règle : on demande à nio s'il sait chiffrer, et on le laisse répondre. Quel
+    que soit le paquet qui le lui permet, aujourd'hui ou demain.
+
+    Sans cette vérification, l'échec survient à la première connexion sous la forme d'un
+    `ImportWarning` remonté des entrailles de nio : il ne nomme ni le paquet à installer,
+    ni la dépendance système en cause, ni le fait que Tchap chiffre tous ses salons —
+    donc que désactiver le chiffrement n'est pas une échappatoire.
 
     Ce n'est pas une dépendance optionnelle qu'on pourrait contourner : **sur Tchap,
-    sans olm, il n'y a pas de lecture possible des messages.**
+    sans chiffrement, il n'y a pas de lecture possible des messages.**
     """
     try:
-        import olm  # noqa: F401
-    except ImportError as exc:
+        AsyncClientConfig(encryption_enabled=True)
+    except Exception as exc:
         raise MessagingError(
             "Le backend Matrix exige le chiffrement de bout en bout (Tchap chiffre "
-            "tous ses salons), or python-olm est absent : "
-            f"{exc}.\n"
-            "Installer l'extra : pip install 'matrix-nio[e2e]'\n"
-            "Il se compile contre libolm — sous Debian/Ubuntu : apt install libolm-dev. "
-            "Sous Windows, aucune roue n'est publiée : utiliser WSL, un conteneur, ou un "
-            "autre backend de messagerie."
+            f"tous ses salons), et matrix-nio ne peut pas l'activer : {exc}." + chr(10) +
+            "Installer l'extra : pip install 'matrix-nio[e2e]'" + chr(10) +
+            "Selon la version, il apporte python-olm — qui se compile contre libolm, "
+            "soit apt install libolm-dev — ou vodozemac, qui n'a pas cette contrainte. "
+            "Sous Windows aucune roue de python-olm n'est publiée : utiliser une "
+            "version de nio >= 0.26, WSL, ou un conteneur."
         ) from exc
 
 

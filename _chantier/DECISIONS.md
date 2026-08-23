@@ -1290,3 +1290,81 @@ Sur un premier échantillon de 12 cas, la négation était détectée **1 fois s
 j'en avais conclu que le vérificateur manquait la dérive la plus dangereuse. Sur 45 cas,
 c'est **11 sur 14**. Trois observations ne font pas une mesure — et le réflexe qui a
 sauvé ce chantier toute la journée vient de servir contre moi-même.
+
+## D33 — `k` suit la taille du corpus · 23/08/2026 · **actée**
+
+L'enrichissement du corpus a fait monter les citations hors contexte de 18 à 33. Le
+diagnostic, avant toute correction : **aucune n'est un article de CCAG.** Les 25
+références distinctes sont **toutes des articles du code**.
+
+Le modèle ne confond donc pas les six cahiers — l'inquiétude qui avait présidé à D24 ne
+se vérifie pas ici. Il puise dans sa mémoire **du code**, et davantage qu'avant. Le
+mécanisme se déduit : le corpus a grossi de 50 % et `k` est resté à 6, donc **moins de
+passages du code remontent par question**.
+
+Testable, et testé :
+
+| | k=6 | **k=10** |
+|---|---|---|
+| cite l'article attendu | 86/112 — 77 % | **92/110 — 84 %** |
+| citations hors contexte | 33 | **24** |
+| citations fantômes | 7 | **5** |
+| garde-fou : rendues | 138/176 — 78 % | **149/176 — 85 %** |
+| annotées / remplacées | 27 / 11 | 24 / **3** |
+| refuse à chaque fois · tronquées | 22/22 · 3 | 22/22 · 3 |
+
+**k=10 restaure le taux de réponses propres** — 85 %, contre 86 % sur un corpus deux
+fois plus petit — tout en couvrant 50 % de corpus en plus.
+
+### Ce que cela corrige de D18
+
+La profondeur avait été arbitrée à `k=6` le matin même, sur un corpus deux fois plus
+petit **et** dans une comparaison confondue par la troncature : `k=15` gagnait en
+fidélité et perdait en réponses complètes, parce que le raisonnement épuisait le budget.
+Le raisonnement coupé, cette confusion disparaît — **3 troncatures dans les deux cas** —
+et la profondeur peut être jugée pour elle-même.
+
+**`k` n'est pas une constante, c'est une fonction de la taille du corpus.** Le garder fixe
+en enrichissant revient à réduire silencieusement la couverture par question.
+
+## D34 — `run()` de Matrix vérifié contre le vrai serveur · 23/08/2026 · **actée**
+
+Dernier point du `MessagingProtocol` resté non vérifié. Les deux obstacles étaient de
+nature différente et ont été traités séparément.
+
+**L'arbitrage.** Une invitation adressée au compte bot est en attente depuis un autre
+ministère, et `_on_invite` l'aurait acceptée. Le callback est **débranché avant tout
+appel réseau**, et le script le vérifie par assertion — la consigne est que rien ne soit
+accepté qui ne vienne de l'utilisateur ou de l'agent. Aucun callback de message n'est
+enregistré non plus.
+
+**L'environnement.** La vérification tourne en conteneur Linux. Résultat contre
+`agent.dev-durable.tchap.gouv.fr` :
+
+    auto-join débranché (4 → 3 callbacks), aucun callback message
+    boucle vivante après 45 s : True
+    salons chargés   : 15
+    jeton de synchro : obtenu
+    déconnecté, appareil révoqué
+
+**Ce qui reste non vérifié :** l'auto-join lui-même, précisément parce qu'on le
+débranche. Il demeure couvert par les seuls tests à doublure, et le vérifier demanderait
+un compte bot distinct de la production.
+
+### Deux corrections issues de l'exécution réelle
+
+**`import olm` était le mauvais critère.** `matrix-nio` 0.26 remplace libolm par
+`vodozemac`, sa réimplémentation en Rust. Mesuré en conteneur : `olm` **absent**,
+`vodozemac` présent, `AsyncClientConfig(encryption_enabled=True)` accepté. Le contrôle
+écrit ce matin aurait donc **refusé de démarrer sur une installation parfaitement
+capable**, en réclamant un paquet dont elle n'a pas besoin — et son message d'erreur
+aurait rendu le blocage incompréhensible.
+
+`_exiger_e2e()` teste désormais la **capacité** et non son implémentation : on demande à
+nio s'il sait chiffrer, et on le laisse répondre. Un garde-fou qui bloque ce qui
+fonctionne est pire qu'absent : on le contourne, et tout ce qu'il protégeait avec lui.
+
+**Un appareil neuf ne lit pas l'historique chiffré.** Le journal remonte des
+`undecryptable Megolm event from a unknown device` portant l'identité du bot lui-même.
+Tout redéploiement créant un nouvel appareil perd l'accès aux messages antérieurs — à
+connaître avant d'en déployer un.

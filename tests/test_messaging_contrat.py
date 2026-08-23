@@ -61,27 +61,41 @@ d'abord un envoi vers un salon réel à 53 membres — refusé avant l'appel ré
 Pour lever ce `skip` en CI il faut un **compte bot de test**, distinct de la production.
 Sur un tel compte, l'auto-join est sans conséquence et `run()` devient vérifiable.
 
-Tentative de levée du 23/08/2026, et second obstacle
------------------------------------------------------
-Le premier obstacle est resté entier : une invitation adressée au compte bot était en
-attente, `run()` l'aurait donc rejointe. Elle relève d'un arbitrage humain, pas d'un test.
+`run()` vérifié le 23/08/2026, en conteneur, sans effet sortant
+----------------------------------------------------------------
+Les deux obstacles ont été traités séparément, parce qu'ils sont de nature différente.
 
-Le contournement — débrancher `_on_invite` le temps de la vérification — a buté sur autre
-chose : **`connect()` échouait avant même d'atteindre le réseau**, `python-olm` étant
-absent. `requirements.txt` déclare bien `matrix-nio[e2e]`, mais l'extra se compile contre
-libolm, indisponible sous Windows ; l'installation de l'extra échoue **sans empêcher
-`matrix-nio` de s'installer**. La dépendance paraissait satisfaite et le chiffrement
-était absent.
+**L'arbitrage.** Une invitation adressée au compte bot était — et reste — en attente
+depuis un autre ministère. `_on_invite` l'aurait acceptée. Le callback est donc
+**débranché avant tout appel réseau**, et le script le vérifie par assertion : « rien
+n'est accepté qui ne vienne de l'utilisateur ou de l'agent ». Aucun callback de message
+n'est enregistré non plus, donc rien ne peut être émis.
 
-Ce que la tentative a produit : `matrix.py::_exiger_e2e()` et
-`tests/test_matrix_prerequis.py`. L'erreur nomme désormais le paquet, la bibliothèque
-système, la plateforme, et la raison pour laquelle couper le chiffrement n'est pas une
-échappatoire — sur Tchap, tous les salons le sont.
+**L'environnement.** `python-olm` se compile contre libolm, indisponible sous Windows.
+La vérification tourne donc en conteneur Linux — `_chantier/scripts/verifier_matrix_run.py`.
 
-`run()` reste donc non vérifié, pour deux raisons distinctes qu'il ne faut pas confondre :
-un **arbitrage** (l'auto-join sur un compte de production) et un **environnement** (libolm
-sous Windows). La seconde tombe sous WSL ou en conteneur ; la première demande un compte
-de test.
+Résultat contre `agent.dev-durable.tchap.gouv.fr` :
+
+    auto-join débranché (4 → 3 callbacks), aucun callback message
+    boucle vivante après 45 s : True
+    salons chargés   : 15
+    jeton de synchro : obtenu
+    déconnecté, appareil révoqué
+
+**Ce qui reste non vérifié, et il faut le dire** : l'auto-join lui-même, précisément
+parce qu'on le débranche. Il demeure couvert par les seuls tests à doublure. Le vérifier
+contre un vrai serveur demanderait un compte bot de test, distinct de la production.
+
+**Deux observations d'exploitation.**
+
+`import olm` était le mauvais critère de disponibilité du chiffrement : `matrix-nio`
+0.26 remplace libolm par `vodozemac`. Mesuré en conteneur — `olm` absent, `vodozemac`
+présent, chiffrement fonctionnel. `_exiger_e2e()` teste désormais la **capacité**, pas le
+paquet.
+
+Le journal remonte des `undecryptable Megolm event from a unknown device` portant
+l'identité du bot lui-même : **un appareil neuf ne peut pas lire l'historique chiffré**.
+Tout redéploiement qui crée un nouvel appareil perd donc l'accès aux messages antérieurs.
 """
 from __future__ import annotations
 

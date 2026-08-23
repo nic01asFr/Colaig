@@ -72,8 +72,40 @@ def test_le_message_explique_pourquoi_c_est_non_negociable(monkeypatch):
 def test_le_controle_sait_se_taire():
     """Un garde-fou dont on n'a pas vu le vert ne prouve rien non plus.
 
-    Là où olm est installé — la cible de déploiement — la vérification doit être
-    transparente. `skip` sinon : ce test ne vaut que là où la condition est réunie.
+    Là où le chiffrement est disponible — la cible de déploiement — la vérification
+    doit être transparente. La condition n'est **pas** la présence de `python-olm` :
+    `matrix-nio` 0.26 le remplace par `vodozemac`, et une première version de ce test
+    l'exigeait, ce qui l'aurait fait ignorer sur une installation parfaitement capable.
+
+    On teste donc la capacité elle-même, comme le contrôle qu'il vérifie.
     """
-    pytest.importorskip("olm", reason="olm absent : rien à vérifier côté passant")
+    from nio import AsyncClientConfig
+
+    try:
+        AsyncClientConfig(encryption_enabled=True)
+    except Exception:
+        pytest.skip("chiffrement indisponible ici : rien à vérifier côté passant")
     matrix._exiger_e2e()
+
+
+def test_le_controle_porte_sur_la_capacite_pas_sur_le_paquet(monkeypatch):
+    """`import olm` était le mauvais critère, et la mesure l'a montré.
+
+    Vérifié en conteneur Linux avec `matrix-nio` 0.26 : **`olm` est absent**,
+    `vodozemac` est présent, et `AsyncClientConfig(encryption_enabled=True)` passe sans
+    broncher. Le contrôle d'origine aurait donc **refusé de démarrer sur une
+    installation parfaitement capable**, en réclamant un paquet dont elle n'a pas besoin.
+
+    Un garde-fou qui bloque ce qui fonctionne est pire qu'absent : on le contourne, et
+    on contourne avec lui tout ce qu'il protégeait.
+    """
+    import nio
+
+    class _ConfigCapable:
+        def __init__(self, **kwargs):
+            pass
+
+    monkeypatch.setattr(matrix, "AsyncClientConfig", _ConfigCapable)
+    monkeypatch.setattr(nio, "AsyncClientConfig", _ConfigCapable, raising=False)
+    _sans_olm(monkeypatch)          # olm absent, comme avec vodozemac
+    matrix._exiger_e2e()            # et pourtant : aucune erreur
