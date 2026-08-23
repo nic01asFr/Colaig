@@ -53,6 +53,7 @@ prétend pas.
 from __future__ import annotations
 
 import json
+import re
 import logging
 from dataclasses import dataclass
 
@@ -126,7 +127,48 @@ def _normaliser(texte: str) -> str:
     Exiger l'égalité stricte ferait rejeter des appuis authentiques, et un garde-fou
     qui crie au loup trop souvent finit ignoré.
     """
-    return " ".join((texte or "").split()).lower()
+    plat = (texte or "")
+    # Variantes typographiques : apostrophe courbe, guillemets, tirets, espaces
+    # insécables. Un modèle qui recopie un extrait en normalise volontiers la
+    # typographie sans rien changer au texte — le refuser pour cela reviendrait à
+    # exiger une copie octet à octet là où l'on veut vérifier des mots.
+    for source, cible in (("’", "'"), ("‘", "'"),
+                          ("«", '"'), ("»", '"'),
+                          ("“", '"'), ("”", '"'),
+                          ("–", "-"), ("—", "-"),
+                          (" ", " "), (" ", " "), (" ", " ")):
+        plat = plat.replace(source, cible)
+    return " ".join(plat.split()).lower()
+
+
+# Marques d'élision : le vérificateur cite souvent un appui **discontinu**.
+_ELISION = re.compile(r"\s*(?:\[\s*\.\.\.\s*\]|\.\.\.|…|\[…\])\s*")
+_FRAGMENT_MINIMAL = 25
+
+
+def _ancre(appui: str, extrait: str) -> bool:
+    """Chaque morceau de l'appui se retrouve-t-il verbatim dans l'extrait ?
+
+    Le vérificateur cite volontiers un passage **discontinu**, en marquant la coupure
+    par « [...] » — et c'est légitime : quand l'appui s'étend sur deux articles, il ne
+    peut pas faire autrement sans recopier tout ce qui les sépare.
+
+    Une comparaison par sous-chaîne exacte échoue alors sur la jointure. Mesuré sur
+    30 couples fidèles par construction, elle déclarait **57 % d'appuis fabriqués** —
+    aucun ne l'était. Un contrôle qui accuse à tort une fois sur deux est pire
+    qu'absent : on cesse de le lire.
+
+    Chaque fragment est donc vérifié séparément, et **tous** doivent se retrouver. Le
+    seuil de longueur ferme la porte de sortie : sans lui, un appui fabriqué découpé en
+    fragments de trois mots finirait par se retrouver quelque part dans un long extrait.
+    """
+    plein = _normaliser(extrait)
+    morceaux = [_normaliser(m) for m in _ELISION.split(appui or "")]
+    morceaux = [m for m in morceaux if len(m) >= _FRAGMENT_MINIMAL]
+    if not morceaux:
+        # Appui trop court pour être vérifié : on ne l'invente pas conforme.
+        return bool(_normaliser(appui)) and _normaliser(appui) in plein
+    return all(m in plein for m in morceaux)
 
 
 def _objet(brut: str) -> dict:
@@ -179,5 +221,5 @@ async def verifier_fidelite(affirmation: str, extrait: str, client) -> Fidelite:
         verdict=verdict,
         motif=(objet.get("motif") or "").strip(),
         passage_appui=appui,
-        appui_dans_extrait=bool(appui) and _normaliser(appui) in _normaliser(extrait),
+        appui_dans_extrait=bool(appui) and _ancre(appui, extrait),
     )

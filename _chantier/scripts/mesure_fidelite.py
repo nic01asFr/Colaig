@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 import sys
 import time
@@ -41,6 +42,9 @@ from pathlib import Path
 
 RACINE = Path(__file__).resolve().parents[1].parent
 sys.path.insert(0, str(RACINE))
+
+# argv capture avant ecrasement — meme piege que partout ailleurs dans ce harnais.
+_ARGS = list(sys.argv[1:])
 
 _ns: dict = {
     "__name__": "_harnais",
@@ -78,8 +82,15 @@ class ClientSSP:
                    priority="user") -> str:
         import urllib.request
 
-        charge = json.dumps({"model": MODELE, "messages": messages,
-                             "temperature": temperature, "max_tokens": max_tokens}).encode()
+        # Raisonnement coupe par defaut, comme la generation (D18) : il coute un
+        # facteur dix en latence. Reste a savoir s'il change les VERDICTS — c'est
+        # justement ce qu'un controle doit verifier avant de s'en priver, et
+        # COLAIG_VERIF_RAISONNEMENT=1 permet de le mesurer.
+        corps = {"model": MODELE, "messages": messages,
+                 "temperature": temperature, "max_tokens": max_tokens}
+        if os.environ.get("COLAIG_VERIF_RAISONNEMENT", "0") != "1":
+            corps["chat_template_kwargs"] = {"enable_thinking": False}
+        charge = json.dumps(corps).encode()
         req = urllib.request.Request(BASE_SSP + "/chat/completions", data=charge, method="POST")
         req.add_header("Authorization", "Bearer " + self._cle)
         req.add_header("Content-Type", "application/json")
@@ -115,7 +126,7 @@ def passage_de(article: str, passages: list[str]) -> str | None:
 
 
 async def main() -> int:
-    limite = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else 0
+    limite = int(_ARGS[0]) if _ARGS and _ARGS[0].isdigit() else 0
     stockees = sorted(MESURES.glob("reponses-*.json"))
     if not stockees:
         raise SystemExit("aucune réponse stockée : lancer reference_generation.py d'abord")

@@ -837,3 +837,54 @@ lots de corrections, prompt durci, `k=6`, **raisonnement coupé**.
 
 C'est le meilleur état mesuré à ce jour sur chacun des indicateurs de fidélité — et il
 est obtenu à **un neuvième de la latence** du premier point de mesure.
+
+## D25 — Le vérificateur de fidélité est calibré avant d'être cru · 23/08/2026 · **actée**
+
+Le vérificateur est **lui-même un modèle**. Lui faire juger les réponses produites sans
+savoir ce qu'il vaut reviendrait à mesurer une chose inconnue avec un instrument inconnu.
+
+Il existe un jeu de couples **fidèles par construction** : les `reponse_attendue` du jeu
+doré, confrontées aux articles qu'elles citent. Elles ont été écrites d'après ces
+articles, puis relues une par une contre eux par quatre relectures indépendantes. Si le
+vérificateur y répond autre chose qu'« étayé », l'écart lui est imputable.
+
+**Résultat sur 30 couples : 0 % de faux négatifs.** 19 « étayé », 11 « étayé
+partiellement », aucun « ne dit pas cela ».
+
+### Deux défauts de banc corrigés en route, tous deux les miens
+
+**1. L'appariement à un seul article.** La première version confrontait la réponse
+attendue au **premier** article attendu, et relevait **30 % de faux négatifs**. La
+lecture des motifs les a tous innocentés : *« l'extrait mentionne uniquement le délai de
+base sans évoquer les exceptions de réduction »*. Le vérificateur avait raison.
+
+L'ironie est exacte : les corrections apportées au jeu doré ce même jour consistaient
+précisément à **ajouter les bornes portées par les articles voisins** (D20). Ce sont
+elles qui rendaient l'appariement à un seul article intenable.
+
+**2. L'appui discontinu.** Le vérificateur cite volontiers un passage coupé, en marquant
+l'élision par « [...] » — légitime quand l'appui s'étend sur deux articles. La
+comparaison par sous-chaîne exacte échouait sur la jointure et déclarait **57 % d'appuis
+fabriqués**, dont aucun ne l'était. Chaque fragment est désormais vérifié séparément, et
+tous doivent se retrouver — avec un seuil de longueur qui ferme la porte de sortie, sans
+quoi un appui fabriqué découpé en fragments de trois mots finirait par se retrouver
+quelque part. **57 % → 23 %.**
+
+Une hypothèse a été **réfutée** au passage : normaliser les variantes typographiques
+(apostrophe courbe, guillemets, espaces insécables) ne change rien au résidu. La
+normalisation est conservée parce qu'elle est juste en soi, pas parce qu'elle a servi.
+
+### Ce que le vérificateur vaut, et ce qu'il ne vaut pas
+
+**Sa valeur est dans ses verdicts négatifs.** Sur des couples dont on sait qu'ils sont
+fidèles, il n'en produit aucun — donc quand il dit « ne dit pas cela », cela compte.
+
+Il reste **23 % de verdicts positifs non ancrés**, dont `exploitable` refuse de se
+contenter. C'est une limite documentée, pas un blocage : le verdict demeure disponible,
+signalé comme non vérifié. Le vérificateur sert donc mieux à **signaler** qu'à
+**certifier**.
+
+**Ce qui n'est pas mesuré :** le taux de **faux positifs** — dire « étayé » d'une réponse
+qui déborde. Il faudrait des couples dont on sait qu'ils sont infidèles ; le jeu doré
+n'en contient pas. On peut en fabriquer, et c'est la suite naturelle de ce banc. Tant
+qu'il manque, **on ne sait pas ce que vaut un « étayé »**.

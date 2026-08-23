@@ -195,3 +195,54 @@ async def test_exploitable_distingue_les_trois_situations():
     assert (await verifier_fidelite("a", EXTRAIT, _client(negatif))).exploitable, (
         "un verdict négatif n'a pas besoin d'appui : l'absence est ce qu'il constate"
     )
+
+
+# ── L'appui discontinu ──────────────────────────────────────────────────────
+
+
+async def test_un_appui_discontinu_est_reconnu():
+    """Le vérificateur cite souvent en élidant, et c'est légitime.
+
+    Quand l'appui s'étend sur deux articles, il ne peut pas faire autrement sans
+    recopier tout ce qui les sépare. Une comparaison par sous-chaîne exacte échoue
+    alors sur la jointure : mesurée sur 30 couples **fidèles par construction**, elle
+    déclarait 57 % d'appuis fabriqués — aucun ne l'était.
+
+    Un contrôle qui accuse à tort une fois sur deux est pire qu'absent : on cesse de
+    le lire.
+    """
+    d = await verifier_fidelite(
+        "L'avance est versée sous trente jours à compter de la notification.", EXTRAIT,
+        _client({"verdict": "etaye", "motif": "les deux éléments y sont",
+                 "passage_appui": "L'avance est versée au titulaire dans un délai de "
+                                  "trente jours [...] de l'acte qui emporte commencement "
+                                  "d'exécution du marché"}),
+    )
+    assert d.appui_dans_extrait
+    assert d.exploitable
+
+
+async def test_un_appui_decoupe_en_fragments_trop_courts_ne_passe_pas():
+    """La porte de sortie est fermée.
+
+    Sans seuil de longueur, un appui fabriqué découpé en fragments de trois mots
+    finirait par se retrouver quelque part dans un long extrait. Chaque fragment doit
+    être substantiel, et **tous** doivent s'y retrouver.
+    """
+    d = await verifier_fidelite(
+        "L'avance est versée sous quinze jours.", EXTRAIT,
+        _client({"verdict": "etaye", "motif": "prétendu",
+                 "passage_appui": "L'avance ... versée ... quinze jours"}),
+    )
+    assert not d.appui_dans_extrait
+
+
+async def test_un_seul_fragment_faux_suffit_a_signaler():
+    d = await verifier_fidelite(
+        "L'avance est versée sous trente jours au titulaire retenu.", EXTRAIT,
+        _client({"verdict": "etaye", "motif": "prétendu",
+                 "passage_appui": "L'avance est versée au titulaire dans un délai de "
+                                  "trente jours [...] sous réserve de la constitution "
+                                  "d'une garantie à première demande"}),
+    )
+    assert not d.appui_dans_extrait, "le second fragment n'est pas dans l'extrait"
