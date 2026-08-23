@@ -368,3 +368,23 @@ défaut global.
 article court a mis au jour une cause plus profonde — l'écrasement des scores denses,
 voir `docs/diagnostic-dispersion-20260823.md`. Un découpage par article **enrichi de ses
 voisins immédiats** reste à éprouver, et se mesure de la même façon.
+
+---
+
+## D13 — Colaig n'est rattaché à aucune organisation dans le dépôt · 23/08/2026 · **actée**
+
+Le dossier de chantier mentionnait une « autorisation de publication Cerema », et
+`docs/ARCHITECTURE.md` intitulait une partie « INTÉGRATIONS AVANCÉES (CEREMA) ».
+**C'est faux, et retiré.**
+
+Ce n'est pas un détail de forme. D4 pose une portée **interministérielle et
+auto-hébergeable** : le dépôt est public, et un lecteur d'un autre ministère qui y lit le
+nom d'un organisme en déduit que le projet est le sien. Cela décourage la reprise, qui
+est précisément l'objet.
+
+La porte de publication demeure — licence retenue, autorisation obtenue — sans nommer
+d'organisation.
+
+Les mentions restantes dans `docs/CLAUDE.v3-original.md` ne sont pas touchées : ce
+fichier est une **archive** datée, conservée telle quelle, et porte déjà une bannière
+« NE PAS SUIVRE ».

@@ -663,7 +663,7 @@ Le génie de l'architecture Colaig réside dans les capacités émergentes par c
 
 ---
 
-# PARTIE 7 : INTÉGRATIONS AVANCÉES (CEREMA)
+# PARTIE 7 : INTÉGRATIONS AVANCÉES
 
 ## 7.1 Colaig + Colette (RAG Multimodal)
 

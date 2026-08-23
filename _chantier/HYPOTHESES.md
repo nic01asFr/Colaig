@@ -10,7 +10,7 @@ Si un lot bute dessus : arrêter le lot, inscrire le blocage dans `AVANCEMENT.md
 | **H2** | Un reranker est disponible (SSPCloud ou Albert) | ⚠️ **levée pour Albert, PAS pour SSPCloud** | L4.1 — impose un arbitrage | Albert : `bge-reranker-v2-m3` OK (0,12 s). SSPCloud : **aucun reranker au catalogue**. Voir « Arbitrage reranker » ci-dessous. |
 | **H3** | La latence du **stockage S3 SSPCloud** est compatible avec une réponse < 10 s | ✅ **levée le 22/08/2026 pour les opérations unitaires** | — | mesurée : `mesures/s3-sspcloud.md`. 31 ms en LIST non récursif. |
 | **H3ter** | Le **listing récursif** tient à l'échelle d'un corpus réel | ⚠️ **levée à 59 documents, inconnue au-delà** | L4.1, stratégie d'indexation | 47 ms de médiane sur 63 objets / 43,8 Mo. Loin du seuil de 10 s. Reste à éprouver sur un corpus de plusieurs milliers de documents. |
-| **H3bis** | Les credentials S3 SSPCloud peuvent être **non expirantes** | ✅ **levée le 22/08/2026 par la documentation** | — | un **compte de service** MinIO donne un couple access/secret permanent, rattaché à un projet. Console : `minio-console.lab.sspcloud.fr`. Reste à le créer. |
+| **H3bis** | Les credentials S3 SSPCloud peuvent être **non expirantes** | ✅ **levée** — compte de service cadré côté Onyxia (23/08/2026) | — | couple access/secret permanent rattaché au projet. La création relève de l'exploitant, pas du chantier. |
 | **H4** | `colaig-0` a assez d'historique pour ≥ 200 cas dorés | ❌ non levée | L1.4 | compter les `.colaig/conversations/*.json` |
 | **H5** | Le corpus reste sous le seuil de `IndexFlatIP` (exact, O(n)) | ❌ non levée | L4.1 | compter documents et poids par espace |
 | **H6** | L'agent peut pousser sur GitHub et déployer sur SSPCloud | ✅ **levée pour GitHub le 22/08/2026** | — | PAT fine-grained vérifié : `push: true` sur `nic01asFr/Colaig`. Déploiement SSPCloud : voir L3.6. |
@@ -48,7 +48,7 @@ Réseau sortant : github 200 · pypi 200 · llm.lab.sspcloud.fr 200
 | **Bucket S3 SSPCloud** (endpoint, bucket, access/secret, éventuel session token) + quelques documents | L1.1, lever H3 | phase 1 |
 | **Accès aux conversations de `colaig-0`** + feu vert anonymisation | L1.4, jeu doré | phase 1, donc phase 4 |
 | Droit de créer/détruire des services Onyxia | L3.6, chart Helm | phase 3 |
-| Licence retenue + autorisation de publication Cerema | D4 | publication |
+| Licence retenue + autorisation de publication | D4 | publication |
 
 ---
 
@@ -143,7 +143,7 @@ avant de pousser quoi que ce soit — les 16 commits de v3 ne contiennent **aucu
 et `config/.env.example`. **L'historique est propre, le push est sûr de ce point de vue.**
 
 Reste que la publication en open source est une **porte humaine** (point 8 du cadrage :
-licence retenue, autorisation Cerema). Pousser dans un dépôt déjà public revient de fait
+licence retenue, autorisation de publication). Pousser dans un dépôt déjà public revient de fait
 à publier : à confirmer avant le premier push, pas après.
 
 ---
@@ -566,3 +566,27 @@ beaucoup plus qu'une page de texte.
    rapport d'indexation — un document à zéro chunk doit être visible.
 3. Modèle d'OCR par défaut : `lightonocr-2-1b` pour sa vitesse et sa propreté, **sous
    réserve** de la mesure L1.5 sur les 18 % de vocabulaire qu'il n'atteint pas.
+
+
+---
+
+## Instance déployée — observation du 23/08/2026
+
+En vérifiant les invitations en attente sur le compte bot avant tout `run()` :
+
+```
+15 salons rejoints
+1 invitation en attente : !TLXtMkoaBjKBKmqMwa:agent.interieur.tchap.gouv.fr
+```
+
+**Une invitation non acceptée est un indice sur l'état de l'instance déployée.**
+`matrix.py::_on_invite` rejoint automatiquement toute invitation reçue, et ce callback
+est déclenché par `sync_forever` dans `run()`. Si `colaig-0` tournait avec sa boucle
+d'écoute, cette invitation aurait déjà été acceptée.
+
+Deux lectures possibles, et rien ne permet de trancher d'ici : soit **l'instance ne
+tourne pas**, soit **sa boucle est bloquée**. Dans les deux cas, quelqu'un du ministère
+de l'Intérieur a invité l'assistant et n'a jamais eu de réponse.
+
+À vérifier côté exploitation — ce n'est pas une question de chantier, mais ça n'a pas
+sa place dans un angle mort.
