@@ -21,7 +21,7 @@ Ouvert : <ce qui reste, ou "rien">
 |---|---|
 | **Phase en cours** | 0 — Socle |
 | **Branche** | `chantier/tronc-unique` (compte Onyxia retenu : **`nicolaslaval`**) |
-| **Lot en cours** | L1.3 — **TERMINÉ**. Les trois contrats de Protocol sont posés. Suivant : corpus marchés publics + jeu doré (L1.4) |
+| **Lot en cours** | L1.4 — **PARTIEL** : corpus fait, jeu doré amorcé à 20 cas sur 200. Suivant : compléter le jeu doré, puis L1.5 |
 | **Bloqué par** | H4/H5 (accès `colaig-0`), H3ter (corpus représentatif pour le listing récursif) |
 | **Arbitrages en attente** | reranker absent de SSPCloud (voir HYPOTHESES) |
 | **Dernière mise à jour** | 22/08/2026 |
@@ -859,11 +859,82 @@ devraient passer. Dans les deux cas on mesure autre chose que la production.
 
 ---
 
+## L1.4 — Corpus de référence et amorce du jeu doré · 23/08/2026 · **PARTIEL**
+
+Critère de fin : « `tests/golden/v1.jsonl` ≥ 200 cas, ≥ 3 espaces, revue humaine ».
+**Non atteint.** 20 cas, 1 espace, revue non faite. Ce qui est acquis : le corpus, la
+méthode, et l'outillage qui empêche un jeu doré faux. Branche
+`lot/L1.4-corpus-marches-publics`.
+
+### Le corpus — 184 documents, 1 762 articles
+
+Code de la commande publique, articles **en vigueur uniquement**, depuis
+`AgentPublic/legi` (Hugging Face, dérivé de LEGI/DILA), **Licence Ouverte 2.0** — donc
+redistribuable dans un dépôt public.
+
+Découpage par unité de travail du rédacteur : la hiérarchie du code, en descendant d'un
+niveau tant qu'un groupe dépasse 40 articles. Médiane 6 articles par document. Un article
+seul se cite mais ne s'explique pas ; un Titre de 159 articles noie la réponse.
+
+**Source épinglée** sur un instantané daté et une révision, pas sur `legi-latest`. Je
+l'avais d'abord tirée de `latest` et me suis corrigé : un corpus de référence qui bouge
+n'est pas une référence, et un jeu doré écrit contre lui deviendrait faux **sans
+prévenir**. Un manifeste d'empreintes SHA-256 rend la dérive détectable, et un test la
+refuse.
+
+Le corpus est **commité** : la référence L1.5 doit être reproductible hors ligne, et
+1 Mo de Markdown ne pèse rien.
+
+### Ce que la méthode a évité dès le premier cas
+
+Chaque cas est écrit **contre un article lu dans le corpus**, jamais de mémoire. Le
+premier chiffre vérifié a démenti ce que j'aurais écrit : le seuil de dispense de
+publicité vaut **60 000 € HT** (fournitures et services) et **100 000 € HT** (travaux),
+pas les 40 000 € couramment cités — chiffre qui, dans le code actuel, désigne la
+publication des données essentielles (R2196-1).
+
+Un jeu doré écrit de mémoire aurait donc été faux à son premier cas, et aurait fait
+**échouer un pipeline correct**. Un test le verrouille désormais : tout montant avancé
+par une réponse attendue doit se retrouver dans un article cité.
+
+### Les cas négatifs sont le cœur
+
+4 des 20 cas n'ont **pas** de réponse dans le corpus : le seuil européen de procédure
+formalisée (renvoyé à un avis annexé), les CCAG, la jurisprudence, les formulaires DAJ.
+
+Un jeu doré composé de questions répondables ne mesure que la capacité à répondre. Il ne
+mesure jamais la capacité à **se taire** — alors que sur un corpus juridique, un seuil
+inventé produit une procédure irrégulière. C'est l'échec le plus coûteux, et le seul
+qu'un jeu doré naïf laisse passer. Un test impose au moins un cas négatif sur six.
+
+### Composition actuelle
+
+```
+20 cas — fait 7 · procédure 6 · rédaction 3 · piège 4
+         simple 10 · croisée 6 · négative 4
+```
+
+7 tests vérifient le jeu doré lui-même : correspondance au manifeste, existence de
+chaque article cité, ancrage des montants, complétude de forme, cohérence des cas
+négatifs, part minimale de négatifs.
+
+**1734 tests passent.**
+
+### Ce qui manque pour clore L1.4
+
+1. **180 cas** — la méthode tient, le volume est du travail.
+2. **Deux espaces de plus.** Les CCAG sont des arrêtés, donc dans la partition
+   `legi_arrete` du même jeu de données : récupérables. Les fiches DAJ non —
+   `economie.gouv.fr` renvoie 403 à toute récupération automatique.
+3. **La revue humaine**, qui est une porte.
+
+---
+
 ## Prochaine action
 
-1. **L1.4 reformulé** — corpus de référence **marchés publics**, public et commitable,
-   et son jeu doré. C'est le chemin critique : il débloque L1.5, qui débloque toute la
-   phase 4.
+1. **Compléter le jeu doré** vers 200 cas, et ajouter les CCAG comme second espace.
+2. **Revue humaine** du jeu doré — porte.
+3. Puis **L1.5**, la référence de mesure, qui lève l'interdit sur la phase 4.
 2. **L1.4 / L1.5 restent bloqués** : le jeu doré et la référence de mesure exigent
    l'accès aux conversations de `colaig-0`. **Aucun lot de phase 4 avant L1.5.**
 2. Lancer `scripts/probe_s3.py` depuis le pod → lève **H3**, alimente H4 et H5.
