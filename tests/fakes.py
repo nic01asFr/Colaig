@@ -269,6 +269,11 @@ class FakeLLM:
         # qui s'annoncerait « user » affamerait les conversations, sans erreur ni
         # trace. La doublure permet de l'assertionner.
         self.priorites: list[str] = []
+        # `temperature` de chaque appel, pour la même raison que `priorites`. Un
+        # contrôle — vérificateur de fidélité, classifieur — dont la température
+        # ne serait pas nulle rendrait un verdict différent d'une exécution à
+        # l'autre : il ne contrôlerait plus rien, sans qu'aucune erreur ne le dise.
+        self.temperatures: list[float] = []
         self._chat_call_count = 0
         self._tool_call_count = 0
 
@@ -277,6 +282,7 @@ class FakeLLM:
     ) -> str:
         self.appels_chat.append(messages)
         self.priorites.append(priority)
+        self.temperatures.append(temperature)
         reponse = self.chat_responses[
             min(self._chat_call_count, len(self.chat_responses) - 1)
         ]
