@@ -1236,3 +1236,57 @@ soutenable.
 
 **Le refus reste parfait — 22/22.** C'était 0/8 au premier jour de mesure. Sur un corpus
 deux fois plus large et avec cinq cas négatifs entièrement nouveaux, il ne bouge pas.
+
+## D32 — Le vérificateur voit ce qu'on ajoute, pas ce qu'on retire · 23/08/2026 · **actée**
+
+La calibration en faux négatifs (D25) ne disait que la moitié : sur des couples fidèles,
+le vérificateur ne produit aucun verdict négatif. Restait à savoir ce que vaut un
+**« étayé »** de sa part.
+
+Le jeu doré ne contient pas de couples infidèles — il est écrit pour être juste. On les
+fabrique donc, en partant de réponses justes et en y introduisant des dérives contrôlées,
+chacune reproduisant une faute réellement observée dans ce chantier.
+
+**104 dérives sur 45 cas :**
+
+| dérive | détectée | |
+|---|---|---|
+| **ajout** d'une affirmation non étayée | **45/45 — 100 %** | l'inférence qui déborde |
+| **seuil** déplacé | **10/10 — 100 %** | la faute invisible à la lecture |
+| **négation** inversée — « ne peut » devient « peut » | 11/14 — 79 % | l'interdit devient permis |
+| **portée** — « peut » devient « doit » | 14/23 — 61 % | une faculté présentée comme obligatoire |
+| **suppression** de la borne | **6/12 — 50 %** | *le défaut mesuré sur un quart du jeu doré* |
+| **ensemble** | **86/104 — 83 %** | |
+
+### Le résultat, en une phrase
+
+**Le vérificateur voit ce qu'on ajoute, pas ce qu'on retire.**
+
+Cent pour cent sur l'ajout et le déplacement de chiffre ; cinquante pour cent sur la
+suppression d'une condition. Et ce n'est pas un caprice du modèle : une affirmation
+tronquée reste **vraie**, et l'extrait la soutient effectivement. Répondre « étayé » est
+défendable — c'est le barème qui n'a pas de case pour « exact mais incomplet au point
+d'induire en erreur ».
+
+`etaye_partiellement` était censé la porter. Le modèle le lit comme « soutenu en partie »,
+pas comme « soutenu mais amputé ». **La consigne le dit pourtant** — règle 4 : « un écart
+de portée compte ». Comme toujours, une consigne se respecte la plupart du temps, ce qui
+ne suffit pas.
+
+### Ce que cela commande
+
+Le vérificateur **peut être branché** pour ce qu'il fait bien : détecter l'inférence qui
+déborde et le chiffre déplacé, aux deux endroits où il est parfait. Il ne peut **pas**
+servir à garantir la complétude d'une réponse — c'est précisément ce que quatre
+relectures humaines ont dû faire sur le jeu doré.
+
+Une piste, à mesurer et non à supposer : un **cinquième verdict** — « exact mais
+incomplet » — assorti d'une consigne qui demande d'énumérer ce que l'extrait dit et que
+l'affirmation tait. Le passer par la consigne seule a déjà échoué une fois.
+
+### Correction d'une lecture hâtive
+
+Sur un premier échantillon de 12 cas, la négation était détectée **1 fois sur 3**, et
+j'en avais conclu que le vérificateur manquait la dérive la plus dangereuse. Sur 45 cas,
+c'est **11 sur 14**. Trois observations ne font pas une mesure — et le réflexe qui a
+sauvé ce chantier toute la journée vient de servir contre moi-même.
