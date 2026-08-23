@@ -159,9 +159,21 @@ def decouper(strategie: str):
         raise SystemExit(f"stratégie inconnue : {strategie}")
 
     # Un chunk = un article, préfixé du titre du document et de sa position dans le
-    # code. Le préfixe est essentiel : sans lui, « Les marchés sont passés en lots
-    # séparés » perd le contexte qui permet de le retrouver depuis une question posée
-    # en termes de procédure.
+    # code.
+    #
+    # CE COMMENTAIRE AFFIRMAIT QUE LE PRÉFIXE EST « ESSENTIEL ». C'était faux, et
+    # mesuré comme tel le 23/08/2026 : en isolant la variable, **89 cas complets avec
+    # le préfixe, 90 sans** (D28).
+    #
+    # L'erreur venait d'une comparaison mal lue. Le rapprochement « 85 contre 88 » fait
+    # le même jour opposait deux STRATÉGIES DE DÉCOUPAGE — `markdown` contre `article` —
+    # qui diffèrent par bien plus que le préfixe. On avait attribué au préfixe un écart
+    # produit par autre chose.
+    #
+    # Le préfixe est conservé : il ne nuit pas, il ne coûte rien, et il rend les
+    # passages lisibles pour qui les inspecte. Mais il n'est pas un levier de rappel,
+    # et présenter un choix non mesuré comme une nécessité est exactement ce que ce
+    # chantier cherche à ne plus faire.
     chunks = []
     for fichier in sorted(CORPUS.glob("*.md")):
         contenu = fichier.read_text(encoding="utf-8")
