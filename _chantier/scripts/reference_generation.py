@@ -39,6 +39,14 @@ from pathlib import Path
 RACINE = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(RACINE))
 
+# Capturer l'argument AVANT d'écraser sys.argv pour le module importé.
+#
+# Sans cette ligne, `VARIANTE` lisait le « article » posé plus bas pour la stratégie de
+# découpage, et la variante demandée n'était jamais appliquée. Une exécution entière
+# a ainsi produit un réplicat du témoin sous le nom de la variante — le rapport était
+# faux sans qu'aucune erreur ne le signale.
+_VARIANTE_DEMANDEE = sys.argv[1] if len(sys.argv) > 1 else "temoin"
+
 SRC = (RACINE / "_chantier" / "scripts" / "reference_l15.py").read_text(encoding="utf-8")
 _ns: dict = {"__name__": "gen", "__file__": str(RACINE / "_chantier" / "scripts" / "reference_l15.py")}
 sys.argv = ["gen", "article"]
@@ -65,7 +73,7 @@ REPETITIONS_NEGATIFS = 3
 # référence, cinq des huit cas négatifs scorent au-dessus du plus faible cas positif
 # (médianes 0,623 contre 0,681). Un seuil écarterait de vrais résultats sans écarter
 # les pièges. Mesurer ce qu'on sait déjà faux coûte une heure pour rien.
-VARIANTE = sys.argv[1] if len(sys.argv) > 1 else "temoin"
+VARIANTE = _VARIANTE_DEMANDEE
 
 DURCISSEMENT = """
 

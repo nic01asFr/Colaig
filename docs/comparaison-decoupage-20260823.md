@@ -164,3 +164,51 @@ pas changé ; la capacité à en juger, si.
 
 C'est exactement ce à quoi sert un jeu doré à son volume, et pourquoi 45 cas ne suffisent
 toujours pas pour des écarts plus fins.
+
+---
+
+## Durcissement du prompt — mesuré, adopté, insuffisant
+
+| | témoin ex. 1 | témoin ex. 2 | **durci** |
+|---|---|---|---|
+| **refuse aux 3 exécutions** | 0/8 | 0/8 | **3/8** |
+| refuse parfois | 5 | 6 | 4 |
+| **ne refuse jamais** | 3 | 2 | **1** |
+| **cite l'article attendu** | 29/37 | 29/37 | **33/37** |
+| citations hors contexte | 10 | 14 | 14 |
+| citations fantômes | 1 | 3 | 3 |
+| latence médiane | 18,1 s | 19,4 s | 18,8 s |
+
+### Ce qui s'améliore
+
+**Le refus systématique passe de 0/8 à 3/8**, et les cas qui ne refusent jamais tombent
+de trois à un. Le témoin est solide — deux exécutions indépendantes, trois répétitions
+par cas négatif chacune, toutes à 0/8. L'écart n'est pas du bruit.
+
+**Et la citation de l'article attendu s'améliore aussi** : 29 → 33 sur 37. C'est
+contraire à ce que j'avais annoncé : je prévoyais un **sur-refus** sur les cas positifs
+comme prix du durcissement. Il n'y en a pas, et le contraire se produit. Rendre explicite
+la vérification des passages semble aussi améliorer l'ancrage des réponses légitimes.
+
+### Ce qui ne bouge pas
+
+**Les citations hors contexte restent à 14, les fantômes à 3** — exactement les valeurs
+du second témoin, et dans la plage observée à configuration identique (10 à 14, et 1 à 3).
+
+Le prompt interdit pourtant explicitement de citer un article absent des passages, avec
+la raison écrite. **Cette interdiction n'a aucun effet mesurable.** C'est le résultat qui
+justifie le contrôle mécanique : sur ce point précis, demander ne sert à rien.
+
+### Ce qui reste insuffisant
+
+**3/8 n'est pas un comportement fiable.** Cinq cas négatifs sur huit refusent seulement
+parfois, ou jamais. Un utilisateur ne peut pas savoir dans quel cas il se trouve.
+
+**Réserve : le durci n'a qu'une exécution**, contre deux pour le témoin. Le sens de
+l'écart est net, son amplitude demande un réplicat.
+
+### Décision
+
+Le durcissement est **adopté** dans la configuration de l'espace : il améliore les deux
+métriques qui comptent, sans coût détecté. Il ne clôt pas la question pour autant — le
+refus reste à construire mécaniquement, et la provenance aussi.

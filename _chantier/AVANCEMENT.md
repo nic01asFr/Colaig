@@ -21,7 +21,7 @@ Ouvert : <ce qui reste, ou "rien">
 |---|---|
 | **Phase en cours** | 0 — Socle |
 | **Branche** | `chantier/tronc-unique` (compte Onyxia retenu : **`nicolaslaval`**) |
-| **Lot en cours** | L1.4/L1.5 — jeu doré à **45 cas**, D12 actée par la mesure. Reste : 155 cas, revue humaine, palier génération. |
+| **Lot en cours** | L1.5 — palier génération mesuré. **L'assistant n'est pas déployable en l'état** : refus non fiable. |
 | **Bloqué par** | H4/H5 (accès `colaig-0`), H3ter (corpus représentatif pour le listing récursif) |
 | **Arbitrages en attente** | reranker absent de SSPCloud (voir HYPOTHESES) |
 | **Dernière mise à jour** | 22/08/2026 |
@@ -1082,6 +1082,72 @@ Remplacé par un jeu de marqueurs.
 **1734 tests passent.**
 
 **Ouvert :** 155 cas, la revue humaine, le palier génération.
+
+---
+
+## Palier génération — la boucle complète, et un verdict · 23/08/2026
+
+Analyse, hypothèse, mesure, correction. Trois pistes, dont une écartée sans mesure.
+
+### Écartée avant d'être testée : le filtrage par score
+
+Cinq des huit cas négatifs scorent **au-dessus** du plus faible cas positif — médianes
+0,623 contre 0,681. Un seuil écarterait de vrais résultats sans écarter les pièges.
+Mesurer ce qu'on sait déjà faux coûte une heure pour rien.
+
+### Mesurée et adoptée : le durcissement du prompt
+
+| | témoin ×2 | **durci** |
+|---|---|---|
+| refuse aux 3 exécutions | 0/8, 0/8 | **3/8** |
+| ne refuse jamais | 3, 2 | **1** |
+| cite l'article attendu | 29/37, 29/37 | **33/37** |
+| hors contexte | 10, 14 | 14 |
+
+**Je m'étais trompé sur le compromis.** J'annonçais un sur-refus sur les cas positifs
+comme prix du durcissement ; c'est l'inverse — la citation de l'article attendu
+s'améliore aussi. Rendre explicite la vérification des passages semble ancrer davantage
+les réponses légitimes.
+
+**Mais l'interdiction de citer hors passages n'a aucun effet mesurable.** Elle est écrite
+dans le prompt, avec sa raison, et les chiffres ne bougent pas. Sur ce point, demander ne
+sert à rien — ce qui justifie le contrôle mécanique.
+
+### Corrigée mécaniquement : la provenance
+
+`colaig/rag/verification_citations.py` compare les articles cités aux passages fournis.
+Par construction : toutes les défaillances attrapées, aucun faux positif. Annote plutôt
+que supprime — retirer la référence rendrait la réponse plus propre et **moins**
+vérifiable.
+
+### Deux défauts trouvés dans mes propres outils
+
+**Les clients LLM rendaient une réponse vide en silence.** `qwen3-6-35b-moe` raisonne
+3,4× plus qu'il ne répond ; sous mille tokens la réponse est vide, à 2048 — le défaut du
+Protocol — elle est tronquée. Les quatre clients retournaient `content` sans regarder
+`finish_reason`. Corrigé, factorisé, testé.
+
+**Une exécution entière a mesuré la mauvaise chose.** Le script écrasait `sys.argv` avant
+de lire l'argument de variante : le durcissement n'a pas été appliqué, et le rapport est
+sorti sous le nom de la variante **sans qu'aucune erreur ne le signale**. J'ai failli
+présenter ces chiffres comme l'effet du durcissement.
+
+L'accident a servi : ce réplicat du témoin donne la **variance**, qui manquait. Les
+métriques de citation bougent de 10 à 14 et de 1 à 3 à configuration identique — un écart
+de trois cas n'y veut rien dire. Le refus, lui, est stable à 0/8 sur six mesures par cas.
+
+### Verdict
+
+**L'assistant n'est pas déployable en l'état.** Non parce qu'il répond mal — il cite
+l'article attendu dans 33 cas sur 37 — mais parce qu'il **ne sait pas s'arrêter** :
+3/8 de refus fiable, et cinq cas où l'utilisateur ne peut pas savoir à quoi s'attendre.
+
+Ce n'est pas un défaut du corpus ni de la récupération, qui remonte le bon article dans
+82 % des cas. C'est un défaut de garde-fou côté génération, et le prompt seul ne le
+comble pas.
+
+**Ouvert :** fabriquer le refus mécaniquement quand aucune citation ne provient des
+passages ; réplicat du durci ; latence de 18,8 s contre les 10 s de H3.
 
 ---
 
