@@ -478,3 +478,91 @@ chemin OCR. À inscrire comme exigence, pas comme amélioration.
 **Et il manque un signalement.** Qu'un document soit indexé à zéro chunk devrait être
 visible — dans un rapport d'indexation, et à l'utilisateur qui demande ce que contient
 l'espace. Silencieusement absent est le pire état possible.
+
+---
+
+## Audit de la chaîne de mesure et test OCR — 23/08/2026
+
+Reprise de chaque étape ayant produit les chiffres précédents, avant d'en ajouter.
+
+### Ce qui tient
+
+**Les paramètres de chunking étaient les bons.** La production instancie
+`Chunker(chunk_size=config.chunk_size, chunk_overlap=config.chunk_overlap)` — soit
+**800 / 100** par défaut, ce qui a bien été employé. Les 1 059 chunks sont donc mesurés
+dans les conditions réelles.
+
+*Incohérence mineure relevée au passage :* `Chunker.__init__` a un défaut d'overlap de
+**200**, alors que `config.py` en pose **100**. Qui instancie `Chunker()` sans arguments
+— un test, un script — n'obtient pas le comportement de production.
+
+### Ce qui était surévalué — correction
+
+J'ai écrit que « 29 % du corpus est invisible pour la recherche ». **C'est trop fort.**
+`indexer.py:124` contient déjà un repli OCR : si l'extraction native est vide, que le
+fichier est un PDF **et** qu'un client LLM est câblé, l'OCR est tenté.
+
+L'énoncé exact est donc : ces documents sont invisibles **si aucun client LLM n'est
+fourni à l'indexeur**. Avec, ils sont traités.
+
+### Ce qui reste vrai, et plus précis
+
+**1. Le repli OCR ne couvre que les PDF.** La condition est
+`filename.lower().endswith(".pdf")`. Le PNG du corpus — 1,0 Mo — n'est jamais traité, et
+`extract_text` le rejette avec « format non supporté ». **Une image scannée déposée dans
+un espace est perdue en silence**, même OCR disponible.
+
+**2. Tous les échecs sont muets.** `logger.debug("OCR vide, document ignoré")`,
+`logger.debug("document vide après extraction")`, puis `return False`. Au niveau de log
+courant, rien n'apparaît. Ni l'exploitant ni l'utilisateur ne sait qu'un document du
+corpus n'est pas interrogeable. **Silencieusement absent reste le pire état possible.**
+
+### L'OCR fonctionne — mesuré sur les trois modèles disponibles
+
+Test sur un PDF scanné de 2 pages, rendu en PNG 150 dpi, via `/chat/completions`
+multimodal. Aucun contenu affiché : seuls comptes, durées et indicateurs.
+
+| modèle | caractères | s/page | mots | 5-grammes uniques |
+|---|---|---|---|---|
+| **`lightonocr-2-1b`** (Albert) | 4 329 | **1,6** | 654 | **99,4 %** |
+| `chandra-ocr-2` (SSPCloud) | 6 135 | 6,9 | 1 047 | 93,4 % |
+| `qwen3-vl` (SSPCloud) | 4 366 | 10,1 | 685 | — |
+
+Les trois produisent du français plausible (19 à 27 % de mots-outils).
+
+**Comparaison des deux principaux, sans lire le contenu :**
+
+- Jaccard sur le vocabulaire : **80,9 %**
+- `chandra` retrouve **98,4 %** du vocabulaire de `lightonocr` — 6 mots seulement lui
+  échappent
+- `lightonocr` ne retrouve que **82 %** de celui de `chandra` — **80 mots** lui manquent
+
+`lightonocr` est donc un **sous-ensemble quasi propre** de `chandra` : il omet plutôt
+qu'il n'invente. `chandra` produit 80 mots de plus, mais avec **6,6 % de 5-grammes
+répétés** contre 0,6 %.
+
+**Ce qui ne peut pas être tranché ici :** ces 80 mots supplémentaires sont-ils du texte
+réellement capté, ou du bruit ? Sans vérité terrain, la question reste ouverte — et la
+répétition accrue de `chandra` invite à la prudence. **C'est une décision de plus à
+suspendre à la référence L1.5.**
+
+### Le coût de l'OCR est négligeable
+
+| | |
+|---|---|
+| PDF du corpus | 51 documents, **421 pages** |
+| PDF sans texte natif | 7 documents, **37 pages** — 8,8 % des pages, mais 29 % du poids |
+| OCR avec `lightonocr` | **1,0 min** en séquentiel, 6 s à 8 en parallèle |
+| OCR avec `chandra` | 4,3 min en séquentiel, 32 s à 8 en parallèle |
+
+**Ce n'est pas une capacité coûteuse, c'est une minute de traitement qui n'a pas lieu.**
+L'écart entre 29 % du poids et 8,8 % des pages s'explique : une page scannée pèse
+beaucoup plus qu'une page de texte.
+
+### Ce qu'il faut en faire
+
+1. **Étendre le repli OCR aux images** (`.png`, `.jpg`, `.tiff`), pas seulement aux PDF.
+2. **Remonter les documents non indexés au niveau `warning`**, et les exposer dans un
+   rapport d'indexation — un document à zéro chunk doit être visible.
+3. Modèle d'OCR par défaut : `lightonocr-2-1b` pour sa vitesse et sa propreté, **sous
+   réserve** de la mesure L1.5 sur les 18 % de vocabulaire qu'il n'atteint pas.
