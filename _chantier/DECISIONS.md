@@ -322,3 +322,49 @@ Rattaché au lot **L5.6** déjà prévu (« Web externalisé sur `webtools` MCP 
 logique de fraîcheur »). **Pas avant L1.5.** Une source qui bouge avant que la référence
 existe est exactement la faute que le plan interdit : on ne saurait plus si une variation
 de qualité vient du pipeline ou du corpus.
+
+---
+
+## D12 — Stratégie de découpage déclarée par espace · 23/08/2026 · **actée**
+
+**Décision.** La stratégie de découpage devient un paramètre d'espace. Pour un corpus
+**structuré en articles**, la stratégie `article` — un chunk par article, préfixé du
+titre du document et de sa position dans le code — est retenue. Le découpage par
+fenêtre glissante reste le défaut pour tout le reste.
+
+### Sur quoi elle se fonde
+
+Mesuré contre la référence L1.5, sur 39 cas dorés :
+
+| | `Chunker(800,100)` | `article` |
+|---|---|---|
+| récupération complète | 28/39 — 72 % | **32/39 — 82 %** |
+| échecs totaux | 7 | **4** |
+| chunks | 2 124 | 1 762 |
+| index | 8,7 Mo | 7,2 Mo |
+
+Meilleur sur les deux indicateurs, avec un index 17 % plus petit.
+
+### Ce que le chemin de cette décision enseigne
+
+**La même mesure, faite à 17 cas, ne permettait pas de conclure** : +3/−1, en dessous du
+seuil de signification que la référence s'était fixé. J'ai refusé de trancher, porté le
+jeu doré de 20 à 45 cas, et rejoué à l'identique.
+
+La modification n'avait pas changé. La capacité à en juger, si.
+
+C'est le premier arbitrage du chantier rendu par la mesure plutôt que par l'intuition —
+et le fait qu'il ait fallu s'abstenir une première fois en fait la démonstration, pas
+l'exception.
+
+### Ce que la décision ne dit pas
+
+**Elle ne vaut que pour un corpus à structure explicite.** La stratégie `article`
+s'appuie sur des marqueurs `## Article` ; sur le corpus SST — 51 PDF sans structure
+déclarée — elle n'a aucun sens. D'où un paramètre d'espace, et non un changement de
+défaut global.
+
+**Elle ne clôt pas la question du découpage.** La régression observée à 17 cas sur un
+article court a mis au jour une cause plus profonde — l'écrasement des scores denses,
+voir `docs/diagnostic-dispersion-20260823.md`. Un découpage par article **enrichi de ses
+voisins immédiats** reste à éprouver, et se mesure de la même façon.

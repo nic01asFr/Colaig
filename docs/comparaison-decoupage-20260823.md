@@ -133,3 +133,34 @@ produit**. Et SSPCloud, cible de production D3, n'en sert aucun.
 Une mesure de dispersion **sur un seul cas**. Il faudrait la calculer sur l'ensemble du
 jeu doré pour savoir si l'écrasement des scores est général ou propre aux questions de
 délais. C'est la prochaine mesure à faire, et elle est peu coûteuse.
+
+---
+
+## Reprise à 45 cas — la comparaison devient concluante
+
+Le jeu doré est passé de 20 à 45 cas, dont **39 avec articles attendus**. Les deux
+stratégies ont été rejouées à l'identique.
+
+| | témoin `Chunker(800,100)` | **par article** |
+|---|---|---|
+| complets | 28/39 — 72 % | **32/39 — 82 %** |
+| partiels | 4 | 3 |
+| **nuls** | **7** | **4** |
+| rang médian | 1 | 1 |
+
+**+4 cas complets, −3 échecs totaux.** Sur 39 cas, un cas pèse 2,6 points : l'écart
+dépasse le seuil de deux cas que la référence s'était fixé, et il va dans le même sens
+sur les deux indicateurs.
+
+### Ce qui a changé entre les deux mesures
+
+Rien, sinon le nombre de cas. Même corpus figé, même manifeste, mêmes embeddings, même
+script. **C'est le volume de l'échantillon qui a rendu la décision possible** — pas une
+amélioration du pipeline.
+
+À 17 cas, le solde était de +3/−1 : réel mais indistinguable du bruit, et j'ai refusé de
+conclure. À 39, la même modification donne +4 complets et −3 nuls. La modification n'a
+pas changé ; la capacité à en juger, si.
+
+C'est exactement ce à quoi sert un jeu doré à son volume, et pourquoi 45 cas ne suffisent
+toujours pas pour des écarts plus fins.

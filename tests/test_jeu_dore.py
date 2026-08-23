@@ -190,8 +190,18 @@ def test_un_cas_negatif_ne_promet_aucun_article():
         if not cas.get("attendu_refus"):
             continue
         assert cas["difficulte"] == "negative", f"{cas['id']} : refus attendu mais difficulté non négative"
-        assert "corpus" in cas["reponse_attendue"].lower() or "ne figure pas" in cas["reponse_attendue"].lower(), (
-            f"{cas['id']} : la réponse attendue doit dire explicitement que l'information manque"
+        # Le contrôle porte sur le **sens** — dire que l'information manque — pas sur
+        # une formulation. Une première version exigeait la locution exacte
+        # « ne figure pas » et refusait « ne figurent pas » : un test qui impose une
+        # tournure fait réécrire les cas pour lui plaire, au lieu de les vérifier.
+        marqueurs = (
+            "corpus", "ne figure pas", "ne figurent pas", "ne permet pas de répondre",
+            "n'y sont pas", "ne se déduit", "ne relève pas",
+        )
+        reponse = cas["reponse_attendue"].lower()
+        assert any(m in reponse for m in marqueurs), (
+            f"{cas['id']} : la réponse attendue doit dire explicitement que "
+            "l'information manque — aucun marqueur reconnu"
         )
 
 

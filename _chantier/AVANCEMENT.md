@@ -21,7 +21,7 @@ Ouvert : <ce qui reste, ou "rien">
 |---|---|
 | **Phase en cours** | 0 — Socle |
 | **Branche** | `chantier/tronc-unique` (compte Onyxia retenu : **`nicolaslaval`**) |
-| **Lot en cours** | L1.5b — **première décision arbitrée par la mesure**. Reste : volume du jeu doré, palier génération. |
+| **Lot en cours** | L1.4/L1.5 — jeu doré à **45 cas**, D12 actée par la mesure. Reste : 155 cas, revue humaine, palier génération. |
 | **Bloqué par** | H4/H5 (accès `colaig-0`), H3ter (corpus représentatif pour le listing récursif) |
 | **Arbitrages en attente** | reranker absent de SSPCloud (voir HYPOTHESES) |
 | **Dernière mise à jour** | 22/08/2026 |
@@ -1037,6 +1037,51 @@ La régression suggère une troisième voie à éprouver : un article **enrichi 
 immédiats** plutôt qu'isolé, qui prendrait les deux gains sans la perte.
 
 `docs/comparaison-decoupage-20260823.md`.
+
+---
+
+## Le jeu doré passe à 45 cas, et D12 devient décidable · 23/08/2026
+
+25 cas ajoutés, chacun écrit contre un article lu dans le corpus. Vivier constitué par
+extraction automatique des articles à énoncé net et court — 150 candidats — puis lecture
+intégrale des quinze retenus avant rédaction.
+
+```
+45 cas — fait 16 · procédure 15 · rédaction 6 · piège 8
+         simple 21 · croisée 16 · négative 8
+```
+
+### Ce que le volume a débloqué
+
+Les deux stratégies de découpage ont été rejouées **à l'identique** sur 39 cas ayant des
+articles attendus :
+
+| | `Chunker(800,100)` | **par article** |
+|---|---|---|
+| complets | 28/39 — 72 % | **32/39 — 82 %** |
+| nuls | **7** | **4** |
+
+À 17 cas, la même mesure donnait +3/−1 — en dessous du seuil que la référence s'était
+fixé, et j'avais refusé de conclure. À 39, elle donne **+4 complets et −3 nuls**, dans le
+même sens sur les deux indicateurs.
+
+**Rien n'a changé sauf le nombre de cas.** Même corpus figé, même manifeste, mêmes
+embeddings, même script. La modification n'a pas changé ; la capacité à en juger, si.
+
+**D12 actée** : la stratégie de découpage devient un paramètre d'espace, `article` pour
+un corpus structuré en articles. Elle **ne vaut pas** pour le corpus SST — 51 PDF sans
+structure déclarée — d'où un paramètre et non un changement de défaut global.
+
+### Un test assoupli, pour la bonne raison
+
+`test_un_cas_negatif_ne_promet_aucun_article` exigeait la locution exacte « ne figure
+pas » et refusait « ne figurent pas ». Il vérifie un **sens**, pas une tournure : un test
+qui impose une formulation fait réécrire les cas pour lui plaire au lieu de les vérifier.
+Remplacé par un jeu de marqueurs.
+
+**1734 tests passent.**
+
+**Ouvert :** 155 cas, la revue humaine, le palier génération.
 
 ---
 
