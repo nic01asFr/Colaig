@@ -18,7 +18,6 @@
     "raisonnement": false,
     "modele": "qwen3-6-35b-moe"
   },
-
   "recherche": {
     "complets_sur_attendus": {
       "valeur": 0.929,
@@ -30,7 +29,6 @@
       ]
     }
   },
-
   "generation": {
     "refus_systematique": {
       "valeur": 1.0,
@@ -95,7 +93,6 @@
       ]
     }
   },
-
   "verificateur_fidelite": {
     "faux_negatifs_max": {
       "valeur": 0.0,
@@ -113,5 +110,69 @@
         "ce qu'on retire (50 %) : le taux global masque cet ecart, que D32 documente."
       ]
     }
+  },
+  "_variance_observee": {
+    "_pourquoi": [
+      "Les seuils avaient ete poses au jugement. Un replicat complet, execute le meme jour",
+      "sur le meme corpus et le meme jeu dore, donne le bruit reel — ce qui les fonde ou",
+      "les infirme.",
+      "",
+      "Un seuil pose au jugement se defend mal le jour ou il echoue : on le relache. Un",
+      "seuil adosse a une variance mesuree se defend."
+    ],
+    "_replicat_du": "2026-08-23",
+    "recherche_complets": {
+      "reference": 0.929,
+      "replicat": 0.929,
+      "ecart": 0.0,
+      "_note": "la recherche est deterministe : meme corpus, memes embeddings, meme resultat"
+    },
+    "refus_systematique": {
+      "reference": 1.0,
+      "replicat": 1.0,
+      "ecart": 0.0
+    },
+    "cite_attendu": {
+      "reference": 0.836,
+      "replicat": 0.835,
+      "ecart": 0.001
+    },
+    "hors_contexte": {
+      "reference": 24,
+      "replicat": 26,
+      "ecart": 2
+    },
+    "fantomes": {
+      "reference": 5,
+      "replicat": 8,
+      "ecart": 3
+    },
+    "montants_inventes": {
+      "reference": 0,
+      "replicat": 1,
+      "ecart": 1
+    },
+    "tronquees": {
+      "reference": 3,
+      "replicat": 4,
+      "ecart": 1
+    },
+    "garde_fou_rendues": {
+      "reference": 0.847,
+      "replicat": 0.823,
+      "ecart": 0.024
+    },
+    "_lecture": [
+      "La generation varie meme a temperature 0,1 : trois fantomes d'ecart, deux citations",
+      "hors contexte, et surtout 2,4 points sur le taux de reponses rendues sans reserve.",
+      "",
+      "Les seuils tiennent : le plus serre — garde_fou_rendues, minimum 0,78 — garde environ",
+      "quatre points de marge au-dela de la variance mesuree. Le plus lache — tronquees,",
+      "maximum 12 pour une valeur de 3 — protege contre un rallumage du raisonnement, pas",
+      "contre du bruit.",
+      "",
+      "UN SEUL REPLICAT NE FAIT PAS UNE VARIANCE. Ces ecarts sont un ordre de grandeur, pas",
+      "un intervalle de confiance. Si une porte echoue de peu, le rejouer avant de conclure."
+    ]
   }
 }
