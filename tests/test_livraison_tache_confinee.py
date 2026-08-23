@@ -127,3 +127,36 @@ async def test_la_livraison_ordinaire_fonctionne_toujours(fake_storage):
 
     ecrits = [a for a in fake_storage.appels if a[0] == "upload"]
     assert ecrits, "la livraison légitime doit continuer d'écrire"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("chemin", CHEMINS_INTERDITS)
+async def test_create_document_refuse_les_chemins_d_instance(chemin, fake_storage):
+    """Le meme confinement, sur le chemin ou c'est LE MODELE qui choisit la cible.
+
+    `create_document` est un outil de la boucle agentique : le chemin sort du modele,
+    dont les entrees comprennent les documents de l'espace. Une consigne deposee dans un
+    document pouvait donc faire ecrire l'agent dans son propre `.colaig/prompts/` --
+    la chaine complete, de l'injection a la persistance.
+
+    Pire que la livraison de tache, qui suppose au moins un utilisateur authentifie.
+    """
+    from colaig.agents.tools.task_tools import create_document_handler
+
+    handler = create_document_handler(fake_storage)
+    rendu = await handler(content="contenu injecte", path=chemin)
+
+    ecrits = [a for a in fake_storage.appels if a[0] == "upload"]
+    assert not ecrits, f"l'agent a ecrit dans un chemin d'instance : {ecrits}"
+    assert '"success": false' in rendu.lower(), (
+        "le refus doit etre annonce au modele, pas silencieux : sinon il reessaie"
+    )
+
+
+@pytest.mark.asyncio
+async def test_create_document_ecrit_toujours_un_document_ordinaire(fake_storage):
+    from colaig.agents.tools.task_tools import create_document_handler
+
+    handler = create_document_handler(fake_storage)
+    await handler(content="rapport", path="/espace/rapports/note.md")
+    assert [a for a in fake_storage.appels if a[0] == "upload"]

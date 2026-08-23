@@ -1496,3 +1496,94 @@ où il l'était, et c'est leur fonction.
 **Comment il a été trouvé.** En vérifiant si le passage au balisage `<untrusted>` (D35)
 invalidait la référence. Deux défauts pour une vérification : celui-ci, et le fait que
 le harnais ne mesurait pas le prompt de production.
+
+---
+
+## D37 — La frontière de confiance est le partage de stockage · 24/08/2026 · **actée**
+
+Le remplacement du prompt système par un `.md` déposé dans `.colaig/prompts/` avait été
+signalé en D35 comme relevant d'un arbitrage. **Arbitrage rendu : c'est l'intention.**
+Un espace configure son assistant, et celui qui administre le partage administre l'agent.
+
+Ce qui suit ne remet pas ce choix en cause : il l'instruit, parce qu'il porte plus loin
+qu'il n'y paraît. Le cadrage complet est dans `docs/FRONTIERE-DE-CONFIANCE.md`.
+
+### Ce qui a été vérifié dans le code
+
+**`StorageProtocol` n'a aucune notion de droits.** Sept verbes d'E/S, rien sur les ACL
+ni le partage. Colaig ne peut donc ni *poser* de droits — même quand c'est lui qui crée
+l'espace, il n'a pas le verbe pour cela — ni *constater* qui d'autre peut écrire. Ce
+n'est pas un oubli mais la conséquence du choix provider-agnostic : un ACL commun à
+WebDAV, S3, Box, Drive et MS Graph n'existe pas.
+
+**La surface privilégiée est plus large que les prompts.** Écrire `.colaig/config.yaml`
+donne aussi `owners` — donc l'administration de l'espace —, `user_ids`, et
+`mcp_connectors`, donc le branchement d'un serveur MCP distant dont Colaig appellera les
+outils.
+
+Le cas le plus parlant : `owners` est **délibérément** exclu de `_UPDATABLE` dans
+`context/workspace.py`, avec pour motif écrit d'« éviter qu'un owner s'auto-promeuve
+(anti-escalade de privilège) ». La garde est juste. Mais elle protège une porte dont le
+mur n'existe que par le partage de stockage — qui écrit le fichier s'ajoute aux owners
+sans jamais passer par l'outil.
+
+**Conséquence sur les deux modèles de provenance.** Que l'utilisateur crée l'espace et
+le partage, ou que Colaig le crée, la maîtrise existe — mais elle est **entièrement
+opérationnelle, jamais technique du côté de Colaig**. « On peut maîtriser » est exact
+comme consigne d'exploitation, faux comme garantie du logiciel. Rien n'avertit
+aujourd'hui celui qui partage un dossier d'équipe que `.colaig/` y est privilégié.
+
+### La règle qui doit tenir, et qui ne tenait pas
+
+**Colaig n'écrit jamais dans `.colaig/` pour le compte d'un utilisateur.** C'est ce qui
+sépare « l'espace configure son assistant » — assumé — de « n'importe quel interlocuteur
+reconfigure l'assistant » — inacceptable.
+
+Elle ne tenait pas. **Deux chemins la violaient**, tous deux corrigés :
+
+**1. La livraison d'une tâche de fond.** `delivery_type="document"` fait écrire le
+résultat à un chemin que la tâche désigne, **avec les identifiants de service de
+Colaig**. Non validé à la création ni à la livraison. Une tâche visant
+`.colaig/prompts/synthesiser.md` faisait de la réponse du modèle le prompt système du
+tour suivant. Le partage de stockage était entièrement contourné, l'écrivain n'étant pas
+l'utilisateur.
+
+**2. `create_document`, et c'est le plus grave.** Outil de la boucle agentique : le
+chemin sort du **modèle**, dont les entrées comprennent les documents de l'espace. Un
+document déposé pouvait donc faire écrire l'agent dans son propre `.colaig/prompts/` —
+la chaîne complète de l'injection à la persistance, **sans qu'aucun utilisateur ne
+demande rien**. Le balisage de D35 déclare le contenu non fiable ; il ne garantit pas que
+le modèle respecte la déclaration, et c'est exactement le cas où le manquement devenait
+durable.
+
+`validate_storage_path(..., allow_dotcolaig=False)` existait déjà et savait refuser. Il
+est désormais appliqué aux **trois** chemins dirigés de l'extérieur — envoi MCP,
+livraison de tâche, création de document. Les autres écritures construisent leur chemin
+par `paths.py` à partir d'identifiants internes ; aucune n'accepte de chemin externe.
+
+Le refus de `create_document` est **annoncé au modèle**, pas silencieux : un échec muet
+le fait réessayer, et une boucle agentique a plusieurs tours pour insister.
+
+### Ce qui n'est pas tranché ici — `storage_readonly`
+
+Le champ existe sur `WorkspaceConfig`, documenté « True si Colaig n'a que des droits de
+lecture ». **Un seul des vingt sites d'écriture l'honore.** Index, conversations, mémoire
+utilisateur, tâches, jetons écriraient quand même. C'est une promesse que le code ne
+tient pas — même famille que `sanitize_description` définie et jamais appelée.
+
+Et c'est structurel : le principe fondateur pose qu'« un espace de stockage + un dossier
+`.colaig` = une instance complète ». Tout l'état vit dans l'espace. Un espace réellement
+en lecture seule n'est pas un mode dégradé, c'est un produit différent — sauf à séparer
+le **corpus** (lisible, largement partagé) de l'**état d'instance** (`.colaig/`, écrit
+par Colaig seul).
+
+Cette séparation répondrait d'un coup aux deux questions ouvertes : la frontière de
+confiance et le « lecture seule ». Elle touche au principe fondateur, donc **elle relève
+d'un arbitrage humain et n'est pas prise ici.** Trois options :
+
+1. **Tenir la promesse** — honorer `storage_readonly` partout, en acceptant qu'un espace
+   en lecture seule perde index persistant, historique et mémoire.
+2. **Découpler** — `.colaig/` peut vivre ailleurs que dans l'espace. Contredit la lettre
+   du principe fondateur, en sert peut-être mieux l'esprit.
+3. **Retirer le champ** — un drapeau inerte vaut moins que son absence, parce qu'il se
+   lit comme une garantie.

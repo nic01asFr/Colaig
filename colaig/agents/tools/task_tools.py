@@ -611,6 +611,28 @@ def create_document_handler(storage) -> Callable:
     async def _handler(content: str, path: str, **kwargs) -> str:
         if not path:
             return json.dumps({"success": False, "error": "path manquant"}, ensure_ascii=False)
+
+        # Ici, c'est LE MODÈLE qui choisit la cible — et ses entrées comprennent les
+        # documents de l'espace, qui sont du contenu non fiable par construction. Sans
+        # ce contrôle, une consigne déposée dans un document pouvait faire écrire l'agent
+        # dans son propre `.colaig/prompts/` : la chaîne complète, de l'injection à la
+        # persistance, sans qu'aucun utilisateur n'ait rien demandé.
+        #
+        # Le refus est ANNONCÉ au modèle, pas silencieux : un échec muet le fait
+        # réessayer, et une boucle agentique a plusieurs tours pour insister.
+        from colaig.security.path_validator import validate_storage_path
+        try:
+            path = validate_storage_path(path, allow_dotcolaig=False,
+                                         context="create_document")
+        except Exception as exc:
+            return json.dumps({
+                "success": False,
+                "error": (
+                    f"destination refusée : {exc}. Le dossier d'instance .colaig/ n'est "
+                    "pas un emplacement de document — y écrire reconfigurerait l'agent."
+                ),
+            }, ensure_ascii=False)
+
         try:
             await _storage.upload(path, content.encode("utf-8"))
             return json.dumps({
