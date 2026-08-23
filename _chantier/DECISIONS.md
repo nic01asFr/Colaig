@@ -932,3 +932,37 @@ cite un article et s'arrête reste fidèle.
 **Le seuil est un paramètre, pas une constante.** Échantillon de 39 réponses : le sens de
 la séparation est net, le seuil exact ne l'est pas. Le figer donnerait à un chiffre
 provisoire l'apparence d'un acquis — un test l'interdit.
+
+## D27 — HyDE ne passe pas la première étape · 23/08/2026 · **actée**
+
+La logique de D26 se généralise en **deux temps qu'il ne faut pas confondre** :
+
+1. **Est-ce que ça aide ?** Sans quoi il n'y a rien à déclencher.
+2. **Quand est-ce que ça aide ?** Seulement si la réponse à (1) est oui.
+
+`COLAIG_HYDE_ENABLED` existe dans `config.py` depuis l'origine sans avoir jamais franchi
+l'étape 1. C'est l'option dont le coût est **par requête**, donc celle où un déclencheur
+aurait eu le plus de valeur.
+
+| | cas complets | gagnés | perdus |
+|---|---|---|---|
+| témoin | 89/104 — 86 % | | |
+| **HyDE w = 0,3** | 90/104 — 87 % | 1 | 0 |
+| HyDE w = 0,5 | 88/104 | 1 | 2 |
+| HyDE w = 0,7 | 88/104 | 3 | 4 |
+
+**Un cas gagné pour 0,76 s par question** — +38 % de latence sur une réponse qui en prend
+deux. Aux poids élevés il gagne et perd à peu près autant : c'est du bruit.
+
+### Pourquoi il échoue là où on l'attendait
+
+HyDE est conçu pour les **écarts de vocabulaire** entre la question et les documents. Or
+nos cas d'écart mesurés — `mp-069` et `mp-070`, posés en « CCAG » et « CCAP », dont
+l'article attendu est au-delà du rang 60 — **ne figurent dans aucun gain**, à aucun poids.
+
+La raison est logique une fois posée : la réponse hypothétique est produite par le même
+modèle, qui emploie lui aussi le vocabulaire du praticien. **HyDE ne franchit pas un
+fossé qu'il reproduit.**
+
+`COLAIG_HYDE_ENABLED` reste donc à `false`, avec cette mesure pour motif. Il n'y a rien à
+déclencher : on ne construit pas une porte devant une pièce vide.
