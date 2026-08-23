@@ -786,3 +786,54 @@ Recherche : **89/104 — 86 %**, contre 88/104 sur le corpus entier.
 
 `PERIMETRE = None` reconstruit le code entier : l'ancien corpus reste reproductible, il
 est en quarantaine hors dépôt, et dans l'historique git.
+
+### D24 — rectificatif du 23/08/2026 : la comparaison était faussée
+
+**Les chiffres publiés ci-dessus pour la colonne « restreint » sont faux, et le
+raisonnement qui s'appuyait dessus l'est aussi.**
+
+`reanalyse_generation.py` recalculait les passages avec un périmètre **codé en dur**
+(`decouper("article")`), sans savoir lequel la mesure avait employé. Une mesure lancée
+sur le corpus restreint était donc recomptée contre le corpus entier : `fournis`
+n'était pas ce que le modèle avait reçu, et les citations hors contexte grimpaient à 55
+sans raison.
+
+**J'ai comparé une réanalyse cohérente à une réanalyse incohérente.** Recomptées toutes
+deux contre leur propre corpus :
+
+| generation sur 124 cas | corpus entier | **restreint** |
+|---|---|---|
+| **citations du mauvais régime** | **115 — 22 %** | **1 — 0 %** |
+| citations hors contexte | 22 | **22** |
+| garde-fou : rendues / annotées / remplacées | 137 / 23 / 4 | 135 / 21 / 6 |
+| cite l'article attendu | 88/102 | 87/100 |
+
+**La restriction supprime les citations du mauvais droit sans rien coûter à la
+provenance.** Il n'y a donc pas d'arbitrage entre « erreurs silencieuses » et
+« avertissements visibles » : c'était un arbitrage imaginaire, produit par un défaut de
+mon outil de recomptage.
+
+La décision de restreindre est inchangée ; elle est simplement mieux fondée qu'écrit.
+
+Le périmètre se déduit désormais du nom du fichier de réponses, qui le porte déjà.
+
+---
+
+## Référence L1.5 — définitive au 23/08/2026
+
+Corpus restreint (692 articles + titre préliminaire), jeu doré à 124 cas après les deux
+lots de corrections, prompt durci, `k=6`, **raisonnement coupé**.
+
+| | |
+|---|---|
+| refuse **à chaque fois** sur cas négatif | **21/21** |
+| tous les articles attendus remontés | **89/104 — 86 %** |
+| cite l'article attendu | **84/100** |
+| citation hors contexte | **18** |
+| citation fantôme · montant inventé | 6 · 2 |
+| réponses tronquées | 3 |
+| latence médiane | **~2 s** |
+| garde-fou : rendues / annotées / remplacées | **140 / 16 / 7** sur 163 |
+
+C'est le meilleur état mesuré à ce jour sur chacun des indicateurs de fidélité — et il
+est obtenu à **un neuvième de la latence** du premier point de mesure.

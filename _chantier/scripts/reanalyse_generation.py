@@ -102,7 +102,19 @@ def main() -> int:
     cas = [c for c in cas if c["id"] in reponses]
 
     cle = cle_albert()
-    chunks = decouper("article")
+    # PERIMETRE : le meme que celui de la mesure, sinon le recomptage est faux.
+    #
+    # Cette ligne codait « article » en dur. Une mesure lancee sur un perimetre
+    # restreint etait donc recomptee contre un corpus different, avec d'autres
+    # passages : `fournis` n'etait pas celui que le modele avait recu, et les
+    # citations hors contexte grimpaient de 22 a 55 sans raison.
+    #
+    # J'ai compare une reanalyse coherente a une reanalyse incoherente, et conclu que
+    # restreindre le corpus degradait la provenance. C'etait faux. Le perimetre se
+    # deduit desormais du nom du fichier de reponses, qui le porte deja.
+    perimetre = "article-livre1" if "-livre1" in fichier.name else "article"
+    print(f"perimetre deduit     : {perimetre}")
+    chunks = decouper(perimetre)
     store = FaissStore()
     store.add(embed([c.text for c in chunks], cle), chunks)
     existants: set[str] = set()
