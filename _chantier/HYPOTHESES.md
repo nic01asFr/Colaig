@@ -411,3 +411,70 @@ question maintenant plutôt qu'au lot L4.1.
 
 Même erreur que le PUT à 437 ms deux jours plus tôt. **Un chiffre unique ne vaut pas
 mesure** — c'est maintenant appliqué à toutes les lignes de la sonde.
+
+---
+
+## H5 — **mesurée**, 23/08/2026 · l'estimation était fausse d'un facteur 28
+
+Indexation réelle du corpus SST avec le **vrai** `extract_text()` et le **vrai**
+`Chunker` de Colaig (`chunk_size=800`, `chunk_overlap=100`).
+
+| | estimé | **mesuré** |
+|---|---|---|
+| chunks | ~29 000 | **1 059** |
+| index à 4096 | 479 Mo | **17 Mo** |
+| index à 1024 | 120 Mo | **4 Mo** |
+
+### Pourquoi l'estimation était fausse
+
+Elle divisait le poids du corpus par ~1500 octets de texte par chunk. **Elle supposait
+donc qu'un PDF est du texte.** Il ne l'est pas : 42,6 Mo de PDF ont produit **0,61 Mo de
+texte extrait**, soit **1,4 %**. Le reste est de l'image, des polices, de la structure.
+
+**On ne peut pas estimer un nombre de chunks à partir d'une taille de fichier.** C'est
+une erreur de méthode, pas un écart de calibrage — et elle allait dans le sens du
+catastrophisme, ce qui la rendait d'autant plus crédible.
+
+| format | docs | Mo source | Mo texte extrait | chunks |
+|---|---|---|---|---|
+| pdf | 51 | 42,6 | 0,61 | 1011 |
+| odt | 7 | 0,2 | 0,03 | 48 |
+| png | 1 | 1,0 | 0,00 | 0 |
+
+Chunks : médiane 789 caractères, moyenne 656, max 1996.
+Extraction des 59 documents : **1,0 s**. Découpage : négligeable.
+
+### H5 est levée, et largement
+
+1 059 chunks contre un seuil de ~100 000 pour `IndexFlatIP`. Il faudrait **cent espaces
+de cette taille** pour l'approcher. La recherche exacte en O(n) n'est pas un problème à
+cette échelle, et le débat sur l'index approché ne se pose pas.
+
+### Ce que cela fait à D10
+
+**L'argument mémoire de D10 s'effondre.** J'y écrivais « à 4096, dix espaces de 44 Mo
+font 5 Go d'index ». Mesuré, c'est **170 Mo**. La différence entre 4096 et 1024 sur ce
+corpus est de 17 Mo contre 4 Mo — dérisoire des deux côtés.
+
+Le choix de la dimension **ne se décide donc plus sur la mémoire, mais sur la seule
+qualité de restitution**. La décision reste suspendue à L1.5, mais pour une autre raison
+que celle que j'avais donnée. D10 est amendée en conséquence.
+
+### Le vrai problème est ailleurs : 29 % du corpus est invisible
+
+**8 documents sur 59 ne produisent aucun texte** — 7 PDF et 1 PNG, soit **17,2 Mo,
+29 % du poids du corpus**. Ce sont des documents scannés.
+
+Sans OCR, ils ne génèrent aucun chunk : ils sont **absents de la recherche**, et rien
+dans l'interface ne le signale. Sur un corpus de santé et sécurité au travail, cela veut
+dire que la fiche réflexe dont quelqu'un a besoin peut être précisément celle qui est un
+scan — et l'assistant répondra qu'il n'a rien trouvé, ou pire, répondra à partir d'un
+document voisin.
+
+**L'OCR n'est donc pas une option de confort sur ce type de corpus.** Le catalogue Albert
+sert `lightonocr-2-1b`, SSPCloud sert `chandra-ocr-2`, et `albert.py` implémente déjà un
+chemin OCR. À inscrire comme exigence, pas comme amélioration.
+
+**Et il manque un signalement.** Qu'un document soit indexé à zéro chunk devrait être
+visible — dans un rapport d'indexation, et à l'utilisateur qui demande ce que contient
+l'espace. Silencieusement absent est le pire état possible.

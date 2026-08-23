@@ -241,6 +241,17 @@ et rien dans ce qui est mesuré ici ne permet de les départager.
    **estimation** : le nombre de chunks dépend du découpage, donc du format. À confirmer
    par une indexation réelle.
 
-**Ce qui rend la question importante :** à 4096, dix espaces de 44 Mo font 5 Go d'index
-en mémoire pour un `IndexFlatIP`. À 1024, 1,2 Go. Ce n'est plus un réglage, c'est du
-dimensionnement de pod.
+**Ce qui rendait la question importante — et qui s'est révélé faux le jour même.**
+
+J'écrivais ici : « à 4096, dix espaces de 44 Mo font 5 Go d'index en mémoire ». C'était
+fondé sur une **estimation** du nombre de chunks, elle-même fondée sur le poids des
+fichiers. L'indexation réelle donne **1 059 chunks**, pas 29 000 : un PDF n'est pas du
+texte, et 42,6 Mo de PDF n'ont produit que 0,61 Mo de texte extrait.
+
+Mesuré, dix espaces de cette taille font **170 Mo**, pas 5 Go. Sur ce corpus, l'écart
+entre 4096 et 1024 est de **17 Mo contre 4 Mo**.
+
+**L'argument mémoire tombe donc.** Le choix de la dimension ne se décide plus sur
+l'empreinte, mais sur la **seule qualité de restitution**. La décision — 1024 par défaut,
+en flag, tranchée à L1.5 — reste inchangée ; sa justification, non. Voir `HYPOTHESES.md`,
+section « H5 — mesurée ».
