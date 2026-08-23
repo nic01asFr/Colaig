@@ -707,3 +707,38 @@ Configuration retenue : prompt durci, k=6, **raisonnement coupé** (D18), 124 ca
 
 Le refus est désormais **systématique** — c'était 0/8 au premier jour de mesure, 6/8 avec
 le prompt durci, 15/18 avec raisonnement. H3 est tenue : 10 s visés, 2 s obtenus.
+
+## D23 — La qualification de portée d'Editeur ne se transpose pas au code · 23/08/2026 · **actée**
+
+`ingestion2.py`, dans le poste de rédaction `Editeur`, qualifie chaque passage avant
+extraction : `compatibilite` si le texte porte « devra », « doit », « s'impose », « est
+interdit » ; `indicatif` s'il porte « pourra », « veillera », « recommandé ». C'était le
+seul emprunt que je recommandais — bon marché, et répondant à une faiblesse mesurée :
+plusieurs cas dorés tournent sur la distinction obligation / faculté.
+
+**Mesuré sur les 1805 articles du corpus :**
+
+| | articles | part |
+|---|---|---|
+| obligation **explicite** — doit, devra, est tenu, est interdit | 111 | **6 %** |
+| faculté — peut, pourra — sans obligation explicite | 634 | 35 % |
+| **ni l'un ni l'autre** | 1060 | **59 %** |
+
+Les 59 % ne sont pas des articles sans portée : ce sont des obligations énoncées **à
+l'indicatif présent**, style législatif français classique. « Les marchés *sont passés*
+en lots séparés » est une obligation ; « l'acheteur *écarte* les offres irrégulières »
+aussi. Aucun marqueur lexical ne les distingue d'une définition.
+
+L'emprunt échoue donc pour une raison de **genre documentaire**, pas de code. Les
+documents d'urbanisme d'Editeur — SCoT, SAR — sont des documents de planification
+adressés à des actions futures : ils écrivent naturellement « devra ». Un code écrit au
+présent de l'indicatif.
+
+**Conséquence :** ne pas reprendre `portee` tel quel. Un contrôle de dérive de portée sur
+le code demanderait une analyse syntaxique, pas une liste de marqueurs — et son coût
+n'est pas justifié tant que le défaut n'est pas mesuré autrement.
+
+Un premier essai de mesure a d'ailleurs signalé sept dérives apparentes, dont au moins
+deux étaient des **erreurs du classifieur** : `L2113-10` porte « peut limiter » plus loin
+dans l'article, ce qui le faisait classer « faculté » alors que sa règle principale est
+une obligation. Le classifieur était plus faux que ce qu'il mesurait.
