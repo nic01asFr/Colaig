@@ -81,3 +81,55 @@ python _chantier/scripts/reference_l15.py article    # par article
 Les deux lisent le même corpus figé, vérifié par manifeste. Toute la différence entre les
 deux rapports vient de la stratégie de découpage — c'est ce qui rend la comparaison
 interprétable.
+
+---
+
+## Diagnostic de la régression — ce n'est pas ce que je croyais
+
+J'avais écrit que R2151-1, « court et général », se faisait devancer par des articles
+plus spécifiques. **Vérifié, c'est faux.** Voici ce que remonte réellement la question
+*« comment dois-je fixer les délais de réception des offres ? »* :
+
+```
+ 1. 0.6979  R2161-7      6. 0.6864  R2161-6
+ 2. 0.6973  R2162-50     7. 0.6863  R2151-2
+ 3. 0.6950  R2161-10     8. 0.6859  R2161-22
+ 4. 0.6944  R2143-1      9. 0.6857  R2161-14
+ 5. 0.6901  R2361-3     10. 0.6854  R2161-12
+```
+
+R2151-1 n'est pas dans les dix premiers. Et surtout : **les dix scores tiennent dans
+0,0125 point** — 1,8 % d'écart relatif du premier au dixième.
+
+**L'embedding ne discrimine pas.** Sur ce corpus, tous les articles qui traitent de
+délais occupent quasiment le même point de l'espace vectoriel. Le classement à
+l'intérieur de cette bande n'est pas une hiérarchie de pertinence, c'est du bruit — et
+un article y entre ou en sort selon des variations qui ne veulent rien dire.
+
+Signe qui confirme : **R2151-2, l'article immédiatement voisin de celui attendu, est au
+rang 7.** Le moteur a trouvé le bon endroit du code, pas le bon article.
+
+### Ce que cela change pour le projet
+
+**Ce n'est pas un défaut du découpage.** Le découpage par article a fait ce qu'on
+attendait de lui — il a corrigé les deux cas diagnostiqués. La régression vient d'ailleurs :
+de la **capacité de la recherche dense à séparer des textes juridiquement proches**.
+
+Deux mécanismes existent précisément pour ça dans le tronc, et aucun n'est activé dans
+cette référence :
+
+| mécanisme | disponible | mesuré |
+|---|---|---|
+| **BM25 + fusion RRF** — capte les correspondances exactes (numéros, termes rares) que l'embedding manque | `bm25_store` dans `indexer.py` | non |
+| **Reranking cross-encoder** — rescore les candidats, brise les égalités | `bge-reranker-v2-m3` chez Albert | non |
+
+**Cela reclasse l'arbitrage du reranker (H2).** Il était noté « à mesurer, gain le mieux
+documenté des benchmarks ». Sur ce corpus, il ne s'agit plus d'un gain marginal : quand
+dix candidats tiennent dans 1,8 %, **le rerankeur ne polit pas le classement, il le
+produit**. Et SSPCloud, cible de production D3, n'en sert aucun.
+
+### Ce que je ne conclus pas
+
+Une mesure de dispersion **sur un seul cas**. Il faudrait la calculer sur l'ensemble du
+jeu doré pour savoir si l'écrasement des scores est général ou propre aux questions de
+délais. C'est la prochaine mesure à faire, et elle est peu coûteuse.
