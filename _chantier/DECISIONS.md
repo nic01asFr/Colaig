@@ -742,3 +742,47 @@ Un premier essai de mesure a d'ailleurs signalé sept dérives apparentes, dont 
 deux étaient des **erreurs du classifieur** : `L2113-10` porte « peut limiter » plus loin
 dans l'article, ce qui le faisait classer « faculté » alors que sa règle principale est
 une obligation. Le classifieur était plus faux que ce qu'il mesurait.
+
+## D24 — Le corpus est restreint au régime des marchés publics ordinaires · 23/08/2026 · **actée**
+
+Suite de D21. La mesure tranche, et pas dans le sens attendu.
+
+| generation sur 124 cas | corpus entier | **restreint** |
+|---|---|---|
+| **citations du mauvais régime** | **115 — 22 %** | **1 — 0 %** |
+| citations hors contexte | 22 | 55 |
+| garde-fou : rendues / annotées / remplacées | 137 / 23 / 4 | 103 / 50 / 9 |
+| cite l'article attendu | 88/102 | 87/100 |
+
+**La restriction dégrade la provenance et supprime les citations du mauvais droit.**
+Le choix est donc entre **115 erreurs silencieuses** et **33 avertissements visibles de
+plus**.
+
+Il se tranche en regardant ce que l'utilisateur reçoit. Une citation du mauvais régime
+délivre du droit faux **comme s'il était juste** — le livre défense pose 100 000 euros là
+où l'ordinaire pose 60 000 — et **aucun garde-fou ne peut la voir**, puisque l'article
+était bien dans les passages. Une citation hors contexte, elle, est annotée sous les yeux
+de l'utilisateur, qui garde la réponse et la mention.
+
+**On préfère le mode de défaillance que le garde-fou sait voir.**
+
+### Le test d'ancrage a rattrapé une faute grossière
+
+La première restriction faisait tomber **`L3`**, qui énonce les principes de la commande
+publique. Les articles préliminaires `L1` à `L6` et `L3-1` relèvent du *Titre
+Préliminaire* et d'aucun livre : un filtre par livre les emportait. Ils définissent
+« marché public » et « acheteur » — ce sont les plus cités.
+
+`HORS_PERIMETRE_RETENUS` les conserve quoi qu'il arrive. Sans
+`test_tous_les_articles_cites_existent`, le corpus aurait perdu ses définitions sans que
+rien ne le signale.
+
+### Ce que cela donne
+
+**692 articles + le titre préliminaire, 47 documents, 0,38 Mo** — contre 1806 articles et
+188 documents. L'index passe de 1806 à 699 passages.
+
+Recherche : **89/104 — 86 %**, contre 88/104 sur le corpus entier.
+
+`PERIMETRE = None` reconstruit le code entier : l'ancien corpus reste reproductible, il
+est en quarantaine hors dépôt, et dans l'historique git.

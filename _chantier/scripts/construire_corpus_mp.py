@@ -68,6 +68,44 @@ REVISION = "67be48b3d4a8df343d7dc6597b88bb896d02236e"
 # raison que l'instantané : un corpus dont le périmètre change selon le jour de son
 # exécution ne peut pas servir de référence de mesure.
 DATE_REFERENCE = "2026-08-23"
+
+# Perimetre : le regime des marches publics ORDINAIRES — deuxieme partie, livre Ier.
+#
+# Le code entier compte 1806 articles applicables, dont 38 % seulement relevent de ce
+# regime. Le reste est le livre defense-securite (23 %), les concessions, les marches
+# de partenariat, l'outre-mer. Aucun des 117 articles attendus par le jeu dore n'en
+# sort.
+#
+# MESURE QUI DECIDE (23/08/2026), generation sur 124 cas :
+#
+#                                    corpus entier   restreint
+#   citations du mauvais regime        115 (22 %)      1 (0 %)
+#   citations hors contexte                    22           55
+#   garde-fou rendue / annotee / rempl. 137/23/4     103/50/9
+#
+# Le choix est entre 115 ERREURS SILENCIEUSES et 33 AVERTISSEMENTS VISIBLES de plus.
+# Une citation du mauvais regime delivre du droit faux comme s'il etait juste — le
+# livre defense pose 100 000 euros la ou l'ordinaire pose 60 000 — et AUCUN garde-fou
+# ne peut la voir, puisque l'article etait bien dans les passages fournis. Une citation
+# hors contexte, elle, est annotee sous les yeux de l'utilisateur.
+#
+# On prefere le mode de defaillance que le garde-fou sait voir.
+#
+# Mettre PERIMETRE a None reconstruit le code entier — l'ancien corpus reste donc
+# reproductible, et il est dans l'historique git.
+PERIMETRE = ("DEUXIÈME PARTIE", "Livre Ier")
+
+# Le Titre Preliminaire est retenu QUOI QU'IL ARRIVE.
+#
+# Il porte L1 a L6 et L3-1, qui definissent « contrat de la commande publique »,
+# « marche », « marche public », « acheteur », et enoncent les PRINCIPES de la
+# commande publique — liberte d'acces, egalite de traitement, transparence. Ils ne
+# relevent d'aucun livre, et un filtre par livre les faisait tomber.
+#
+# Le test d'ancrage l'a attrape : mp-046 cite L3, et L3 avait disparu. Perdre les
+# articles qui definissent l'objet meme du corpus pour restreindre son perimetre
+# serait une faute grossiere — ce sont ceux qu'on cite le plus.
+HORS_PERIMETRE_RETENUS = ("Titre Préliminaire",)
 FICHIER_HF = f"data/{SNAPSHOT}/legi_code_de_la_commande_publique/legi_code_de_la_commande_publique_part_0.parquet"
 
 
@@ -130,6 +168,15 @@ def main():
         {"doc_id": d, "number": n, "subtitles": s, "full_title": ft, "text": t, "date": dt}
         for d, n, s, ft, t, dt in lignes
     ]
+    if PERIMETRE:
+        avant = len(articles)
+        articles = [
+            a for a in articles
+            if all(cle in (a["subtitles"] or "") for cle in PERIMETRE)
+            or any(cle in (a["subtitles"] or "") for cle in HORS_PERIMETRE_RETENUS)
+        ]
+        print(f"périmètre {' / '.join(PERIMETRE)} : {len(articles)} articles "
+              f"retenus sur {avant}")
     print(f"articles en vigueur : {len(articles)}")
 
     groupes = grouper(articles)
