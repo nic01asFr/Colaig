@@ -55,6 +55,41 @@ MODELE = "qwen3-6-35b-moe"
 K = 6
 REPETITIONS_NEGATIFS = 3
 
+# Variante de consigne, choisie par argument.
+#
+# `temoin`  : le prompt système de l'espace, tel quel.
+# `durci`   : le même, plus un protocole de refus explicite et l'interdiction de citer
+#             un article absent des passages.
+#
+# La piste du filtrage par score a été **écartée avant d'être testée** : sur la
+# référence, cinq des huit cas négatifs scorent au-dessus du plus faible cas positif
+# (médianes 0,623 contre 0,681). Un seuil écarterait de vrais résultats sans écarter
+# les pièges. Mesurer ce qu'on sait déjà faux coûte une heure pour rien.
+VARIANTE = sys.argv[1] if len(sys.argv) > 1 else "temoin"
+
+DURCISSEMENT = """
+
+---
+
+PROTOCOLE DE RÉPONSE — à appliquer avant d'écrire.
+
+1. Vérifie d'abord si la réponse figure **dans les passages ci-dessus**.
+
+2. Si elle n'y figure pas, commence ta réponse par exactement :
+   « Cette information ne figure pas dans les passages fournis. »
+   Puis indique où la chercher. **N'avance alors aucun numéro d'article.**
+
+3. Si elle y figure, réponds en citant les numéros d'article — et **uniquement des
+   numéros qui apparaissent littéralement dans les passages ci-dessus**.
+
+**Ne cite jamais un article que tu connais mais qui n'est pas dans les passages**, même
+si tu es certain de son contenu. Une référence exacte mais non fournie est une erreur :
+elle donne à l'utilisateur une confiance qu'il ne peut pas vérifier, et elle sera fausse
+le jour où le texte changera sans que le corpus soit relu.
+
+Six passages te sont toujours transmis, qu'ils répondent ou non. Leur présence ne prouve
+pas que la réponse s'y trouve."""
+
 MARQUEURS_REFUS = (
     "ne figure pas", "ne figurent pas", "ne contient pas", "ne permet pas",
     "pas dans ce corpus", "pas dans le corpus", "n'y sont pas", "ne se déduit",
@@ -195,6 +230,8 @@ def rapport(resultats, latences) -> int:
         "",
         f"**{time.strftime('%d/%m/%Y')}.** Complète `baseline-{time.strftime('%Y%m%d')}.md`.",
         "",
+        f"Variante de consigne : **{VARIANTE}**.",
+        "",
         f"Montage : découpage par article (D12), `bge-m3` 1024 dim, k={K}, génération par",
         f"**`{MODELE}` sur SSPCloud** — la cible de production (D3). Prompt système : celui",
         "de l'espace, mot pour mot.",
@@ -252,7 +289,8 @@ def rapport(resultats, latences) -> int:
     L += ["", "## Rejouer", "", "```bash",
           "python _chantier/scripts/reference_generation.py", "```"]
 
-    sortie = RACINE / "docs" / f"baseline-generation-{time.strftime('%Y%m%d')}.md"
+    suffixe = "" if VARIANTE == "temoin" else f"-{VARIANTE}"
+    sortie = RACINE / "docs" / f"baseline-generation-{time.strftime('%Y%m%d')}{suffixe}.md"
     sortie.write_text("\n".join(L) + "\n", encoding="utf-8")
 
     print(f"\nfantômes {fantomes} · hors contexte {hors_ctx} · montants inventés {inventes}")
