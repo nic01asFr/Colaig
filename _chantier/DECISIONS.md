@@ -966,3 +966,51 @@ fossé qu'il reproduit.**
 
 `COLAIG_HYDE_ENABLED` reste donc à `false`, avec cette mesure pour motif. Il n'y a rien à
 déclencher : on ne construit pas une porte devant une pièce vide.
+
+## D28 — Le préfixe hiérarchique n'aide pas ; le contexte LLM aide un peu · 23/08/2026 · **actée**
+
+Dernière option coûteuse jamais mesurée : `COLAIG_CONTEXTUAL_CHUNKING_ENABLED`, qui fait
+générer par un LLM un préfixe d'une à deux phrases par passage. Coût : **un appel par
+passage**, soit 9 minutes pour ce corpus, payé à chaque ré-indexation complète.
+
+Le témoin n'est pas vide : le découpage par article **préfixe déjà** chaque passage du
+titre du document et de sa position dans le code. La question est donc **« un contexte
+écrit par un LLM vaut-il mieux qu'un chemin hiérarchique gratuit ? »**
+
+| variante | cas complets |
+|---|---|
+| sans préfixe du tout | **90/104 — 87 %** |
+| chemin hiérarchique — *ce qui tourne* | 89/104 — 86 % |
+| chemin + contexte LLM | **91/104 — 88 %** |
+
+### Le préfixe hiérarchique n'aide pas, et le code affirmait le contraire
+
+`reference_l15.py` porte ce commentaire : *« Le préfixe est essentiel : sans lui, "Les
+marchés sont passés en lots séparés" perd le contexte qui permet de le retrouver depuis
+une question posée en termes de procédure. »*
+
+**Mesuré en l'isolant : 89 avec, 90 sans.** L'affirmation était fausse.
+
+Elle venait d'une comparaison mal lue. Le rapprochement fait plus tôt le même jour — 85
+contre 88 — opposait deux **stratégies de découpage** (`markdown` contre `article`), qui
+diffèrent par bien plus que le préfixe. Isoler la variable donne l'inverse.
+
+Le préfixe est conservé : il ne nuit pas, il coûte zéro, et il rend les passages lisibles
+pour qui les inspecte. Mais il ne doit plus être présenté comme un levier de rappel.
+
+### Le contexte LLM gagne deux cas, dont un qu'aucun autre levier n'atteignait
+
+`mp-070` est gagné. C'est l'une des questions posées en vocabulaire de praticien
+(« déroger au CCAG dans mon CCAP »), dont l'article attendu était **au-delà du rang 60** —
+hors de portée de la profondeur, de BM25, de la fusion et de HyDE.
+
+La raison se comprend une fois posée : le contexte généré **décrit le passage dans les
+mots du domaine**, pas dans ceux du code. C'est le seul levier mesuré qui franchisse cet
+écart, là où HyDE échouait parce qu'il le reproduisait (D27).
+
+**Gain de 2 cas sur 104 pour 9 minutes d'indexation.** C'est faible, et c'est le premier
+levier à franchir l'étape 1. Le coût est **unique** — l'indexation est incrémentale
+ensuite — ce qui le distingue de HyDE, payé à chaque question.
+
+Deux cas restent près du bruit : à confirmer sur un corpus plus large avant d'en faire un
+défaut.
