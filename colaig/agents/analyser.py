@@ -40,6 +40,7 @@ from colaig.models import (
     SearchDirectives,
     WorkspaceContext,
 )
+from colaig.security.prompt_sanitizer import sanitize_description
 
 logger = logging.getLogger(__name__)
 
@@ -407,11 +408,17 @@ class Analyser:
                 return "\n\n".join(filter(None, [user_section, pre_exec_info]))
             return user_section
 
+        # `name`, `description` et `language` viennent du `config.yaml` de l'espace :
+        # cinquième famille du principe 4. Ils ne sont pas balisés mais **assainis** —
+        # ce sont des paramètres que le prompt énonce en son nom propre, et les baliser
+        # dirait au modèle de ne pas en tenir compte, ce qui les viderait de leur
+        # fonction. `sanitize_description` existait depuis l'origine et n'était appelée
+        # nulle part (L2.1).
         ws = context.workspace
         parts = [
-            f"Contexte workspace : {ws.name}",
-            f"Description : {ws.description}",
-            f"Langue : {ws.language}",
+            f"Contexte workspace : {sanitize_description(ws.name)}",
+            f"Description : {sanitize_description(ws.description)}",
+            f"Langue : {sanitize_description(ws.language)}",
         ]
         if user_section:
             parts.insert(0, user_section)
@@ -424,11 +431,12 @@ class Analyser:
             if fc.get("active_behavior"):
                 parts.append(f"Behavior actif : {fc['active_behavior']}")
             if fc.get("domain"):
-                parts.append(f"Domaine : {fc['domain']}")
+                parts.append(f"Domaine : {sanitize_description(fc['domain'])}")
             if fc.get("tone"):
-                parts.append(f"Ton attendu : {fc['tone']}")
+                parts.append(f"Ton attendu : {sanitize_description(fc['tone'])}")
             if fc.get("vocabulary_terms"):
-                parts.append(f"Vocabulaire métier : {', '.join(fc['vocabulary_terms'][:10])}")
+                termes = ", ".join(fc["vocabulary_terms"][:10])
+                parts.append(f"Vocabulaire métier : {sanitize_description(termes)}")
             if fc.get("known_documents"):
                 docs = fc["known_documents"][:5]
                 parts.append(f"Documents connus dans la conversation : {', '.join(docs)}")
