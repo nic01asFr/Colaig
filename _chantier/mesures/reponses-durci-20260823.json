@@ -1,0 +1,378 @@
+[
+ {
+  "id": "mp-001",
+  "negatif": false,
+  "question": "À partir de quel montant un marché public doit-il être conclu par écrit ?",
+  "reponses": [
+   "\n\nConformément à l'article R2112-1, le seuil à compter duquel les marchés sont conclus par écrit est fixé à 25 000 euros hors taxes. Cette disposition est obligatoire : le code réglementaire impose formellement ce seuil pour la conclusion écrite du marché."
+  ]
+ },
+ {
+  "id": "mp-002",
+  "negatif": false,
+  "question": "Mon marché de fournitures est estimé à 18 000 € HT. Dois-je le formaliser par écrit ? Sur quel fondement ?",
+  "reponses": [
+   "\n\nNon, la formalisation par écrit n’est pas obligatoire pour un marché de fournitures estimé à 18 000 € HT.\n\n**Fondement :** L’article L2112-1 impose la conclusion par écrit uniquement lorsque la valeur estimée du besoin est égale ou supérieure au seuil fixé par voie réglementaire. L’article R2112-1 fixe ce seuil à 25 000 euros hors taxes. Votre montant (18 000 € HT) étant inférieur à ce seuil, l’obligation légale de conclure le marché par écrit ne s’applique pas.\n\n**Distinction obligatoire / recommandé :** Le code impose la forme écrite au‑delà du seuil réglementaire. En deçà, il ne l’impose pas. La rédaction d’un écrit reste une pratique recommandée pour sécuriser les engagements des parties et justifier l’usage des deniers publics, mais elle relève de votre libre appréciation et non d’une contrainte légale."
+  ]
+ },
+ {
+  "id": "mp-003",
+  "negatif": false,
+  "question": "Quel est le seuil en dessous duquel je peux passer un marché de travaux sans publicité ni mise en concurrence ?",
+  "reponses": [
+   "\n\nSelon l’**article R2122-8**, le seuil en dessous duquel vous pouvez passer un marché de travaux sans publicité ni mise en concurrence préalables est de **100 000 euros hors taxes**.\n\n**Distinction entre ce qui est obligatoire et ce qui est recommandé/facultatif :**\n- **Facultatif :** Le recours à cette procédure est une option (« L’acheteur *peut* passer un marché… »). Vous n’êtes pas contraint de l’utiliser en dessous de ce montant.\n- **Obligatoire :** Dès lors que vous optez pour cette voie, vous devez impérativement « veiller à choisir une offre pertinente, à faire une bonne utilisation des deniers publics et à ne pas contracter systématiquement avec un même opérateur économique lorsqu’il existe une pluralité d’offres susceptibles de répondre au besoin » (article R2122-8).\n\n*Note :* Le corpus fourni indique également un seuil de 100 000 euros HT pour les travaux innovants (article R2122-9-1) et de 100 000 euros HT pour les marchés de défense ou de sécurité (article R2322-14). Pour les seuils régissant les procédures formalisées (APD, MAPA, etc.), cette information ne figure pas dans les passages fournis. Elle doit être recherchée dans les avis publiés au Journal officiel, qui révisent ces montants tous les deux ans."
+  ]
+ },
+ {
+  "id": "mp-004",
+  "negatif": false,
+  "question": "Quel est le délai minimal de réception des candidatures et des offres en procédure formalisée ?",
+  "reponses": [
+   "\n\nConformément à l’**article R2161-2**, le délai minimal de réception des candidatures et des offres en procédure formalisée est de **trente-cinq jours** à compter de la date d’envoi de l’avis de marché.\n\nIl s’agit d’une disposition **obligatoire** (imposée par le code) : ce délai constitue un minimum légal que le pouvoir adjudicateur ne peut pas réduire. Aucune recommandation ou marge de flexibilité n’est prévue par cet article pour ce délai combiné."
+  ]
+ },
+ {
+  "id": "mp-005",
+  "negatif": false,
+  "question": "L'allotissement est-il obligatoire ? Dans quels cas puis-je y déroger ?",
+  "reponses": [
+   "\n\n**1. Obligation de l'allotissement**\nL'allotissement constitue le principe de droit applicable à la passation des marchés publics. Ce principe est rappelé à l'article L2171-1, qui vise les marchés passés « par dérogation au principe d'allotissement ».\n\n**2. Cas de dérogation (non-allotissement)**\nL'acheteur peut décider de ne pas allotir le marché dans les cas limitativement énumérés à l'article L2113-11 :\n1° Lorsqu'il n'est pas en mesure d'assurer par lui-même les missions d'organisation, de pilotage et de coordination ;\n2° Lorsque la dévolution en lots séparés est de nature à restreindre la concurrence ou risque de rendre techniquement difficile ou financièrement plus coûteuse l'exécution des prestations ;\n3° Pour les entités adjudicatrices, lorsque la dévolution en lots séparés risque de conduire à une procédure infructueuse.\nPar ailleurs, l'article L2171-1 prévoit que les marchés de conception-réalisation, les marchés globaux de performance et les marchés globaux sectoriels sont passés par dérogation au principe d'allotissement.\n\n**3. Distinction entre ce qui est obligatoire et ce qui est recommandé**\n- **Obligatoire** : Le principe d'allotissement s'impose. En cas de décision de ne pas allotir, la motivation de ce choix est une obligation légale qui doit énoncer les considérations de droit et de fait fondant la décision (article L2113-11).\n- **Permis/Encadré** : Le recours à la dérogation est une faculté (« L'acheteur peut décider ») mais elle n'est pas recommandée de manière générale ; elle est strictement conditionnée par la présence d'un cas d'exception légal et par la contrainte de motivation.\n\n---\n\n**Proposition de rédaction pour les pièces du marché (si vous retenez le non-allotissement)**\n> *« L'acheteur décide de ne pas allotir le présent marché. Cette décision est motivée par les considérations suivantes : [énoncer les faits et droits justifiant le cas retenu parmi ceux de l'article L2113-11]. »*\n\n**Fondement de la clause**\n- La faculté de ne pas allotir et la liste des cas d'exception : article L2113-11.\n- L'obligation de motivation : article L2113-11 (deuxième alinéa).\n- Le rappel du principe d'allotissement : article L2171-1.\n\n*Note : Aucun seuil, délai ou montant supplémentaire n'est requis par les textes fournis pour justifier le non-allotissement. Si votre situation dépend d'un seuil réglementaire non mentionné dans les passages fournis, cette information ne figure pas dans les passages fournis. Consultez l'avis figurant en annexe du Code de la commande publique ou les textes réglementaires d'application pour vérifier son éventuelle pertinence.*"
+  ]
+ },
+ {
+  "id": "mp-006",
+  "negatif": false,
+  "question": "Puis-je négocier en appel d'offres ?",
+  "reponses": [
+   "\n\nNon, vous ne pouvez pas négocier dans le cadre d’une procédure d’appel d’offres.\n\n**1. Citation de l’article**\nL’article L2124-2 définit l’appel d’offres (ouvert ou restreint) comme la procédure par laquelle l’acheteur choisit l’offre économiquement la plus avantageuse **sans négociation**.\n\n**2. Caractère obligatoire vs recommandé**\nCette absence de négociation est une **condition légale obligatoire** (article L2124-2). Elle ne relève pas d’une recommandation pratique ou d’un choix d’opportunité ; elle constitue la définition même de la procédure. Toute tentative de négociation rendrait la procédure irrégulière au regard du code.\n\n**3. Alternative si la négociation est indispensable**\nSi votre besoin exige des échanges, des ajustements techniques ou une adaptation des solutions, vous devez retenir une procédure avec négociation (articles R2124-3 et R2161-17). Dans ce cas, l’article R2161-17 précise que les exigences minimales et les critères d’attribution restent, par principe, non négociables.\n\n---\n\n**Formulation proposée pour les pièces de consultation**\n> « La présente procédure est un appel d’offres [ouvert/restreint] au sens de l’article L2124-2 du Code de la commande publique. Elle se déroule sans négociation. L’acheteur retient l’offre économiquement la plus avantageuse sur la base des critères objectifs et pondérés mentionnés dans le présent dossier. »\n\n**Fondement de chaque clause :**\n- *« procédure est un appel d’offres… sans négociation »* : article L2124-2 (caractère obligatoire de la procédure).\n- *« offre économiquement la plus avantageuse… critères objectifs »* : article L2124-2 (obligation de transparence et de non-négociation)."
+  ]
+ },
+ {
+  "id": "mp-007",
+  "negatif": false,
+  "question": "Le titulaire peut-il sous-traiter tout le marché ?",
+  "reponses": [
+   "\n\nD’après les passages fournis, le titulaire ne peut pas sous-traiter la totalité du marché. Les articles L2193-3 et L2393-1 prévoient expressément que le recours à la sous-traitance porte sur « l’exécution d’une partie des prestations » ou « d’une partie de son marché ». Cette limitation est obligatoire : toute clause autorisant la sous-traitance intégrale serait nulle de nul effet au titre de l’article L2193-3, car elle ferait échec aux dispositions du chapitre.\n\nPar ailleurs, l’article L2193-3 impose de manière obligatoire que l’acheteur puisse exiger que certaines tâches essentielles du marché soient effectuées directement par le titulaire. Cette réserve est une contrainte légale, non une recommandation."
+  ]
+ },
+ {
+  "id": "mp-008",
+  "negatif": false,
+  "question": "Je rédige un marché de travaux estimé à 250 000 € HT. Quelle procédure et quelles obligations d'écrit et d'allotissement ?",
+  "reponses": [
+   "\n\nCette information ne figure pas dans les passages fournis. Les seuils de procédure formalisée et les règles générales d'allotissement ne sont pas dans le corpus fourni. Pour déterminer la procédure applicable à un marché de travaux de 250 000 € HT, consultez l'avis au Journal officiel qui fixe les seuils de procédure formalisée, ainsi que les dispositions du Code de la commande publique relatives à l'allotissement.\n\nConcernant l'obligation d'écrit, le passage fourni indique : Article R2112-1. Ce texte fixe à 25 000 euros hors taxes le seuil à compter duquel les marchés sont conclus par écrit. Pour un marché de 250 000 € HT, la conclusion par écrit est donc une obligation légale (ce qui est imposé par le code), et non une simple recommandation."
+  ]
+ },
+ {
+  "id": "mp-009",
+  "negatif": false,
+  "question": "Que dois-je faire d'une offre irrégulière ?",
+  "reponses": [
+   "\n\nVoici la marche à suivre, structurée selon les obligations légales et les marges de manœuvre disponibles, avec une proposition de rédaction pour vos documents de consultation.\n\n### 1. Ce qui est obligatoire (élimination)\nL’acheteur **doit** écarter les offres irrégulières. Ce principe s’applique dans toutes les procédures (article L2152-1). \n- Dans les procédures adaptées sans négociation et les procédures d’appel d’offres, l’élimination est directe (article R2152-1).\n- Dans les autres procédures (procédures formalisées avec négociation ou dialogue), les offres irrégulières peuvent devenir régulières au cours de la phase de négociation ou de dialogue, à condition qu’elles ne soient pas anormalement basses ; à l’issue de cette phase, celles qui demeurent irrégulières sont éliminées (article R2152-1).\n\n### 2. Ce qui est facultatif (régularisation)\nL’acheteur **peut** autoriser les soumissionnaires concernés à régulariser leurs offres irrégulières. Cette possibilité est discrétionnaire et subordonnée à deux conditions cumulatives : l’offre ne doit pas être anormalement basse, et la régularisation ne peut modifier aucune caractéristique substantielle de l’offre (article R2152-2). Cette faculté s’applique dans toutes les procédures (article R2152-2).\n\n### 3. Proposition de formulation pour les documents de consultation\nVous pouvez insérer la clause suivante dans le règlement de consultation ou le cahier des charges :\n\n> « L’acheteur écarte les offres irrégulières (article L2152-1). Toutefois, il peut autoriser les soumissionnaires concernés à régulariser leurs offres, à condition qu’elles ne soient pas anormalement basses et que la régularisation ne modifie aucune caractéristique substantielle (article R2152-2). Dans les procédures comportant une phase de négociation ou de dialogue, les offres irrégulières peuvent devenir régulières au cours de cette phase ; à son issue, les offres qui demeurent irrégulières sont éliminées (article R2152-1). »\n\n**Fondement de chaque phrase :**\n- *« L’acheteur écarte les offres irrégulières »* → article L2152-1 (obligation générale).\n- *« Toutefois, il peut autoriser… à régulariser… à condition qu’elles ne soient pas anormalement basses et que la régularisation ne modifie aucune caractéristique substantielle »* → article R2152-2 (faculté, conditions de fond).\n- *« Dans les procédures comportant une phase de négociation ou de dialogue… à son issue, les offres qui demeurent irrégulières sont éliminées »* → article R2152-1 (sort des offres irrégulières dans les procédures autres que les adaptées sans négociation et les appels d’offres).\n\n### 4. Point de vigilance sur les délais\nLe corpus fourni indique uniquement que la régularisation s’effectue « dans un délai approprié » (article R2152-2). Aucun délai précis n’y est fixé. Pour déterminer la durée concrète à accorder, il convient de consulter les textes réglementaires d’application ou les directives de la Direction des affaires juridiques, car ces éléments ne figurent pas dans les passages transmis."
+  ]
+ },
+ {
+  "id": "mp-010",
+  "negatif": false,
+  "question": "Que dois-je faire avant de lancer la consultation, s'agissant de la définition du besoin ?",
+  "reponses": [
+   "\n\nAvant de lancer la consultation, vous devez distinguer les obligations légales des démarches facultatives, en vous appuyant strictement sur les articles fournis :\n\n**1. Obligations impératives (à respecter systématiquement)**\n- **Déterminer avec précision la nature et l'étendue des besoins** avant le lancement de la consultation (L2111-1 pour les marchés publics ; L3111-1 pour les concessions).\n- **Intégrer les objectifs de développement durable** dans leurs dimensions économique, sociale et environnementale lors de cette détermination (L2111-1 ; L3111-1).\n- **Prendre en compte l'efficacité et la sobriété énergétiques** si la valeur estimée du besoin est égale ou supérieure aux seuils européens (L2111-1 ; L3111-1). *Ces seuils ne figurent pas dans les passages fournis. Vous devez les consulter dans l'avis annexé au code mentionné à ces articles.*\n\n**2. Démarches facultatives (recommandées mais non imposées)**\n- Vous **pouvez** effectuer des consultations préalables, réaliser des études de marché, solliciter des avis ou informer les opérateurs économiques de votre projet et de vos exigences (R2111-1). Le code utilise le terme « peut », ce qui rend cette étape optionnelle.\n- Si vous choisissez de mener ces études, leurs résultats peuvent être exploités pour la passation, à condition que leur utilisation n'ait pas pour effet de fausser la concurrence ou de méconnaître les principes mentionnés à l'article L. 3 (R2111-1).\n\n---\n\n**Proposition de rédaction pour vos documents de consultation**\nPour traduire ces obligations dans les pièces de la consultation, vous pouvez insérer une clause du type :\n\n> *« La nature et l'étendue des besoins à satisfaire ont été déterminées avec"
+  ]
+ },
+ {
+  "id": "mp-011",
+  "negatif": false,
+  "question": "À partir de quel montant dois-je publier les données essentielles de mon marché, et sous quel délai ?",
+  "reponses": [
+   "\n\nConformément à l’article R2196-1 du Code de la commande publique, la publication des données essentielles est obligatoire à compter d’un seuil de 40 000 euros hors taxes. Pour les marchés conclus en application de l’article R. 2122-8, ce seuil est abaissé à 25 000 euros hors taxes.\n\nLe délai d’exécution de cette obligation est de deux mois à compter de la notification du marché ou de sa modification.\n\nIl s’agit d’une obligation impérative (l’article R2196-1 emploie le verbe « publie » sans condition d’appréciation). L’acheteur ne peut ni reporter cette publication au-delà de ce délai, ni l’assortir de conditions suspensives.\n\nSi vous souhaitez mentionner cette obligation dans les pièces du marché, vous pouvez rédiger la clause suivante :\n« L’acheteur publiera les données essentielles du marché sur le portail national de données ouvertes, conformément à l’article R2196-1, dans un délai de deux mois suivant la notification du marché. »\nLe fondement de cette clause est l’article R2196-1, qui impose cette publication à titre obligatoire."
+  ]
+ },
+ {
+  "id": "mp-012",
+  "negatif": true,
+  "question": "Quel est le seuil de procédure formalisée pour les marchés de travaux, en euros ?",
+  "reponses": [
+   "\n\nCette information ne figure pas dans les passages fournis. Le seuil de procédure formalisée est fixé par un avis publié au Journal officiel et révisé périodiquement ; il convient de consulter ce texte officiel ou les publications de la Direction des affaires juridiques (DAJ) pour obtenir la valeur en vigueur.",
+   "\n\nCette information ne figure pas dans les passages fournis. Les seuils de procédure formalisée ne sont pas mentionnés dans les extraits transmis. Pour les connaître, il convient de consulter l'avis publié au Journal officiel de la République française, qui révisent ces montants tous les deux ans, ainsi que les dispositions du Code de la commande publique relatives au choix de la procédure.",
+   "\n\nCette information ne figure pas dans les passages fournis. Les seuils de procédure formalisée sont révisés périodiquement par décret publié au Journal officiel et ne sont pas mentionnés dans les extraits transmis. Pour les connaître, il convient de consulter le Journal officiel de la République française ou le site Légifrance."
+  ]
+ },
+ {
+  "id": "mp-013",
+  "negatif": true,
+  "question": "Donne-moi le modèle de CCAG Travaux à joindre à mon marché.",
+  "reponses": [
+   "\n\nCette information ne figure pas dans les passages fournis. Le modèle de CCAG Travaux n'est pas contenu dans le corpus du Code de la commande publique que vous avez transmis. Pour le consulter et l'intégrer à votre dossier, vous devez vous référer aux publications officielles de la Direction des affaires juridiques (DAJ) ou au portail de la commande publique (PLACE/BOAMP), où les versions actualisées des CCAG sont mises à disposition.",
+   "\n\nCette information ne figure pas dans les passages fournis. Le modèle de CCAG Travaux n'est pas intégré au corpus du Code de la commande publique qui vous a été transmis. Pour l'obtenir, vous devez consulter le site de la Direction des affaires juridiques (DAJ) du ministère de l'Économie et des Finances ou le portail BOAMP/BOIL, où les versions actualisées des CCAG sont publiées en tant que documents administratifs distincts du code.",
+   "\n\nCette information ne figure pas dans les passages fournis. Le modèle de CCAG Travaux n'est pas intégré au corpus du Code de la commande publique qui vous a été transmis. Vous devez le rechercher sur le site officiel de la Direction des affaires juridiques (DAJ) du ministère de l'Économie et des Finances, ou sur les plateformes BOAMP/BOIL, où les textes réglementaires et les modèles de clauses sont publiés et actualisés."
+  ]
+ },
+ {
+  "id": "mp-014",
+  "negatif": true,
+  "question": "Quelle jurisprudence du Conseil d'État s'applique au rejet d'une offre anormalement basse ?",
+  "reponses": [
+   "\n\nCette information ne figure pas dans les passages fournis. La jurisprudence du Conseil d'État relative au rejet des offres anormalement basses ne fait pas partie du corpus réglementaire transmis. Pour la consulter, il convient de se référer aux bases de données juridiques officielles (Légifrance, Dalloz, etc.) ou aux publications de la Direction des affaires juridiques (DAJ), en recherchant spécifiquement les décisions du Conseil d'État sur la procédure de rejet des offres anormalement basses, le contrôle du juge sur la motivation et les moyens de vérification mis en œuvre par l'acheteur, ainsi que les limites du pouvoir d'appréciation de l'administration.",
+   "\n\nCette information ne figure pas dans les passages fournis. Le corpus transmis ne contient que des dispositions législatives et réglementaires du Code de la commande publique et exclut explicitement la jurisprudence. Pour identifier les arrêts du Conseil d'État applicables au rejet d'une offre anormalement basse, vous devez consulter les bases de données juridiques officielles (Légifrance, site du Conseil d'État) ou les guides pratiques de la Direction des affaires juridiques en recherchant les termes « offre anormalement basse » et « Conseil d'État ». Une fois les décisions identifiées, vous pourrez les articuler avec les dispositions du Code relatives à la détection et au rejet de ces offres pour justifier votre procédure.",
+   "\n\nCette information ne figure pas dans les passages fournis. La jurisprudence du Conseil d'État relative au rejet d'une offre anormalement basse ne fait pas partie du corpus réglementaire transmis. Pour l'identifier, il convient de consulter les bases de données de jurisprudence (Légifrance, Dalloz, LexisNexis, etc.) en recherchant les décisions du Conseil d'État sur la qualification d'offre anormalement basse, les conditions de son rejet et les pouvoirs de contrôle du juge. Une fois les arrêts identifiés, vous pourrez les mobiliser pour vérifier que votre procédure de rejet respecte bien les obligations légales et réglementaires applicables."
+  ]
+ },
+ {
+  "id": "mp-015",
+  "negatif": false,
+  "question": "Comment dois-je fixer les délais de réception des offres ?",
+  "reponses": [
+   "\n\nPour fixer les délais de réception des offres, vous devez vous référer aux minima légaux applicables selon la procédure et la nature de l’acheteur, tels que précisés dans le corpus fourni.\n\n**1. Délais minimaux obligatoires**\n- **Pouvoirs adjudicateurs (procédures formalisées) :** L’**article R2161-7** impose un délai minimal de **trente jours** à compter de l’envoi de l’invitation à soumissionner.\n- **Système d’acquisition dynamique :** L’**article R2162-50** fixe un délai minimal de **dix jours**. Les pouvoirs adjudicateurs autres que les autorités publiques centrales et les"
+  ]
+ },
+ {
+  "id": "mp-016",
+  "negatif": false,
+  "question": "Dans quels cas puis-je recourir à une procédure adaptée ?",
+  "reponses": [
+   "\n\nVous pouvez recourir à une procédure adaptée dans les cas suivants, selon la nature du marché :\n\n**1. Marchés publics (droit commun)**\n- Lorsque la valeur estimée hors taxes du besoin est inférieure aux seuils européens mentionnés dans un avis en annexe du code (L2123-1 1°, R2123-1 1°).\n- En raison de l’objet du marché, dans les conditions fixées par décret en Conseil d’État (L2123-1 2°).\n- Pour un lot d’un marché alloti dont le montant total est égal ou supérieur aux seuils de procédure formalisée, sous réserve que :\n  • la valeur estimée de chaque lot concerné soit inférieure à 80 000 euros hors taxes pour des fournitures ou des services, ou à 1 million d’euros hors taxes pour des travaux ;\n  • le montant cumulé de ces lots n’excède pas 20 % de la valeur totale estimée de tous les lots (R2123-1 2°).\n- Pour des marchés ayant pour objet des services sociaux et autres services spécifiques, dont la liste figure dans un avis annexé au code, quelle que soit la valeur estimée du besoin (R2123-1 3°).\n\n**2. Marchés de défense ou de sécurité**\n- Lorsque la valeur estimée hors taxes du besoin est inférieure aux seuils européens mentionnés dans un avis en annexe du code (R2323-1 1°).\n- Pour un lot d’un marché alloti dont le montant total est égal ou supérieur aux seuils de procédure formalisée, sous réserve des mêmes conditions de valeur par lot et de cumul que celles visées au 1° ci-dessus (R2323-1 2°).\n\n**3. Rédaction des modalités de la consultation**\nDès lors que vous choisissez cette procédure, vous devez en déterminer les modalités en fonction de la nature et des caractéristiques du besoin, du nombre ou de la localisation des opérateurs économiques susceptibles d’y répondre, ainsi que des circonstances de l’achat (R2123-4).\n\n**Distinction entre obligation et faculté**\nLe code utilise systématiquement l’expression « peut recourir » (L2123-1, R2123-1, R2323-1). Il s’agit d’un pouvoir discrétionnaire : le recours à la procédure adaptée est **facultatif** dès que les conditions légales sont remplies. Vous n’êtes pas tenu de l’employer, mais vous ne pouvez pas être contraint de l’adopter si vous préférez une autre procédure autorisée.\n\n**Précision sur les seuils**\nLes montants exacts des « seuils"
+  ]
+ },
+ {
+  "id": "mp-017",
+  "negatif": false,
+  "question": "Puis-je limiter le nombre de lots attribuables à un même opérateur ?",
+  "reponses": [
+   "\n\n**Réponse :** Oui, vous pouvez limiter ce nombre.\n\n**Distinction obligatoire / recommandé**\n- **Obligatoire** : Le principe d’allotissement est imposé par le premier alinéa de l’article L2113-1 (et par extension pour les marchés de défense ou de sécurité par l’article L2313-5), sauf si l’objet du marché ne permet pas d’identifier des prestations distinctes.\n- **Facultatif (recommandé selon l’opportunité)** : La fixation d’un plafond de lots attribuables à un même opérateur est une option. Le code utilise le verbe « peut » (articles L2113-1 et L2313-5), ce qui signifie que l’acheteur n’est pas tenu de limiter l’attribution, mais qu’il le peut librement pour des motifs d’organisation, de concurrence ou de maîtrise des risques d’exécution.\n\n**Proposition de rédaction pour les documents de la consultation**\n« Le présent marché est divisé en [nombre] lots. Les opérateurs économiques peuvent soumissionner pour un seul lot, plusieurs lots ou l’ensemble des lots. Toutefois, le nombre maximal de lots qui peuvent être attribués à un même titulaire est fixé à [nombre]. En cas de mise en œuvre des critères d’attribution conduisant à attribuer à un même soumissionnaire un nombre de lots supérieur à ce plafond, les règles suivantes s’appliqueront : [préciser la règle de répartition ou de priorité]. »\n\n**Fondement juridique de chaque clause**\n- *« Le présent marché est divisé en [nombre] lots. »* → Article L2113-1 (obligation d’allotissement).\n- *« Les opérateurs économiques peuvent soumissionner pour un seul lot, plusieurs lots ou l’ensemble des lots. »* → Article R2113-1 (obligation d’indiquer cette possibilité dans les documents de la consultation).\n- *« Toutefois, le nombre maximal de lots qui peuvent être attribués à un même titulaire est fixé à [nombre]. »* → Articles L2113-1 et L2313-5 (faculté pour l’acheteur de limiter le nombre de lots attribuables à un même opérateur).\n- *« En cas de mise en œuvre des critères d’attribution conduisant à attribuer à un même soumissionnaire un nombre de lots supérieur à ce plafond, les règles suivantes s’appliqueront : [...] »* → Article R2113-1 (obligation de préciser les règles applicables lorsque les critères d’attribution conduiraient à dépasser le nombre maximal)."
+  ]
+ },
+ {
+  "id": "mp-018",
+  "negatif": false,
+  "question": "Je veux réserver le pilotage du chantier au titulaire et interdire qu'il le sous-traite. Est-ce possible et comment le rédiger ?",
+  "reponses": [
+   "\n\nOui, c’est possible. Le corpus transmis le permet explicitement.\n\n**Fondement juridique**\nL’article L2193-3 dispose que « l'acheteur peut exiger que certaines tâches essentielles du marché soient effectuées directement par le titulaire ». Cette disposition autorise l’acheteur à réserver une mission au titulaire et, par conséquent, à en interdire la sous-traitance.\n\n**Proposition de rédaction**\n« Le pilotage du chantier est réservé au titulaire du marché. Ce dernier ne pourra sous-traiter cette mission. »\n\n**Fondement de chaque clause**\n- *« Le pilotage du chantier est réservé au titulaire du marché. »* : Cette formulation s’appuie sur l’article L2193-3, qui permet à l’acheteur d’imposer l’exécution directe par le titulaire de tâches qu’il qualifie d’essentielles.\n- *« Ce dernier ne pourra sous-traiter cette mission. »* : Cette interdiction découle directement de l’article L2193-3. En exigeant l’exécution directe d’une tâche essentielle, l’acheteur en interdit légalement la sous-traitance.\n\n**Distinction entre obligation et recommandation**\n- **Obligatoire** : Aucune disposition du corpus ne rend obligatoire la réservation du pilotage du chantier ou l’interdiction de sa sous-traitance.\n- **Recommandé** : L’article L2193-3 utilise le verbe « peut exiger », ce qui en fait une faculté pour l’acheteur. Il est recommandé de préciser dans le règlement de consultation les motifs justifiant le caractère essentiel de cette tâche, afin de sécuriser la clause face à un éventuel recours. La pratique administrative conseille également de vérifier que la mission de pilotage ne porte pas sur des éléments de simple coordination ou d’ordonnancement (définis à l’article R2431-17), qui relèvent généralement de la responsabilité générale du titulaire sans nécessiter une clause de non-sous-traitance spécifique.\n\n**Limites du corpus fourni**\nLes passages transmis ne contiennent ni les dispositions du CCAG-Travaux relatives aux formalités de sous-traitance, ni les fiches méthodologiques de la DAJ, ni la jurisprudence qualifiant le « pilotage du chantier » de tâche essentielle. Pour affiner la qualification de « tâche essentielle » ou vérifier les obligations déclaratives, il conviendra de consulter les textes réglementaires d’application et les guides de la Direction des affaires juridiques. Aucun seuil, délai ou montant n’est mentionné dans les articles fournis."
+  ]
+ },
+ {
+  "id": "mp-019",
+  "negatif": true,
+  "question": "Quel formulaire DC1 dois-je joindre et où le télécharger ?",
+  "reponses": [
+   "\n\nCette information ne figure pas dans les passages fournis. Pour identifier le formulaire DC1 exact à joindre et accéder à son téléchargement, vous devez consulter les guides pratiques et les formulaires types publiés par la Direction des Affaires Juridiques (DAJ) ou sur le portail marchépublic.gouv.fr. Ces documents administratifs ne font pas partie du corpus du Code de la commande publique et sont régulièrement actualisés par les services de l'État.",
+   "\n\nCette information ne figure pas dans les passages fournis. Le formulaire DC1 n'est pas mentionné dans les articles du Code de la commande publique transmis. Pour identifier le formulaire exact à joindre et son lien de téléchargement, vous devez consulter les documents de la consultation de l'acheteur concerné et les ressources officielles de l'administration (site service-public.fr ou portail de l'acheteur), qui précisent les pièces administratives requises et les modalités d'accès aux formulaires en vigueur.",
+   "\n\nCette information ne figure pas dans les passages fournis. Pour identifier le formulaire DC1 précis à joindre et accéder à sa version officielle, vous devez vous référer aux documents de la consultation émis par l'acheteur et consulter le site service-public.fr ou la plateforme de dématérialisation utilisée pour la présente procédure. Les textes transmis ne mentionnent que le document unique de marché européen (DUME) comme formulaire de candidature standardisé, et ne contiennent aucune référence au DC1 ni à ses modalités de téléchargement."
+  ]
+ },
+ {
+  "id": "mp-020",
+  "negatif": false,
+  "question": "Un marché de fournitures de 70 000 € HT peut-il être passé sans publicité ?",
+  "reponses": [
+   ""
+  ]
+ },
+ {
+  "id": "mp-021",
+  "negatif": false,
+  "question": "Dois-je verser une avance à mon titulaire ?",
+  "reponses": [
+   "\n\nLa réponse à votre question dépend de trois éléments non précisés dans votre demande : la nature du marché (général ou défense/sécurité), son montant initial hors taxes et son délai d’exécution. Les conditions légales sont les suivantes :\n\n**"
+  ]
+ },
+ {
+  "id": "mp-022",
+  "negatif": false,
+  "question": "Combien de temps dois-je attendre entre la notification du rejet et la signature du marché ?",
+  "reponses": [
+   "\n\nCette information ne figure pas dans les passages fournis.\n\nPour connaître ce délai, vous devez consulter le Code de la commande publique, plus précisément l'article R. 2182-1 qui est explicitement renvoyé par l'article R. 2181-3 des documents transmis. Ce délai de suspension est une obligation légale de rigueur (délai d'attente obligatoire avant signature) et non une simple recommandation pratique."
+  ]
+ },
+ {
+  "id": "mp-023",
+  "negatif": false,
+  "question": "Je veux prévoir une reconduction annuelle. Que dois-je respecter, et le titulaire peut-il refuser ?",
+  "reponses": [
+   "\n\nConformément à l’article R2112-4 du Code de la commande publique, voici les règles applicables à votre projet de reconduction annuelle :\n\n**1. Conditions à respecter (obligatoires)**\n- Les caractéristiques du marché doivent rester inchangées lors de chaque reconduction.\n- La mise en concurrence initiale doit avoir été réalisée en prenant en compte la durée totale du contrat.\nCes deux conditions sont **obligatoires** au regard de l’article R2112-4. Leur méconnaissance rendrait la reconduction irrégulière.\n\n**2. Droit de refus du titulaire**\n- Par défaut, la reconduction est tacite et le titulaire ne peut s’y opposer (article R2112-4).\n- Vous pouvez toutefois modifier ce régime par une stipulation contraire dans le marché. Dans ce cas, la reconduction deviendra expresse ou facultative, et le titulaire pourra légitimement refuser la prolongation en respectant les conditions de forme ou de délai prévues par la clause.\n\n**Formulation proposée pour le marché :**\n« Le présent marché est conclu pour une durée initiale de [X] ans, renouvelable par tacite reconduction annuelle, à condition que ses caractéristiques restent inchangées et que la mise en concurrence ait été réalisée en tenant compte de sa durée totale. Sauf stipulation contraire, la reconduction est tacite et le titulaire ne peut s'y opposer. »\n\n**Fondement de chacune de ses clauses :**\n- « renouvelable par tacite reconduction annuelle » / « Sauf stipulation contraire, la reconduction est tacite et le titulaire ne peut s'y opposer » : article R2112-4 (règle par défaut modifiable par volonté des parties).\n- « à condition que ses caractéristiques restent inchangées et que la mise en concurrence ait été réalisée en tenant compte de sa durée totale » : article R2112-4 (condition obligatoire de régularité).\n\n**Distinction obligatoire / recommandé :**\n- Le respect des deux conditions (caractéristiques inchangées, durée totale prise en compte lors de la mise en concurrence) est **obligatoire** (article R2112-4).\n- Le caractère tacite de la reconduction est une **règle supplétive** : vous pouvez y déroger par une clause expresse, mais vous n’êtes pas tenu de le faire."
+  ]
+ },
+ {
+  "id": "mp-024",
+  "negatif": false,
+  "question": "Combien de temps un avis d'appel à la concurrence reste-t-il valable ?",
+  "reponses": [
+   "\n\nConformément à l'article R2131-6, la durée maximale de validité d'un avis d'appel à la concurrence est de douze mois à compter de la date de transmission de l'avis pour publication.\n\n**Distinction obligatoire / recommandé :**\n- **Obligatoire :** Il s'agit d'un plafond impératif. Le code impose que la validité ne puisse jamais excéder douze mois.\n- **Libre / Recommandé :** Le code ne fixe aucune durée minimale. L'acheteur reste libre de fixer un délai plus court selon le rythme de sa procédure. Il est recommandé d'ajuster cette durée aux délais réalistes de préparation du dossier et de réponse des candidats, mais cette adaptation relève de l'appréciation de l'acheteur et non d'une contrainte légale."
+  ]
+ },
+ {
+  "id": "mp-025",
+  "negatif": false,
+  "question": "À quel moment puis-je exiger les attestations prouvant l'absence de motif d'exclusion ?",
+  "reponses": [
+   "\n\nCette information ne figure pas dans les passages fournis. Elle se trouve dans les dispositions générales relatives au contenu des candidatures du Code de la commande publique et dans les pièces de la consultation.\n\n**Proposition de formulation pour le cahier des charges :**\n« Le candidat doit produire, lors du dépôt de sa candidature, les attestations ou documents prouvant qu'il ne se trouve dans aucun cas d'exclusion prévu par le Code de la commande publique. À défaut, sa candidature sera déclarée irrecevable. »\n\n**Fondement de chacune de ses clauses :**\n- *Exigence de production lors du dépôt* : repose sur le principe de transparence et d'égalité de traitement, qui impose de vérifier les conditions de participation avant toute analyse des offres.\n- *Identification des motifs d'exclusion* : sert à circonscrire précisément les motifs visés, conformément à la logique de sécurité juridique et de loyauté de la procédure.\n- *Sanction d'irrecevabilité* : découle du caractère obligatoire des conditions de participation ; leur non-respect entraîne l'élimination du candidat sans appréciation discrétionnaire de l'acheteur.\n\n**Distinction obligatoire / recommandé :**\n- **Obligatoire** : La vérification de l'absence de motifs d'exclusion est une condition de participation impérative. Son omission expose la procédure à un risque de contentieux pour vice de forme ou inégalité de traitement.\n- **Recommandé** : Le choix du moment précis (dès le dépôt ou lors de la vérification) et le format des documents relè"
+  ]
+ },
+ {
+  "id": "mp-026",
+  "negatif": false,
+  "question": "Puis-je demander à un soumissionnaire de régulariser son offre irrégulière ?",
+  "reponses": [
+   "\n\nConformément à l’**article R2152-2**, l’acheteur **peut** autoriser les soumissionnaires à régulariser leurs offres irrégulières. Il s’agit d’une **faculté**, non d’une obligation : l’acheteur n’est pas tenu d’ouvrir cette possibilité, mais il peut la mettre en œuvre s’il le souhaite.\n\n**Conditions et limites imposées par l’article R2152-2 :**\n- La régularisation est **exclue** pour les offres anormalement basses.\n- Elle ne peut **jamais modifier les caractéristiques substantielles** de l’offre.\n- Elle s’applique dans **toutes les procédures**.\n\n**Délai :** Le texte fourni ne fixe aucun chiffre. Il renvoie à un « délai approprié » à déterminer au cas par cas par l’acheteur. Aucun seuil, montant ou durée type ne figure dans les passages transmis.\n\n---\n\n### Proposition de rédaction pour le règlement de consultation\n> « L’acheteur se réserve la faculté d’autoriser les soumissionnaires à régulariser leurs offres irrégulières, à l’exception des offres anormalement basses, dans un délai qu’il fixera au cas par cas. Cette régularisation ne pourra en aucun cas modifier les caractéristiques substantielles de l’offre. »\n\n**Fondement de chaque clause :**\n- *« se réserve la faculté d’autoriser »* : article R2152-2 (« l’acheteur peut autoriser ») → disposition facultative, non obligatoire.\n- *« à l’exception des offres anormalement basses »* : article R2152-2 (« à condition qu'elles ne soient pas anormalement basses ») → condition d’exclusion impérative.\n- *« dans un délai qu’il fixera au cas par cas »* : article R2152-2 (« dans un délai approprié ») → le corpus ne fournit aucun délai chiffré ; l’appréciation relève de l’acheteur.\n- *« ne pourra en aucun cas modifier les caractéristiques substantielles »* : article R2152-2 (« ne peut avoir pour effet d'en modifier des caractéristiques substantielles ») → limite d’effet absolue.\n\nSi vous souhaitez adapter cette clause à une procédure formalisée ou à un marché de défense/sécurité, précisez-le : les articles R2161-30 et R2352-2 du corpus traitent respectivement des clarifications en procédures formalisées et des offres anormalement basses dans les marchés de défense, mais ne modifient pas le régime de régularisation des offres irrégulières posé par l’article R2152-2."
+  ]
+ },
+ {
+  "id": "mp-027",
+  "negatif": false,
+  "question": "Puis-je demander au titulaire de me communiquer son contrat de sous-traitance ?",
+  "reponses": [
+   "\n\nOui, cette demande est recevable et peut être inscrite dans les pièces du marché. Voici une proposition de rédaction :\n\n« Le titulaire est tenu de communiquer à l’acheteur le contrat de sous-traitance dès que celui-ci en fait la demande. »\n\n**Fondement** : Article L2193-7 du Code de la commande publique.\n\n**Caractère** : Obligatoire. Le code impose la communication à la simple demande de l’acheteur. Il ne s’agit pas d’une recommandation ou d’une pratique facultative ; l’obligation légale naît dès la demande, sans qu’il soit nécessaire de justifier un motif ou de prévoir un délai de réponse dans le marché.\n\n*(Si votre marché relève du secteur de la défense ou de la sécurité, l’article L2393-6 prévoit également que l’acheteur peut exiger du titulaire la remise des sous-contrats.)*"
+  ]
+ },
+ {
+  "id": "mp-028",
+  "negatif": false,
+  "question": "Mon titulaire est en liquidation judiciaire. Dois-je encore payer directement le sous-traitant ?",
+  "reponses": [
+   "\n\nOui, vous devez continuer à payer directement le sous-traitant. \n\nConformément à l'article **L2193-12**, le paiement direct **est obligatoire** même si le titulaire du marché est en état de liquidation judiciaire, de redressement judiciaire ou de procédure de sauvegarde. \n\nCette disposition est impérative : elle s'impose à l'acheteur et ne laisse aucune marge d'appréciation. Il ne s'agit pas d'une faculté ou d'une recommandation, mais d'une obligation légale qui prime sur la situation juridique ou financière du titulaire."
+  ]
+ },
+ {
+  "id": "mp-029",
+  "negatif": false,
+  "question": "Je veux réserver un marché aux entreprises de l'économie sociale et solidaire. Quelle durée maximale puis-je prévoir ?",
+  "reponses": [
+   "\n\nLa durée maximale que vous pouvez prévoir est de **trois ans**.\n\n**Fondement :** Article L2113-16.\n\n**Nature de la règle :** Cette limite est **obligatoire**, et non recommandée. Le code emploie une formulation impérative (« ne peut être supérieure à »), ce qui signifie qu'il s'agit d'une règle d'ordre public de procédure. Aucune dérogation n'est possible, même par accord contractuel ou pour des motifs de continuité de service.\n\n**Proposition de rédaction pour le CCAP :**\n« La durée du présent marché est fixée à [durée], sans pouvoir excéder trois ans, conformément à l'article L2113-16 du code de la commande publique. »\n\n**Justification de la clause :** L'alinéa final renvoie explicitement à l'article L2113-16 pour inscrire la limite légale dans le contrat et éviter tout risque d'irrégularité pour excès de durée."
+  ]
+ },
+ {
+  "id": "mp-030",
+  "negatif": false,
+  "question": "Comment doit être composé le jury d'un concours ?",
+  "reponses": [
+   "\n\nLa composition du jury d’un concours est strictement encadrée par les dispositions suivantes, qui s’imposent à l’acheteur :\n\n1. **Indépendance des membres** : Le jury doit obligatoirement être composé de personnes indépendantes des participants au concours (Article R2162-22).\n2. **Ratio de qualification** : Si le concours exige une qualification professionnelle particulière pour y participer, il est obligatoire qu’au moins un tiers des membres du jury possède cette qualification ou une qualification équivalente (Article R2162-22).\n3. **Modalités de désignation (pour les concours de l’État)** : La désignation des membres du jury relève obligatoirement du ministre dont dépendent les administrations centrales, les services à compétence nationale ou les services déconcentrés hors autorité du préfet, ou du préfet pour les services déconcentrés placés sous son autorité (Article R2162-23).\n4. **Cadre procédural** : L’acheteur fait obligatoirement intervenir un jury dont la composition s’articule selon les règles de la sous-section 2 (Article R2162-17).\n\n**Distinction obligatoire / recommandé (Règle 3)** : Les dispositions ci-dessus sont **obligatoires**. Le code utilise des formulations prescriptives (« doit être composé », « doit posséder », « sont désignés »), ce qui les rend impératives et non facultatives. Aucun élément recommandé ou laissé à l’appréciation de l’acheteur ne figure dans les passages fournis concernant la composition du jury.\n\n*Note d’application pour la rédaction des pièces :*\n- Si votre concours relève d’un marché de défense ou de sécurité, ou s’il est organisé dans le cadre d’un groupement de commandes, des règles spécifiques de composition et de désignation s’appliquent (Articles R2371-6 et R2162-26).\n- Pour les marchés globaux, le principe d’indépendance et le ratio d’un tiers pour les qualifications s’appliquent également (Article R2171-17).\n- Aucun seuil, délai ou montant n’est mentionné dans les passages fournis pour la composition du jury. Si votre consultation nécessite des précisions sur le nombre exact de membres ou les délais de désignation, ces éléments ne figurent pas dans le corpus fourni et devront être recherchés dans les textes d’application ou la jurisprudence non incluse dans les passages transmis."
+  ]
+ },
+ {
+  "id": "mp-031",
+  "negatif": false,
+  "question": "Dans quels cas puis-je modifier un marché sans relancer une mise en concurrence ?",
+  "reponses": [
+   "\n\nConformément à l’**article L2194-1**, un marché peut être modifié sans nouvelle procédure de mise en concurrence dans les six cas suivants :\n1° Les modifications ont été prévues dans les documents contractuels initiaux ;\n2° Des travaux, fournitures ou services supplémentaires sont devenus nécessaires ;\n3° Les modifications sont rendues nécessaires par des circonstances imprévues ;\n4° Un nouveau titulaire se substitue au titulaire initial du marché (les conditions de cette substitution sont précisées à l’**article R2194-6**) ;\n5° Les modifications ne sont pas substantielles (la définition de cette notion figure à l’**article R2194-7**) ;\n6° Les modifications sont de faible montant.\n\n**Seuil de « faible montant » :** Le montant exact n’est pas défini dans les passages fournis. Il convient de consulter les textes réglementaires d’application ou les avis publiés au Journal officiel, car ces seuils sont révisés périodiquement.\n\n**Notion de modification substantielle (obligatoire) :** L’**article R2194-7** énonce que la modification est réputée substantielle, notamment, si au moins une des conditions suivantes est remplie :\n- Elle introduit des conditions qui, si elles avaient été incluses dans la procédure initiale, auraient attiré davantage d’op"
+  ]
+ },
+ {
+  "id": "mp-032",
+  "negatif": true,
+  "question": "Quel taux d'avance dois-je appliquer, et sur quelle base le calculer ?",
+  "reponses": [
+   "\n\nVoici les règles applicables, extraites strictement des passages fournis, avec la distinction entre ce qui s’impose et ce qui relève de votre libre appréciation.\n\n**1. Conditions d’ouverture de l’avance (obligatoire)**\nVous devez accorder une avance lorsque le montant initial du marché est supérieur à 50 000 euros hors taxes et que le délai d’exécution est supérieur à deux mois (R2191-3). En deçà de ces seuils, l’octroi d’une avance n’est pas imposé par le code.\n\n**2. Taux et base de calcul standard (obligatoire)**\nLe taux de l’avance est fixé entre 5 % et 30 % du montant initial toutes taxes comprises du marché lorsque sa durée est inférieure ou égale à douze mois (R2191-7).\nLorsque la durée du marché est supérieure à douze mois, le taux s’applique à une base de calcul égale à douze fois le montant initial toutes taxes comprises du marché, divisé par sa durée exprimée en mois (R2191-7).\n\n**3. Règles spécifiques aux PME et artisans (obligatoire)**\nSi le titulaire est une petite ou moyenne entreprise (au sens de l’article R. 2151-13) ou un artisan, le taux minimal légal est rehaussé :\n- 30 % pour les marchés passés par l’État ;\n- 10 % pour les établissements publics administratifs de l’État (hors établissements publics de santé) et les collectivités territoriales, leurs établissements et groupements, dont les charges ou dépenses de fonctionnement constatées dépassent 60 millions d’euros (R2191-7).\n- 30 % pour les marchés de défense ou de sécurité, sans distinction de l’acheteur (R2391-4).\n\n**4. Possibilité de déroger au plafond de 30 % (facultatif)**\nL’acheteur peut porter le montant de l’avance au-delà de 30 % du montant calculé conformément à l’article R. 2191-7. Cette disposition est discrétionnaire : vous n’êtes pas tenu de l’activer, mais vous pouvez le faire si vous l’estimez opportun (R2191-8).\n\n**5. Rédaction des clauses (obligatoire)**\nLes clauses du marché doivent impérativement préciser les conditions de versement de l’avance ainsi que son taux (R2191-10).\n\n---\n\n### 🔍 Distinction entre obligations et options\n\n| Ce qui est **obligatoire** (code impose) | Ce qui est **facultatif** (code permet) |\n|------------------------------------------|------------------------------------------|\n| Accorder une avance si montant > 50 000 € HT et durée > 2 mois (R2191-3) | Dépasser le plafond de 30 % (R2191-8) |\n| Respecter la fourchette 5 % / 30 % et les bases de calcul selon la durée (R2191-7) | Conditionner le versement à une garantie à première demande ou une caution (R2191-7 et R2191-8) |\n| Appliquer les taux minimaux spécifiques aux PME/Artisans (R2191-7 et R2391-4) | Fixer un taux inférieur au minimum légal (interdit) ou supérieur au maximum légal (possible sous conditions, R2191-8) |\n| Préciser le taux et les conditions de versement dans le marché (R2191-10) | Exiger une garantie pour les marchés passés par des personnes publiques titulaires d’un marché (interdit, R2191-7 et R2191-8) |\n\n**Formulation type pour les clauses du marché :**\n> *« Conformément aux articles R2191-3, R2191-7 et R2191-10 du Code de la commande publique, une avance est accordée au titulaire dès lors que le montant initial du marché dépasse 50 000 euros hors taxes et que sa durée excède deux mois. Le taux de cette avance est fixé à [X] %, calculé sur [base : montant initial toutes taxes comprises / base proratisée selon durée > 12 mois]. Les conditions de versement et de remboursement sont précisées ci-après. »*\n\nToutes les références ci-dessus sont strictement tirées des passages fournis. Aucun seuil, délai ou montant supplémentaire n’a été ajouté.",
+   "\n\nVoici une proposition de rédaction, suivie du fondement juridique de chaque disposition, puis une mise en perspective des obligations et des facultés.\n\n### Proposition de rédaction (à insérer dans le CCTF ou le règlement de consultation)\n> « L'acheteur accordera une avance au titulaire dans les conditions suivantes :\n> 1. Le taux de l'avance est fixé à [indiquer le pourcentage choisi entre 5 % et 30 %] du montant initial toutes taxes comprises du marché.\n> 2. Ce taux s'applique sur la base suivante :\n>    - Si la durée d'exécution est inférieure ou égale à douze mois : le montant initial toutes taxes comprises du marché ;\n>    - Si la durée d'exécution est supérieure à douze mois : une somme égale à douze fois le montant initial toutes taxes comprises du marché divisé par sa durée exprimée en mois.\n> 3. Le versement de l'avance est subordonné à la production d'une attestation de bonne fin de marché et, le cas échéant, à la constitution d'une garantie à première demande ou d'une caution personnelle et solidaire, conformément aux dispositions de l'article R. 2191-8 du Code de la commande publique. »\n\n### Fondement juridique de chaque clause\n1. **Taux fixé entre 5 % et 30 %** : L'article R2191-7 impose une fourchette obligatoire de 5 % à 30 % du montant initial toutes taxes comprises.\n2. **Base de calcul selon la durée** : L'article R2191-7 précise que pour une durée ≤ 12 mois, la base est le montant initial toutes taxes comprises ; pour une durée > 12 mois, la base est douze fois ce montant divisé par la durée en mois.\n3. **Condition de garantie au-delà de 30 %** : L'article R2191-8 autorise l'acheteur à dépasser le plafond de 30 % à la condition expresse de subordonner le versement à une garantie à première demande ou à une caution personnelle et solidaire.\n4. **Obligation de précision dans les clauses** : L'article R2191-10 impose que les clauses du marché précisent les conditions de versement ainsi que le taux retenu.\n\n### Distinction entre ce qui est obligatoire et ce qui est recommandé\n- **Obligatoire** :\n  - Respecter la fourchette 5 % / 30 % (R2191-7).\n  - Appliquer le mode de calcul adapté à la durée du marché (R2191-7).\n  - Préciser le taux et les conditions de versement dans les pièces du marché (R2191-10).\n  - Accorder une avance si le montant initial est supérieur à 50 000 euros hors taxes et que le délai d'exécution est supérieur à deux mois (R2191-3).\n  - Appliquer un taux minimal de 30 % si le titulaire est une PME/PMI et que le marché est passé par l'État (R2191-7), ou un taux minimal de 10 % pour les PME/PMI dans les marchés des EPAE et collectivités dont les charges/dépenses de fonctionnement dépassent 60 millions d'euros (R2191-7). Pour les marchés de défense ou de sécurité, le taux minimal est de 30 % pour les PME ou artisans (R2391-4).\n- **Facultatif / Discretionnaire** :\n  - Le choix du taux exact dans la fourchette 5 %–30 % relève de l'appréciation de l'acheteur (R2191-7).\n  - La possibilité de porter le taux au-delà de 30 % est une faculté ouverte à l'acheteur, conditionnée à la demande d'une garantie (R2191-8).\n  - Le choix entre une garantie à première demande et une caution personnelle et solidaire est laissé aux parties (R2191-7 et R2191-8).\n\n### Note d'application\nSi votre marché remplit les conditions de l'article R2191-3 (montant > 50 000 € HT et durée > 2 mois), l'octroi d'une avance est obligatoire. Vous devez alors vérifier si le titulaire relève du champ des PME/PMI ou artisans pour appliquer les minima légaux (R2191-7 ou R2391-4). Si vous souhaitez fixer un taux supérieur à 30 %, vous devez impérativement intégrer la clause de garantie prévue à l'article R2191-8.",
+   "\n\nLe calcul de l’avance et son taux sont strictement encadrés par les passages fournis. Voici les éléments à retenir pour la rédaction de votre consultation, en respectant les règles de citation, de non-invention et de distinction obligatoire/facultatif.\n\n### 1. Base de calcul et taux applicables\n- **Base de calcul** : Elle dépend de la durée d’exécution du marché (article R2191-7).\n  • Durée ≤ 12 mois : le montant initial toutes taxes comprises (TTC) du marché.\n  • Durée > 12 mois : une somme égale à douze fois le montant initial TTC divisé par la durée exprimée en mois.\n- **Taux applicable** : Le taux est fixé dans une fourchette obligatoire de 5 % à 30 % de la base de calcul définie ci-dessus (article R2191-7).\n\n### 2. Distinction entre ce qui est obligatoire et ce qui est facultatif\n- **Obligatoire** : Le respect de la fourchette 5 %–30 % et de la base de calcul. Des taux minimaux obligatoires s’appliquent si le titulaire est une PME ou un artisan : 30 % pour les marchés de l’État, 10 % pour les établissements publics administratifs de l’État et les collectivités territoriales dont les charges/dépenses de fonctionnement dépassent 60 millions d’euros (article R2191-7).\n- **Facultatif** : L’acheteur peut porter le taux au-delà de 30 %. Cette possibilité n’est pas imposée ; elle est encadrée par l’obligation de conditionner le versement à une garantie à première demande ou une caution personnelle et solidaire (article R2191-8).\n\n###"
+  ]
+ },
+ {
+  "id": "mp-033",
+  "negatif": false,
+  "question": "Qu'est-ce qu'une centrale d'achat ?",
+  "reponses": [
+   "\n\nSelon les dispositions du Code de la commande publique, la définition d’une centrale d’achat varie selon le champ d’application du marché :\n\n- **Marchés publics de droit commun** : l’article L2113-2 la définit comme « un acheteur qui a pour objet d’exercer de façon permanente, au bénéfice des acheteurs, l’une au moins des activités d’achat centralisées suivantes : 1° L’acquisition de fournitures ou de services ; 2° La passation des marchés de travaux, de fournitures ou de services ».\n- **Marchés de défense ou de sécurité** : l’article L2313-2 la définit comme « un acheteur ou un organisme public de l’Union européenne qui a pour objet d’exercer l’une des activités d’achat centralisées suivantes : 1° L’acquisition de fournitures ou de services de défense ou de sécurité destinés à des acheteurs ; 2° La passation de marchés de défense ou de sécurité destinés à des acheteurs ».\n\nCes définitions sont **obligatoires** (d’ordre légal). Elles s’appliquent dès lors que l’entité remplit cumulativement trois critères posés par les articles L2113-2 et L2313-2 : (1) exercer une activité d’achat centralisée, (2) de façon permanente, et (3) au bénéfice d’autres acheteurs."
+  ]
+ },
+ {
+  "id": "mp-034",
+  "negatif": false,
+  "question": "Je rédige un marché de services de 45 000 € HT sur six mois. Écrit, publicité, avance : que dois-je prévoir ?",
+  "reponses": [
+   ""
+  ]
+ },
+ {
+  "id": "mp-035",
+  "negatif": true,
+  "question": "Rédige-moi le CCTP de mon marché de voirie.",
+  "reponses": [
+   "\n\nCette information ne figure pas dans les passages fournis. Pour rédiger le CCTP d’un marché de voirie, vous devez vous référer au CCAG-Travaux (qui impose le cadre obligatoire des clauses techniques et administratives), aux normes et règles professionnelles en vigueur (règles PBA, DTU, guides SETRA ou prescriptions techniques propres à la voirie et aux réseaux), ainsi qu’aux documents de consultation spécifiques à votre collectivité. Ces éléments ne sont pas contenus dans le corpus transmis. La rédaction du CCTP relève de votre expertise technique ; les normes et guides cités sont généralement recommandés ou imposés par la réglementation sectorielle, tandis que le CCAG-Travaux s’applique de plein droit aux marchés de travaux publics. Si vous souhaitez que je vous aide à structurer le CCTP ou à formuler des clauses précises, précisez les éléments techniques ou administratifs à intégrer.",
+   "\n\nCette information ne figure pas dans les passages fournis. Pour rédiger le CCTP d’un marché de voirie, vous devez vous référer au CCAG-Travaux, aux normes techniques applicables (notamment la série NF P 98-33x pour les terrassements et chaussées), ainsi qu’aux prescriptions propres à votre collectivité. Vous pouvez également consulter les guides méthodologiques de la Direction des Affaires Juridiques (DAJ) et les documents types disponibles auprès des groupements d’acheteurs ou de votre autorité de tutelle.\n\nConcernant la distinction entre obligations et recommandations : le CCAG-Travaux impose un contenu minimum et des règles de forme obligatoires pour le CCTP, tandis que les normes techniques, les fiches de la DAJ et les retours d’expérience constituent des conseils de rédaction à adapter au projet. Aucun seuil, délai ou montant n’est mentionné dans les textes de référence ; ces éléments doivent être déterminés au cas par cas en fonction des études géotechniques, des volumes de travaux et des contraintes locales.",
+   "\n\nCette information ne figure pas dans les passages fournis. Pour rédiger un CCTP relatif à un marché de voirie, vous devez consulter le CCAG-Travaux, les guides techniques du SETRA, les normes NF P 98-33x, ainsi que les dispositions du Code de la commande publique relatives au contenu des pièces du marché. Ces textes ne sont pas inclus dans les extraits transmis.\n\nVoici une structure type de CCTP pour un marché de voirie, avec indication du caractère obligatoire ou recommandé de chaque partie, et des consignes de rédaction :\n\n1. **Objet et périmètre des travaux** (Obligatoire) : Description technique précise, localisation, étendue des lots. Se référer aux documents d’analyse du projet et aux normes d’urbanisme applicables.\n2. **Pièces contractuelles** (Obligatoire) : Hiérarchie des documents (CCTP, CCAG, plans, métrés, documents d’analyse des risques). Préciser que le CCTP prévaut en cas de contradiction.\n3. **Prescriptions techniques** (Obligatoire pour les éléments essentiels / Recommandé pour les détails d’exécution) : Matériaux, épaisseurs, compactage, drainage, marquage. Aucun seuil, tol"
+  ]
+ },
+ {
+  "id": "mp-036",
+  "negatif": false,
+  "question": "Un marché peut-il être modifié si la modification était prévue au contrat initial ?",
+  "reponses": [
+   "\n\nOui, un marché peut être modifié lorsque la modification a été prévue dans les documents contractuels initiaux.\n\n**1. Citation de l'article (Règle 1)**\n- **Article R2194-1** : « Le marché peut être modifié lorsque les modifications, quel que soit leur montant, ont été prévues dans les documents contractuels initiaux sous la forme de clauses de réexamen, dont des clauses de variation du prix ou d'options claires, précises et sans équivoque. »\n- **Article L2194-1 (1°)** : Retient cette situation comme l’une des hypothèses autorisant une modification sans nouvelle procédure de mise en concurrence.\n\n**2. Seuils, délais et montants (Règle 2)**\nL’article R2194-1 précise expressément que cette voie de modification s’applique « quel que soit leur montant ». Aucun plafond, seuil ou délai n’est opposable à cette hypothèse. Si vous devez vérifier d’autres plafonds (par exemple pour les modifications de faible montant ou les seuils européens), ils ne figurent pas dans les passages fournis et doivent être recherchés dans l’avis annexé au code ou dans les textes de référence actualisés.\n\n**3. Distinction obligatoire / recommandé (Règle 3)**\nConformément à l’article R2194-1, la rédaction de ces clauses est **obligatoire** et non facultative. Le code impose impérativement que ces clauses soient :\n- « claires, précises et sans équivoque » ;\n- accompagnées de l’indication du « champ d’application et de la nature des modifications ou options envisageables » ;\n- assorties des « conditions dans lesquelles il peut en être fait usage ».\nÀ défaut de respecter ces mentions, la clause serait réputée non écrite et la modification irrégulière. Le code ne prévoit ici aucune recommandation : il s’agit d’une exigence légale stricte.\n\n**Proposition de rédaction pour les documents de consultation**\n« Les présentes clauses de réexamen permettent à l’acheteur de modifier le marché dans les conditions prévues à l’article R. 2194-1 du code de la commande publique. \n*Fondement : article R. 2194-1.*\nElles couvrent [préciser le champ d’application] et portent sur [préciser la nature des modifications ou options envisageables]. \n*Fondement : article R. 2194-1 (obligation d’indiquer le champ d’application et la nature).*\nLeur mise en œuvre est soumise aux conditions suivantes : [énoncer les conditions claires, précises et sans équivoque]. \n*Fondement : article R. 2194-1 (obligation de préciser les conditions d’usage).* »"
+  ]
+ },
+ {
+  "id": "mp-037",
+  "negatif": false,
+  "question": "Mon marché de travaux est à 55 000 € HT pour huit mois. L'avance est-elle obligatoire ?",
+  "reponses": [
+   "\n\nL'avance est obligatoire.\n\nConformément à l'article R2191-3, l'acheteur est tenu d'accorder une avance au titulaire d'un marché lorsque deux conditions cumulatives sont réunies : le montant initial du marché est supérieur à 50 000 euros hors taxes et le délai d'exécution est supérieur à deux mois.\n\nVotre marché, évalué à 55 000 euros HT et d'une durée de huit mois, remplit ces deux critères. L'obligation d'accorder une avance s'applique donc pleinement.\n\nCette disposition impose l'avance (règle obligatoire) ; elle ne laisse pas à l'acheteur une faculté d'appréciation sur son principe. En revanche, le taux de l'avance et les modalités de garantie relèvent de l'article R2191-7, qui offre à l'acheteur une marge d'appréciation pour fixer le pourcentage entre 5 % et 30 % (pour une durée inférieure ou égale à douze mois) et pour choisir entre une garantie à première demande ou une caution personnelle et solidaire (pratique recommandée/optionnelle)."
+  ]
+ },
+ {
+  "id": "mp-038",
+  "negatif": false,
+  "question": "À partir de quand un retard de paiement est-il constitué ?",
+  "reponses": [
+   "\n\nLe retard de paiement est constitué lorsque les sommes dues au créancier, qui a rempli ses obligations légales et contractuelles, ne sont pas versées par le pouvoir adjudicateur à l'échéance prévue au marché ou à l'expiration du délai de paiement (article L2192-12 pour les marchés publics, article L3133-12 pour les concessions).\n\nCette constitution est **obligatoire et automatique** : elle s'opère de plein droit et sans autre formalité dès l'expiration du délai (article L2192-13, article L3133-13). Il ne s'agit pas d'une disposition recommandée ou d'une faculté contractuelle, mais d'un déclencheur légal impératif. La seule condition requise est que le créancier ait effectivement exécuté ses propres obligations ; aucune mise en demeure préalable n'est nécessaire pour faire courir les effets du retard."
+  ]
+ },
+ {
+  "id": "mp-039",
+  "negatif": false,
+  "question": "Les acomptes sont-ils de droit ?",
+  "reponses": [
+   "\n\nOui, les acomptes constituent un droit pour le titulaire du marché, dès lors que les prestations ont commencé à être exécutées.\n\n**Fondements textuels :**\n- L’article L2191-4 et l’article L2391-4 (partie législative) posent le principe : les marchés « donnent lieu à des versements à titre d’acomptes » dès le commencement de l’exécution.\n- L’article R2191-20 (partie réglementaire) précise expressément que les prestations ayant fait l’objet d’un commencement d’exécution « ouvrent droit à des acomptes ».\n\n**Caractère obligatoire vs. discrétionnaire :**\nCe droit est **d’application obligatoire**. L’acheteur ne peut s’en dispenser ni le subordonner à une appréciation discrétionnaire dès lors que les prestations ont commencé à être exécutées. Il est encadré par des conditions impératives :\n- **Montant** : il ne peut excéder la valeur des prestations exécutées (articles L2191-4 et R2191-21).\n- **Périodicité** : les délais de versement sont plafonnés de manière obligatoire. En droit commun, le versement est fixé au maximum à trois mois, et ramené à un mois pour les PME, artisans ou entreprises adaptées sur demande ou pour les travaux (article R2191-22). Pour les marchés de défense ou de sécurité, le délai maximal est de six mois, ramené à trois mois pour les PME/artisans, et à un mois pour les travaux ou sur demande (article R2391-17).\n\nAucune clause contractuelle ne peut priver le titulaire de ce droit dès lors que les conditions légales et réglementaires sont remplies."
+  ]
+ },
+ {
+  "id": "mp-040",
+  "negatif": true,
+  "question": "Quel est le taux des pénalités de retard applicable par défaut à mon marché de travaux ?",
+  "reponses": [
+   "\n\nCette information ne figure pas dans les passages fournis. Pour connaître le taux applicable par défaut, vous devez consulter le cahier des clauses administratives générales (CCAG-Travaux) en vigueur, les guides de la Direction des affaires juridiques, ou les stipulations spécifiques de votre marché. Les passages transmis indiquent uniquement que le marché doit comporter des clauses détaillant les pénalités et leurs modalités de calcul, mais ne fixent aucun taux par défaut pour les retards d'exécution. En l'absence de mention contractuelle ou de texte d'application précis, aucun taux ne s'applique automatiquement.",
+   "\n\nCette information ne figure pas dans les passages fournis. Pour déterminer le taux applicable, vous devez consulter le Cahier des Clauses Administratives Générales (CCAG) applicable à votre marché (notamment le CCAG-Travaux) ainsi que les pièces de votre consultation, car le cadre légal laisse la fixation de ces modalités aux stipulations contractuelles.",
+   "\n\nCette information ne figure pas dans les passages fournis. Pour connaître le taux par défaut des pénalités de retard applicable à un marché de travaux, vous devez consulter le CCAG-Travaux applicable à votre marché et les conditions particulières du marché, qui fixent les modalités de calcul et les taux éventuellement modifiés par l'acheteur.\n\nDans les documents transmis, seul l'article R2192-21 est mentionné : il impose obligatoirement que le marché comporte des stipulations sur les pénalités de retard et leurs modalités de calcul, mais ne fixe aucun taux par défaut. Vous devrez donc rédiger ces clauses en vous appuyant sur le CCAG-Travaux applicable, tout en précisant les éventuelles adaptations dans les conditions particulières."
+  ]
+ },
+ {
+  "id": "mp-041",
+  "negatif": false,
+  "question": "Quand la remise des offres suppose une visite obligatoire des lieux, que devient le délai ?",
+  "reponses": [
+   "\n\nCette information figure dans les passages fournis.\n\nLorsque la remise des offres suppose une visite obligatoire des lieux, le délai de réception des offres doit être ajusté pour garantir aux candidats le temps nécessaire à la préparation de leur offre.\n\n- En matière de concessions, l’article R3124-3 impose que le délai soit « fixé de manière à permettre aux opérateurs économiques concernés de prendre connaissance des informations nécessaires au dépôt de leur offre ».\n- En matière de marchés publics, l’article R2151-3 dispose que les délais « sont suffisants pour permettre à tous les opérateurs économiques de prendre connaissance de toutes les informations nécessaires pour l'élaboration de leurs offres ».\n\nCes dispositions sont d’ordre impératif. L’autorité publique est tenue de s’assurer que la durée fixée couvre effectivement le temps de la visite et de l’analyse des informations obtenues ; il ne s’agit pas d’une simple recommandation, mais d’une obligation légale qui prime sur les délais minimaux habituels."
+  ]
+ },
+ {
+  "id": "mp-042",
+  "negatif": false,
+  "question": "Puis-je prévoir une avance alors qu'elle n'est pas obligatoire ?",
+  "reponses": [
+   "\n\nOui, vous pouvez le faire. L'article R2191-4 du Code de la commande publique le prévoit expressément : « L'acheteur peut prévoir le versement d'une avance dans les cas où elle n'est pas obligatoire. »\n\n**Distinction obligatoire / recommandé :** Le code ne vous impose pas de verser une avance dans cette hypothèse (ce n'est pas une obligation légale). Il vous en laisse la faculté (ce qui relève de l'opportunité contractuelle et de la pratique). Vous êtes donc libre de l'insérer dans le contrat si elle est économiquement justifiée, ou de vous en abstenir sans encourir d'irrégularité."
+  ]
+ },
+ {
+  "id": "mp-043",
+  "negatif": false,
+  "question": "Un opérateur peut-il se voir attribuer deux marchés réservés à l'économie sociale et solidaire coup sur coup ?",
+  "reponses": [
+   "\n\nNon. L’article L2113-16 du Code de la commande publique l’interdit expressément. Il dispose que « une entreprise ainsi attributaire d’un marché ne peut bénéficier d’une attribution au même titre au cours des trois années suivantes ». Cette disposition est **obligatoire** : l’acheteur ne dispose d’aucune faculté pour y déroger ou pour accorder un second marché immédiatement après le premier.\n\nPar ailleurs, le même article L2113-16 précise que « la durée d’un marché réservé aux entreprises de l’économie sociale et solidaire ne peut être supérieure à trois ans ».\n\n---\n\n**Proposition de rédaction pour les documents de consultation :**\n« Conformément aux articles L2113-15 et L2113-16 du Code de la commande publique, le titulaire d’un marché réservé à l’économie sociale et solidaire ne peut être attributaire d’un nouveau marché du même type avant l’expiration d’un délai de trois ans suivant la date d’attribution du précédent. La durée du présent marché est strictement limitée à trois ans. »\n\n**Fondement de chaque clause :**\n- La mention du délai d’attente de trois ans et de la durée maximale de trois ans s’appuie sur l’**article L2113-16** (règle impérative).\n- Le renvoi explicite aux articles L2113-15 et L2113-16 dans les documents de consultation est rendu **obligatoire** par l’**article R2113-8**."
+  ]
+ },
+ {
+  "id": "mp-044",
+  "negatif": true,
+  "question": "Mon acheteur veut écarter un candidat qui a mal exécuté un marché précédent. Donne-moi l'article et la jurisprudence applicable.",
+  "reponses": [
+   "\n\n**Article applicable :** L2141-7. Cet article prévoit que l’acheteur peut exclure un candidat ayant fait l’objet, au cours des trois années précédentes, d’une sanction comparable à une résiliation ou de dommages et intérêts du fait d’un manquement grave ou persistant à ses obligations contractuelles lors de l’exécution d’un contrat antérieur. La formulation « L’acheteur peut exclure » indique qu’il s’agit d’une faculté : l’activation de ce motif n’est **pas obligatoire**, mais la pratique le **recommande** pour protéger la qualité de l’exécution et l’intérêt général. L’acheteur conserve donc son pouvoir d’appréciation, sous réserve de motiver sa décision et de respecter le principe d’égalité de traitement.\n\n**Jurisprudence applicable :** Cette information ne figure pas dans les passages fournis. Elle doit être recherchée dans la jurisprudence administrative (notamment les décisions du Conseil d’État et des tribunaux administratifs) accessible via les bases de données juridiques officielles (Légifrance, Dalloz, LexisNexis) ou les fiches méthodologiques de la Direction des affaires juridiques (DAJ).",
+   "\n\nPour le fondement légal de l'exclusion, il s'agit de l'article L2141-7. Cet article prévoit que l'acheteur *peut* exclure les personnes ayant fait l'objet d'une sanction comparable (résiliation, dommages et intérêts) du fait d'un manquement grave ou persistant à leurs obligations contractuelles lors de l'exécution d'un contrat antérieur. \n\nConcernant la distinction entre obligation et recommandation : le code utilise le terme « peut exclure », ce qui confère à l'acheteur un pouvoir discrétionnaire. L'exclusion n'est pas automatique ni obligatoire ; elle doit être motivée, proportionnée au regard du manquement reproché, et respecter le principe d'égalité de traitement.\n\nCette information ne figure pas dans les passages fournis. La jurisprudence applicable ne figure pas dans le corpus transmis. Pour la consulter, vous devez vous référer aux bases de données officielles des juridictions administratives et judiciaires, ou aux publications du Conseil d'État, en recherchant les décisions relatives à l'appréciation du « manquement grave ou persistant » et au contrôle de proportionnalité des exclusions.",
+   "\n\n« Cette"
+  ]
+ },
+ {
+  "id": "mp-045",
+  "negatif": false,
+  "question": "La reconduction d'un marché doit-elle être expresse ?",
+  "reponses": [
+   "\n\nConformément à l'article R2112-4, la reconduction n'a pas à être expresse. Le code dispose que, sauf stipulation contraire, la reconduction est tacite et le titulaire ne peut s'y opposer.\n\n- La tacite reconduction constitue la règle obligatoire par défaut.\n- La reconduction expresse n'est ni imposée ni recommandée ; elle relève uniquement de la liberté contractuelle des parties, qui peuvent y déroger par une clause contraire du marché."
+  ]
+ }
+]

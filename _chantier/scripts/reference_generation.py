@@ -148,9 +148,10 @@ def repondre(systeme: str, question: str, passages: list[str], cle: str) -> tupl
     with urllib.request.urlopen(req, timeout=300) as rep:
         choix = json.loads(rep.read().decode())["choices"][0]
     contenu = choix["message"].get("content") or ""
-    if choix.get("finish_reason") == "length":
-        print(f"  ATTENTION réponse tronquée (finish_reason=length)", file=sys.stderr)
-    return contenu, time.monotonic() - t0
+    tronquee = choix.get("finish_reason") == "length"
+    if tronquee:
+        print("  ATTENTION réponse tronquée (finish_reason=length)", file=sys.stderr)
+    return contenu, time.monotonic() - t0, tronquee
 
 
 def articles_cites(texte: str) -> set[str]:
@@ -188,20 +189,26 @@ def main() -> int:
         passages = [r.chunk.text for r in trouves]
         fournis: set[str] = set()
         for p in passages:
-            fournis |= articles_du_chunk(p)
+            fournis |= articles_cites(p)
         montants_fournis = set().union(*(montants(p) for p in passages)) if passages else set()
 
         essais = REPETITIONS_NEGATIFS if c.get("attendu_refus") else 1
         observations = []
         for _ in range(essais):
             try:
-                reponse, duree = repondre(systeme, c["question"], passages, cle_s)
+                reponse, duree, tronquee = repondre(systeme, c["question"], passages, cle_s)
             except Exception as e:  # noqa: BLE001
                 print(f"  {c['id']} : appel en échec ({type(e).__name__})", file=sys.stderr)
                 continue
             latences.append(duree)
             cites = articles_cites(reponse)
             observations.append({
+                "reponse": reponse,
+                # Une réponse coupée ne peut pas être jugée sur son refus : mp-044 a
+                # été tronquée à « « Cette » — neuf caractères — c'est-à-dire au
+                # milieu de la formule de refus elle-même. La compter comme un
+                # non-refus fabrique un échec qui n'existe pas.
+                "tronquee": tronquee,
                 "fantomes": sorted(cites - articles_existants),
                 "hors_contexte": sorted((cites & articles_existants) - fournis),
                 "montants_inventes": sorted(montants(reponse) - montants_fournis
@@ -224,14 +231,20 @@ def rapport(resultats, latences) -> int:
     def compte(sous_ensemble, cle_obs):
         return sum(1 for r in sous_ensemble if any(o[cle_obs] for o in r["obs"]))
 
+    def obs_jugeables(r):
+        """Observations exploitables pour le refus : les tronquées ne le sont pas."""
+        return [o for o in r["obs"] if not o.get("tronquee")]
+
     fantomes = compte(resultats, "fantomes")
     hors_ctx = compte(resultats, "hors_contexte")
     inventes = compte(resultats, "montants_inventes")
     cite_ok = compte(positifs, "cite_attendus")
-    refus_tjs = sum(1 for r in negatifs if all(o["refus"] for o in r["obs"]))
-    refus_parf = sum(1 for r in negatifs if any(o["refus"] for o in r["obs"])
-                     and not all(o["refus"] for o in r["obs"]))
-    refus_jam = sum(1 for r in negatifs if not any(o["refus"] for o in r["obs"]))
+    negatifs_jugeables = [r for r in negatifs if obs_jugeables(r)]
+    tronques = sum(1 for r in negatifs for o in r["obs"] if o.get("tronquee"))
+    refus_tjs = sum(1 for r in negatifs_jugeables if all(o["refus"] for o in obs_jugeables(r)))
+    refus_parf = sum(1 for r in negatifs_jugeables if any(o["refus"] for o in obs_jugeables(r))
+                     and not all(o["refus"] for o in obs_jugeables(r)))
+    refus_jam = sum(1 for r in negatifs_jugeables if not any(o["refus"] for o in obs_jugeables(r)))
 
     L = [
         "# Palier génération — première mesure",
@@ -262,9 +275,10 @@ def rapport(resultats, latences) -> int:
         "",
         "| | cas |",
         "|---|---|",
-        f"| Refuse **à chaque fois** | **{refus_tjs}/{len(negatifs)}** |",
-        f"| Refuse *parfois* | {refus_parf}/{len(negatifs)} |",
-        f"| Ne refuse **jamais** | **{refus_jam}/{len(negatifs)}** |",
+        f"| Refuse **à chaque fois** | **{refus_tjs}/{len(negatifs_jugeables)}** |",
+        f"| Refuse *parfois* | {refus_parf}/{len(negatifs_jugeables)} |",
+        f"| Ne refuse **jamais** | **{refus_jam}/{len(negatifs_jugeables)}** |",
+        f"| *Observations écartées car tronquées* | *{tronques}* |",
         "",
         "Le refus intermittent est presque aussi problématique que l'absence de refus : on ne",
         "peut pas s'y fier, et rien n'indique à l'utilisateur dans quel cas il se trouve.",
@@ -299,10 +313,21 @@ def rapport(resultats, latences) -> int:
 
     suffixe = "" if VARIANTE == "temoin" else f"-{VARIANTE}"
     sortie = RACINE / "docs" / f"baseline-generation-{time.strftime('%Y%m%d')}{suffixe}.md"
+    # Les réponses sont conservées : auditer un chiffre ne doit pas exiger de tout
+    # relancer. C'est ce qui a manqué pour vérifier la liste de marqueurs de refus.
+    brut = RACINE / "_chantier" / "mesures" / f"reponses-{VARIANTE}-{time.strftime('%Y%m%d')}.json"
+    brut.parent.mkdir(exist_ok=True)
+    import json as _json
+    brut.write_text(_json.dumps(
+        [{"id": r["cas"]["id"], "negatif": bool(r["cas"].get("attendu_refus")),
+          "question": r["cas"]["question"],
+          "reponses": [o.get("reponse", "") for o in r["obs"]]} for r in resultats],
+        ensure_ascii=False, indent=1), encoding="utf-8")
     sortie.write_text("\n".join(L) + "\n", encoding="utf-8")
 
     print(f"\nfantômes {fantomes} · hors contexte {hors_ctx} · montants inventés {inventes}")
-    print(f"refus toujours {refus_tjs}/{len(negatifs)} · parfois {refus_parf} · jamais {refus_jam}")
+    print(f"refus toujours {refus_tjs}/{len(negatifs_jugeables)} · parfois {refus_parf} "
+          f"· jamais {refus_jam} · {tronques} obs. tronquées écartées")
     print(f"cite l'attendu : {cite_ok}/{len(positifs)}")
     print(f"latence médiane : {statistics.median(latences):.1f} s")
     print(f"\nrapport : {sortie}", file=sys.stderr)
