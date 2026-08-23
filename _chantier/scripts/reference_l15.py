@@ -103,6 +103,22 @@ def decouper(strategie: str):
                 source_path=fichier.name, doc_type="md"))
         return chunks
 
+    if strategie == "markdown":
+        # Le decoupage REELLEMENT en production : Chunker._chunk_markdown coupe sur
+        # tout titre #{1,6}, donc un passage par article sur ce corpus — mais SANS le
+        # prefixe hierarchique que la strategie « article » ajoute.
+        #
+        # Mesurer cet ecart, c'est savoir si la conclusion de D12 vaut pour ce qui
+        # tourne, ou seulement pour ce qui a ete mesure. Un banc qui n'utilise pas le
+        # code de production ne dit rien du code de production.
+        chunker = Chunker(chunk_size=800, chunk_overlap=100)
+        chunks = []
+        for fichier in sorted(CORPUS.glob("*.md")):
+            chunks.extend(chunker.chunk_document(
+                content=fichier.read_text(encoding="utf-8"),
+                source_path=fichier.name, doc_type="md"))
+        return chunks
+
     if strategie != "article":
         raise SystemExit(f"stratégie inconnue : {strategie}")
 

@@ -556,3 +556,82 @@ dont les sources portent des références normalisées. Sa vraie place est
 
 Huit tests fixent les deux moitiés — inactif il ne touche à rien, actif il fait ce pour
 quoi il existe. Un garde-fou dont on n'a vérifié qu'une des deux ne prouve rien.
+
+## D20 — Le jeu doré avait 25 % de cas fautifs, tous dans le même sens · 23/08/2026 · **actée**
+
+Quatre agents ont relu les 122 cas, chacun un quart, article par article contre le
+corpus figé.
+
+| lot | fautifs | douteux | sains |
+|---|---|---|---|
+| mp-001 → 030 | **14** | 9 | 7 |
+| mp-031 → 060 | **8** | 7 | 15 |
+| mp-061 → 091 | **3** | 7 | 21 |
+| mp-092 → 122 | **6** | 6 | 18 |
+| **total** | **31 / 122 — 25 %** | 29 | 61 |
+
+### Le défaut est systématique, et il va toujours dans le même sens
+
+**L'article porte une condition restrictive ; la réponse attendue retient la règle et
+laisse tomber la borne.** Un instrument construit ainsi **récompense la réponse
+incomplète et pénalise la réponse complète**. Il pousse dans la mauvaise direction, en
+silence — ce qui est pire qu'un instrument bruyant.
+
+Trois cas suffisent à le montrer :
+
+- **`mp-026`** — la question demande si l'on peut faire régulariser *un* soumissionnaire,
+  la réponse disait « oui ». R2152-2 dit « **tous les soumissionnaires concernés** ». Le
+  jeu doré validait la pratique irrégulière que la question invitait à commettre.
+- **`mp-106`** — la réponse énumérait les trois raisons d'un opérateur unique sans la
+  borne : « n'est justifié que lorsqu'il n'existe **aucune solution de remplacement
+  raisonnable** et que l'absence de concurrence ne résulte pas d'une **restriction
+  artificielle** ». Elle validait l'acheteur qui fabrique son fournisseur unique.
+- **`mp-081`** — la réponse omettait les trois dérogations d'allotissement. Un modèle
+  répondant **complètement** était compté en écart.
+
+Dans trois de ces cas, la `justification` énonçait correctement la borne manquante : la
+connaissance était là, elle n'avait pas été transférée dans le champ mesuré.
+
+### Deux refus indus
+
+**`mp-032` déclarait absente une information présente.** `R2191-7` donne le taux de
+l'avance (5 % à 30 %) et son assiette. Chaque mesure comptait donc comme un défaut de
+refus le comportement **correct** du modèle. Ce cas avait en outre été cité toute la
+journée comme « celui qu'aucun contrôle mécanique n'attrape, où l'inférence déborde ».
+**C'était faux : le modèle avait raison, le cas avait tort.**
+
+**`mp-060`** de même — `R2143-11`, `R2143-3` et `L2142-1` portent tout le cadre des
+renseignements demandables ; seule la liste de l'annexe manque.
+
+Les deux sont requalifiés en cas positifs. Deux négatifs réels les remplacent
+(`mp-123` données essentielles, `mp-124` profil d'acheteur), chacun vérifié par
+recherche avant écriture — et non fabriqués pour satisfaire le seuil du contrat, ce qui
+serait précisément le travers contre lequel ce test met en garde.
+
+### Ce que la vérification mécanique dit de sa propre limite
+
+Un contrôle a été écrit — `_chantier/scripts/controle_bornes.py` — qui cherche dans les
+articles cités les marqueurs de restriction absents de la réponse. **Il trouve 6 cas sur
+101 ; la relecture en a trouvé 31.**
+
+Ce n'est pas une contradiction, c'est le résultat : **ce défaut n'est pas mécaniquement
+détectable.** Il fallait lire. Le contrôle reste utile comme révélateur, jamais comme
+test — le transformer en test échouerait sur des cas sains et finirait ignoré.
+
+### Effet sur les chiffres publiés
+
+Ni dramatiser, ni minimiser :
+
+- **recherche (88/103)** — métrique portant sur *quel article remonte*. Touchée seulement
+  là où `articles_attendus` était faux : `mp-041` citait un article des concessions,
+  `mp-004` et `mp-024` généralisaient une règle spéciale. À remesurer.
+- **refus (21/21)** — deux cas faussement négatifs : le dénominateur était faux.
+- **citation attendue (88/101)** — fondée sur les numéros d'article, peu touchée.
+
+### Ce qui reste ouvert
+
+29 cas douteux, non traités ici. Deux méritent un arbitrage de fond : le corpus contient
+le livre défense/sécurité, dont les articles sont des **jumeaux textuels aux seuils
+différents** (R2122-8 : 60 000 € ; R2322-14 : 100 000 €). Toute question posée sans
+ancrage de livre est ambiguë, et un système remontant le bon article du mauvais livre
+serait compté faux sans avoir rien inventé.
