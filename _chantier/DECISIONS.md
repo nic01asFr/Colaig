@@ -423,3 +423,25 @@ C'est une panne bien plus coûteuse à diagnostiquer que l'erreur d'origine.
 
 Découvert en tentant de lever le `skip` de `run()` : la vérification s'est arrêtée avant
 d'atteindre le réseau, sur une erreur qui ne disait pas quoi faire.
+
+## D16 — La référence de recherche était sous-estimée · 23/08/2026 · **actée**
+
+Remesure après unification du reconnaisseur de références (voir le commit du même jour) :
+
+| | avant | après |
+|---|---|---|
+| tous les articles attendus remontés | 32/39 — 82 % | **34/40 — 85 %** |
+| aucun remonté | 4 | **3** |
+
+`mp-022` comptait comme un échec de recherche : `R2182-1` **était** dans les passages,
+sous sa forme pointée, que l'ancien motif ne reconnaissait pas. Le cas était bon, la
+mesure était fausse.
+
+Le dénominateur passe de 39 à 40, et les négatifs de 8 à 7, pour une autre raison :
+`mp-044` avait été requalifié en cas mixte — il exigeait un refus global alors que la
+moitié de la question est répondable, et pénalisait donc le comportement correct.
+
+**Ce que cette correction change pour la suite :** rien dans les conclusions de fond —
+le découpage par article reste supérieur au découpage glissant, et la dispersion reste
+prédictive de l'échec. Ce qu'elle change, c'est le statut du chiffre : 85 % n'est pas
+« mieux que 82 % », c'est **la même mesure enfin juste**. Les deux ne se comparent pas.
