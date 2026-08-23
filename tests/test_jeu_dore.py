@@ -25,6 +25,22 @@ répondables ne mesure que la capacité à répondre ; il ne mesure jamais la ca
 **se taire**. Or sur un corpus juridique, une réponse inventée — un seuil, un délai, une
 référence de jurisprudence — produit une procédure irrégulière. C'est l'échec le plus
 coûteux, et le seul qu'un jeu doré naïf laisse passer.
+
+« Je ne trouve pas » et « cette règle n'existe pas » ne sont pas le même refus
+------------------------------------------------------------------------------
+Deux familles, portées par le champ `motif_refus` :
+
+- **`absence`** — l'information n'est pas dans le corpus. La réponse doit le dire.
+- **`premisse`** — la question présuppose une règle qui n'existe pas. Répondre
+  « je ne trouve pas » y serait **faux** : le corpus répond, et ce qu'il répond est
+  que la règle n'existe pas. Une réponse utile corrige la prémisse.
+
+La distinction est née d'un cas concret. `mp-098` demande le nombre maximal de lots
+attribuables à un même opérateur « selon la réglementation » ; le code n'en fixe
+aucun, il ouvre une faculté à l'acheteur. Le test exigeait alors un marqueur
+d'absence, que ce cas n'avait aucune raison de porter. La tentation était de
+reformuler le cas pour satisfaire le test — exactement ce que la note ci-dessous
+met en garde de faire. C'est le test qui confondait deux comportements.
 """
 from __future__ import annotations
 
@@ -180,6 +196,26 @@ def test_la_forme_de_chaque_cas_est_complete():
     assert not problemes, "\n".join(problemes)
 
 
+MARQUEURS_ABSENCE = (
+    "corpus", "ne figure pas", "ne figurent pas", "ne permet pas de répondre",
+    "n'y sont pas", "ne se déduit", "ne relève pas",
+)
+MARQUEURS_PREMISSE = (
+    "prémisse", "ne fixe aucun", "n'existe pas", "inexacte", "aucun maximum",
+    "aucun montant réglementaire", "propre à chaque",
+)
+
+
+MARQUEURS_ABSENCE = (
+    "corpus", "ne figure pas", "ne figurent pas", "ne permet pas de répondre",
+    "n'y sont pas", "ne se déduit", "ne relève pas",
+)
+MARQUEURS_PREMISSE = (
+    "prémisse", "ne fixe aucun", "n'existe pas", "inexacte", "aucun maximum",
+    "aucun montant réglementaire", "propre à chaque",
+)
+
+
 def test_un_cas_negatif_ne_promet_aucun_article():
     """Un cas dont la réponse n'est pas dans le corpus ne peut pas exiger d'article.
 
@@ -190,19 +226,32 @@ def test_un_cas_negatif_ne_promet_aucun_article():
         if not cas.get("attendu_refus"):
             continue
         assert cas["difficulte"] == "negative", f"{cas['id']} : refus attendu mais difficulté non négative"
-        # Le contrôle porte sur le **sens** — dire que l'information manque — pas sur
-        # une formulation. Une première version exigeait la locution exacte
-        # « ne figure pas » et refusait « ne figurent pas » : un test qui impose une
-        # tournure fait réécrire les cas pour lui plaire, au lieu de les vérifier.
-        marqueurs = (
-            "corpus", "ne figure pas", "ne figurent pas", "ne permet pas de répondre",
-            "n'y sont pas", "ne se déduit", "ne relève pas",
-        )
+        motif = cas.get("motif_refus", "absence")
+        assert motif in ("absence", "premisse"), f"{cas['id']} : motif_refus inconnu « {motif} »"
+        # Le contrôle porte sur le **sens** — pas sur une formulation. Une première
+        # version exigeait la locution exacte « ne figure pas » et refusait « ne
+        # figurent pas » : un test qui impose une tournure fait réécrire les cas pour
+        # lui plaire, au lieu de les vérifier.
+        marqueurs = MARQUEURS_ABSENCE if motif == "absence" else MARQUEURS_PREMISSE
         reponse = cas["reponse_attendue"].lower()
         assert any(m in reponse for m in marqueurs), (
-            f"{cas['id']} : la réponse attendue doit dire explicitement que "
-            "l'information manque — aucun marqueur reconnu"
+            f"{cas['id']} (motif {motif}) : la réponse attendue doit dire explicitement "
+            f"{'que l information manque' if motif == 'absence' else 'que la règle supposée n existe pas'}"
+            " — aucun marqueur reconnu"
         )
+
+
+def test_les_deux_familles_de_refus_sont_representees():
+    """Un jeu doré qui n'a qu'une famille ne peut pas mesurer la seconde.
+
+    Le refus par correction de prémisse est le plus difficile des deux : le modèle
+    doit affirmer une absence de règle, ce qu'aucune recherche documentaire ne peut
+    lui confirmer directement. C'est aussi celui dont l'utilisateur a le plus besoin,
+    parce qu'il croit chercher une règle qui n'existe pas.
+    """
+    motifs = {c.get("motif_refus") for c in _cas() if c.get("attendu_refus")}
+    assert "absence" in motifs, "aucun cas de refus par absence d'information"
+    assert "premisse" in motifs, "aucun cas de refus par correction de prémisse"
 
 
 def test_les_cas_negatifs_sont_assez_nombreux():
