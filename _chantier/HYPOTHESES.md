@@ -9,7 +9,7 @@ Si un lot bute dessus : arrêter le lot, inscrire le blocage dans `AVANCEMENT.md
 | **H1b** | **SSPCloud** sert un chat **avec tool calling** (`qwen3-6-35b-moe`) | ✅ **levée le 22/08/2026** | — | mesurée : `mesures/llm-capabilities-sspcloud.md` |
 | **H2** | Un reranker est disponible (SSPCloud ou Albert) | ⚠️ **levée pour Albert, PAS pour SSPCloud** | L4.1 — impose un arbitrage | Albert : `bge-reranker-v2-m3` OK (0,12 s). SSPCloud : **aucun reranker au catalogue**. Voir « Arbitrage reranker » ci-dessous. |
 | **H3** | La latence du **stockage S3 SSPCloud** est compatible avec une réponse < 10 s | ✅ **levée le 22/08/2026 pour les opérations unitaires** | — | mesurée : `mesures/s3-sspcloud.md`. 31 ms en LIST non récursif. |
-| **H3ter** | Le **listing récursif** tient à l'échelle d'un corpus réel | ❌ **non levée** | L4.1, stratégie d'indexation | mesuré sur 14 objets seulement — ne dit rien de l'échelle. À remesurer sur un espace représentatif. |
+| **H3ter** | Le **listing récursif** tient à l'échelle d'un corpus réel | ⚠️ **levée à 59 documents, inconnue au-delà** | L4.1, stratégie d'indexation | 47 ms de médiane sur 63 objets / 43,8 Mo. Loin du seuil de 10 s. Reste à éprouver sur un corpus de plusieurs milliers de documents. |
 | **H3bis** | Les credentials S3 SSPCloud peuvent être **non expirantes** | ✅ **levée le 22/08/2026 par la documentation** | — | un **compte de service** MinIO donne un couple access/secret permanent, rattaché à un projet. Console : `minio-console.lab.sspcloud.fr`. Reste à le créer. |
 | **H4** | `colaig-0` a assez d'historique pour ≥ 200 cas dorés | ❌ non levée | L1.4 | compter les `.colaig/conversations/*.json` |
 | **H5** | Le corpus reste sous le seuil de `IndexFlatIP` (exact, O(n)) | ❌ non levée | L4.1 | compter documents et poids par espace |
@@ -346,3 +346,62 @@ jeton hérité d'une session.
 
 Sources : [Stockage de données — docs.sspcloud.fr](https://docs.sspcloud.fr/content/storage.html),
 [S3 Configuration — docs.onyxia.sh](https://docs.onyxia.sh/admin-doc/s3-configuration).
+
+
+---
+
+## Mesures sur corpus réaliste — 23/08/2026
+
+Corpus **privé** monté dans `nicolaslaval/colaig-mesure-sst/` : 59 documents, 43,8 Mo,
+51 PDF, arborescence à 14 sous-dossiers. Bucket vérifié privé avant dépôt (aucune
+politique de bucket, `GET` anonyme → 403). **Ce corpus n'est jamais commité — seuls les
+chiffres le sont.**
+
+| opération | médiane | échantillon |
+|---|---|---|
+| LIST non récursif | **31 ms** | 3 mesures |
+| **LIST récursif, espace entier** | **47 ms** | 6 mesures, 63 objets |
+| GET | 31–47 ms | |
+| PUT / DELETE | 47 ms / 31 ms | |
+| Dépôt initial | 43,8 Mo en 17,1 s | 2,6 Mo/s depuis le poste |
+
+### H3ter — levée à cette échelle, pas au-delà
+
+Le listing récursif est l'opération qui faisait exploser les timeouts de la version
+déployée. À 59 documents il coûte **47 ms** : le seuil de 10 s au-delà duquel il faudrait
+l'interdire dans le code n'est pas approché. **Mais 59 documents restent peu.** Ce qui
+est établi, c'est que le mécanisme n'est pas intrinsèquement lent ; ce qui reste inconnu,
+c'est son comportement sur un espace de plusieurs milliers de documents. À ne pas
+extrapoler.
+
+### H5 — l'index pèse dix fois le corpus
+
+59 documents, 43,8 Mo de source. En estimant ~1500 octets de texte utile par chunk :
+**~29 000 chunks**, soit **~479 Mo d'index** en float32.
+
+Le facteur est la dimension. Les deux endpoints réels servent du **4096** — 16 Ko par
+vecteur, contre 4 Ko pour un `bge-m3` à 1024. **Un corpus de 44 Mo produit donc un index
+d'un demi-gigaoctet.** À dix espaces de cette taille, on parle de 5 Go en mémoire pour
+un `IndexFlatIP`, ce qui n'est plus une décision d'implémentation mais de dimensionnement
+du pod.
+
+C'est une **estimation**, pas une mesure : le nombre réel de chunks dépend du découpage,
+qui dépend du format — un PDF scanné passe par l'OCR, un Markdown se coupe aux titres.
+À confirmer par une indexation réelle. Mais l'ordre de grandeur suffit à poser la
+question maintenant plutôt qu'au lot L4.1.
+
+### Deux défauts de la sonde, corrigés en produisant ces chiffres
+
+1. **Elle mesurait le mauvais dossier.** Le listing récursif portait sur le *premier*
+   sous-préfixe rencontré — qui, sur un espace Colaig, est `.colaig/` : quatre fichiers
+   de configuration. Elle annonçait donc un « LIST récursif » de 47 ms qui n'avait
+   parcouru ni les documents ni l'arborescence. Un chiffre faux ayant l'apparence d'une
+   mesure. Elle liste désormais l'espace entier.
+2. **Elle ne mesurait qu'une fois.** Le premier appel porte l'établissement TLS : la
+   première lecture donnait **1094 ms**, ce qui franchissait le seuil « > 1 s → index
+   local persistant requis » et aurait fait conclure l'inverse de la vérité. Six mesures
+   consécutives donnent 360 ms puis 62, puis 47 quatre fois. Médiane de trois désormais,
+   comme les autres lignes.
+
+Même erreur que le PUT à 437 ms deux jours plus tôt. **Un chiffre unique ne vaut pas
+mesure** — c'est maintenant appliqué à toutes les lignes de la sonde.

@@ -196,8 +196,27 @@ def main() -> int:
     med_e, n_e, st_e = bench_liste(s3, cible, recursif=False)
     print(f"| LIST non récursif espace | {med_e*1000:.0f} ms | {n_e} | {st_e} |")
 
-    objets_rec, _, dt_rec, st_rec = lister(s3, cible, recursif=True)
-    print(f"| LIST récursif espace | {dt_rec*1000:.0f} ms | {len(objets_rec)} | {st_rec} |")
+    # Récursif sur l'ESPACE ENTIER, pas sur le premier sous-dossier.
+    #
+    # La version précédente listait `cible`, c'est-à-dire le premier préfixe rencontré.
+    # Sur un espace Colaig, ce premier préfixe est `.colaig/` — le dossier d'instance,
+    # quelques fichiers de configuration. La sonde annonçait donc un « LIST récursif »
+    # rapide qui n'avait parcouru ni les documents ni l'arborescence : un chiffre faux
+    # ayant l'apparence d'une mesure, le pire des deux mondes.
+    #
+    # C'est cette opération-là qui faisait exploser les timeouts de la version
+    # déployée. Elle doit porter sur tout ce que Colaig aurait à parcourir.
+    #
+    # Médiane de trois mesures, comme les autres lignes. La version précédente n'en
+    # faisait qu'une — et un premier appel porte l'établissement de connexion TLS.
+    # C'est déjà ce qui avait fait lire 437 ms sur un PUT qui en vaut 86. Ici l'enjeu
+    # est un seuil : au-dessus d'une seconde, la conclusion change.
+    dt_rec, n_rec, st_rec = bench_liste(s3, racine, recursif=True)
+    objets_rec, _, _, _ = lister(s3, racine, recursif=True)
+    print(f"| **LIST récursif espace entier** | {dt_rec*1000:.0f} ms | {n_rec} | {st_rec} |")
+
+    objets_ech, _, dt_ech, st_ech = lister(s3, cible, recursif=True)
+    print(f"| LIST récursif (échantillon `{cible}`) | {dt_ech*1000:.0f} ms | {len(objets_ech)} | {st_ech} |")
 
     if objets_rec:
         cle = objets_rec[0]["Key"]
@@ -249,8 +268,20 @@ def main() -> int:
 
     # ── Volumétrie ───────────────────────────────────────────────────────────
     poids_mo = sum(o.get("Size", 0) for o in objets_rec) / 1e6
-    print("## 4. Volumétrie (espace échantillon)\n")
-    print(f"- objets : **{len(objets_rec)}**\n- poids total : **{poids_mo:.1f} Mo**\n")
+    documents = [
+        o for o in objets_rec
+        if "/.colaig/" not in o["Key"] and not o["Key"].endswith("/")
+    ]
+    poids_doc = sum(o.get("Size", 0) for o in documents) / 1e6
+    print("## 4. Volumétrie de l'espace entier\n")
+    print(f"- objets, dossier d'instance compris : **{len(objets_rec)}** — {poids_mo:.1f} Mo")
+    print(f"- **documents indexables** (hors `.colaig/`) : **{len(documents)}** — "
+          f"**{poids_doc:.1f} Mo**")
+    if documents:
+        tailles = sorted(o.get("Size", 0) for o in documents)
+        print(f"- plus gros document : {tailles[-1]/1e6:.1f} Mo · "
+              f"médiane : {tailles[len(tailles)//2]/1e6:.2f} Mo")
+    print()
 
     # ── Verdict ──────────────────────────────────────────────────────────────
     print("## Verdict\n")
@@ -261,9 +292,19 @@ def main() -> int:
     print("  - LIST récursif > 10 s → **l'interdire dans le code** et n'indexer qu'en")
     print("    incrémental par ETags.")
     print(f"- **H4** (jeu doré) : ~{total_conv} conversations trouvées (cible ≥ 200 cas).")
-    print(f"- **H5** (seuil FAISS) : {len(objets_rec)} objets sur l'espace échantillon. "
-          "IndexFlatIP reste raisonnable en dessous de ~100 000 chunks — à recalculer "
-          "sur une dimension d'embedding de 4096 (16 Ko par vecteur en float32).")
+    print(f"- **H5** (seuil FAISS) : {len(documents)} documents indexables, "
+          f"{poids_doc:.1f} Mo.")
+    # Estimation, et signalée comme telle. Le nombre réel de chunks dépend du découpage,
+    # qui dépend du format : un PDF scanné passe par l'OCR, un Markdown se coupe aux
+    # titres. Ce qui est calculé ici est un ordre de grandeur de l'empreinte mémoire,
+    # pas une mesure — la mesure viendra d'une indexation réelle.
+    chunks_estimes = int(poids_doc * 1e6 / 1500)  # ~1500 octets de texte utile par chunk
+    mo_index = chunks_estimes * 4096 * 4 / 1e6
+    print(f"  - **estimation à confirmer par une indexation réelle** : ~{chunks_estimes} "
+          f"chunks à ~1500 octets, soit ~{mo_index:.0f} Mo d'index en float32.")
+    print("  - IndexFlatIP reste raisonnable sous ~100 000 chunks. La dimension mesurée "
+          "sur les deux endpoints réels est **4096**, pas 1024 : le seuil se calcule sur "
+          "16 Ko par vecteur, pas 4.")
     if TOKEN:
         print("- ⚠️ **Credentials temporaires (7 j).** Bon pour mesurer, à remplacer par un")
         print("  compte de service avant tout déploiement (H3bis).")
