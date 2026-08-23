@@ -334,6 +334,30 @@ def _mmr_rerank(
     if len(candidates) <= 1:
         return candidates
 
+    # PERTINENCE NORMALISÉE — sans quoi λ ne veut rien dire.
+    #
+    # Le score d'un candidat ne vient pas toujours de la même échelle. FAISS rend une
+    # cosinus dans [0, 1] ; RRF rend `1 / (60 + rang)`, soit **0,016 au premier rang**.
+    # Avec λ = 0,7, le terme de pertinence pesait alors 0,011 face à un terme de
+    # diversité allant jusqu'à 0,3 — deux ordres de grandeur d'écart. Après fusion,
+    # MMR ne classait donc plus par pertinence pondérée de diversité : il retenait le
+    # plus dissemblable, la pertinence étant numériquement invisible.
+    #
+    # Mesuré sur les 103 cas dorés porteurs d'articles attendus : `RRF + MMR k=6`
+    # rendait **50/103** là où le dense seul rendait 88/103. Ce n'était pas un mauvais
+    # réglage de λ, c'était une comparaison entre grandeurs incommensurables.
+    #
+    # La normalisation min-max rend `_mmr_rerank` **indifférent à l'échelle** de ce qui
+    # le précède : λ garde le même sens derrière FAISS, derrière RRF, ou derrière tout
+    # autre classement à venir.
+    scores = [c.score for c in candidates]
+    _lo, _hi = min(scores), max(scores)
+    _etendue = _hi - _lo
+    pertinence = {
+        id(c): ((c.score - _lo) / _etendue) if _etendue > 0 else 1.0
+        for c in candidates
+    }
+
     selected: list[SearchResult] = []
     remaining = list(candidates)
 
@@ -349,8 +373,8 @@ def _mmr_rerank(
         best_idx = 0
 
         for i, candidate in enumerate(remaining):
-            # Pertinence : score original (FAISS cosine ou RRF)
-            relevance = candidate.score
+            # Pertinence ramenée dans [0, 1] — voir la note en tête de fonction.
+            relevance = pertinence[id(candidate)]
 
             # Diversité : max similarité cosinus avec les chunks déjà sélectionnés
             max_sim_selected = 0.0

@@ -29,6 +29,7 @@ une fois, et c'est écrit.
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 import time
@@ -60,7 +61,13 @@ CONFIG = RACINE / "tests" / "golden" / "corpus-marches-publics-config.yaml"
 # Cible de production (D3). Mesurer sur autre chose mesurerait autre chose.
 BASE_SSP = "https://llm.lab.sspcloud.fr/api/v1"
 MODELE = "qwen3-6-35b-moe"
-K = 6
+# Profondeur de recherche. Réglable par `COLAIG_REF_K` pour arbitrer un compromis qui
+# ne se tranche pas au seul niveau de la recherche : le banc des leviers donne 88/103
+# cas complets à k=6 et **95/103 à k=15**, mais chaque passage supplémentaire entre
+# dans le prompt de génération. Ce qu'on gagne en rappel, on le paie en contexte, en
+# latence, et peut-être en refus — plus de passages, c'est plus d'occasions de trouver
+# quelque chose de plausible à dire sur une question sans réponse.
+K = int(os.environ.get("COLAIG_REF_K", "6"))
 REPETITIONS_NEGATIFS = 3
 
 # Variante de consigne, choisie par argument.
@@ -95,8 +102,12 @@ si tu es certain de son contenu. Une référence exacte mais non fournie est une
 elle donne à l'utilisateur une confiance qu'il ne peut pas vérifier, et elle sera fausse
 le jour où le texte changera sans que le corpus soit relu.
 
-Six passages te sont toujours transmis, qu'ils répondent ou non. Leur présence ne prouve
+{nb} passages te sont toujours transmis, qu'ils répondent ou non. Leur présence ne prouve
 pas que la réponse s'y trouve."""
+
+# Le nombre annoncé au modèle doit suivre la profondeur réelle : lui dire « six » alors
+# qu'il en reçoit quinze le renseigne faussement sur ce qu'il a sous les yeux.
+DURCISSEMENT = DURCISSEMENT.format(nb=K)
 
 MARQUEURS_REFUS = (
     "ne figure pas", "ne figurent pas", "ne contient pas", "ne permet pas",
@@ -259,7 +270,7 @@ def rapport(resultats, latences) -> int:
         "",
         f"**{time.strftime('%d/%m/%Y')}.** Complète `baseline-{time.strftime('%Y%m%d')}.md`.",
         "",
-        f"Variante de consigne : **{VARIANTE}**.",
+        f"Variante de consigne : **{VARIANTE}**. Profondeur de recherche : **k={K}**.",
         "",
         f"Montage : découpage par article (D12), `bge-m3` 1024 dim, k={K}, génération par",
         f"**`{MODELE}` sur SSPCloud** — la cible de production (D3). Prompt système : celui",
