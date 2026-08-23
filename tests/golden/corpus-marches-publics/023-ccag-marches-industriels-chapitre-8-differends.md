@@ -1,0 +1,20 @@
+# Chapitre 8 : DIFFÉRENDS
+
+> **Position dans le Code de la commande publique**  
+> CCAG Marchés industriels › Chapitre 8 : DIFFÉRENDS
+
+**Article CCAG Marchés industriels 49**, en vigueur.
+
+*Source : CCAG Marchés industriels (LEGI, DILA). Licence Ouverte 2.0. Texte applicable au 2026-08-23.*
+
+---
+
+## Article CCAG Marchés industriels 49
+
+*En vigueur depuis le 2021-04-01.*
+
+Règlement des différends entre les parties
+49.1. L'acheteur et le titulaire s'efforceront de régler à l'amiable tout différend éventuel relatif à l'interprétation des stipulations du marché ou à l'exécution des prestations objet du marché.Au sens du présent article, l'apparition du différend résulte :
+- soit d'une prise de position écrite, explicite et non équivoque émanant de l'acheteur et faisant apparaître le désaccord ;- soit du silence gardé par l'acheteur à la suite d'une mise en demeure adressée par le titulaire l'invitant à prendre position sur le désaccord dans un délai qui ne saurait être inférieur à quinze jours ;- soit de l'absence de notification du décompte de résiliation dans le délai mentionné à l'article 46.
+Commentaires :En l'absence de mise en demeure, la seule circonstance que l'acheteur ne s'acquitte pas, en temps utile, des factures qui lui sont adressées, sans refuser explicitement de les honorer, ne suffit pas à caractériser l'existence d'un différend au sens du présent article.
+49.2. Tout différend entre le titulaire et l'acheteur doit faire l'objet, de la part du titulaire, d'un mémoire en réclamation exposant précisément les motifs de ce différend et indiquant, le cas échéant, pour chaque chef de contestation, le montant des sommes réclamées et leur justification.Ce mémoire doit être communiqué à l'acheteur dans le délai de deux mois courant à compter du jour où le différend est apparu.Le délai de communication du mémoire en réclamation est prescrit à peine de forclusion.49.3. L'acheteur dispose d'un délai de deux mois courant à compter de la réception du mémoire en réclamation pour notifier sa décision. L'absence de décision dans ce délai vaut rejet de la réclamation.49.4. Lorsque l'acheteur et le titulaire ne parviennent pas à régler le différend à l'issue de la procédure décrite aux 1 à 3 du présent article, ils privilégient le recours à un comité consultatif de règlement à l'amiable, à la conciliation, à la médiation, notamment auprès du médiateur des entreprises, ou à l'arbitrage, dans les hypothèses et les conditions prévues par le code de la commande publique.La partie qui saisit d'un différend le comité consultatif de règlement amiable compétent supporte les frais de l'expertise, s'il en est décidé une, dans l'attente du règlement amiable définitif du différend.La saisine d'un comité consultatif de règlement amiable des différends interrompt les délais de recours contentieux jusqu'à la notification de la décision prise par l'acheteur sur l'avis du comité.La saisine d'un conciliateur ou d'un médiateur interrompt les délais de recours contentieux jusqu'à la notification de la décision prise après conciliation ou médiation ou de la constatation par le conciliateur ou le médiateur de l'échec de sa mission49.5. Pour les réclamations auxquelles a donné lieu le solde du marché, le titulaire dispose d'un délai de deux mois, à compter de la notification de la décision prise par l'acheteur ou de la naissance de la décision implicite de rejet mentionnées au 3 du présent article, pour porter ses réclamations devant le tribunal administratif compétent. Passé ce délai, le titulaire est réputé avoir accepté cette décision.Les litiges portant sur des actions civiles relatives à la propriété littéraire et artistique relevant de l'article L. 331-1 du code de la propriété intellectuelle sont portés devant la juridiction judiciaire compétente.

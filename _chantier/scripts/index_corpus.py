@@ -15,7 +15,12 @@ CORPUS = Path(__file__).resolve().parents[2] / "tests" / "golden" / "corpus-marc
 # portent « CCAG Travaux 20 ». Un index aveugle a la moitie de son corpus le
 # declare simplement absent, sans erreur : exactement le mode de defaillance
 # silencieux que ce chantier passe son temps a fermer.
-_ART = re.compile(r"^#{1,6}\s*Article\s+([A-Za-z0-9\-. ]+?)\s*$", re.M)
+#
+# Deuxieme elargissement : « [A-Za-z0-9-. ] » n'accepte ni le tiret cadratin ni les
+# accents. « Annexe 2 — Seuils » et « CCAG Maitrise d'oeuvre » lui echappaient donc
+# entierement — 183 articles absents de l index sur 1026, sans la moindre erreur.
+# Un identifiant est ce que le corpus ecrit, pas ce que le motif prevoyait.
+_ART = re.compile(r"^#{1,6}\s*Article\s+(.+?)\s*$", re.M)
 
 
 def index() -> dict[str, dict]:

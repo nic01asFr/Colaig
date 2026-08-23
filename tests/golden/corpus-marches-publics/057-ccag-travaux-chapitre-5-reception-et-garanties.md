@@ -5,7 +5,7 @@
 
 **4 articles en vigueur** — CCAG Travaux 41 à CCAG Travaux 44.
 
-*Source : CCAG Travaux, arrêté du 30 mars 2021 (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici.*
+*Source : CCAG Travaux (LEGI, DILA). Licence Ouverte 2.0. Texte applicable au 2026-08-23.*
 
 ---
 

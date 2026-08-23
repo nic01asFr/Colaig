@@ -3,13 +3,13 @@
 > **Position dans le Code de la commande publique**  
 > CCAG Travaux › Annexe
 
-**Article CCAG Travaux Préambule**, en vigueur.
+**Article CCAG Travaux — texte 1**, en vigueur.
 
-*Source : CCAG Travaux, arrêté du 30 mars 2021 (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici.*
+*Source : CCAG Travaux (LEGI, DILA). Licence Ouverte 2.0. Texte applicable au 2026-08-23.*
 
 ---
 
-## Article CCAG Travaux Préambule
+## Article CCAG Travaux — texte 1
 
 *En vigueur depuis le 2021-04-01.*
 

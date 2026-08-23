@@ -1076,3 +1076,82 @@ et le code seul n'y répondait pas.
 
 **Vocabulaire enfin présent :** CCAP 9 occurrences, CCAG 99, acte d'engagement 4, décompte
 général 22, ordre de service 39 — tous à zéro auparavant.
+
+## D30 — Le corpus d'un expert : six CCAG et les annexes du code · 23/08/2026 · **actée**
+
+Décision de périmètre prise par l'utilisateur : couvrir la **rédaction** et non la seule
+passation. Elle renverse D29, qui ne retenait qu'un cahier.
+
+### Pourquoi les six CCAG, alors que D24 écarte le livre défense
+
+Les deux cas paraissent identiques — des régimes parallèles, des articles jumeaux aux
+contenus différents. Ils diffèrent sur **un seul point, et il est décisif** :
+
+| | livre défense-sécurité | les six CCAG |
+|---|---|---|
+| identifiant | `R2322-14` | `CCAG Travaux 20` |
+| se distingue de son jumeau ? | **non** — seul un expert voit que ce n'est pas `R2122-8` | **oui** — le cahier est dans le nom |
+| une citation fautive se voit ? | jamais | immédiatement |
+
+**On écarte ce qu'on ne peut pas voir, on garde ce qu'on peut lire.**
+
+### Ce que le corpus porte désormais
+
+**1026 articles, 107 documents, 1,52 Mo.**
+
+| source | articles |
+|---|---|
+| Code, 2ᵉ partie livre Ier + titre préliminaire | 699 |
+| CCAG Travaux · MOE · FCS · PI · TIC · Industriels | 295 |
+| Annexe 2 — seuils de procédure | 1 |
+| Annexe 7 — profils d'acheteurs | 8 |
+| Annexe 12 — signature électronique | 12 |
+| Annexe 13 — modèles de garantie | 6 |
+
+### Quatre défauts silencieux, dont un qui servait du droit périmé
+
+**1. LEGI ne ferme pas les versions antérieures.** L'avis sur les seuils compte **cinq
+versions**, toutes `status = VIGUEUR` avec `end_date = 2999-01-01`, de 2018 à 2026. La
+règle temporelle ne les départage pas. **Le corpus servait donc les seuils de 2018 —
+144 000 € — comme s'ils étaient en vigueur.** Règle ajoutée : par numéro, la version
+applicable la plus récente. Le corpus porte maintenant les seuils du 14/01/2026 —
+**140 000 €, 216 000 €, 5 404 000 €**.
+
+**2. L'arrêté écrasait son propre cahier** — mêmes numéros 1 à 5 pour l'arrêté et pour le
+cahier annexé. « Article 4 » rendait l'application à Saint-Barthélemy au lieu des Pièces
+contractuelles.
+
+**3. Les articles sans numéro s'écrasaient entre eux.** Cinq versions sous le même
+en-tête « Annexe 2 — texte » : quatre disparaissaient. Un ordinal les distingue, et un
+suffixe traite les numéros en double.
+
+**4. Le motif d'en-tête perdait 183 articles.** `[A-Za-z0-9-. ]` n'accepte ni le tiret
+cadratin ni les accents : « Annexe 2 — Seuils » et « CCAG Maîtrise d'œuvre » échappaient
+entièrement à l'index. **1026 articles indexés sur 1026** désormais.
+
+### Le jeu doré suit son corpus, ou il mesure autre chose
+
+**Cinq cas négatifs sont devenus faux** : seuils européens (deux cas), modèles de
+garantie, profils d'acheteurs, CCAG. Tous requalifiés en positifs — même défaut que
+`mp-032`, et il **revient à chaque enrichissement**. Cinq négatifs réels les remplacent,
+vérifiés contre le corpus élargi : CCTG absents, annexe 1 absente, absence de CCAG
+supplétif, cumul de cahiers, taux de la retenue de garantie.
+
+`mp-124` mérite d'être noté : écrit comme négatif le matin, rendu faux le soir par
+l'ajout de l'annexe 7. C'est la démonstration la plus nette que les cas négatifs se
+revérifient à chaque évolution du corpus.
+
+**Et le contrôle des montants a arrêté une invention.** La réponse de `mp-012` annonçait
+un seuil travaux de 5 538 000 € — écrit de mémoire, en violation directe de la règle qui
+l'interdit. Le corpus dit **5 404 000**. Le garde-fou existe exactement pour cela.
+
+### Mesure
+
+| | avant | après |
+|---|---|---|
+| articles attendus remontés | 89/104 — 86 % | **98/113 — 87 %** |
+| jeu doré | 124 cas | **135 cas**, 22 négatifs |
+| corpus | 699 articles | **1026** |
+
+Le taux tient à corpus multiplié par 1,5 et à jeu doré élargi — ce qui est le résultat
+qui comptait : enrichir sans dégrader.

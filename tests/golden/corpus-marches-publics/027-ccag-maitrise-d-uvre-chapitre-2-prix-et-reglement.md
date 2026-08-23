@@ -1,0 +1,109 @@
+# Chapitre 2 : PRIX ET RÈGLEMENT
+
+> **Position dans le Code de la commande publique**  
+> CCAG Maîtrise d'œuvre › Chapitre 2 : PRIX ET RÈGLEMENT
+
+**3 articles en vigueur** — CCAG Maîtrise d'œuvre 10 à CCAG Maîtrise d'œuvre 12.
+
+*Source : CCAG Maîtrise d'œuvre (LEGI, DILA). Licence Ouverte 2.0. Texte applicable au 2026-08-23.*
+
+---
+
+## Article CCAG Maîtrise d'œuvre 10
+
+*En vigueur depuis le 2021-04-01.*
+
+Prix
+10.1. Règles générales :10.1.1. Lorsque la durée d'exécution du marché est supérieure à trois mois, les prix sont réputés révisables.Le prix du marché est réputé établi sur la base des conditions économiques en vigueur au mois m0 du marché de maîtrise d'œuvre.Dans le silence des documents particuliers du marché, la révision est effectuée par application au prix du marché d'un coefficient C de révision, donné par la formule :C = 0,15 + 0,85 Im/Iodans laquelle Io et Im sont les valeurs prises par l'index ING diffusé par l'INSEE respectivement au mois m0 et au mois m au cours duquel l'acompte ou l'élément de mission doit être remis conformément aux échéances prévues par le marché.La date d'établissement du prix initial correspond à la date de remise de l'offre par le maître d'œuvre. Lorsque la procédure de passation a donné lieu à une négociation ou un dialogue compétitif, la date à prendre en compte est la date de remise de l'offre finale par le maître d'œuvre.Les coefficients de révision sont arrondis au millième supérieur.10.1.2. Lorsque les prix sont fermes, ils sont actualisés dans les conditions prévues par la réglementation en vigueur à la date à laquelle le candidat a fixé son prix dans l'offre. Cette date correspond à la date de remise de l'offre par le maître d'œuvre. Lorsque la procédure de passation a donné lieu à une négociation ou un dialogue compétitif, la date à prendre en compte est la date de remise de l'offre finale par le maître d'œuvre.Les prix de chaque tranche optionnelle sont actualisés dans les mêmes conditions. L'actualisation se fait en appliquant des coefficients établis à partir d'un index, d'un indice ou d'une combinaison d'entre eux correspondant à l'objet du marché. Ils sont définis dans les documents particuliers du marché. A défaut, l'actualisation se fait sur la base de l'index ING.La formule mise en œuvre est la suivante : Prix actualisé = prix initial x (indices à la date de début d'exécution des prestations - 3 mois) / indices de la date de fixation du prix dans l'offre).Les coefficients d'actualisation sont arrondis au millième supérieur.10.1.3. Les prix sont réputés comprendre toutes les charges fiscales ou autres, frappant obligatoirement les prestations, les frais afférents à l'assurance ainsi que toutes les autres dépenses nécessaires à l'exécution des prestations, les marges pour risque et les marges bénéficiaires.
+Commentaires :Dans le cadre des opérations soumises au livre IV de la deuxième partie du code de la commande publique, et à l'exception des missions commandées par les organismes HLM et les sociétés d'économies mixtes immobilières, les modalités de rémunération du maître d'œuvre sont encadrées notamment par les articles L. 2432-1, L. 2432-2 et R. 2432-1 à R. 2432-7 dudit code.
+10.2. Détermination des prix de règlement :10.2.1. Passage des prix provisoires aux prix définitifs :Lorsque le marché est passé à prix provisoires, les modalités de fixation des prix de règlement et du montant de la rémunération définitive du maître d'œuvre sont définies dans les documents particuliers du marché.
+Commentaires :Pour la réalisation des ouvrages mentionnés à l'article L. 2412-1 du code de la commande publique, les marchés de maîtrise d'œuvre sont passés à prix provisoires conformément aux dispositions du titre III du livre IV de la deuxième partie de ce même code. Dans ce cadre, le passage à la rémunération définitive s'opère par une clause de réexamen en application de l'article R. 2194-1 du code de la commande publique.
+10.2.2. Lorsque les prix sont révisables, ils sont révisés à la date ou selon la périodicité prévue par les documents particuliers du marché.Les prix à payer sont ceux applicables à la remise des prestations.
+
+## Article CCAG Maîtrise d'œuvre 11
+
+*En vigueur depuis le 2023-01-01.*
+
+Précisions sur les modalités de règlement
+11.1. Avances :
+Le présent article comprend deux options alternatives, A et B.
+Les documents particuliers du marché précisent l'option retenue ; à défaut l'option A s'applique.
+Option A
+A.11.1. Le maître d'œuvre ou son sous-traitant admis au paiement direct bénéficient d'une avance calculée en application du code de la commande publique dès lors que le marché respecte les conditions mentionnées à l'article R. 2191-3 ou que le marché de défense ou de sécurité respecte les conditions mentionnées à l'article R. 2391-1.
+Lorsque le maître d'œuvre ou le sous-traitant est une petite ou moyenne entreprise au sens du code de la commande publique, le taux de l'avance mentionné à l'article R. 2191-10 est fixé à 30% ou à un taux supérieur fixé par les documents particuliers du marché.
+Lorsque le maître d'œuvre ou le sous-traitant n'est pas une petite ou moyenne entreprise au sens du code de la commande publique, le taux de l'avance est fixé par les documents particuliers du marché et, à défaut, au taux minimal prévu à l'article R. 2191-7 du code de la commande publique pour les marchés ou par l'article R. 2391-4 pour les marchés de défense ou de sécurité, ou à un taux supérieur prévu par les documents particuliers du marché.
+L'avance est versée et remboursée selon les dispositions du code de la commande publique.
+Option B
+B.11.1. Lorsqu'en application du code de la commande publique, le maître d'œuvre ou son sous-traitant admis au paiement direct bénéficie d'une avance, le taux de l'avance correspond aux taux minimums prévus à l'article R. 2191-7 du code de la commande publique pour les marchés ou à l'article R. 2391-4 pour les marchés de défense ou de sécurité, ou à un taux supérieur prévu par les documents particuliers du marché.
+L'avance est versée et remboursée selon les dispositions du code de la commande publique.
+11.2. Acomptes :
+Le règlement des comptes du marché se fait par des acomptes mensuels et un solde établis et réglés comme il est indiqué à l'article 11.8.
+Le montant de chaque acompte est déterminé par le maître d'ouvrage, sur la base du descriptif des prestations effectuées et de leur montant, produit par le maître d'œuvre. Chaque acompte fait l'objet d'une demande de paiement.
+11.3. Contenu de la demande de paiement :
+11.3.1. Lorsque le maître d'œuvre remet au maître d'ouvrage une demande de paiement, il y joint les pièces nécessaires à la justification du paiement prévues par les documents particuliers du marché.
+11.3.2. La demande de paiement est datée. Elle mentionne les références du marché ainsi que, selon le cas :
+- le montant des prestations exécutées, établi conformément aux stipulations du marché, hors TVA et, le cas échéant, diminué des réfactions fixées conformément aux stipulations de l'article 21.3 ;
+- la décomposition des prix forfaitaires ou le détail des prix unitaires, lorsque l'indication de ces précisions est prévue par les documents particuliers du marché ou que, eu égard aux prescriptions du marché, les prestations ont été effectuées de manière incomplète ou non conforme ;
+- le détail des calculs, avec justifications à l'appui, des coefficients d'actualisation ou de révision des prix ;
+- en cas de groupement conjoint ou solidaire, pour chaque membre du groupement, le montant des prestations effectuées par celui-ci ;
+- en cas de sous-traitance, la nature des prestations exécutées par le sous-traitant, leur montant total hors TVA, leur montant toutes taxes comprises ainsi que, le cas échéant, les variations de prix établies hors TVA et toutes taxes comprises ;
+- le cas échéant, les indemnités, primes et retenues autres que la retenue de garantie, établies conformément aux stipulations du marché. 11.3.3. La demande de paiement précise les éléments assujettis à la TVA, en les distinguant selon le taux applicable.
+11.3.4. Les prix unitaires peuvent être fractionnés pour tenir compte des prestations en cours d'exécution.
+11.3.5. Les prix forfaitaires peuvent être fractionnés, si la prestation ou la partie de prestation à laquelle le prix se rapporte n'est pas achevée. Une fraction du prix, qui est égale au pourcentage d'exécution de la prestation, est dans ce cas déterminée en faisant application, si le maître d'ouvrage le demande, de la décomposition des prix mentionnée à l'article 11.3.2.
+11.3.6. Le maître d'œuvre établit sa demande de paiement suivant le modèle ou selon les modalités fixés dans les documents particuliers du marché.
+11.3.7. En cas d'exécution de prestations aux frais et risques du maître d'œuvre défaillant, le surcoût supporté par le maître d'ouvrage est déduit des sommes dues au maître d'œuvre au titre des prestations admises. Ce surcoût correspond à la différence entre le prix que le maître d'ouvrage aurait dû régler au maître d'œuvre pour la réalisation des prestations et le prix effectivement payé pour l'exécution de celles-ci à la place du maître d'œuvre défaillant.
+11. 4. Calcul du montant dû par le maître d'ouvrage au titre des prestations fournies :
+11.4.1. Le montant des sommes dues peut être établi sur la base de constats contradictoires lorsque le CCAP ou tout autre document qui en tient lieu le prévoit.
+11.4.2. Lorsque le marché prévoit le versement d'acomptes à l'achèvement de certaines étapes de l'exécution des prestations, et qu'il indique la quotité du prix à régler à l'achèvement de chacune d'elles, la demande de paiement comprend :
+- pour chaque partie du marché exécutée, la quotité correspondante ;
+- pour chaque partie du marché entreprise, après accord du maître d'ouvrage, une fraction de la quotité correspondante, égale au pourcentage d'exécution des prestations de la partie en cause.
+11.5. Remise de la demande de paiement :
+La remise d'une demande de paiement intervient au début de chaque mois pour les prestations effectuées le mois précédent. Le maître d'œuvre transmet alors au maître d'ouvrage une demande de paiement mensuelle établissant le montant total, arrêté à la fin du mois précédent, des sommes auxquelles il peut prétendre du fait de l'exécution du marché depuis le début de celui-ci.
+11.6. Acceptation de la demande de paiement par le maître d'ouvrage :
+Le maître d'ouvrage accepte ou rectifie la demande de paiement. Il la complète, éventuellement, en faisant apparaître notamment les avances à rembourser, les primes et les réfactions imposées.
+Il arrête le montant de la somme à régler. Si ce montant est différent de celui figurant dans la demande de paiement, il notifie le montant qu'il a ainsi arrêté au maître d'œuvre.
+11.7. Demande de paiement finale :
+11.7.1. Le maître d'œuvre transmet sa demande de paiement finale au maître d'ouvrage après l'achèvement du marché de maîtrise d'œuvre.
+Cette demande de paiement finale est le projet de décompte final établissant le montant total des sommes auquel le maître d'œuvre prétend du fait de l'exécution du marché dans son ensemble, son évaluation étant faite en tenant compte des prestations réellement exécutées.
+Le projet de décompte final est établi à partir des prix initiaux du marché.
+Le maître d'œuvre est lié par les indications figurant sur le projet de décompte final. 11.7.2. Le maître d'œuvre notifie son projet de décompte final au maître d'ouvrage dans un délai de trente jours à compter de la notification de la dernière décision d'admission des prestations ou, en l'absence d'une telle notification, à la fin du délai fixé à l'article 20.2. Si la mission du maître d'œuvre s'achève à l'issue de la période de garantie de parfait achèvement, il notifie son projet de décompte final dans un délai de trente jours à compter de la date de fin de cette garantie.
+Le maître d'ouvrage accepte ou rectifie le projet de décompte final établi par le maître d'œuvre. Le projet accepté ou rectifié devient alors le décompte final.
+11.7.3. Si, après avoir été mis en demeure de le faire, le maître d'œuvre ne produit pas son projet de décompte final dans un délai de quinze jours à compter de la réception de la mise en demeure, le maître d'ouvrage établit d'office le décompte final aux frais du maître d'œuvre. Ce décompte final est notifié au maître d'œuvre avec le décompte général tel que défini à l'article 11.8.1.
+11.8. Décompte général définitif :
+11.8.1. Le maître d'ouvrage établit le décompte général qui comprend :
+- le décompte final ;
+- l'état du solde hors révision de prix définitive, établi à partir du décompte final ;
+- l'état récapitulatif des acomptes perçus et du solde hors révision de prix définitive.
+Le montant du décompte général est égal au résultat de cette dernière récapitulation.
+Lorsque la valeur finale des indices ou index de référence n'est pas connue au moment de l'établissement du décompte général, ce dernier est établi en prenant en compte la dernière valeur de référence connue.
+Si le maître d'ouvrage a connaissance d'un litige ou d'une réclamation susceptible de concerner le maître d'œuvre au moment de la signature du décompte général, celui-ci est assorti d'une mention indiquant expressément l'objet du litige ou de la réclamation. A défaut, lorsque le décompte général sera devenu définitif, le maître d'ouvrage ne pourra appeler le maître d'œuvre à le garantir des condamnations qui pourraient être prononcées à son encontre dans le cadre d'une procédure contentieuse au titre des litiges ou réclamations dont il avait connaissance au moment de l'établissement du décompte.
+11.8.2. Le maître d'ouvrage notifie au maître d'œuvre le décompte général dans un délai de trente jours à compter de la date de réception par le maître d'ouvrage du projet de décompte final transmis par le maître d'œuvre.
+11.8.3. Dans un délai de trente jours courant à compter de la date à laquelle le décompte général lui a été notifié, le maître d'œuvre envoie au maître d'ouvrage ce décompte revêtu de sa signature, avec ou sans réserves, ou fait connaître les motifs pour lesquels il refuse de le signer.
+Si la signature du décompte général est donnée sans réserve par le maître d'œuvre, il devient le décompte général et définitif. La date de sa notification au maître d'ouvrage constitue le point de départ du délai de paiement.
+11.8.4. Dans le cas où le maître d'œuvre n'a pas renvoyé le décompte général signé au maître d'ouvrage dans le délai de trente jours fixé à l'article 11.8.3, ou encore dans le cas où, l'ayant renvoyé dans ce délai, il n'a pas motivé son refus ou n'a pas exposé en détail les motifs de ses réserves, en précisant le montant de ses réclamations comme indiqué à l'article 35, le décompte général notifié par le maître d'ouvrage est réputé être accepté par lui. Il devient alors le décompte général et définitif du marché.
+11.8.5. Si le maître d'ouvrage ne notifie pas au maître d'œuvre le décompte général dans les délais stipulés à l'article 11.8.2, le maître d'œuvre notifie au maître d'ouvrage un projet de décompte général signé, composé : - du projet de décompte final tel que transmis en application de l'article 11.7 ;
+- du projet d'état du solde hors révision de prix définitive, établi à partir du projet de décompte final ;
+- du projet de récapitulation des acomptes perçus et du solde hors révision de prix définitive.
+Dans un délai de dix jours à compter de la réception de ces documents, le maître d'ouvrage notifie le décompte général au maître d'œuvre. Le décompte général et définitif est alors établi dans les conditions fixées à l'article 11.8.3.
+Si, dans ce délai de dix jours, le maître d'ouvrage n'a pas notifié au maître d'œuvre le décompte général, le projet de décompte général transmis par le maître d'œuvre devient le décompte général et définitif. Le délai de paiement du solde, hors révisions de prix définitives, court à compter du lendemain de l'expiration de ce délai.
+11.8.6. Le décompte général et définitif lie définitivement les parties, sauf en ce qui concerne la mention prévue à l'article 11.8.1, les montants des révisions de prix et des intérêts moratoires afférents au solde. Le cas échéant, les révisions de prix sont calculées dans les conditions prévues à l'article 11.8.1.
+Le maître d'ouvrage notifie au maître d'œuvre le montant des révisions de prix au plus tard dix jours après la publication des indices ou index de référence permettant la révision du solde. La date de cette notification constitue le point de départ du délai de paiement de ce montant.
+En cas de contestation sur le montant des sommes dues, le maître d'ouvrage règle, dans un délai de trente jours à compter de la date de réception de la notification du décompte général assorti des réserves émises par le maître d'œuvre ou de la date de réception des motifs pour lesquels le maître d'œuvre refuse de signer, les sommes admises dans le décompte final. Après résolution du désaccord, il procède, le cas échéant, au paiement d'un complément, majoré, s'il y a lieu, des intérêts moratoires. Ce désaccord est réglé dans les conditions mentionnées à l'article 35.
+Si les réserves sont partielles, le maître d'œuvre est lié par son acceptation implicite des éléments du décompte général sur lesquels ses réserves ne portent pas.
+11.9. Indemnités de dédit et d'attente en cas de tranches optionnelles :
+11.9.1. Indemnités de dédit :
+Si les documents particuliers le prévoient, en cas de non-affermissement d'une tranche optionnelle, une indemnité de dédit est due au maître d'œuvre. Celle-ci est due à compter de la notification, par ordre de service, au maître d'œuvre de la décision de renoncer à l'affermissement de la tranche optionnelle considérée. A défaut de décision du maître d'ouvrage dans les délais fixés par les documents particuliers du marché, l'indemnité de dédit est due quinze jours après que le maître d'œuvre ait mis en demeure le maître d'ouvrage de prendre cette décision.
+11.9.2. Indemnités d'attente :
+Si les documents particuliers du marché prévoient que, pour une tranche optionnelle, le maître d'œuvre a droit, à l'expiration d'un certain délai, à une indemnité d'attente, cette indemnité est due au maître d'œuvre, en tenant compte des stipulations prévues à l'article 15 en cas de prolongation ou de report des délais de réalisation, pour la période s'étendant de l'expiration de ce délai jusqu'à la date fixée pour le démarrage des prestations dans l'ordre de service prescrivant l'exécution de la tranche optionnelle ou la date de la notification de l'ordre de service faisant connaître la décision de renoncer à cette exécution, ou bien, en l'absence d'une telle notification, dans le délai imparti par les documents particuliers du marché jusqu'à expiration de ce délai. Si l'indemnité d'attente prévue par les documents particuliers du marché est mensuelle, il est néanmoins tenu compte des fractions de mois, chaque jour étant compté pour un trentième.
+11.9.3. Les indemnités de dédit et d'attente éventuellement prévues par les documents particuliers du marché se cumulent. Elles sont toutes deux révisables ou actualisables, selon les mêmes modalités que les prix du marché.
+11.10. Facturation électronique :
+11.10.1. Lorsque le maître d'œuvre ou son sous-traitant admis au paiement direct est tenu, en application du code de la commande publique, de transmettre les demandes de paiement sous forme électronique, il les transmet selon les modalités prévues par ce même code. Les modalités pratiques d'exécution sont prévues dans les documents particuliers du marché.
+La demande de paiement peut être refusée par le maître d'ouvrage lorsque celle-ci méconnaît les obligations de dématérialisation des factures à la charge du maître d'œuvre et de ses sous-traitants admis au paiement direct. Au préalable, le maître d'ouvrage doit avoir informé le maître d'œuvre et les sous-traitants admis au paiement direct, dans les conditions prévues à l'article 3.1, de l'obligation à sa charge de transmission des demandes de paiement sous forme électronique et l'avoir invité à s'y conformer.
+11.10.2. Lorsque le maître d'œuvre est habilité à recevoir des demandes de paiement, il est tenu, pour l'exercice de cette mission, de s'intégrer et de se conformer au portail de facturation utilisé par le maître d'ouvrage lorsque ce portail le permet. Les modalités pratiques d'habilitation du maître d'œuvre pour accéder aux outils ministériels sécurisés sont prévues dans les documents particuliers du marché.
+
+## Article CCAG Maîtrise d'œuvre 12
+
+*En vigueur depuis le 2021-04-01.*
+
+Règlement en cas de groupement d'opérateurs économiques ou de sous-traitance
+12.1. Groupements d'opérateurs économiques :12.1.1. En cas de groupement conjoint ou solidaire, chaque membre du groupement perçoit directement les sommes se rapportant à l'exécution de ses propres prestations.12.1.2. Toutefois, les documents particuliers du marché peuvent prévoir, en cas de groupement solidaire, que le paiement est effectué sur un compte unique ouvert au nom des membres du groupement ou du mandataire.12.1.3. Quelle que soit la forme du groupement, le mandataire est seul habilité à présenter au maître d'ouvrage la demande de paiement. La demande de paiement présentée par le mandataire est décomposée en autant de parties qu'il y a de membres du groupement à payer séparément. Chaque partie fait apparaître les renseignements nécessaires au paiement du membre du groupement concerné.12.1.4. Le mandataire est seul habilité à formuler ou à transmettre les réclamations des membres du groupement.12.2. Sous-traitants :Les prestations exécutées par les sous-traitants, dont les conditions de paiement ont été agréées par le maître d'ouvrage, sont payées dans les conditions financières prévues par le marché ou par un acte spécial.
