@@ -2371,3 +2371,73 @@ appelee, et `storage_readonly` honore par un site sur vingt.
 3. **Traiter `MegolmEvent`** : au minimum le journaliser en tant que tel ; au mieux, le
    dire dans le salon une fois, pas a chaque message.
 4. Refuser un corps vide avant le pipeline.
+
+---
+
+## D47 — L2.4 s'arrete a la classification, et pourquoi · 24/08/2026 · **arbitrage demande**
+
+Le lot L2.4 vise « aucun destructif execute sans confirmation », **par reaction ✅**.
+La moitie classification est livree (L2.4a). La garde ne l'est pas, et ce n'est pas un
+renoncement : c'est un refus de construire du theatre.
+
+### Les deux obstacles, verifies
+
+**1. La reaction exige de toucher `protocols.py`.** `MessagingProtocol` n'a aucune notion
+de reaction — ni pour en envoyer, ni pour en recevoir. L'ajouter releve d'un **arbitrage
+humain explicite** (`CLAUDE.md` §5).
+
+**2. La boucle interactive n'a aucun mecanisme de suspension.** `pause_and_ask_user`
+existe, mais seulement dans le chemin des taches de fond, avec
+`waiting_for_user` / `pending_user_reply`. Le tour interactif, lui, execute ses outils
+d'un trait a `orchestrator.py`.
+
+### Pourquoi je n'ai pas livre une liste blanche a la place
+
+Elle aurait eu la forme de L2.2 — `platform_policy.allowed_destructive_tools`, defaut
+refus — et se serait lue comme une protection.
+
+Elle n'aurait rien protege. La menace visee par L2.4 est **l'appel non voulu d'un outil
+legitime**, declenche par une consigne injectee. Une liste blanche rend `create_document`
+soit toujours permis, soit jamais : dans le premier cas l'injection passe, dans le second
+le Mode C ne fonctionne plus. Le curseur n'est pas au bon endroit — la decision est **par
+appel**, pas par instance.
+
+Une garde qui se lit dans le journal et ne protege de rien est precisement ce que ce
+chantier passe son temps a trouver ailleurs. Je ne vais pas en ajouter une.
+
+### Ce qui est livre — L2.4a
+
+`colaig/security/actions.py` classe les vingt-deux outils integres en destructifs et
+lecteurs, et tranche le cas des outils MCP externes selon la specification : `readOnlyHint`
+vrai ou `destructiveHint` faux → inoffensif ; **sinon destructif, annotation absente
+comprise**. La specification fait de `destructiveHint` un defaut vrai hors lecture seule :
+un serveur qui n'annote rien ne promet rien.
+
+Un test refuse qu'un outil integre ne soit classe nulle part — sans quoi il serait traite
+comme un externe, donc destructif, mais **par accident et en silence**.
+
+Une limite est documentee et non corrigee : `readOnlyHint` vient du serveur. L'epinglage
+de L2.3 empeche de la CHANGER apres admission, il n'empeche pas de mentir des le depart.
+C'est a la suite adversariale de L2.5 de le mesurer.
+
+Cette classification sera necessaire **quel que soit** le canal de confirmation retenu.
+
+### L'arbitrage demande
+
+**Comment se confirme un appel destructif ?**
+
+**a. Par reaction ✅** — ce que le plan prevoit. Demande d'etendre `MessagingProtocol`
+(envoyer une reaction, recevoir un evenement de reaction) et son implementation Matrix.
+Ergonomie la meilleure ; touche `protocols.py`.
+
+**b. Par reponse texte**, sur le modele de `_handle_waiting_task_reply` qui existe deja.
+Ne touche pas `protocols.py`, mais demande de porter dans la boucle interactive un
+mecanisme de suspension et de reprise entre deux messages — un travail reel.
+
+**c. Restreindre a ce qui est deja suspendable** : n'autoriser les outils destructifs que
+dans le chemin des taches de fond, ou `pause_and_ask_user` existe, et les refuser dans le
+tour interactif. Le plus petit changement, au prix d'une capacite en moins.
+
+Aucune n'est engagee. **b** me parait le meilleur rapport, parce qu'elle reutilise un
+mecanisme eprouve et ne force pas la main sur `protocols.py` — mais c'est un arbitrage,
+pas une preference technique.
