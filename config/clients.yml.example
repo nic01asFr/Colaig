@@ -36,6 +36,16 @@
 #   # « Absent = tout autorisé » y rouvrirait le trou que le lot L2.2 ferme.
 #   allowed_mcp_servers:
 #     - https://mcp.interieur.gouv.fr
+#
+# ── Épinglage des contrats d'outils (lot L2.3, automatique) ──────────────────
+# Rien à déclarer ici. Colaig retient dans `config/mcp_pins.json` le nom, la
+# description et le schéma d'entrée de chaque outil à sa PREMIÈRE rencontre, puis
+# désactive tout outil dont ce contrat change — un serveur admis peut se faire
+# accepter avec un outil anodin, puis en modifier la description.
+#
+# Ce fichier doit être INSCRIPTIBLE : sinon les contrats ne survivent pas au
+# redémarrage et aucune mutation n'est jamais détectée. Le journal le dit.
+# Un changement légitime se ré-épingle en retirant l'entrée du magasin.
 #   # true = 401 si pas de token (désactive le chatbot public)
 #   enforce_mcp_auth: false
 

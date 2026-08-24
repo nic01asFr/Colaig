@@ -66,6 +66,29 @@ def _json_type_to_colaig(json_type: str) -> str:
     return mapping.get(json_type, "string")
 
 
+_MAGASIN_PINS = None
+
+
+def _contrat_admis(serveur: str, brut: dict) -> bool:
+    """Le contrat de cet outil est-il celui qui a ete admis ? (L2.3)
+
+    La liste blanche de L2.2 decide quels SERVEURS sont montes ; elle ne dit rien de ce
+    qu'ils font ensuite. Un serveur admis peut changer la description ou le schema d'un
+    outil que le modele a appris a utiliser — c'est un rug-pull, et le modele, lui, voit
+    un outil qu'il connait.
+
+    Le magasin est charge paresseusement : il lit un fichier de l'hote, et un import de
+    module ne doit pas toucher au disque.
+    """
+    global _MAGASIN_PINS
+    from colaig.security.mcp_pins import Magasin, verifier
+
+    if _MAGASIN_PINS is None:
+        _MAGASIN_PINS = Magasin()
+    admis, _ = verifier(serveur, brut, _MAGASIN_PINS)
+    return admis
+
+
 def _parse_tool_definition(
     raw: dict,
     connector_name: str,
@@ -419,6 +442,12 @@ class MCPConnectorClient:
                     "mcp_connector: outil filtré par policy '%s': %s (connector=%s)",
                     self._connector.tool_policy, raw_name, self._connector.name,
                 )
+                continue
+
+            # Epinglage du contrat (L2.3) — apres le filtrage par policy, avant
+            # d'exposer quoi que ce soit au registre de l'agent.
+            if not _contrat_admis(self._connector.name, raw):
+                filtered_count += 1
                 continue
 
             handler = _create_tool_handler(self._connector, raw_name)
