@@ -24,10 +24,10 @@ from collections.abc import AsyncIterator
 
 import httpx
 
-from colaig.utils.reponses_llm import extraire_contenu
 from colaig.exceptions import LLMError, LLMUnavailableError
 from colaig.integrations.llm.utils import normalize_tool_call_id as _normalize_id
 from colaig.models import ChatCompletionResult, ToolCall
+from colaig.utils.reponses_llm import extraire_contenu
 
 logger = logging.getLogger(__name__)
 

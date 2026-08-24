@@ -30,9 +30,9 @@ from nio import (
 )
 from nio.crypto.device import TrustState
 
+from colaig import paths
 from colaig.exceptions import MessagingError
 from colaig.models import Attachment, ConversationType, IncomingMessage
-from colaig import paths
 
 logger = logging.getLogger(__name__)
 

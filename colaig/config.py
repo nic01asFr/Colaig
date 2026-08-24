@@ -130,6 +130,7 @@ def load_platform_policy(clients_yaml_path: Path | None = None) -> PlatformPolic
     if not policy_data:
         return PlatformPolicy()
     return PlatformPolicy(
+        allowed_mcp_servers=policy_data.get("allowed_mcp_servers", []),
         allowed_storage_backends=policy_data.get("allowed_storage_backends", []),
         allowed_llm_endpoints=policy_data.get("allowed_llm_endpoints", []),
         allowed_mcp_auth_modes=policy_data.get("allowed_mcp_auth_modes", []),

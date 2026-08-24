@@ -16,13 +16,13 @@ import json
 import logging
 import re
 
+from colaig import paths
 from colaig.models import (
     ContextMode,
     IncomingMessage,
     WorkspaceConfig,
     WorkspaceContext,
 )
-from colaig import paths
 
 logger = logging.getLogger(__name__)
 

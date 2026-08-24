@@ -20,9 +20,9 @@ from typing import Any
 
 import yaml
 
+from colaig import paths
 from colaig.exceptions import WorkspaceConfigError
 from colaig.models import WorkspaceConfig
-from colaig import paths
 
 logger = logging.getLogger(__name__)
 

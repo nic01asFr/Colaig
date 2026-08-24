@@ -45,7 +45,20 @@ from colaig.models import (
     ToolResult,
     WorkspaceContext,
 )
+from colaig.security.mcp_policy import connecteurs_autorises, politique_instance
 from colaig.security.wrap import CONSIGNE, baliser, formater_skills
+
+
+def _connecteurs(workspace):
+    """Les serveurs MCP de cet espace QUE LA POLITIQUE D'INSTANCE ADMET.
+
+    `mcp_connectors` vient du `config.yaml` de l'espace : qui y ecrit branche un
+    serveur distant dont Colaig appellerait les outils. Le montage releve d'une
+    decision d'instance, jamais d'espace (L2.2).
+    """
+    return connecteurs_autorises(
+        getattr(workspace, "mcp_connectors", None), politique_instance()
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -212,7 +225,7 @@ class Orchestrator:
         _ws_has_connectors = (
             context.mode == ContextMode.ASSISTANT
             and context.workspace is not None
-            and bool(context.workspace.mcp_connectors)
+            and bool(_connecteurs(context.workspace))
         )
         if (
             (context.mode == ContextMode.PERSONAL or _ws_has_connectors)
@@ -314,10 +327,10 @@ class Orchestrator:
         _mcp_instructions: list[str] = []
         if (
             context.workspace is not None
-            and context.workspace.mcp_connectors
+            and _connecteurs(context.workspace)
         ):
             from colaig.integrations.mcp_connector import MCPConnectorClient
-            for connector in context.workspace.mcp_connectors:
+            for connector in _connecteurs(context.workspace):
                 if not connector.enabled or not connector.expose_tools:
                     continue
                 try:
@@ -665,7 +678,7 @@ class Orchestrator:
             defn = entry[0]
             if defn.category == "mcp_external" and context.workspace:
                 # Déterminer le session_id selon le scope configuré
-                for connector in (context.workspace.mcp_connectors or []):
+                for connector in _connecteurs(context.workspace):
                     if tool_call.tool_name.startswith(f"{connector.name}__"):
                         if connector.session_scope == "conversation":
                             tool_call.arguments["_session_id"] = getattr(

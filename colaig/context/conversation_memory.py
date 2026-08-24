@@ -19,6 +19,7 @@ import logging
 import math
 import re
 from datetime import datetime
+
 from colaig import paths
 
 logger = logging.getLogger(__name__)

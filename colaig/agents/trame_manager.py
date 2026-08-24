@@ -14,6 +14,7 @@ import json
 import logging
 from datetime import datetime
 
+from colaig import paths
 from colaig.models import (
     ContextAnchor,
     ConversationTrame,
@@ -23,7 +24,6 @@ from colaig.models import (
     WorkflowStep,
 )
 from colaig.protocols import StorageProtocol
-from colaig import paths
 
 logger = logging.getLogger(__name__)
 

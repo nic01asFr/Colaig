@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 
+from colaig import paths
 from colaig.models import (
     BehaviorActivationConfig,
     BehaviorAgentConfig,
@@ -21,7 +22,6 @@ from colaig.models import (
     WorkspaceProfile,
 )
 from colaig.protocols import EmbeddingServiceProtocol, StorageProtocol
-from colaig import paths
 
 logger = logging.getLogger(__name__)
 

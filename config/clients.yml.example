@@ -23,6 +23,19 @@
 #     - https://albert.api.etalab.gouv.fr
 #   # Modes auth MCP autorisés (vide = tous)
 #   allowed_mcp_auth_modes: [token, oidc]
+#
+#   # ── Serveurs MCP montables ────────────────────────────────────────────────
+#   # ⚠️ CE CHAMP NE SUIT PAS LA CONVENTION CI-DESSUS.
+#   #    absent ou []  → AUCUN serveur MCP n'est monté
+#   #    ["*"]         → tous, explicitement
+#   #    ["https://…"] → ceux-là (comparaison sur l'autorité + le chemin, ancrée)
+#   #
+#   # Pourquoi : les autres champs bornent ce que VOUS déclarez. Celui-ci borne ce que
+#   # l'utilisateur final écrit dans le `.colaig/config.yaml` de son espace — et un
+#   # serveur MCP monté, c'est Colaig qui appelle ses outils avec vos identifiants.
+#   # « Absent = tout autorisé » y rouvrirait le trou que le lot L2.2 ferme.
+#   allowed_mcp_servers:
+#     - https://mcp.interieur.gouv.fr
 #   # true = 401 si pas de token (désactive le chatbot public)
 #   enforce_mcp_auth: false
 

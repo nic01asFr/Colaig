@@ -22,9 +22,9 @@ import logging
 
 import yaml
 
+from colaig import paths
 from colaig.models import DocumentChunk
 from colaig.rag.faiss_store import FaissStore
-from colaig import paths
 
 logger = logging.getLogger(__name__)
 

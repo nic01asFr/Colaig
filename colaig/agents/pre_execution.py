@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
+from colaig import paths
 from colaig.agents.profile_service import ProfileService
 from colaig.models import (
     BehaviorConfig,
@@ -29,7 +30,6 @@ from colaig.protocols import (
     RetrieverProtocol,
     StorageProtocol,
 )
-from colaig import paths
 
 logger = logging.getLogger(__name__)
 

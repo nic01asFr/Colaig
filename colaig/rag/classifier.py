@@ -26,8 +26,8 @@ from datetime import UTC, datetime
 
 import yaml
 
-from colaig.models import DocumentRecord
 from colaig import paths
+from colaig.models import DocumentRecord
 
 logger = logging.getLogger(__name__)
 

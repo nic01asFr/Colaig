@@ -14,10 +14,10 @@ from __future__ import annotations
 import json
 import logging
 
-from colaig.models import ColaigConfig
-from colaig.integrations.llm.capabilities import motif_absence, supporte
-from colaig.utils.text import extract_text, is_indexable, needs_ocr
 from colaig import paths
+from colaig.integrations.llm.capabilities import motif_absence, supporte
+from colaig.models import ColaigConfig
+from colaig.utils.text import extract_text, is_indexable, needs_ocr
 
 logger = logging.getLogger(__name__)
 

@@ -41,6 +41,7 @@ logger = logging.getLogger(__name__)
 # WorkspaceAccessDenied supporte la signature legacy (user_id, workspace_id)
 # ET la signature simple (message string) — backward compat complet.
 from colaig.exceptions import WorkspaceAccessDenied, WorkspaceNotFound  # noqa: F401
+from colaig.security.mcp_policy import connecteurs_autorises, politique_instance
 
 # =============================================================================
 # Résultats
@@ -172,7 +173,8 @@ async def run_rag_delegate(
     if calling_workspace is not None:
         connector = next(
             (
-                c for c in calling_workspace.mcp_connectors
+                c for c in connecteurs_autorises(
+                    getattr(calling_workspace, "mcp_connectors", None), politique_instance())
                 if c.name == workspace_id and c.enabled
             ),
             None,

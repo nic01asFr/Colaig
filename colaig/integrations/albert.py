@@ -19,9 +19,9 @@ from collections.abc import AsyncIterator
 
 import httpx
 
-from colaig.utils.reponses_llm import extraire_contenu
 from colaig.exceptions import AlbertError, AlbertRateLimitError, AlbertUnavailableError
 from colaig.models import ChatCompletionResult, ColaigConfig, ToolCall
+from colaig.utils.reponses_llm import extraire_contenu
 
 logger = logging.getLogger(__name__)
 

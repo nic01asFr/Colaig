@@ -12,9 +12,9 @@ from __future__ import annotations
 
 import logging
 
+from colaig import paths
 from colaig.agents.tool_registry import ToolRegistry
 from colaig.models import AgentContext, AgentDirectives, WorkspaceConfig
-from colaig import paths
 
 logger = logging.getLogger(__name__)
 

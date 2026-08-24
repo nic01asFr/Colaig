@@ -1198,6 +1198,15 @@ class PlatformPolicy:
 
     Listes vides = aucune contrainte (tout autorisé).
     """
+    # Serveurs MCP autorises a etre montes (ex: ["https://mcp.interieur.gouv.fr"])
+    #
+    # ATTENTION — ce champ NE SUIT PAS la convention des autres : absent ou vide veut
+    # dire AUCUN, pas TOUS. Les autres bornent ce que l'operateur declare lui-meme ;
+    # celui-ci borne ce que l'utilisateur final ecrit dans son espace, et « absent =
+    # tout autorise » y reproduirait le trou que le lot L2.2 ferme. `["*"]` autorise
+    # tout, explicitement. Voir `colaig/security/mcp_policy.py`.
+    allowed_mcp_servers: list = field(default_factory=list)
+
     # Backends storage autorisés (ex: ["webdav", "bigfolder", "msgraph"])
     # Vide → tout backend autorisé
     allowed_storage_backends: list = field(default_factory=list)

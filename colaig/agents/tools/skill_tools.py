@@ -18,9 +18,9 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from colaig import paths
 from colaig.models import ToolDefinition, ToolParameter
 from colaig.rag.colaig_index import ColaigIndex
-from colaig import paths
 
 if TYPE_CHECKING:
     pass

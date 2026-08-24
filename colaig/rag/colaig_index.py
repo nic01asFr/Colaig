@@ -40,6 +40,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from typing import TYPE_CHECKING, ClassVar
+
 from colaig import paths
 
 if TYPE_CHECKING:
