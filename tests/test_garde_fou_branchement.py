@@ -29,8 +29,13 @@ from __future__ import annotations
 
 import pytest
 
-from colaig.models import (ContextMode, DocumentChunk, SearchResult,
-                           WorkspaceConfig, WorkspaceContext)
+from colaig.models import (
+    ContextMode,
+    DocumentChunk,
+    SearchResult,
+    WorkspaceConfig,
+    WorkspaceContext,
+)
 from colaig.rag.generator import Generator
 from tests.fakes import FakeLLM
 

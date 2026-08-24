@@ -1,11 +1,11 @@
 """Tests pour colaig/messaging/matrix.py — Client Matrix/Tchap."""
 
-import pytest
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from colaig.messaging.matrix import MatrixMessaging
-from colaig.models import IncomingMessage, ConversationType
+from colaig.models import ConversationType, IncomingMessage
 
 
 @pytest.fixture

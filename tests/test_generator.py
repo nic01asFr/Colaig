@@ -2,7 +2,7 @@
 
 import pytest
 
-from colaig.rag.generator import Generator, _format_documents, _extract_sources
+from colaig.exceptions import GenerationError
 from colaig.models import (
     ContextMode,
     DocumentChunk,
@@ -11,7 +11,7 @@ from colaig.models import (
     WorkspaceConfig,
     WorkspaceContext,
 )
-from colaig.exceptions import GenerationError
+from colaig.rag.generator import Generator, _extract_sources, _format_documents
 
 
 @pytest.fixture

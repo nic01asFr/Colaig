@@ -19,13 +19,11 @@ import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import pytest_asyncio
 
 from colaig.exceptions import LLMError, LLMRateLimitError, LLMUnavailableError
 from colaig.integrations.llm.capability_chain import CapabilityChain
 from colaig.integrations.llm.provider_registry import ProviderRegistry
 from colaig.models import ChatCompletionResult, ToolCall
-
 
 # ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -499,8 +497,8 @@ class TestAlbertClientChainIntegration:
         AlbertClient.__init__ construise les chains correctement. ProviderRegistry
         est isolé via patch.dict pour ne voir que les providers déclarés dans `env`.
         """
-        from colaig.models import ColaigConfig
         from colaig.integrations.albert import AlbertClient
+        from colaig.models import ColaigConfig
 
         env = env or {}
         # Environnement minimal : masquer les vraies clés API, n'exposer que env

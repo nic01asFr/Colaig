@@ -49,8 +49,6 @@ import json
 import re
 from pathlib import Path
 
-import pytest
-
 RACINE = Path(__file__).resolve().parent
 CORPUS = RACINE / "golden" / "corpus-marches-publics"
 JEU = RACINE / "golden" / "v1.jsonl"

@@ -16,9 +16,11 @@ Chaque test est auto-suffisant : construit sa propre configuration minimale.
 
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
+from colaig.agents import Orchestrator, build_tool_registry
 from colaig.messaging.handlers import MessageHandler
 from colaig.models import (
     Attachment,
@@ -39,10 +41,7 @@ from colaig.models import (
     WorkspaceConfig,
     WorkspaceContext,
 )
-from colaig.agents import Analyser, Orchestrator, Synthesiser, build_tool_registry
-
 from tests.conftest import MockAlbertClient, MockStorage
-
 
 # =============================================================================
 # Helpers et mocks légers
@@ -798,8 +797,6 @@ class TestToolRegistryConfigurations:
 
     def test_tools_filtered_by_workspace_tools_enabled(self):
         """workspace.tools_enabled filtre les outils disponibles pour l'orchestrateur."""
-        from colaig.agents.context_builder import build_agent_context
-        import asyncio
 
         ws = _make_workspace(tools_enabled=["search_documents"])  # seulement 1 outil
         registry = build_tool_registry(
@@ -998,7 +995,7 @@ class TestOnboardingCommands:
     @pytest.mark.asyncio
     async def test_chatbot_cmd_create_workspace(self):
         """'colaig créer mon espace' → create_workspace appelé → confirmation envoyée."""
-        from unittest.mock import patch, AsyncMock
+        from unittest.mock import patch
 
         context = _make_context(mode=ContextMode.CHATBOT, workspace=None)
         messaging = MockMessaging()
@@ -1111,7 +1108,6 @@ class TestPhase6Features:
             synthesiser=tracker,
         )
 
-        from colaig.models import ToolCall
         result = await registry.execute(ToolCall(
             tool_name="assess_completion",
             arguments={"query": "procédure", "collected_info": "info X"},
@@ -1214,7 +1210,7 @@ class TestPhase6Features:
     @pytest.mark.asyncio
     async def test_phase6_pre_exec_chunks_injected_in_plan(self):
         """pre_exec.retrieval_results.chunks → injectés dans plan.search_results."""
-        from colaig.models import PreExecutionCard, SearchResult, DocumentChunk, ContextAnchor
+        from colaig.models import PreExecutionCard
 
         pre_exec = PreExecutionCard(
             workspace_id="ws-p6",

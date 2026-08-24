@@ -10,7 +10,6 @@ from colaig.models import (
     ContextCard,
     ContextMode,
     ConversationType,
-    DocumentChunk,
     ExecutionPlan,
     ExecutionStep,
     GeneratedResponse,
@@ -18,12 +17,10 @@ from colaig.models import (
     Intent,
     IntentType,
     PipelinePhase,
-    SearchResult,
     WorkspaceConfig,
     WorkspaceContext,
 )
 from tests.conftest import MockStorage
-
 
 # === Mocks Phase 1 (réutilisés) ===
 

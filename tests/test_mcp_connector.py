@@ -4,22 +4,23 @@ Tests unitaires — MCPConnectorClient (colaig/integrations/mcp_connector.py)
 from __future__ import annotations
 
 import json
-import pytest
+
 import httpx
+import pytest
 import respx
 
-from colaig.models import MCPConnectorConfig
 from colaig.integrations.mcp_connector import (
-    MCPConnectorClient,
-    _parse_tool_definition,
-    _create_tool_handler,
-    _json_type_to_colaig,
-    _extract_mcp_content,
-    _should_expose_tool,
-    _TOOLS_CACHE,
     _INSTRUCTIONS_CACHE,
     _RATE_LIMITER,
+    _TOOLS_CACHE,
+    MCPConnectorClient,
+    _create_tool_handler,
+    _extract_mcp_content,
+    _json_type_to_colaig,
+    _parse_tool_definition,
+    _should_expose_tool,
 )
+from colaig.models import MCPConnectorConfig
 
 
 @pytest.fixture(autouse=True)
@@ -468,13 +469,13 @@ async def test_list_tools_read_only_filters():
 # ── Tests URL validation (SSRF) ────────────────────────────────────────────
 
 def test_validate_blocks_private_ip():
-    from colaig.security.url_validator import validate_navigation_url, URLValidationError
+    from colaig.security.url_validator import URLValidationError, validate_navigation_url
     with pytest.raises(URLValidationError):
         validate_navigation_url("http://169.254.169.254/meta-data/", resolve_dns=False)
 
 
 def test_validate_blocks_localhost():
-    from colaig.security.url_validator import validate_navigation_url, URLValidationError
+    from colaig.security.url_validator import URLValidationError, validate_navigation_url
     with pytest.raises(URLValidationError):
         validate_navigation_url("http://127.0.0.1:8080/admin", resolve_dns=False)
 
@@ -486,7 +487,7 @@ def test_validate_allows_public_url():
 
 
 def test_validate_domain_allowlist():
-    from colaig.security.url_validator import validate_navigation_url, URLValidationError
+    from colaig.security.url_validator import URLValidationError, validate_navigation_url
     # Allowed
     validate_navigation_url(
         "https://demarches-simplifiees.fr/login",
@@ -503,7 +504,7 @@ def test_validate_domain_allowlist():
 
 
 def test_validate_rejects_non_http():
-    from colaig.security.url_validator import validate_navigation_url, URLValidationError
+    from colaig.security.url_validator import URLValidationError, validate_navigation_url
     with pytest.raises(URLValidationError, match="Schéma interdit"):
         validate_navigation_url("ftp://server/file", resolve_dns=False)
 

@@ -7,19 +7,15 @@ Vérifie le comportement du middleware d'authentification MCP :
 - Token invalide → 401 JSON immédiat (pas de call_next)
 """
 
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-from starlette.testclient import TestClient
 from starlette.applications import Starlette
+from starlette.middleware import Middleware
 from starlette.responses import JSONResponse
 from starlette.routing import Route
-from starlette.middleware import Middleware
+from starlette.testclient import TestClient
 
 from colaig.auth.middleware import MCPTokenMiddleware
 from colaig.auth.tokens import TokenContext, get_current_token, set_current_token
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 

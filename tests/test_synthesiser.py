@@ -4,6 +4,13 @@ Tests — Agent Synthétiseur
 
 import pytest
 
+from colaig.agents.synthesiser import (
+    Synthesiser,
+    _extract_sources,
+    _format_documents,
+    _format_tool_results,
+)
+from colaig.exceptions import SynthesisError
 from colaig.models import (
     AgentDirectives,
     ChannelFormat,
@@ -19,8 +26,6 @@ from colaig.models import (
     WorkspaceConfig,
     WorkspaceContext,
 )
-from colaig.agents.synthesiser import Synthesiser, _extract_sources, _format_documents, _format_tool_results
-from colaig.exceptions import SynthesisError
 from tests.conftest import MockAlbertClient, MockStorage
 
 
@@ -181,7 +186,6 @@ class TestSynthesiserSkills:
     async def test_skills_included_in_prompt(self, context, plan_with_results):
         """Les skills du workspace sont inclus dans le system prompt."""
         storage = MockStorage()
-        from colaig.models import StorageFile
         storage.add_file(
             "/espace-test/.colaig/skills/glossaire.md",
             "DGFiP = Direction Générale des Finances Publiques".encode(),

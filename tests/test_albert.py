@@ -1,12 +1,13 @@
 """Tests pour colaig/integrations/albert.py — Client Albert API."""
 
 import json
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
+import pytest
+
+from colaig.exceptions import AlbertError
 from colaig.integrations.albert import AlbertClient
-from colaig.models import ChatCompletionResult, ColaigConfig, ToolCall
-from colaig.exceptions import AlbertError, AlbertRateLimitError
+from colaig.models import ChatCompletionResult, ColaigConfig
 
 
 @pytest.fixture

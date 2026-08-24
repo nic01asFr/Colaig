@@ -1,6 +1,6 @@
 """Tests du pipeline de recherche hybride : BM25 + RRF + HyDE."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 

@@ -11,25 +11,22 @@ Couvre :
 - Onboarding handlers : commandes "colaig créer" / "colaig lier"
 """
 
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import yaml
 
+from colaig.context.resolver import ContextResolver
 from colaig.context.workspace import (
     _slugify,
-    _workspace_to_dict,
     add_conversation_to_workspace,
     create_workspace,
     remove_conversation_from_workspace,
     update_workspace_config,
 )
-from colaig.context.resolver import ContextResolver
 from colaig.exceptions import WorkspaceConfigError
-from colaig.models import ContextMode, ConversationType, IncomingMessage, WorkspaceConfig
 from colaig.messaging.handlers import MessageHandler
-
+from colaig.models import ConversationType, IncomingMessage, WorkspaceConfig
 
 # =============================================================================
 # Fixtures

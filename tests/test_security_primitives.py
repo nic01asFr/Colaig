@@ -18,7 +18,6 @@ from colaig.security.prompt_sanitizer import sanitize_description, sanitize_syst
 from colaig.security.secrets_filter import mask_secrets
 from colaig.security.url_validator import URLValidationError, validate_navigation_url
 
-
 # =============================================================================
 # secrets_filter.mask_secrets
 # =============================================================================

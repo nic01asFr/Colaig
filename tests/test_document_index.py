@@ -12,17 +12,17 @@ Couvre :
 """
 
 import json
+
 import pytest
 
+from colaig.models import DocumentRecord, DocumentStatus
 from colaig.rag.document_index import (
     DocumentIndex,
-    _parse_json_from_response,
     _match_filters,
+    _parse_json_from_response,
     _remote_dir,
 )
 from colaig.rag.embeddings import EmbeddingService
-from colaig.models import DocumentRecord, DocumentStatus
-
 
 DIM = 384
 WORKSPACE = "/espace-test/"

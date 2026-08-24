@@ -4,13 +4,13 @@ Tests unitaires — search_skill tool (colaig/agents/tools/skill_tools.py)
 from __future__ import annotations
 
 import json
+
 import pytest
 
 from colaig.agents.tools.skill_tools import (
     SEARCH_SKILL_DEFINITION,
     create_search_skill_handler,
 )
-
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 

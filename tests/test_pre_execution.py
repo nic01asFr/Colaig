@@ -1,7 +1,8 @@
 """Tests — agents/pre_execution.py (Phase 6)"""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from colaig.agents.pre_execution import PreExecutionBuilder, filter_tools
 from colaig.agents.profile_service import ProfileService
@@ -9,18 +10,17 @@ from colaig.models import (
     BehaviorConfig,
     BehaviorToolsConfig,
     ContextAnchor,
-    ConversationTrame,
     ContextMode,
+    ConversationTrame,
+    DocumentChunk,
     IncomingMessage,
     PreExecutionCard,
     SearchDirectives,
     SearchResult,
-    DocumentChunk,
     ToolDefinition,
     WorkspaceConfig,
     WorkspaceContext,
 )
-
 
 # =============================================================================
 # filter_tools

@@ -11,11 +11,11 @@ Couvre :
 """
 
 import json
+
 import pytest
 
-from colaig.context.conversation_memory import ConversationMemory, ALWAYS_INCLUDE_RECENT
+from colaig.context.conversation_memory import ALWAYS_INCLUDE_RECENT, ConversationMemory
 from colaig.context.layers import load_relevant_conversation_history
-
 
 # =============================================================================
 # Helpers

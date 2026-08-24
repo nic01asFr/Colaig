@@ -6,8 +6,11 @@ et la configuration conditionnelle des agents/MCP.
 """
 
 import json
+
 import pytest
 
+from colaig.agents import Analyser, Orchestrator, Synthesiser
+from colaig.messaging.handlers import MessageHandler
 from colaig.models import (
     ColaigConfig,
     ContextMode,
@@ -20,10 +23,7 @@ from colaig.models import (
     WorkspaceConfig,
     WorkspaceContext,
 )
-from colaig.agents import Analyser, Orchestrator, Synthesiser
-from colaig.messaging.handlers import MessageHandler
 from tests.conftest import MockAlbertClient, MockStorage
-
 
 # === Mocks ===
 
@@ -245,8 +245,8 @@ class TestMCPIntegration:
 
     def test_web_app_mounts_mcp(self, workspace, search_results):
         """L'application web monte le serveur MCP si fourni."""
-        from colaig.web.routes import create_app
         from colaig.mcp import ColaigMCPServer
+        from colaig.web.routes import create_app
 
         class MockIndexer:
             async def index_workspace(self, path): return 0

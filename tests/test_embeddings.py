@@ -1,7 +1,8 @@
 """Tests de EmbeddingService — cache, namespace, stats, batch."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from colaig.rag.embeddings import EmbeddingService, _normalize_l2, _text_hash
 

@@ -14,7 +14,7 @@ Couvre :
 
 import json
 from dataclasses import asdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -39,7 +39,6 @@ from colaig.agents.tasks import (
     task_file_path,
 )
 from tests.conftest import MockStorage
-
 
 # =============================================================================
 # Fixtures
@@ -146,31 +145,31 @@ class TestComputeNextRun:
         assert result is None
 
     def test_interval_7d(self):
-        now = datetime(2026, 3, 1, 10, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2026, 3, 1, 10, 0, 0, tzinfo=UTC)
         result = compute_next_run("interval", "7d", from_dt=now)
-        expected = datetime(2026, 3, 8, 10, 0, 0, tzinfo=timezone.utc)
+        expected = datetime(2026, 3, 8, 10, 0, 0, tzinfo=UTC)
         assert result is not None
         parsed = datetime.fromisoformat(result)
         if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
+            parsed = parsed.replace(tzinfo=UTC)
         assert parsed == expected
 
     def test_interval_24h(self):
-        now = datetime(2026, 3, 1, 8, 0, 0, tzinfo=timezone.utc)
+        now = datetime(2026, 3, 1, 8, 0, 0, tzinfo=UTC)
         result = compute_next_run("interval", "24h", from_dt=now)
         assert result is not None
         parsed = datetime.fromisoformat(result)
         if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
+            parsed = parsed.replace(tzinfo=UTC)
         assert parsed == now + timedelta(hours=24)
 
     def test_interval_invalid(self):
-        result = compute_next_run("interval", "invalid", from_dt=datetime.now(timezone.utc))
+        result = compute_next_run("interval", "invalid", from_dt=datetime.now(UTC))
         assert result is None
 
     def test_cron_invalid(self):
         # croniter peut ne pas être installé en test — on s'attend à None ou à une valeur
-        result = compute_next_run("cron", "not-a-cron", from_dt=datetime.now(timezone.utc))
+        result = compute_next_run("cron", "not-a-cron", from_dt=datetime.now(UTC))
         assert result is None
 
     def test_unknown_type(self):
@@ -189,12 +188,12 @@ class TestIsDue:
         assert is_due(task) is True
 
     def test_pending_past_next_run(self):
-        past = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+        past = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
         task = _make_task(status="pending", next_run_at=past)
         assert is_due(task) is True
 
     def test_pending_future_next_run(self):
-        future = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
+        future = (datetime.now(UTC) + timedelta(hours=2)).isoformat()
         task = _make_task(status="pending", next_run_at=future)
         assert is_due(task) is False
 

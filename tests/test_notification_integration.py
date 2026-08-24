@@ -1,14 +1,11 @@
 """Test d'intégration : notification proactive dans run_indexation_loop."""
 from __future__ import annotations
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from colaig.models import UpdateSummary, WorkspaceConfig
-from colaig.rag.notifier import format_notification
-
 
 # ---------------------------------------------------------------------------
 # Test du chemin de notification dans run_indexation_loop

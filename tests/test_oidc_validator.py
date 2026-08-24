@@ -1,7 +1,5 @@
 """Tests pour OIDCValidator — validation JWT RS256 via JWKS."""
 
-import asyncio
-import json
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -9,7 +7,6 @@ import pytest
 
 from colaig.auth.oidc_validator import OIDCValidationError, OIDCValidator
 from colaig.auth.tokens import TokenContext
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

@@ -10,13 +10,12 @@ Couvre :
 
 from __future__ import annotations
 
-import os
 import textwrap
+
 import pytest
 
-from colaig.models import ClientConfig, ColaigConfig
 from colaig.client_registry import ClientRegistry
-
+from colaig.models import ClientConfig, ColaigConfig
 
 # =============================================================================
 # ClientConfig.from_dict
@@ -292,15 +291,15 @@ class TestClientRegistry:
 class TestCreateStorageForClient:
 
     def test_local(self):
-        from colaig.main import create_storage_for_client
         from colaig.integrations.storage.local import LocalStorage
+        from colaig.main import create_storage_for_client
         cc = ClientConfig(client_id="test", storage_backend="local", storage_local_path="/tmp/test")
         storage = create_storage_for_client(cc)
         assert isinstance(storage, LocalStorage)
 
     def test_webdav(self):
-        from colaig.main import create_storage_for_client
         from colaig.integrations.storage.webdav import WebDAVStorage
+        from colaig.main import create_storage_for_client
         cc = ClientConfig(
             client_id="test", storage_backend="webdav",
             storage_webdav_url="https://x.com/dav/",
@@ -351,15 +350,15 @@ class TestCreateLlmForClient:
         )
 
     def test_no_override_uses_default(self):
-        from colaig.main import create_llm_for_client
         from colaig.integrations.albert import AlbertClient
+        from colaig.main import create_llm_for_client
         cc = ClientConfig(client_id="test", llm_backend="")
         client = create_llm_for_client(cc, self._default_config())
         assert isinstance(client, AlbertClient)
 
     def test_openai_override(self):
-        from colaig.main import create_llm_for_client
         from colaig.integrations.llm.openai_client import OpenAIClient
+        from colaig.main import create_llm_for_client
         cc = ClientConfig(
             client_id="acme",
             llm_backend="openai",
@@ -372,8 +371,8 @@ class TestCreateLlmForClient:
         assert "acme" in client._backend
 
     def test_azure_override(self):
-        from colaig.main import create_llm_for_client
         from colaig.integrations.llm.azure_client import AzureClient
+        from colaig.main import create_llm_for_client
         cc = ClientConfig(
             client_id="gov",
             llm_backend="azure",
@@ -386,8 +385,8 @@ class TestCreateLlmForClient:
         assert client._resource == "my-res"
 
     def test_ollama_override(self):
-        from colaig.main import create_llm_for_client
         from colaig.integrations.llm.ollama_client import OllamaClient
+        from colaig.main import create_llm_for_client
         cc = ClientConfig(
             client_id="local",
             llm_backend="ollama",
@@ -400,8 +399,8 @@ class TestCreateLlmForClient:
         assert client._model_chat == "mistral"
 
     def test_albert_override_uses_client_credentials(self):
-        from colaig.main import create_llm_for_client
         from colaig.integrations.albert import AlbertClient
+        from colaig.main import create_llm_for_client
         cc = ClientConfig(
             client_id="agri",
             llm_backend="albert",

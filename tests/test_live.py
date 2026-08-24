@@ -22,7 +22,6 @@ CRUD : création workspace → liaison salon → mise à jour → déliaison.
 from __future__ import annotations
 
 import os
-import time
 
 import httpx
 import pytest

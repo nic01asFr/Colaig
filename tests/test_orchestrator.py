@@ -2,28 +2,27 @@
 Tests — Agent Orchestrateur
 """
 
-import pytest
-
 from unittest.mock import AsyncMock
 
+import pytest
+
+from colaig.agents.context_builder import build_tool_registry
+from colaig.agents.orchestrator import Orchestrator
 from colaig.models import (
     AgentDirectives,
     ChatCompletionResult,
     ContextMode,
+    DocumentChunk,
     Intent,
     IntentType,
     PreExecutionCard,
     SearchDirectives,
     SearchResult,
-    DocumentChunk,
     ToolCall,
     WorkspaceConfig,
     WorkspaceContext,
 )
-from colaig.agents.orchestrator import Orchestrator
-from colaig.agents.tool_registry import ToolRegistry
-from colaig.agents.context_builder import build_tool_registry
-from tests.conftest import MockStorage, MockAlbertClient
+from tests.conftest import MockAlbertClient, MockStorage
 
 
 class MockRetriever:

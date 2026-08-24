@@ -7,15 +7,13 @@ isoler chaque opération sans connexion S3 réelle.
 
 from __future__ import annotations
 
-import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from colaig.exceptions import StorageAuthError, StorageError, StorageFileNotFoundError
 from colaig.integrations.storage.s3 import S3Storage, _raise_storage_error
-
 
 # =============================================================================
 # Fake exception class (remplace botocore.exceptions.ClientError)
@@ -112,7 +110,7 @@ class TestListFiles:
                     "Key": "colaig/docs/guide.pdf",
                     "Size": 12345,
                     "ETag": '"abc123"',
-                    "LastModified": datetime(2025, 1, 1, tzinfo=timezone.utc),
+                    "LastModified": datetime(2025, 1, 1, tzinfo=UTC),
                 },
             ],
             "CommonPrefixes": [],

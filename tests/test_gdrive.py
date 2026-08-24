@@ -16,11 +16,11 @@ On teste :
 from __future__ import annotations
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
 from colaig.exceptions import StorageAuthError, StorageError, StorageFileNotFoundError
-
 
 # ============================================================================
 # Fixtures & helpers
@@ -38,8 +38,8 @@ def _make_fake_sa_json() -> str:
     pour les tests qui ne font pas vraiment de JWT.
     """
     try:
-        from cryptography.hazmat.primitives.asymmetric import rsa
         from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
 
         private_key = rsa.generate_private_key(
             public_exponent=65537,
@@ -218,13 +218,15 @@ class TestAuthJWT:
     def test_jwt_payload_structure(self):
         """Le JWT produit a la bonne structure (header.payload.signature)."""
         try:
-            from cryptography.hazmat.primitives.asymmetric import rsa
             from cryptography.hazmat.primitives import serialization
+            from cryptography.hazmat.primitives.asymmetric import rsa
         except ImportError:
             pytest.skip("cryptography non disponible")
 
+        import base64
+        import json
+
         from colaig.integrations.storage.gdrive import _build_jwt
-        import base64, json
 
         sa_json = _make_fake_sa_json()
         sa = json.loads(sa_json)
@@ -256,8 +258,10 @@ class TestAuthJWT:
         except ImportError:
             pytest.skip("cryptography non disponible")
 
+        import base64
+        import json
+
         from colaig.integrations.storage.gdrive import _build_jwt
-        import base64, json
 
         sa_json = _make_fake_sa_json()
         sa = json.loads(sa_json)
@@ -275,8 +279,10 @@ class TestAuthJWT:
         except ImportError:
             pytest.skip("cryptography non disponible")
 
+        import base64
+        import json
+
         from colaig.integrations.storage.gdrive import _build_jwt
-        import base64, json
 
         sa_json = _make_fake_sa_json()
         sa = json.loads(sa_json)
@@ -497,7 +503,6 @@ class TestListFiles:
     @pytest.mark.asyncio
     async def test_list_files_returns_storage_files(self):
         """list_files retourne des StorageFile bien formés."""
-        from colaig.models import StorageFile
         storage = _make_storage()
         storage._path_cache["workspace"] = "folder-id"
 

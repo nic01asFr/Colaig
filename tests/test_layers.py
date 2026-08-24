@@ -3,8 +3,8 @@
 import pytest
 
 from colaig.context.layers import (
-    build_context,
     _extract_domain,
+    build_context,
     load_conversation_history,
     save_conversation_history,
 )

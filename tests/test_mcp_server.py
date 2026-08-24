@@ -6,21 +6,18 @@ Utilise l'accès direct aux fonctions enregistrées via FastMCP.
 """
 
 import json
-from dataclasses import dataclass
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from colaig.mcp.server import ColaigMCPServer
 from colaig.models import (
     DocumentChunk,
     GeneratedResponse,
     SearchResult,
     WorkspaceConfig,
 )
-from colaig.mcp.server import ColaigMCPServer
-from tests.conftest import MockAlbertClient, MockStorage
-
+from tests.conftest import MockStorage
 
 # === Mocks ===
 
@@ -342,7 +339,7 @@ class TestListWorkspacesFiltering:
     @pytest.mark.asyncio
     async def test_member_sees_private_workspace(self, public_workspace, private_workspace):
         """Avec token (membre), le workspace privé est visible."""
-        from colaig.auth.tokens import set_current_token, TokenContext
+        from colaig.auth.tokens import TokenContext, set_current_token
         set_current_token(TokenContext(user_id="@alice:tchap.fr", scope="*"))
 
         server = self._server_with_workspaces(
@@ -361,7 +358,7 @@ class TestListWorkspacesFiltering:
     @pytest.mark.asyncio
     async def test_non_member_cannot_see_private(self, public_workspace, private_workspace):
         """Avec token d'un non-membre, le workspace privé reste caché."""
-        from colaig.auth.tokens import set_current_token, TokenContext
+        from colaig.auth.tokens import TokenContext, set_current_token
         set_current_token(TokenContext(user_id="@stranger:tchap.fr", scope="*"))
 
         server = self._server_with_workspaces(
@@ -400,8 +397,9 @@ class TestListWorkspacesFiltering:
 
 def _make_admin_server(config_store=None):
     """Construit un ColaigMCPServer minimal pour tester les guards admin."""
-    from colaig.models import ColaigConfig
     from unittest.mock import MagicMock
+
+    from colaig.models import ColaigConfig
 
     resolver = MagicMock()
     resolver.resolve = AsyncMock(return_value=None)
@@ -445,7 +443,7 @@ class TestAdminGatedTools:
     @pytest.mark.asyncio
     async def test_get_config_requires_admin(self):
         """Token user (non admin) → erreur droits insuffisants."""
-        from colaig.auth.tokens import set_current_token, TokenContext
+        from colaig.auth.tokens import TokenContext, set_current_token
         set_current_token(TokenContext(user_id="@alice:tchap.fr", role="user"))
         server = _make_admin_server()
         tools = server.mcp._tool_manager._tools
@@ -457,7 +455,7 @@ class TestAdminGatedTools:
     @pytest.mark.asyncio
     async def test_get_config_admin_allowed(self):
         """Token admin → accès autorisé (pas d'erreur)."""
-        from colaig.auth.tokens import set_current_token, TokenContext
+        from colaig.auth.tokens import TokenContext, set_current_token
         set_current_token(TokenContext(user_id="@admin:tchap.fr", role="admin"))
         server = _make_admin_server()
         tools = server.mcp._tool_manager._tools
@@ -483,7 +481,7 @@ class TestAdminGatedTools:
     @pytest.mark.asyncio
     async def test_set_backend_requires_admin(self):
         """Token user → erreur droits insuffisants."""
-        from colaig.auth.tokens import set_current_token, TokenContext
+        from colaig.auth.tokens import TokenContext, set_current_token
         set_current_token(TokenContext(user_id="@alice:tchap.fr", role="user"))
         server = _make_admin_server()
         tools = server.mcp._tool_manager._tools
@@ -511,7 +509,7 @@ class TestAdminGatedTools:
     @pytest.mark.asyncio
     async def test_create_workspace_requires_admin(self):
         """Token user → erreur droits insuffisants."""
-        from colaig.auth.tokens import set_current_token, TokenContext
+        from colaig.auth.tokens import TokenContext, set_current_token
         set_current_token(TokenContext(user_id="@alice:tchap.fr", role="user"))
         server = _make_admin_server()
         tools = server.mcp._tool_manager._tools
@@ -538,7 +536,7 @@ class TestAdminGatedTools:
     @pytest.mark.asyncio
     async def test_onboard_requires_admin(self):
         """Token user → erreur droits insuffisants."""
-        from colaig.auth.tokens import set_current_token, TokenContext
+        from colaig.auth.tokens import TokenContext, set_current_token
         set_current_token(TokenContext(user_id="@alice:tchap.fr", role="user"))
         server = _make_admin_server()
         tools = server.mcp._tool_manager._tools

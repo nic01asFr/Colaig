@@ -2,21 +2,19 @@
 from __future__ import annotations
 
 import json
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from colaig.agents.workspace_delegate import (
     WorkspaceAccessDenied,
-    WorkspaceDelegateResult,
     WorkspaceNotFound,
-    WorkspaceTaskResult,
     check_workspace_access,
     find_accessible_workspaces,
     run_rag_delegate,
     run_workspace_task,
 )
 from colaig.models import WorkspaceConfig
-
 
 # =============================================================================
 # Fixtures

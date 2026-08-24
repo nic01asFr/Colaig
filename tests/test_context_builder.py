@@ -4,15 +4,15 @@ Tests — Context Builder pour les agents du pipeline
 
 import pytest
 
-from colaig.models import AgentDirectives, WorkspaceConfig
 from colaig.agents.context_builder import (
     DEFAULT_ANALYSER_PROMPT,
     DEFAULT_ORCHESTRATOR_PROMPT,
     DEFAULT_SYNTHESISER_PROMPT,
-    build_agent_context,
     _load_agent_prompt_override,
     _load_workspace_skills,
+    build_agent_context,
 )
+from colaig.models import AgentDirectives, WorkspaceConfig
 from tests.conftest import MockStorage
 
 
@@ -33,21 +33,20 @@ def storage_with_overrides():
     storage = MockStorage()
     storage.add_file(
         "/espace-test/.colaig/prompts/analyser.md",
-        "Tu es un analyseur spécialisé en droit administratif.".encode("utf-8"),
+        "Tu es un analyseur spécialisé en droit administratif.".encode(),
     )
     storage.add_file(
         "/espace-test/.colaig/prompts/synthesiser.md",
-        "Réponds toujours en format liste numérotée.".encode("utf-8"),
+        "Réponds toujours en format liste numérotée.".encode(),
     )
     # Skills
-    from colaig.models import StorageFile
     storage.add_file(
         "/espace-test/.colaig/skills/glossaire.md",
-        "DGFiP = Direction Générale des Finances Publiques".encode("utf-8"),
+        "DGFiP = Direction Générale des Finances Publiques".encode(),
     )
     storage.add_file(
         "/espace-test/.colaig/skills/procedures.md",
-        "Étape 1 : Soumettre le formulaire A1.".encode("utf-8"),
+        "Étape 1 : Soumettre le formulaire A1.".encode(),
     )
     return storage
 

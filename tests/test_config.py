@@ -5,9 +5,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-import yaml
 
-from colaig.config import load_config, _load_yaml
+from colaig.config import _load_yaml, load_config
 from colaig.models import ColaigConfig
 
 

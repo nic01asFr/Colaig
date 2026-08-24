@@ -7,16 +7,15 @@ Pas de réseau réel : httpx mocké via unittest.mock.
 from __future__ import annotations
 
 import json
-import pytest
-import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from colaig.integrations.llm.openai_client import OpenAIClient
+import pytest
+
+from colaig.exceptions import LLMError, LLMRateLimitError, LLMUnavailableError
 from colaig.integrations.llm.azure_client import AzureClient
 from colaig.integrations.llm.ollama_client import OllamaClient
-from colaig.exceptions import LLMError, LLMRateLimitError, LLMUnavailableError
+from colaig.integrations.llm.openai_client import OpenAIClient
 from colaig.models import ChatCompletionResult
-
 
 # =============================================================================
 # Fixtures — réponses HTTP mock
@@ -426,8 +425,8 @@ class TestCreateLlmClient:
         return ColaigConfig(**kwargs)
 
     def test_albert_default(self):
-        from colaig.main import create_llm_client
         from colaig.integrations.albert import AlbertClient
+        from colaig.main import create_llm_client
         config = self._config(llm_backend="albert", albert_api_key="key")
         client = create_llm_client(config)
         assert isinstance(client, AlbertClient)
@@ -462,8 +461,8 @@ class TestCreateLlmClient:
 
     def test_albert_by_default_when_backend_empty(self):
         """llm_backend vide/None → albert."""
-        from colaig.main import create_llm_client
         from colaig.integrations.albert import AlbertClient
+        from colaig.main import create_llm_client
         config = self._config(llm_backend="")
         # llm_backend="" → or "albert" → AlbertClient
         client = create_llm_client(config)

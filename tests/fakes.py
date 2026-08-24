@@ -42,7 +42,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 from datetime import UTC, datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
 from colaig.exceptions import StorageFileNotFoundError
 from colaig.models import IncomingMessage, StorageFile
@@ -119,7 +119,7 @@ class FakeStorage:
             raise StorageFileNotFoundError(f"Storage 404: {path}")
         return self.files[path]
 
-    async def download_if_changed(self, path: str, known_etag: str) -> Optional[bytes]:
+    async def download_if_changed(self, path: str, known_etag: str) -> bytes | None:
         meta = self.metadata.get(path)
         if meta and meta.etag == known_etag:
             return None
@@ -142,7 +142,7 @@ class FakeStorage:
     async def exists(self, path: str) -> bool:
         return path in self.files or path in self.metadata
 
-    async def get_etag(self, path: str) -> Optional[str]:
+    async def get_etag(self, path: str) -> str | None:
         meta = self.metadata.get(path)
         return meta.etag if meta else None
 

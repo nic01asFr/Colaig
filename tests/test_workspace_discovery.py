@@ -16,9 +16,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from colaig.exceptions import StorageError
-from colaig.models import StorageFile, WorkspaceConfig
 from colaig.main import run_workspace_discovery_loop
-
+from colaig.models import StorageFile, WorkspaceConfig
 
 # =============================================================================
 # Helpers

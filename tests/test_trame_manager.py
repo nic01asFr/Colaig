@@ -1,20 +1,21 @@
 """Tests — agents/trame_manager.py (Phase 6)"""
 
 import json
-import pytest
-from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from colaig.agents.trame_manager import TrameManager
 from colaig.models import (
     ContextAnchor,
     ConversationTrame,
+    DocumentChunk,
     ExecutionPlan,
     GeneratedResponse,
     Intent,
     IntentType,
     SearchResult,
-    DocumentChunk,
 )
 
 

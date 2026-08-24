@@ -2,23 +2,20 @@
 
 import pytest
 
-from colaig.models import (
-    ContextMode,
-    IncomingMessage,
-    ConversationType,
-    StorageFile,
-)
-
 # Composants réels
 from colaig.context.resolver import ContextResolver
+from colaig.messaging.handlers import MessageHandler
+from colaig.models import (
+    ConversationType,
+    IncomingMessage,
+    StorageFile,
+)
 from colaig.rag.chunker import Chunker
 from colaig.rag.embeddings import EmbeddingService
 from colaig.rag.faiss_store import FaissStore
-from colaig.rag.retriever import Retriever
-from colaig.rag.indexer import Indexer
 from colaig.rag.generator import Generator
-from colaig.messaging.handlers import MessageHandler
-
+from colaig.rag.indexer import Indexer
+from colaig.rag.retriever import Retriever
 
 DIM = 384
 

@@ -1,14 +1,13 @@
 """Tests pour colaig/rag/indexer.py — Orchestration d'indexation."""
 
-import pytest
-from datetime import datetime
 
-from colaig.rag.indexer import Indexer
+import pytest
+
+from colaig.models import StorageEvent
 from colaig.rag.chunker import Chunker
 from colaig.rag.embeddings import EmbeddingService
 from colaig.rag.faiss_store import FaissStore
-from colaig.models import StorageFile, StorageEvent
-
+from colaig.rag.indexer import Indexer
 
 DIM = 384
 WORKSPACE = "/espace-test/"

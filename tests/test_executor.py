@@ -1,10 +1,11 @@
 """Tests — tasks/executor.py (Phase 6)"""
 
 import asyncio
+
 import pytest
 
-from colaig.tasks.executor import TaskExecutor
 from colaig.models import TaskHandle
+from colaig.tasks.executor import TaskExecutor
 
 
 async def attendre(condition, delai_max: float = 5.0) -> None:

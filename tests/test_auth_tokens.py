@@ -2,22 +2,19 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
 from colaig.auth.tokens import (
     TokenContext,
     TokenManager,
     _parse_token,
     _personal_ws_slug,
-    _token_hash,
-    _mcp_config_path,
-    _token_path,
     get_current_token,
-    set_current_token,
     require_admin,
+    set_current_token,
 )
-
 
 # =============================================================================
 # Utilitaires de chemin
