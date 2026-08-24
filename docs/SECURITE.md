@@ -51,12 +51,39 @@ avant exposition publique — voir fin de document).
   `..`, `//`, null bytes, `/.colaig` si interdit).
 
 ### 8. Déni de service / coût
-- **Mitigation** : quotas journaliers par tenant (requêtes/tokens), sémaphores de
-  concurrence (priorité user vs background), retry/backoff borné.
+- **Mitigation** : quotas journaliers par tenant (requetes/tokens), semaphores de
+  concurrence (priorite user vs background), retry/backoff borne.
+
+> ⚠️ **Le quota n'est applique que par `integrations/albert.py`.** `check_quota` est
+> absent de `openai_client`, `azure_client` et `ollama_client` — or la cible de
+> production est SSPCloud, endpoint OpenAI-compatible (`CLAUDE.md` §3). **Le quota ne
+> s'applique donc pas la ou il compte.** Recense en D46, a porter au lot L2.6.
 
 ### 9. Authentification
-- Dashboard + routes plateforme : `COLAIG_PLATFORM_API_KEY` (Bearer).
-- MCP : token auto-localisant ou **OIDC** (RS256/ES256, JWKS).
+
+> ⚠️ **Ces gardes sont OPT-IN. Sans configuration, elles laissent passer.**
+> Recense en D44 : quatre gardes de ce depot rendent « autorise » quand leur variable
+> est absente — `WorkspaceACL.can_access` (`auth_enabled=False`), `_check_platform_auth`
+> et `_is_authenticated` (pas de cle), plus une quatrieme heritee d'une generation
+> anterieure. Une variable oubliee, et plus rien ne garde, sans le moindre signal.
+
+- **Dashboard + routes plateforme** : `COLAIG_PLATFORM_API_KEY` (Bearer).
+  **Defaut : absente** — `platformApiKey: ""` dans les valeurs Helm, ligne commentee
+  dans `config/.env.example`. Sans elle, `_is_authenticated` rend `True` pour tout le
+  monde et **toute la surface web est servie**, y compris `/` et `/platform`.
+
+  *Attenuation posee au lot L2.2a* : le serveur web n'ecoute alors que `127.0.0.1`, et
+  le journal dit pourquoi. Mal configure veut donc dire **inaccessible**, non **ouvert**.
+  `COLAIG_WEB_HOST` reste la sortie explicite pour un mandataire inverse qui porte
+  lui-meme l'authentification.
+
+- **MCP** : token auto-localisant ou **OIDC** (RS256/ES256, JWKS).
+  Sans jeton, l'appelant **declare son propre `user_id`** — point d'entree non audite,
+  voir D44.
+
+- **Chemin conversationnel Matrix** : ce n'est pas `WorkspaceACL` qui garde, mais
+  **l'appariement salon -> espace**. Depuis L2.1d, `can_link_conversation` exige d'etre
+  declare sur l'espace pour y rattacher un salon. Voir D42 et D43 pour le modele complet.
 
 ## Tests de sécurité
 

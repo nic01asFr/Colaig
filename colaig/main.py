@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+import os
 import signal
 from pathlib import Path
 
@@ -938,11 +939,45 @@ async def run_workspace_discovery_loop(
             pass
 
 
+def hote_ecoute_web() -> str:
+    """Interface d'écoute du serveur web — fermée par défaut.
+
+    POURQUOI CE N'EST PAS `0.0.0.0` EN DUR
+    ----------------------------------------
+    Sans `COLAIG_PLATFORM_API_KEY`, `_is_authenticated` rend `True` pour tout le monde
+    (D45) : la surface web entière est servie. Combiné à une écoute sur `0.0.0.0`, le
+    défaut n'était pas « ouvert en développement » mais **ouvert partout** — y compris
+    sur une installation Helm par défaut, où `platformApiKey` vaut `""`.
+
+    La garde d'authentification n'est pas fermée ici : cela casserait les déploiements
+    auto-hébergés qui s'en passent délibérément. **C'est le sens de l'échec qui change** —
+    mal configuré doit vouloir dire inaccessible, pas ouvert.
+
+    `COLAIG_WEB_HOST` reste une sortie explicite, pour le cas légitime d'un mandataire
+    inverse qui porte lui-même l'authentification. Ce n'est pas le motif dénoncé en D44 :
+    ces gardes-là ont un défaut **ouvert**, celui-ci a un défaut **fermé**. Une variable
+    oubliée n'y donne rien, et ouvrir redevient un acte.
+    """
+    explicite = os.environ.get("COLAIG_WEB_HOST", "").strip()
+    if explicite:
+        return explicite
+    if os.environ.get("COLAIG_PLATFORM_API_KEY", "").strip():
+        return "0.0.0.0"
+    logger.warning(
+        "serveur web restreint à 127.0.0.1 : COLAIG_PLATFORM_API_KEY n'est pas "
+        "définie, et sans elle toute la surface web est servie sans authentification. "
+        "Posez cette clé pour écouter largement, ou déclarez COLAIG_WEB_HOST si un "
+        "mandataire inverse porte déjà l'authentification."
+    )
+    return "127.0.0.1"
+
+
 async def run_web_server(app, port: int) -> None:
     """Lance le serveur web FastAPI avec uvicorn."""
     import uvicorn
 
-    config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="warning", log_config=None)
+    config = uvicorn.Config(app, host=hote_ecoute_web(), port=port,
+                            log_level="warning", log_config=None)
     server = uvicorn.Server(config)
     await server.serve()
 
