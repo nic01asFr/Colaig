@@ -2130,3 +2130,84 @@ Le mapping est **complet pour l'autorisation** et n'a besoin d'aucune brique man
 Il lui faut **une addition** — les niveaux de pouvoir, pour la dimension configuration —
 et **une separation a tenir** : ne jamais laisser la personnalisation devenir de
 l'autorisation.
+
+---
+
+## D44 — Le mapping des points d'entree : cinq, pas un · 24/08/2026 · **actee**
+
+D40 a D43 ont cartographie **le chemin conversationnel Matrix** et en ont tire des
+conclusions generales. C'etait premature : Colaig a **cinq** points d'entree vers le
+pipeline, et l'autorisation differe a chacun.
+
+### L'inventaire
+
+| point d'entree | autorisation | verifie |
+|---|---|---|
+| **Matrix** (`handlers.py`) | appariement salon -> espace ; `can_link_conversation` depuis L2.1d | oui |
+| **MCP** (`mcp/server.py`) | jeton Bearer prioritaire ; **sans jeton, l'appelant declare son `user_id`** | partiellement |
+| **Taches de fond** (`task_scheduler.py`) | `user_id` du createur, controle a l'execution | non |
+| **Delegation** (`workspace_delegate.py`) | `WorkspaceACL.can_access` | non |
+| **Web** (`web/routes.py`) | **voir ci-dessous** | oui |
+
+### Le web etait la surface ouverte
+
+Vingt-huit routes. `_require_admin` n'en gardait que deux — les pages HTML — et
+`_check_platform_auth` cinq. **Treize n'avaient aucune garde**, sur un serveur qui ecoute
+sur `0.0.0.0` :
+
+    GET/POST/PUT  /workspaces...            enumerer, creer, MODIFIER (system_prompt)
+    POST          /workspaces/{id}/conversations   RATTACHER une conversation
+    POST          /ask                      interroger le pipeline
+    POST          /webhooks/storage
+    GET           /chat, /chat/{id}
+
+Le rattachement etant la frontiere d'acces (L2.1d), la chaine fermee cote Matrix
+s'ouvrait ici **sans invitation prealable** : rattacher une conversation choisie a
+l'espace vise, puis `POST /ask` avec elle.
+
+**Corrige (L2.1e)** : les huit API d'espaces passent par `_require_admin`, la meme
+session que le tableau de bord qui les appelle. Demontre par test avant correctif.
+
+**Non corrige, parce que cela releve d'un arbitrage** : `/ask` se decrit lui-meme comme
+un point d'integration contournant le canal de messagerie ; `/chat` sert une interface
+destinee a etre ouverte ; `/webhooks/storage` est appele par un tiers. Les trois restent
+sans garde.
+
+### Le motif systemique, et c'est le vrai enseignement
+
+**Quatre gardes de ce depot rendent « autorise » quand leur configuration est absente :**
+
+| garde | echappatoire |
+|---|---|
+| `WorkspaceACL.can_access` | `auth_enabled=False -> True` |
+| `TchapIam.is_user_allowed` (generation anterieure) | `if not self.iam_client: return True` |
+| `_check_platform_auth` | `if not _platform_api_key: return` |
+| `_is_authenticated` | `if not key: return True` |
+
+Chacune est defendable isolement — « mode developpement ». Ensemble elles disent que **la
+posture de securite est OPT-IN** : une variable oubliee, et plus rien ne garde, sans le
+moindre signal.
+
+Consequence directe : **une instance deployee sans `COLAIG_PLATFORM_API_KEY` expose toute
+sa surface web**, y compris `/` et `/platform` que l'on croit gardees. Le correctif
+L2.1e herite de cette echappatoire — il ferme la porte, pas le mur.
+
+C'est aussi pourquoi `can_link_conversation` (L2.1d) refuse de reutiliser `can_access` :
+un garde toujours vrai est pire qu'absent, on se croit protege.
+
+### Ce que cela corrige dans D42 et D43
+
+Les conclusions restent justes **pour le chemin Matrix**, et elles y sont demontrees.
+Mais « le salon decide qui interroge » ne vaut que la ou le salon est la porte. Sur le
+web il n'y a pas de salon ; sur MCP sans jeton, l'appelant se nomme lui-meme.
+
+**Le mapping n'est complet que si l'on nomme les cinq portes.** C'etait la question
+posee, et la reponse etait non.
+
+### Reste a faire
+
+1. **Trancher `/ask`, `/chat`, `/webhooks/storage`** — garder, restreindre, ou retirer.
+2. **Trancher l'echappatoire par defaut** : refuser de demarrer sans cle en production
+   plutot que d'ouvrir en silence. C'est un changement de posture, donc un arbitrage.
+3. **Verifier les trois points d'entree non audites** — MCP sans jeton, taches de fond,
+   delegation.
