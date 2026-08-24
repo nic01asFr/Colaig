@@ -1629,3 +1629,71 @@ Restent inchangés : les quatre arbitrages non tranchés (`/ask` et `/chat` ; s�
 trois rôles de la clé ; `storage_readonly` ; corriger le reste de la doc), et les dettes
 de mesure — dont l'essai « le raisonnement aide-t-il le vérificateur », relancé en tâche
 de fond le 24/08 après un premier essai à sortie vide.
+
+---
+
+## L2.3 — Épinglage des schémas d'outils MCP · 24/08/2026 · **TERMINÉ**
+
+**Critère** : « changement de schéma → outil désactivé + alerte ». **Atteint.**
+Commit `789279b`.
+
+L2.2 décide quels **serveurs** sont montés ; il ne dit rien de ce qu'ils font ensuite.
+Un serveur admis peut se faire accepter avec un outil anodin, puis en changer le
+contrat — le modèle, lui, voit un outil qu'il connaît.
+
+L'empreinte porte **nom, description et schéma d'entrée** : ce que le modèle lit pour
+décider d'appeler. La description en fait partie, et c'est le point — un serveur qui ne
+change qu'elle n'a modifié aucun paramètre et a pourtant changé le contrat.
+
+Sérialisation canonique (un remaniement d'ordre n'est pas une mutation), confiance à la
+première vue, empreintes dans `config/mcp_pins.json` **sur l'hôte** — hors de portée de
+ceux contre qui la garde protège. Un magasin non inscriptible rend l'épinglage inerte,
+et le journal le dit.
+
+**Deux** tests pour le branchement : l'un vérifie que le module est *cité*, l'autre
+qu'il *agit*. Un import inutilisé passerait le premier.
+
+## L2.4 — Confirmation des actions destructives · 25/08/2026 · **TERMINÉ**
+
+**Critère** : « aucun destructif exécuté sans confirmation ». **Atteint.**
+Canal tranché par l'utilisateur : **réponse texte** (option b, D47).
+
+### L2.4a — la classification
+
+`colaig/security/actions.py` classe les 22 outils intégrés, et tranche le cas MCP selon
+la spécification : `readOnlyHint` vrai ou `destructiveHint` faux → inoffensif ; **sinon
+destructif, annotation absente comprise**. Un serveur qui n'annote rien ne promet rien.
+
+Un test refuse qu'un outil intégré ne soit classé nulle part — sinon il serait traité
+comme un externe, donc destructif, **mais par accident**.
+
+### L2.4b — la garde
+
+**La reconnaissance de la réponse est mécanique, et c'est le cœur.** Si un modèle
+décidait ce qui vaut confirmation, une consigne déposée dans un document produirait la
+sienne. La comparaison porte sur le message **entier**, jamais une sous-chaîne —
+« surtout pas oui » contient « oui ».
+
+Trois propriétés tenues : ce qui n'est ni oui ni non **annule** l'attente ; l'attente
+**expire** ; l'accord donné est **à usage unique**, borné à un outil, un salon, et dans
+le temps.
+
+Les attentes vivent **en mémoire**, pas dans `.colaig/` : une attente rangée dans
+l'espace serait modifiable par qui y écrit, et l'utilisateur confirmerait « crée le
+document X » pour un appel devenu autre. Un redémarrage les perd — échec dans le bon
+sens.
+
+**Ce qui reste imparfait, et c'est dit** : après accord, l'appel n'est pas rejoué
+directement — l'utilisateur reformule. Le tour interactif ne sait pas reprendre un appel
+d'outil isolé hors de la boucle agentique. Moins élégant, parfaitement honnête : rien ne
+s'exécute sans accord explicite, et l'accord ne vaut qu'une fois. `TODO-NORMALE` posé.
+
+### La suite
+
+**L2.5** — suite adversariale, méthodologie AgentDojo. Critère : **zéro appel d'outil
+non planifié**, ≥ 20 attaques. Elle dépend de L2.1 à L2.4, tous clos.
+
+C'est elle qui mesurera ce que les quatre lots précédents *déclarent* : le balisage dit
+au modèle qu'un contenu est une donnée, il ne garantit pas qu'il l'écoute ; un
+`readOnlyHint` vient du serveur et peut mentir ; la confirmation ne garantit pas que le
+modèle ne trouvera pas un chemin détourné.

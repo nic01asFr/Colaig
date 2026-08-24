@@ -45,8 +45,20 @@ from colaig.models import (
     ToolResult,
     WorkspaceContext,
 )
+from colaig.security.actions import est_destructif
+from colaig.security.confirmation import attentes_en_cours
 from colaig.security.mcp_policy import connecteurs_autorises, politique_instance
 from colaig.security.wrap import CONSIGNE, baliser, formater_skills
+
+
+def _annotations(entry) -> dict:
+    """Les annotations MCP d'un outil, quand il en porte.
+
+    Un outil integre n'en a pas : `est_destructif` le classe alors par son nom.
+    """
+    if not entry:
+        return {}
+    return getattr(entry[0], "annotations", None) or {}
 
 
 def _connecteurs(workspace):
@@ -687,6 +699,44 @@ class Orchestrator:
                         elif connector.session_scope == "user":
                             tool_call.arguments["_session_id"] = context.user_id or ""
                         break
+
+        # ── CONFIRMATION D'UN APPEL DESTRUCTIF (L2.4b) ──────────────────────
+        #
+        # La menace n'est pas la presence de l'outil, c'est son appel NON VOULU —
+        # declenche par une consigne deposee dans un document. La decision se prend
+        # donc par APPEL, pas par instance (D47).
+        #
+        # L'appel est suspendu et rendu a l'utilisateur. La reponse est reconnue
+        # MECANIQUEMENT dans `handlers.py` : aucun modele ne decide de ce qui vaut
+        # confirmation, sinon l'attaquant fabriquerait la sienne.
+        if est_destructif(tool_call.tool_name, _annotations(entry)):
+            conversation = getattr(context, "conversation_id", "") or ""
+            # Un accord deja donne laisse passer — a usage unique, borne a cet outil et
+            # a ce salon. Sans cela l'utilisateur bouclerait : il confirme, reformule,
+            # on suspend a nouveau.
+            if attentes_en_cours().consommer_accord(conversation, tool_call.tool_name):
+                logger.info(
+                    "outil destructif execute sur accord : %s (conversation %s)",
+                    tool_call.tool_name, conversation,
+                )
+                return await available_tools.execute(tool_call)
+
+            question = attentes_en_cours().poser(
+                conversation, tool_call.tool_name, tool_call.arguments,
+            )
+            logger.info(
+                "outil destructif suspendu : %s (conversation %s)",
+                tool_call.tool_name, conversation,
+            )
+            return ToolResult(
+                tool_name=tool_call.tool_name,
+                success=False,
+                error=(
+                    "action suspendue : elle modifie quelque chose et attend l'accord "
+                    "explicite de l'utilisateur. NE PAS reessayer, NE PAS contourner "
+                    "par un autre outil. " + question
+                ),
+            )
 
         tool_result = await available_tools.execute(tool_call)
 

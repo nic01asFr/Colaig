@@ -233,6 +233,17 @@ class MessageHandler:
                 await self._send_onboarding(message)
                 return
 
+        # ── Reprise d'un appel destructif suspendu (L2.4b) ─────────────────────
+        #
+        # AVANT tout le reste : si une action attend un accord dans cette conversation,
+        # le message courant est une reponse a cette question, pas une nouvelle demande.
+        #
+        # La reconnaissance est MECANIQUE — aucun modele ne decide de ce qui vaut
+        # confirmation, sinon une consigne deposee dans un document fabriquerait la
+        # sienne.
+        if await self._reprendre_confirmation(message):
+            return
+
         # ── Détection tâche waiting_for_user (Mode C human-in-the-loop) ─────────
         # Si c'est un DM en mode PERSONAL et qu'une tâche attend une réponse :
         # injecter la réponse et remettre la tâche pending (le scheduler reprendra).
@@ -245,6 +256,68 @@ class MessageHandler:
             await self._handle_phase2(message, context=pre_context)
         else:
             await self._handle_phase1(message, context=pre_context)
+
+    async def _reprendre_confirmation(self, message: IncomingMessage) -> bool:
+        """Traite le message comme une reponse a une confirmation en attente.
+
+        Returns:
+            True si le message a ete consomme — il ne doit pas descendre dans le
+            pipeline, sinon un « oui » relancerait une analyse d'intention sur le mot
+            « oui ».
+        """
+        from colaig.security.confirmation import (
+            ANNULE,
+            CONFIRME,
+            attentes_en_cours,
+            lire_reponse,
+        )
+
+        attentes = attentes_en_cours()
+        if not attentes.en_attente(message.conversation_id):
+            return False
+
+        verdict = lire_reponse(message.body)
+
+        if verdict == CONFIRME:
+            attente = attentes.reprendre(message.conversation_id)
+            if attente is None:
+                # Expiree entre la question et la reponse. On ne l'execute pas : une
+                # confirmation qu'on peut donner le lendemain n'en est plus une.
+                await self._messaging.send(
+                    message.conversation_id,
+                    "La demande a expire. Reformulez-la si elle est toujours d'actualite.",
+                )
+                return True
+            logger.info(
+                "confirmation accordee : %s dans %s",
+                attente.outil, message.conversation_id,
+            )
+            # L'accord est enregistre pour le PROCHAIN appel de cet outil — a usage
+            # unique, borne au salon et dans le temps.
+            #
+            # Rejouer l'appel ici serait plus direct, mais le tour interactif ne sait pas
+            # reprendre un appel d'outil isole hors de la boucle agentique. Faire
+            # reformuler est moins elegant et parfaitement honnete : l'action ne
+            # s'execute qu'apres un accord explicite, et l'accord ne vaut qu'une fois.
+            # TODO-NORMALE : rejouer l'appel directement quand la boucle saura reprendre.
+            attentes.accorder(message.conversation_id, attente.outil)
+            await self._messaging.send(
+                message.conversation_id,
+                f"Accord enregistre pour `{attente.outil}`. "
+                "Reformulez votre demande : elle sera executee sans nouvelle question.",
+            )
+            return True
+
+        attentes.oublier(message.conversation_id)
+        if verdict == ANNULE:
+            # Ni oui ni non : le doute ne vaut pas accord. On abandonne l'attente ET on
+            # laisse le message suivre son cours — c'est peut-etre une vraie question.
+            logger.info("confirmation abandonnee (reponse non concluante) dans %s",
+                        message.conversation_id)
+            return False
+
+        await self._messaging.send(message.conversation_id, "Action abandonnee.")
+        return True
 
     async def _handle_waiting_task_reply(self, message: IncomingMessage) -> bool:
         """Injecte une réponse DM dans une tâche waiting_for_user si applicable.
