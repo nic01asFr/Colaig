@@ -100,36 +100,50 @@ class TestExtractDomain:
     def test_email_format(self):
         assert _extract_domain("user@example.com") == "example.com"
 
-    def test_un_domaine_a_tiret_est_TRONQUE(self):
-        """Limite connue, mesurée, et épinglée pour qu'on ne bâtisse pas dessus.
+    def test_la_derivation_du_domaine_est_INDECIDABLE_par_decoupage(self):
+        """La demonstration, plutot que l'affirmation.
 
-        Les cas ci-dessus sont verts pour une mauvaise raison : ils n'emploient que des
-        domaines **sans tiret** — `education.gouv.fr`, `interieur.gouv.fr`. Le découpage
-        sur le dernier tiret y tombe juste par accident.
+        Deux identifiants de STRUCTURE IDENTIQUE — `X.Y-Z-W.gouv.fr` — dont les
+        reponses justes sont opposees :
 
-        Sur un domaine à tiret, il mange le début. Vérifié le 24/08/2026 par
-        `_chantier/scripts/sonde_partage_inverse.py` contre le compte réel du bot, dont
-        le serveur expose l'adresse de courriel : domaine attendu de 29 caractères,
-        obtenu 15, et l'obtenu est un **suffixe strict** de l'attendu.
+        | localpart                                | nom                | domaine                       |
+        |------------------------------------------|--------------------|-------------------------------|
+        | `jean.marie-dupont-interieur.gouv.fr`    | jean.marie-dupont  | interieur.gouv.fr             |
+        | `prenom.nom-developpement-durable.gouv.fr` | prenom.nom       | developpement-durable.gouv.fr |
 
-        Ce n'est pas décidable par découpage. `@a-b.gouv.fr:…` peut être le nom « a »
-        dans le domaine « b.gouv.fr », ou un nom contenant un tiret : rien dans la
-        chaîne ne tranche. Il y faudrait une liste de domaines connus et un appariement
-        par suffixe le plus long.
+        Aucune regle de decoupage ne peut rendre les deux : couper au dernier tiret
+        reussit la premiere et rate la seconde ; couper au premier tiret apres le point
+        fait l'inverse. Mesure le 24/08/2026.
 
-        Aujourd'hui la conséquence est **cosmétique** : `user_domain` sert uniquement à
-        dire au modèle « Organisation : … ». Elle deviendrait structurelle si l'on
-        dérivait de là une identité de stockage — voir D39, où c'est posé comme un
-        préalable au partage inversé, et non comme un détail.
+        La generation deployee a choisi la seconde regle
+        (`Plateforme_colaig/.../docquery_adapted.py`), le tronc la premiere. Chacune est
+        juste sur son cas d'usage et fausse sur l'autre. **Ce n'est pas un defaut a
+        corriger, c'est une ambiguite a lever** — par une liste de domaines connus et un
+        appariement par suffixe le plus long, ce qui est une decision de configuration.
+
+        Ce test epingle le comportement actuel ET la raison de ne pas le « corriger » a
+        l'aveugle. Voir D39 et D41.
         """
-        obtenu = _extract_domain(
+        # Nom compose : le tronc tombe juste.
+        assert _extract_domain(
+            "@jean.marie-dupont-interieur.gouv.fr:agent.tchap.gouv.fr"
+        ) == "interieur.gouv.fr"
+
+        # Domaine compose : le tronc se trompe, et c'est ASSUME faute de liste.
+        assert _extract_domain(
             "@prenom.nom-developpement-durable.gouv.fr:agent.dev-durable.tchap.gouv.fr"
+        ) == "durable.gouv.fr", (
+            "si ce test change, c'est qu'une liste de domaines connus a ete introduite : "
+            "mettre a jour D39, D41 et ce test ensemble"
         )
-        assert obtenu == "durable.gouv.fr", (
-            "comportement épinglé, non approuvé — s'il change, c'est que quelqu'un a "
-            "corrigé la dérivation : mettre à jour D39 et ce test ensemble"
-        )
-        assert "developpement-durable.gouv.fr".endswith(obtenu)
+
+    def test_un_localpart_opaque_ne_rend_pas_de_domaine_metier(self):
+        """La limite mesuree par la sonde : un tiers des membres observes.
+
+        Aucun decoupage ne les rattachera — on retombe sur le domaine du serveur, ce qui
+        est honnete : c'est tout ce que l'identifiant porte.
+        """
+        assert _extract_domain("@abc123def:agent.tchap.gouv.fr") == "agent.tchap.gouv.fr"
 
     def test_no_colon_no_at(self):
         assert _extract_domain("invalid") == ""

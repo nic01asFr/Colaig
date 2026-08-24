@@ -1947,3 +1947,31 @@ Rien à reprendre tel quel — mais deux choses à retenir :
 2. **Le liage automatique à l'invitation est séduisant et dangereux.** La version
    déployée l'a fait ; il faut décider si le tronc le reprend, et si oui, en retirant la
    règle de convention de nom ou en la rendant opt-in comme les deux regex.
+
+### D41 — addendum du 24/08/2026 : correction d'une conclusion hative
+
+La revue avait d'abord conclu que la generation deployee **resolvait** la derivation du
+domaine, la ou le tronc echouait. **C'etait faux, et generalise depuis cinq cas qui
+partageaient tous la meme structure.**
+
+`docquery_adapted.py` coupe au premier tiret situe apres le premier point ; le tronc
+coupe au dernier tiret. Confrontees a deux identifiants de **structure identique** --
+`X.Y-Z-W.gouv.fr` -- elles rendent des reponses opposees, et chacune n'en reussit
+qu'une :
+
+| localpart | nom | domaine | tronc | deployee |
+|---|---|---|---|---|
+| `jean.marie-dupont-interieur.gouv.fr` | jean.marie-dupont | interieur.gouv.fr | **juste** | faux |
+| `prenom.nom-developpement-durable.gouv.fr` | prenom.nom | developpement-durable.gouv.fr | faux | **juste** |
+
+Aucune regle de decoupage ne peut rendre les deux. **La conclusion initiale de D39 etait
+donc la bonne** : lever l'ambiguite demande une liste de domaines connus et un
+appariement par suffixe le plus long -- une decision de configuration, pas un correctif.
+
+L'affirmation est remplacee par une **demonstration** :
+`test_la_derivation_du_domaine_est_INDECIDABLE_par_decoupage` exhibe les deux cas et
+epingle le comportement actuel avec la raison de ne pas le corriger a l'aveugle.
+
+Ce que la revue rapporte donc reellement sur ce point : non pas une solution, mais la
+preuve que **deux generations ont chacune choisi une moitie du probleme**, sans que ni
+l'une ni l'autre ne l'ait vu.

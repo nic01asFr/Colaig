@@ -129,9 +129,17 @@ def _extract_domain(user_id: str) -> str:
     `developpement-durable.gouv.fr`. Verifie le 24/08/2026 contre le compte reel du bot
     (`_chantier/scripts/sonde_partage_inverse.py`), dont le serveur expose l'adresse.
 
-    Ce n'est pas decidable par decoupage : `@a-b.gouv.fr:...` peut etre le nom « a »
-    dans le domaine « b.gouv.fr », ou un nom contenant un tiret. Il y faudrait une liste
-    de domaines connus et un appariement par suffixe le plus long.
+    CE N'EST PAS DECIDABLE PAR DECOUPAGE, et c'est demontre plutot qu'affirme :
+    `test_la_derivation_du_domaine_est_INDECIDABLE_par_decoupage` exhibe deux
+    identifiants de STRUCTURE IDENTIQUE dont les reponses justes sont opposees --
+    `jean.marie-dupont-interieur.gouv.fr` (nom compose) et
+    `prenom.nom-developpement-durable.gouv.fr` (domaine compose). Couper au dernier
+    tiret reussit le premier et rate le second ; couper au premier tiret apres le point
+    fait l'inverse. La generation deployee avait choisi l'autre regle, et se trompait
+    donc sur l'autre moitie des cas (D41).
+
+    Lever l'ambiguite demande une liste de domaines connus et un appariement par suffixe
+    le plus long -- une decision de configuration, pas un correctif.
 
     La consequence est aujourd'hui COSMETIQUE — `user_domain` ne sert qu'a dire au
     modele « Organisation : ... ». Elle deviendrait structurelle si l'on en derivait une
