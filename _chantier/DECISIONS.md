@@ -2441,3 +2441,59 @@ tour interactif. Le plus petit changement, au prix d'une capacite en moins.
 Aucune n'est engagee. **b** me parait le meilleur rapport, parce qu'elle reutilise un
 mecanisme eprouve et ne force pas la main sur `protocols.py` — mais c'est un arbitrage,
 pas une preference technique.
+
+---
+
+## D48 — Le raisonnement n'aide pas le verificateur, et le casse par endroits · 24/08/2026 · **actee**
+
+Dette de mesure soldee. La question etait : le raisonnement du modele ameliore-t-il les
+deux types de derive que le verificateur voit mal — la portee et la suppression (D32) ?
+**Non.**
+
+### Ce que la mesure rend
+
+Avec `COLAIG_VERIF_RAISONNEMENT=1`, sur 20 cas produisant 46 derives fabriquees :
+
+| type de derive | avec raisonnement | effectif |
+|---|---|---|
+| ajout | 20/20 — 100 % | 20 |
+| seuil | 8/8 — 100 % | 8 |
+| portee | 7/8 — 88 % | **8** |
+| negation | 2/5 — 40 % | **5** |
+| suppression | 2/5 — 40 % | **5** |
+| **ensemble** | **39/46 — 85 %** | 46 |
+
+Reference sans raisonnement : **82,7 %** (86/104).
+
+### Pourquoi 85 % contre 82,7 % ne veut rien dire
+
+Les deux nombres ne portent pas sur le meme echantillon — 46 observations contre 104 —
+et les types faibles reposent ici sur **cinq cas**. Passer de 50 % a 40 % sur
+`suppression`, c'est **un cas**. Ce chantier a deja inscrit la lecon en toutes lettres :
+trois observations ne sont pas une mesure.
+
+Ce qu'on peut dire honnetement : **les deux angles morts restent des angles morts.**
+`negation` et `suppression` plafonnent a 40 %, la ou `ajout` et `seuil` sont a 100 %.
+Le raisonnement ne change pas la nature du defaut — le verificateur voit ce qu'on
+ajoute, pas ce qu'on retire.
+
+### Ce qui tranche vraiment, et ce n'est pas le pourcentage
+
+**Six sorties non exploitables**, dont **cinq totalement vides**. Le raisonnement a
+consomme le budget de reponse et le modele n'a rien rendu.
+
+C'est exactement le defaut mesure en D18 sur la generation — 39 reponses tronquees avec
+le raisonnement actif, 3 sans — reproduit ici sur le verificateur. Un controle qui ne
+rend rien une fois sur huit ne controle pas : il faut alors decider quoi faire du
+silence, et toute reponse a cette question est mauvaise.
+
+### Decision
+
+**Le raisonnement reste eteint pour le verificateur de fidelite.** Le drapeau
+`COLAIG_VERIF_RAISONNEMENT` est conserve — il a servi a mesurer, il servira a remesurer
+si le modele change — mais son defaut reste `0`.
+
+Les deux angles morts restent ouverts. Les corriger demande autre chose que du
+raisonnement : une seconde passe orientee sur ce que l'extrait NE dit PAS, ou un
+verificateur distinct pour l'omission. Aucune n'est engagee, et aucune ne bloque la
+phase 2.

@@ -2,4 +2,60 @@ vérificateur : sortie non exploitable (0 caractères)
 vérificateur : sortie non exploitable (0 caractères)
 vérificateur : sortie non exploitable (0 caractères)
 vérificateur : sortie non exploitable (0 caractères)
-vérificateur : sortie non exploitable (0 caractères)
+vérificateur : sortie non exploitable (898 caractères)v�vérificateur : sortie non exploitable (0 caractères)
+  mp-001   seuil        contredit            vu
+  mp-001   ajout        etaye_partiellement  vu
+  mp-002   negation     etaye_partiellement  vu
+  mp-002   seuil        contredit            vu
+  mp-002   ajout        etaye_partiellement  vu
+  mp-003   seuil        contredit            vu
+  mp-003   ajout        etaye_partiellement  vu
+  mp-004   portee       etaye_partiellement  vu
+  mp-004   ajout        etaye_partiellement  vu
+  mp-005   portee       etaye_partiellement  vu
+  mp-005   ajout        illisible            vu
+  mp-006   negation     etaye                PASSE
+  mp-006   ajout        etaye_partiellement  vu
+  mp-007   portee       etaye_partiellement  vu
+  mp-007   negation     etaye                PASSE
+  mp-007   ajout        etaye_partiellement  vu
+  mp-008   seuil        etaye_partiellement  vu
+  mp-008   suppression  illisible            vu
+  mp-008   ajout        illisible            vu
+  mp-009   portee       etaye_partiellement  vu
+  mp-009   ajout        illisible            vu
+  mp-010   ajout        etaye_partiellement  vu
+  mp-011   seuil        etaye_partiellement  vu
+  mp-011   ajout        illisible            vu
+  mp-012   seuil        ne_dit_pas_cela      vu
+  mp-012   ajout        ne_dit_pas_cela      vu
+  mp-013   ajout        ne_dit_pas_cela      vu
+  mp-015   portee       etaye                PASSE
+  mp-015   negation     contredit            vu
+  mp-015   suppression  etaye                PASSE
+  mp-015   ajout        ne_dit_pas_cela      vu
+  mp-016   ajout        ne_dit_pas_cela      vu
+  mp-017   portee       etaye_partiellement  vu
+  mp-017   suppression  etaye                PASSE
+  mp-017   ajout        etaye_partiellement  vu
+  mp-018   portee       etaye_partiellement  vu
+  mp-018   ajout        etaye_partiellement  vu
+  mp-020   negation     etaye                PASSE
+  mp-020   seuil        contredit            vu
+  mp-020   ajout        etaye_partiellement  vu
+  mp-021   portee       etaye_partiellement  vu
+  mp-021   seuil        etaye_partiellement  vu
+  mp-021   suppression  etaye_partiellement  vu
+  mp-021   ajout        etaye_partiellement  vu
+  mp-022   suppression  etaye                PASSE
+  mp-022   ajout        illisible            vu
+
+=== détection par type de dérive ===
+  portee          7/ 8  ( 88 %)
+  negation        2/ 5  ( 40 %)
+  seuil           8/ 8  (100 %)
+  suppression     2/ 5  ( 40 %)
+  ajout          20/20  (100 %)
+
+  ENSEMBLE       39/46  (85 %)
+  faux positifs : 7/46 — 15 %
