@@ -383,11 +383,18 @@ class MessageHandler:
                 await self._messaging.send_typing(message.conversation_id, typing=True)
                 try:
                     from colaig.context.workspace import create_workspace
+                    # Le créateur est inscrit PROPRIÉTAIRE.
+                    #
+                    # Sans cela, l'espace naît sans personne pour l'administrer : son
+                    # créateur ne pourrait pas y rattacher un second salon, la garde de
+                    # `can_link_conversation` le traitant comme un inconnu. Un espace
+                    # orphelin dès sa création n'est pas un espace.
                     ws = await create_workspace(
                         storage=self._storage,
                         storage_path=f"/{_slugify_msg(name)}/",
                         name=name,
                         conversations=[message.conversation_id],
+                        owners=[message.user_id] if message.user_id else None,
                     )
                     await self._resolver.register_workspace(ws)
                     await self._messaging.send(
@@ -412,15 +419,27 @@ class MessageHandler:
         # ── commande "lier workspace" ──────────────────────────────────
         for prefix in _CMD_LINK:
             if body_lower.startswith(prefix):
+                from colaig.security.acl import WorkspaceACL
+
                 workspace_id = body[len(prefix):].strip()
                 if not workspace_id:
+                    # N'énumérer QUE les espaces où le demandeur est admis.
+                    #
+                    # La liste des espaces d'une instance est en soi une information :
+                    # elle nomme les équipes, les directions, parfois les dossiers en
+                    # cours. Elle était rendue à quiconque savait inviter le bot.
+                    visibles = [
+                        ws for ws in self._resolver.workspaces
+                        if WorkspaceACL.can_link_conversation(ws, message.user_id)
+                    ]
                     await self._messaging.send(
                         message.conversation_id,
                         "Usage : `colaig lier <workspace_id>`\n"
-                        "Workspaces disponibles : "
-                        + ", ".join(
-                            f"`{ws.workspace_id}`" for ws in self._resolver.workspaces
-                        ) or "aucun",
+                        + ("Espaces auxquels vous êtes déclaré : "
+                           + ", ".join(f"`{ws.workspace_id}`" for ws in visibles)
+                           if visibles else
+                           "Vous n'êtes déclaré sur aucun espace existant. "
+                           "Utilisez `colaig créer <nom>` pour ouvrir le vôtre."),
                     )
                     return True
 
@@ -436,6 +455,31 @@ class MessageHandler:
                         await self._messaging.send(
                             message.conversation_id,
                             f"❌ Workspace `{workspace_id}` introuvable.",
+                        )
+                        return True
+
+                    # LA GARDE QUI COMPTE — l'appariement salon → espace EST la
+                    # frontière d'accès du chemin conversationnel. Une fois le salon
+                    # rattaché, tout ce qui s'y dit interroge le corpus de l'espace,
+                    # sans autre contrôle : `WorkspaceACL` garde les outils
+                    # d'administration, la délégation et les tâches, jamais ce chemin.
+                    #
+                    # Sans cette garde, deux messages depuis n'importe quel salon
+                    # suffisaient à lire le corpus de n'importe quel espace. Mesuré.
+                    #
+                    # Le refus ne distingue pas « introuvable » de « interdit » à
+                    # dessein : distinguer redonnerait par la porte l'énumération qu'on
+                    # vient de fermer par la fenêtre.
+                    if not WorkspaceACL.can_link_conversation(target, message.user_id):
+                        logger.warning(
+                            "rattachement refusé : %s n'est pas déclaré sur %s",
+                            message.user_id, target.workspace_id,
+                        )
+                        await self._messaging.send(
+                            message.conversation_id,
+                            f"❌ Workspace `{workspace_id}` introuvable ou non "
+                            "accessible. Demandez à son administrateur de vous "
+                            "déclarer, ou créez le vôtre avec `colaig créer <nom>`.",
                         )
                         return True
 

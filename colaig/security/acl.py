@@ -54,6 +54,46 @@ class WorkspaceACL:
         return user_id in user_ids
 
     @staticmethod
+    def can_link_conversation(workspace, user_id: str) -> bool:
+        """Cet utilisateur peut-il rattacher une conversation a cet espace ?
+
+        POURQUOI CE PREDICAT ET PAS `can_access`
+        ------------------------------------------
+        `can_access` commence par « auth_enabled=False -> True », une compatibilite
+        ascendante pour Colaig sans authentification MCP. Le chemin conversationnel
+        Matrix n'a AUCUNE notion d'`auth_enabled` : y passer `False` rendrait la garde
+        inerte, et y passer `True` mentirait sur ce qui est verifie. Un garde toujours
+        vrai est pire qu'absent — on croit etre protege.
+
+        CE QUE CE PREDICAT PROTEGE
+        ---------------------------
+        L'appariement salon -> espace **est** la frontiere d'acces du chemin
+        conversationnel : une fois le salon rattache, tout ce qui s'y dit interroge le
+        corpus de l'espace, sans autre controle. `WorkspaceACL` garde les outils
+        d'administration, la delegation et les taches de fond ; il ne garde pas ce
+        chemin-la, parce que l'appartenance au salon y fait foi.
+
+        Un rattachement forgeable defait donc entierement la cloison multi-tenant.
+        Mesure avant correctif : deux messages depuis n'importe quel salon suffisaient.
+
+        REFUS PAR DEFAUT, sans exception d'environnement :
+        1. espace public (accueil) -> True, c'est sa raison d'etre
+        2. proprietaire declare -> True
+        3. membre declare -> True
+        4. sinon -> False
+        """
+        if not workspace:
+            return False
+        if getattr(workspace, "public", False):
+            return True
+        if not user_id:
+            return False
+        return (
+            user_id in (getattr(workspace, "owners", None) or [])
+            or user_id in (getattr(workspace, "user_ids", None) or [])
+        )
+
+    @staticmethod
     def can_manage(context, admin_user_ids: list, workspaces=None) -> bool:
         """Garde d'INJECTION : l'utilisateur reçoit-il les outils d'administration ?
 
