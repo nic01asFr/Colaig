@@ -2211,3 +2211,80 @@ posee, et la reponse etait non.
    plutot que d'ouvrir en silence. C'est un changement de posture, donc un arbitrage.
 3. **Verifier les trois points d'entree non audites** — MCP sans jeton, taches de fond,
    delegation.
+
+---
+
+## D45 — Une seule cle porte trois roles, et elle est absente par defaut · 24/08/2026 · **actee**
+
+Reponse aux trois questions posees sur `COLAIG_PLATFORM_API_KEY` : que securise-t-elle,
+qui la renseigne et quand, pour quoi faire.
+
+### Ce qu'elle securise — trois choses, avec une seule valeur
+
+| role | ou | exposition |
+|---|---|---|
+| **mot de passe** du tableau de bord | `login_submit` : `password == key` | tape dans un formulaire de navigateur |
+| **jeton Bearer** des routes de provisionnement | `_check_platform_auth` | envoye dans un en-tete HTTP |
+| **secret de signature du cookie de session** | `SessionMiddleware(secret_key=...)` | ne doit JAMAIS circuler |
+
+Cumuler le premier et le troisieme signifie que **qui connait le mot de passe peut forger
+un cookie de session**. Les trois n'ont pas le meme profil de risque et ne devraient pas
+partager une valeur.
+TODO-HAUTE : separer les trois roles. Non fait ici — cela change la configuration
+attendue au deploiement, donc releve d'un arbitrage.
+
+### Qui la renseigne, et quand
+
+- **Helm** : `platformApiKey`, pose par celui qui deploie — **defaut `""`**.
+- **`config/.env.example`** : la ligne est **commentee**.
+- Elle n'est **pas** dans `colaig/config.py` : lue directement par `os.environ` a deux
+  endroits, donc hors du modele de configuration, non validee, non documentee comme
+  champ.
+
+Elle est en revanche **documentee comme requise en production** dans `SECURITY.md`,
+`docs/SECURITE.md`, `docs/GUIDE_UTILISATEUR.md`, et `docs/CONFORMITE_RGPD.md` la porte
+comme une **case a cocher**.
+
+### Pour quoi faire, et le probleme
+
+Elle distingue « auto-heberge, pas d'authentification necessaire » de « plateforme
+hebergeant plusieurs clients ». L'intention est defendable.
+
+Le probleme est qu'**elle est le seul interrupteur entre tout-ouvert et tout-ferme**, que
+son defaut est *absente*, et que **rien ne le signale**. `docs/SECURITE.md` §9 annonce
+« Dashboard + routes plateforme : `COLAIG_PLATFORM_API_KEY` (Bearer) » sans dire que la
+garde est inerte tant que la variable ne l'est pas. Une installation Helm par defaut
+expose donc toute la surface web, y compris `/` et `/platform`.
+
+C'est la quatrieme occurrence du motif recense en D44 : la posture de securite est
+opt-in.
+
+### Ce qui est corrige (L2.1f), et ce qui ne l'est pas
+
+**Corrige** : le secret de signature ne retombe plus sur la chaine litterale
+`colaig-dev-secret-change-in-production`, qui etait **ecrite dans un depot public** —
+n'importe qui pouvait signer un cookie portant `admin=1`. Le repli est desormais tire au
+hasard par processus. Consequence assumee : sans cle, les sessions ne survivent pas a un
+redemarrage, ce qui est sans portee dans un mode ou rien n'est garde.
+
+Aujourd'hui cela ne change rien, puisque sans cle tout est deja ouvert. Mais le jour ou
+l'echappatoire sera fermee, cette constante rouvrirait seule ce que l'on croirait avoir
+verrouille. **Un secret public n'est pas un secret.**
+
+**Non corrige, arbitrages** :
+1. separer les trois roles ;
+2. refuser de demarrer avec un port web expose et aucune cle, plutot que d'ouvrir en
+   silence — ou n'ecouter que sur la boucle locale par defaut au lieu de `0.0.0.0` ;
+3. corriger `docs/SECURITE.md`, qui presente une garde eteinte par defaut comme une
+   protection.
+
+### Un defaut trouve dans mon propre outillage
+
+Le filtre `code_seul`, qui permet a une garde de chercher un motif interdit **dans le
+code** sans se declencher sur les docstrings qui le documentent, n'actualisait pas son
+jeton precedent pour `NEWLINE`/`INDENT`. Il gardait donc le `:` de la signature et ne
+reconnaissait **que les docstrings de module, jamais celles de fonction**.
+
+Consequence : `test_le_marqueur_forgeable_a_disparu_du_depot` (L2.1) passait pour une
+raison partielle. Corrige, mutualise dans `tests/conftest.py`, et verifie sur les quatre
+cas — docstring de module, de fonction, commentaire, et code veritable.

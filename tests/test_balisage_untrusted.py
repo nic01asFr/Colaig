@@ -152,32 +152,7 @@ def test_le_generateur_passe_par_le_point_unique():
 # ---------------------------------------------------------------------------
 
 
-def _code_seul(source: str) -> str:
-    """Le code d'un module, sans ses commentaires ni ses docstrings.
-
-    La garde doit porter sur ce qui s'exécute. `security/wrap.py` cite l'ancien motif
-    dans sa docstring — c'est le module qui documente la faille qu'il supprime, et cette
-    trace a de la valeur. Filtrer par nom de fichier créerait une dérogation ; filtrer
-    les commentaires supprime le besoin d'en avoir une.
-    """
-    import io
-    import tokenize
-
-    garde = []
-    precedent = tokenize.INDENT
-    for jeton in tokenize.generate_tokens(io.StringIO(source).readline):
-        if jeton.type == tokenize.COMMENT:
-            continue
-        # Une chaîne seule en tête d'instruction est une docstring, pas une valeur.
-        if jeton.type == tokenize.STRING and precedent in (
-            tokenize.INDENT, tokenize.DEDENT, tokenize.NEWLINE, tokenize.NL,
-        ):
-            continue
-        if jeton.type not in (tokenize.NL, tokenize.NEWLINE, tokenize.INDENT,
-                              tokenize.DEDENT):
-            precedent = jeton.type
-        garde.append(jeton.string)
-    return "\n".join(garde)
+from tests.conftest import code_seul as _code_seul
 
 
 def _sources_du_paquet():

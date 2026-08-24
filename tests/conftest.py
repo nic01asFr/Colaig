@@ -10,12 +10,21 @@ Tout est déterministe et hors ligne : aucune horloge murale, aucun hasard non s
 aucun accès réseau.
 """
 
-import pytest
 import asyncio
-from dataclasses import dataclass, field
-from typing import Optional
 from datetime import datetime
 
+import pytest
+
+from colaig.models import (
+    ColaigConfig,
+    ConversationType,
+    DocumentChunk,
+    DocumentRecord,
+    DocumentStatus,
+    IncomingMessage,
+    StorageFile,
+    WorkspaceConfig,
+)
 from tests.fakes import (  # noqa: F401 - reexportes pour les tests existants
     FakeLLM,
     FakeMessaging,
@@ -23,16 +32,6 @@ from tests.fakes import (  # noqa: F401 - reexportes pour les tests existants
     MockAlbertClient,
     MockStorage,
     MockWebDAVClient,
-)
-from colaig.models import (
-    ColaigConfig,
-    WorkspaceConfig,
-    IncomingMessage,
-    ConversationType,
-    DocumentChunk,
-    DocumentRecord,
-    DocumentStatus,
-    StorageFile,
 )
 
 
@@ -250,3 +249,41 @@ def sample_chunks() -> list[DocumentChunk]:
         DocumentChunk(text="Le formulaire doit être soumis avant le 15 du mois.", source_path="/espace-test/documents/guide.txt", source_name="guide.txt", position=1),
         DocumentChunk(text="Le chef de service valide dans un délai de 5 jours.", source_path="/espace-test/documents/guide.txt", source_name="guide.txt", position=2),
     ]
+
+
+def code_seul(source: str) -> str:
+    """Le code d'un module, sans ses commentaires ni ses docstrings.
+
+    Plusieurs gardes de ce depot cherchent un motif interdit dans les sources —
+    l'ancien marqueur de balisage, une constante de secret. Ces gardes doivent porter
+    sur ce qui S'EXECUTE : un module a le droit de citer dans sa docstring la faille
+    qu'il supprime, et cette trace a de la valeur.
+
+    Filtrer par nom de fichier creerait une derogation ; filtrer les commentaires
+    supprime le besoin d'en avoir une.
+    """
+    import io as _io
+    import tokenize
+
+    # Une docstring est une chaine qui OUVRE une ligne logique : le jeton qui la precede
+    # est un INDENT, un DEDENT, une fin de ligne, ou le debut du fichier.
+    #
+    # Piege mesure le 24/08/2026 : une premiere version n'actualisait pas `precedent`
+    # pour ces jetons-la. Il gardait donc le `:` de la signature, et le test ne
+    # reconnaissait QUE les docstrings de module — jamais celles de fonction. La garde
+    # du marqueur de balisage passait pour une raison partielle.
+    OUVRE_UNE_LIGNE = {
+        tokenize.INDENT, tokenize.DEDENT, tokenize.NEWLINE, tokenize.NL,
+        tokenize.ENCODING,
+    }
+    garde = []
+    precedent = tokenize.ENCODING
+    for jeton in tokenize.generate_tokens(_io.StringIO(source).readline):
+        if jeton.type == tokenize.COMMENT:
+            continue
+        if jeton.type == tokenize.STRING and precedent in OUVRE_UNE_LIGNE:
+            precedent = jeton.type
+            continue
+        precedent = jeton.type
+        garde.append(jeton.string)
+    return "\n".join(garde)

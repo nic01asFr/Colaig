@@ -37,6 +37,34 @@ def _admin_key() -> str:
     return os.environ.get("COLAIG_PLATFORM_API_KEY", "")
 
 
+def _session_secret_pour_test() -> str:
+    """Secret de signature des cookies de session.
+
+    `COLAIG_PLATFORM_API_KEY` porte TROIS roles a la fois — mot de passe du tableau de
+    bord, jeton Bearer des routes plateforme, et secret de signature. Les deux premiers
+    circulent (formulaire, en-tete HTTP), le troisieme ne doit jamais circuler. Cumuler
+    le premier et le troisieme signifie que qui connait le mot de passe peut forger un
+    cookie.
+    # TODO-HAUTE : separer les trois roles. Ce n'est pas fait ici parce que cela change
+    # la configuration attendue au deploiement, donc releve d'un arbitrage (D45).
+
+    Le repli, lui, est corrige : il etait la chaine litterale
+    `colaig-dev-secret-change-in-production`, ECRITE DANS UN DEPOT PUBLIC — n'importe qui
+    pouvait donc signer un cookie portant `admin=1`. Sans cle, tout est deja ouvert
+    aujourd'hui (D44) ; mais le jour ou cette echappatoire sera fermee, la constante
+    rouvrirait seule ce que l'on croirait avoir verrouille.
+
+    Le repli est desormais tire au hasard, par processus. Consequence assumee : sans cle
+    configuree, les sessions ne survivent pas a un redemarrage — sans portee dans un mode
+    ou rien n'est garde.
+    """
+    cle = _admin_key()
+    if cle:
+        return cle
+    import secrets
+    return secrets.token_urlsafe(32)
+
+
 def _is_authenticated(request: Request) -> bool:
     """Vérifie si la session courante est authentifiée en tant qu'admin."""
     key = _admin_key()
@@ -215,7 +243,7 @@ def create_app(
     app = FastAPI(title="Colaig Admin", version="0.1.0", lifespan=_lifespan)
 
     # Session middleware (cookie signé) — clé = PLATFORM_API_KEY ou fallback dev
-    _session_secret = _admin_key() or "colaig-dev-secret-change-in-production"
+    _session_secret = _session_secret_pour_test()
     app.add_middleware(SessionMiddleware, secret_key=_session_secret, session_cookie="colaig_session", https_only=False)
 
     # Request-ID / W3C Trace Context — corrélation des logs de bout en bout.
