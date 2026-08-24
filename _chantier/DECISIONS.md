@@ -2288,3 +2288,86 @@ reconnaissait **que les docstrings de module, jamais celles de fonction**.
 Consequence : `test_le_marqueur_forgeable_a_disparu_du_depot` (L2.1) passait pour une
 raison partielle. Corrige, mutualise dans `tests/conftest.py`, et verifie sur les quatre
 cas — docstring de module, de fonction, commentaire, et code veritable.
+
+---
+
+## D46 — La reception d'un message : ce qui est cadre, et les quatre trous · 24/08/2026 · **actee**
+
+Question posee : a reception d'un message, quel que soit le contexte, tout est-il cadre ?
+**Non.** L'arbre de decision est propre ; ce sont les cas limites qui manquent.
+
+### Ce qui est cadre — l'arbre, branche par branche
+
+| situation | conduite | ou |
+|---|---|---|
+| message de Colaig lui-meme | ignore | `_on_room_message` |
+| message trop ancien (rejeu au demarrage) | ignore | `_STALE_MESSAGE_SECONDS` |
+| vocal sans texte | transcription ; si elle echoue, **on le dit** | `_transcribe_audio` |
+| resolution de contexte en echec | le pipeline prend la main et rend `ERROR_MESSAGE` | `handle_message` |
+| salon inconnu (`CHATBOT`) | commande d'accueil, sinon message d'accueil | `_handle_onboarding_command` |
+| DM avec une tache en attente | la reponse est injectee dans la tache | `_handle_waiting_task_reply` |
+| tout le reste | pipeline phase 1 ou 2 | — |
+
+Aucune branche muette, aucun `pass` silencieux. C'est solide.
+
+### Trou 1 — un message indechiffrable disparait sans un mot
+
+Les rappels enregistres sont `InviteMemberEvent`, `RoomMessageText`, `RoomMessageAudio`,
+`RoomEncryptedAudio`. **Aucun pour `MegolmEvent`**, que `matrix-nio` delivre quand le
+dechiffrement echoue.
+
+Un tel message est donc **ignore en silence**. Ce n'est pas theorique : D34 a releve des
+`undecryptable Megolm event from a unknown device` dans le journal du bot, et note qu'un
+appareil neuf ne lit pas l'historique chiffre. L'utilisateur, lui, voit un assistant qui
+ne repond pas — sans savoir pourquoi.
+
+### Trou 2 — deux messages rapides dans le meme salon peuvent se perdre
+
+`TaskExecutor` existe, avec une **file par conversation** qui sequence exactement ce
+cas. Il n'est **pas branche** sur le chemin Matrix : `handlers.py` ne le mentionne nulle
+part.
+
+Or `ConversationMemory.save_turn(..., existing_history)` recoit l'historique **lu avant
+le tour** et reecrit le fichier. Deux messages concurrents lisent donc le meme
+historique et l'ecrivent tous les deux : **le second efface le tour du premier**. Aucun
+controle de version, alors que `StorageProtocol.get_etag` le permettrait.
+
+### Trou 3 — le quota est inerte sur le fournisseur de production
+
+`docs/SECURITE.md` §8 annonce comme mitigation du deni de service et du cout : « quotas
+journaliers par tenant (requetes/tokens) ». `check_quota` est bien appele avant l'appel
+LLM — **mais uniquement dans `albert.py`** :
+
+    albert.py         4 occurrences
+    openai_client.py  0
+    azure_client.py   0
+    ollama_client.py  0
+
+Or la cible de production est **SSPCloud, endpoint OpenAI-compatible** (`CLAUDE.md` §3),
+donc `openai_client`. **Le quota ne s'applique pas la ou il compte.** Meme famille que
+D44 : une protection documentee, eteinte dans la configuration reelle.
+
+### Trou 4 — un message texte vide passe
+
+`if message.attachments and not message.body.strip()` ne couvre que le vocal. Un message
+texte vide, sans piece jointe, descend dans le pipeline. Benin, mais c'est un appel LLM
+pour rien.
+
+### Ce que cela dit du reste
+
+Les trois premiers trous ont la meme forme : **un mecanisme existe et n'est pas branche
+la ou il servirait**. `TaskExecutor` a ses files, `check_quota` sa comptabilite,
+`get_etag` son controle de version. Rien n'est a inventer, tout est a cabler.
+
+C'est la troisieme fois dans ce chantier — apres `sanitize_description` definie et jamais
+appelee, et `storage_readonly` honore par un site sur vingt.
+
+### Suites, chacune un lot
+
+1. **Brancher `TaskExecutor` sur le chemin Matrix**, ou defendre par ecrit pourquoi la
+   concurrence par conversation est acceptable.
+2. **Porter `check_quota` hors d'`albert.py`** — le point ou tous les fournisseurs
+   passent, comme `security/wrap.py` l'a fait pour le balisage.
+3. **Traiter `MegolmEvent`** : au minimum le journaliser en tant que tel ; au mieux, le
+   dire dans le salon une fois, pas a chaque message.
+4. Refuser un corps vide avant le pipeline.
