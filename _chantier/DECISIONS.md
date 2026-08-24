@@ -1828,3 +1828,122 @@ rattacher un second salon. Corrigé.
 2. **Sonde Box** dans le pod — sans les portées de collaboration, le sens 2 est théorique.
 3. **Capacité de partage optionnelle**, hors `protocols.py`.
 4. **Nouer l'identité à l'accueil**, adossée à l'authentification (D39).
+
+---
+
+## D41 — Ce que les générations antérieures avaient résolu, et ce qu'elles avaient contourné · 24/08/2026 · **actée**
+
+Revue des onze dépôts Colaig/Albert-Tchap voisins, sur les quatre questions ouvertes par
+D37 à D40. **Aucune ne résout proprement l'ensemble**, mais chacune enseigne quelque
+chose — et l'une porte une faille plus large que celle corrigée au tronc.
+
+### 1. La capacité de partage : elle existe, et elle a marché
+
+`Plateforme_colaig/app/services/ocs_link_validator.py` implémente l'API OCS Nextcloud
+pour de vrai, y compris le **partage nominatif** :
+
+    "shareType": 0,        # partage utilisateur
+    "shareWith": username,
+    "permissions": 1,      # lecture seule
+
+Ce n'est donc pas théorique. La brique existe, éprouvée contre un Nextcloud réel — mais
+elle vit dans une classe de **diagnostic**, pas sur le chemin de production.
+
+### 2. L'identité : jamais résolue, contournée
+
+Dans ce même module :
+
+    username = target_user.split('@')[0] if '@' in target_user else target_user
+
+Cela suppose une **adresse de courriel**. Sur un identifiant Matrix — qui commence par
+`@` — `split('@')[0]` rend une **chaîne vide**.
+
+Et le chemin de production tranche la question en la supprimant. `webdav.py::create_share_link` :
+
+    Stratégie : Toujours créer un lien public (shareType: 3) avec expiration courte
+    target_user: Ignoré, mais conservé pour compatibilité
+
+**Le paramètre est un vestige mort.** La version déployée partage par lien public à
+expiration, précisément pour n'avoir pas à savoir qui est qui.
+
+Aucune des onze générations ne résout Matrix → identité de stockage. Le seul point qui
+s'en approche est l'`oidc_validator` du tronc lui-même. **D39 est donc confirmée par
+l'histoire autant que par la sonde** : l'identité vient de l'authentification, ou de
+rien.
+
+### 3. La garde sur le rattachement : elle a existé, et elle n'aurait pas suffi
+
+`albert-tchap` range `link-workspace` sous **`admin_commands`** et la décore de
+`@only_allowed_user`. Le tronc a perdu ce placement — c'est une régression de
+consolidation, pas un oubli d'origine.
+
+Mais la garde d'alors n'aurait **pas** arrêté l'attaque démontrée en L2.1d, pour deux
+raisons :
+
+**Elle était globale, pas par espace.** `TchapIam.is_user_allowed` demande « cette
+personne a-t-elle le droit d'utiliser le bot », avec une liste d'utilisateurs et une
+liste de domaines. Un utilisateur autorisé pouvait donc rattacher son salon à l'espace
+de n'importe qui.
+
+**Elle était inerte sans Grist :**
+
+    if not self.iam_client:
+        return True, ""
+
+C'est exactement l'échappatoire « toujours vrai » que `can_link_conversation` refuse de
+reprendre à `can_access`. Le même motif, une génération plus tôt, avec la même
+conséquence : on se croit protégé.
+
+Elle reposait de surcroît sur **Grist**, donc sur une base externe — ce que le principe 1
+du tronc interdit, et ce que le principe 5 écarte en refusant une couche IAM interne.
+L'abandon était doctrinalement juste ; rien n'a remplacé la garde.
+
+### 4. Ce que la version déployée fait, et qui est plus large
+
+`Plateforme_colaig/app/services/webdav_context_manager.py::auto_bind_room_on_invite`
+lie un salon **à l'invitation, automatiquement**. Il balaie tous les espaces `.colaig` de
+la racine et retient le mieux scoré (`app/agent/workspace_binding.py`) :
+
+| score | condition |
+|---|---|
+| 1000 | salon déjà dans `conversations` |
+| 500 | utilisateur dans `user_ids` |
+| 300 | regex `match.room_name` — **opt-in de l'espace** |
+| 200 | regex `match.room_topic` — **opt-in de l'espace** |
+| **100** | **nom du dossier / nom / `workspace_id` == nom du salon** |
+| 10 | espace par défaut |
+
+**La règle à 100 n'est pas opt-in.** Elle s'applique à tout espace, sans que son
+administrateur ait rien déclaré :
+
+    names = [folder_name, descriptor.get("name", ""), descriptor.get("workspace_id", "")]
+    if room_name and any(n and _norm(n) == _norm(room_name) for n in names):
+        return SCORE_NAME_CONVENTION + priority
+
+Or le nom d'un salon est choisi par qui le crée. **Nommer son salon comme un espace
+existant, inviter Colaig, et l'on y est rattaché** — le bot l'annonce lui-même :
+« Je me suis rattaché à l'espace documentaire **X** ».
+
+C'est la même classe de défaut que celle corrigée en L2.1d, mais **automatique** : ni
+commande, ni consentement du propriétaire de l'espace.
+
+⚠️ **Ceci est une lecture de code, pas un essai.** L'instance de production n'a pas été
+touchée, conformément à la consigne. À vérifier sur l'instance déployée avant d'en tirer
+des conséquences opérationnelles — et notamment à regarder si `_norm` (minuscules,
+accents retirés) élargit encore la correspondance.
+
+### 5. La lecture seule : personne
+
+Aucune génération ne traite un dossier partagé en lecture seule. Les rares occurrences de
+« lecture seule » portent sur le service d'index, pas sur les droits d'un partage.
+
+### Ce que la revue change
+
+Rien à reprendre tel quel — mais deux choses à retenir :
+
+1. **La brique OCS de `Plateforme_colaig` est réutilisable** pour la capacité de partage
+   optionnelle (préalable 3 de D40). Elle a fonctionné contre un Nextcloud réel, ce qui
+   vaut mieux qu'une spécification.
+2. **Le liage automatique à l'invitation est séduisant et dangereux.** La version
+   déployée l'a fait ; il faut décider si le tronc le reprend, et si oui, en retirant la
+   règle de convention de nom ou en la rendant opt-in comme les deux regex.
