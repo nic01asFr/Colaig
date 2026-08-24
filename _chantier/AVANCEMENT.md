@@ -1483,3 +1483,95 @@ a été observé sans affirmer ce qui ne l'a pas été.
 2. **Mesure à reprendre** : « le raisonnement améliore-t-il le vérificateur de
    fidélité » — sortie vide au premier essai.
 3. **L2.2 à L2.6**, toujours **bloquants avant tout multi-utilisateurs**.
+
+---
+
+## L2.1 — Balisage des contenus non fiables · 24/08/2026 · **TERMINÉ**
+
+**Critère du plan** : « un test qui échoue si un chunk arrive non balisé ».
+**Atteint** — `tests/test_l21_critere_de_fin.py` : tout module de `colaig/` qui appelle
+un LLM passe par `security/wrap.py`, ou figure dans `DISPENSES` **avec sa raison
+écrite**. Vérifié aussi dans l'autre sens : un module témoin appelant un LLM sans baliser
+fait bien échouer la garde.
+
+Trois tests le tiennent : la garde elle-même, un test qui refuse une dispense portant sur
+un module disparu, et un test qui exige que la seule dispense **mesurée** — le
+vérificateur de fidélité — garde sa raison inscrite dans le code.
+
+**1886 tests verts.** Dernier commit : voir `git log` sur `lot/L1.5b-decoupage-par-article`.
+
+### Ce que le lot a produit
+
+| | |
+|---|---|
+| `colaig/security/wrap.py` | point de passage unique, plus `colaig/security/CLAUDE.md` |
+| 11 sites portés | les cinq familles du principe 4 |
+| D35 | le balisage, et pourquoi le vérificateur en est excepté |
+| D44 | **cinq** points d'entrée, pas un — le web était ouvert |
+| D45 | une clé, trois rôles, absente par défaut |
+| D46 | la carte de réception d'un message et ses quatre trous |
+
+### Les défauts trouvés en chemin, et fermés
+
+- `create_document` et la livraison de tâche faisaient écrire Colaig dans son propre
+  `.colaig/` — la chaîne complète de l'injection à la persistance (D37).
+- `colaig lier` énumérait tous les espaces de l'instance et rattachait n'importe quel
+  salon à n'importe lequel : **deux messages ouvraient n'importe quel corpus** (L2.1d).
+- Huit API web d'administration étaient ouvertes sur `0.0.0.0`, dont le rattachement —
+  la même chaîne, sans même être invité (L2.1e).
+- Le secret de signature des sessions était une constante d'un dépôt public (L2.1f).
+- `sanitize_description` était définie et jamais appelée.
+- Six attentes d'horloge dans `test_executor.py`, dont une intermittente.
+- Mon propre filtre `code_seul` ne retirait que les docstrings de module — la garde du
+  marqueur de balisage passait pour une raison partielle.
+
+### Ce qui reste ouvert, routé vers son lot
+
+**Vers L2.2** — *« le lot le plus urgent du chantier »* selon le plan, et le recensement
+de D37 le confirme : `mcp_connectors` se lit depuis `config.yaml`, donc **qui écrit dans
+l'espace branche un serveur MCP distant** dont Colaig appellera les outils. Le champ
+`instructions` de ce serveur est désormais balisé (D35), mais l'outil, lui, s'exécute.
+
+**Vers L2.6** — le câblage, qui est le motif récurrent de ce lot : trois mécanismes
+existent et ne sont pas branchés là où ils serviraient.
+- `TaskExecutor` a une file par conversation, non branchée sur le chemin Matrix : deux
+  messages rapides et le second efface le tour du premier (D46).
+- `check_quota` n'existe que dans `albert.py` — zéro dans les trois autres clients, dont
+  `openai_client` qui est la cible de production (D46).
+- `MegolmEvent` n'a aucun rappel : un message indéchiffrable disparaît sans un mot (D46).
+
+**Vers L3.1** — le plan prévoit de porter le scoring de binding de la version déployée.
+**Ne pas le porter tel quel** : sa règle 5, « nom du salon == nom de l'espace », n'est pas
+opt-in, et lie automatiquement un salon à un espace au seul choix de son nom (D41). La
+retirer, ou l'aligner sur les deux regex qui, elles, sont déclarées par l'espace.
+
+**Vers L6.1** — « Permissions read/write/admin/bot + héritage droits WebDAV ». D42 et D43
+l'instruisent : les droits fichiers et les droits Tchap **ne se croisent pas, ils se
+composent** — le salon décide qui interroge, le dossier ce qui est interrogeable. Et
+l'index déclassifie : **le dossier partagé est l'unité de confidentialité, pas le
+fichier**. Deux signaux sont lisibles et inexploités — l'appartenance au salon, et les
+niveaux de pouvoir.
+
+### Arbitrages en attente, qui ne bloquent pas la suite
+
+1. `/ask`, `/chat`, `/webhooks/storage` — garder, restreindre, retirer.
+2. Refuser de démarrer sans clé avec un port exposé, plutôt qu'ouvrir en silence ; ou
+   n'écouter que sur la boucle locale par défaut.
+3. Séparer les trois rôles de `COLAIG_PLATFORM_API_KEY`.
+4. `storage_readonly` : tenir la promesse, découpler l'état, ou retirer le champ (D37,
+   D38 — arbitrage 1 **validé sur le principe**, non engagé).
+5. Corriger `docs/SECURITE.md`, qui présente comme protections deux gardes éteintes par
+   défaut.
+
+### Dettes de mesure
+
+- `garde_fou_rendues` n'a pas été remesuré avec le prompt de production.
+- L'essai « le raisonnement aide-t-il le vérificateur » est à relancer.
+- La moitié Box de `sonde_partage_inverse.py` attend de tourner là où vit le secret.
+- L1.4 reste incomplet selon son propre critère : ≥ 200 cas sur ≥ 3 espaces ; nous avons
+  135 sur un seul.
+
+### La suite
+
+**L2.2**, sans hésitation : le plan le désigne comme le plus urgent, D37 en a mesuré le
+mécanisme exact, et il ne dépend d'aucune inconnue.
