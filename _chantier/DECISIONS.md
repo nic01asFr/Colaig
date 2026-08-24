@@ -1740,3 +1740,91 @@ spécifique : collaborations Box, OCS Nextcloud, politiques S3, Graph.
 3. Adosser l'identité à l'authentification, jamais à une analyse d'identifiant.
 4. Ne corriger `_extract_domain` que si une liste de domaines connus est décidée — sinon
    le laisser épinglé et documenté, comme il l'est.
+
+---
+
+## D40 — Le mapping de l'accueil · 24/08/2026 · **actée**
+
+Cadre l'entrée par invitation et le dossier d'accueil. La plupart des briques existent
+déjà ; ce qui manque est nommé, et une faille trouvée en chemin est fermée (L2.1d).
+
+### Les trois états d'une conversation — tous implémentés
+
+| la conversation est… | mode | conduite | où |
+|---|---|---|---|
+| un salon **lié** à un espace | `ASSISTANT` | travail sur le corpus de l'espace | `resolver.py` |
+| un salon **inconnu** | `CHATBOT` | accueil : espace par défaut, `storage_path=""`, `rag_enabled=False` | `resolver.py`, `workspace.py` |
+| un **DM** | `PERSONAL` | espace personnel créé à la volée | `get_or_create_personal_workspace` |
+
+La posture de l'accueil est saine : **Colaig ne peut rien lire tant que rien n'est lié.**
+L'espace par défaut n'a pas de stockage et la recherche y est éteinte. Accepter une
+invitation n'expose donc rien — ce qui rend l'auto-adhésion défendable comme
+comportement produit.
+
+Deux commandes en sortent : `colaig créer <nom>` et `colaig lier <workspace_id>`.
+
+### Les deux sens du partage, et ce que chacun demande
+
+**Sens 1 — le collègue partage son dossier avec Colaig.**
+Colaig n'a **pas besoin** de connaître l'identité de stockage de qui que ce soit : le
+dossier est l'unité d'accès, et il suffit de l'apparier à une conversation. C'est
+exactement ce que fait `colaig lier`.
+*Manque :* le partage en **lecture seule** ne produit aucun espace (D38). C'est pourtant
+la configuration la plus sûre, et celle que le modèle vise. **L'arbitrage 1 en devient
+un préalable, non une option.**
+
+**Sens 2 — Colaig possède le dossier et le partage vers les membres.**
+`colaig créer` en fait **déjà la moitié** : il crée le dossier dans le stockage de
+Colaig. Mais rien ne le repartage — l'espace créé reste invisible à celui qui l'a
+demandé.
+*Manque :* la capacité de partage (hors `protocols.py`, optionnelle par backend) et une
+identité de stockage **vérifiée**, que Tchap ne donne pas (D39). Elle vient de
+l'authentification.
+
+### Le dossier d'accueil, dans ce mapping
+
+C'est le lieu où le sens 1 s'amorce sans connaissance préalable — on se présente, on
+crée ou on rejoint — et où le sens 2 **noue l'identité**, par un acte plutôt que par une
+déduction. C'est la réponse au constat de D39 : Colaig ne devine pas qui vous êtes, il
+vous le fait établir une fois.
+
+`_default_workspace_id` (`COLAIG_DEFAULT_WORKSPACE_ID`) et `public: bool` — documenté
+« workspace d'accueil » — sont les points d'ancrage existants.
+
+### La faille trouvée en cadrant, et fermée
+
+**L'appariement salon → espace EST la frontière d'accès du chemin conversationnel.**
+`WorkspaceACL` garde les outils d'administration, la délégation entre espaces et les
+tâches de fond ; il ne garde **pas** ce chemin, où l'appartenance au salon fait foi.
+C'est cohérent — tant que l'appariement est digne de foi.
+
+`colaig lier` le rendait forgeable, sans aucun contrôle :
+
+- **sans argument, il énumérait tous les espaces de l'instance** — la liste des équipes
+  et directions qui utilisent Colaig ;
+- **avec un identifiant, il liait n'importe quel salon à n'importe quel espace.**
+
+**Deux messages depuis n'importe quel salon suffisaient à lire le corpus de n'importe
+quel espace.** La cloison multi-tenant tombait sans qu'aucune garde ne se déclenche.
+Démontré par test avant correctif : le salon de l'intrus se retrouvait persisté dans les
+conversations de l'espace RH.
+
+`WorkspaceACL.can_link_conversation` — refus par défaut : espace public, propriétaire,
+ou membre déclaré. Il **ne réutilise pas** `can_access`, dont la première règle
+(`auth_enabled=False → True`) le rendrait inerte sur le chemin Matrix, qui n'a aucune
+notion d'authentification. Un garde toujours vrai est pire qu'absent.
+
+Le refus ne distingue pas « introuvable » de « interdit », à dessein : distinguer
+redonnerait par la porte l'énumération qu'on ferme par la fenêtre.
+
+**Manque adjacent révélé par la garde :** `colaig créer` n'inscrivait pas le créateur
+comme propriétaire. L'espace naissait orphelin, et son créateur n'aurait pas pu y
+rattacher un second salon. Corrigé.
+
+### Ce qui reste, dans l'ordre
+
+1. **Arbitrage 1** — l'état d'instance sort du dossier quand les droits l'imposent.
+   Devenu préalable, puisque le modèle vise la lecture seule sur le dossier du collègue.
+2. **Sonde Box** dans le pod — sans les portées de collaboration, le sens 2 est théorique.
+3. **Capacité de partage optionnelle**, hors `protocols.py`.
+4. **Nouer l'identité à l'accueil**, adossée à l'authentification (D39).
