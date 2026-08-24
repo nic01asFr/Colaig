@@ -1975,3 +1975,74 @@ epingle le comportement actuel avec la raison de ne pas le corriger a l'aveugle.
 Ce que la revue rapporte donc reellement sur ce point : non pas une solution, mais la
 preuve que **deux generations ont chacune choisi une moitie du probleme**, sans que ni
 l'une ni l'autre ne l'ait vu.
+
+---
+
+## D42 — Droits fichiers et droits Tchap ne se croisent pas, ils se composent · 24/08/2026 · **actée**
+
+Conclusion de la serie D37-D41 sur la question posee : peut-on resoudre le mapping selon
+les droits fichiers et les droits Tchap, comme le faisait le Bureau numerique ?
+
+### L'inventaire de ce que Colaig peut savoir
+
+| droit | lisible par Colaig ? | lu aujourd'hui ? |
+|---|---|---|
+| **son propre** droit sur un dossier | oui, empiriquement (403 au scaffold) | oui |
+| droit d'un **tiers** sur un dossier | **non** — `StorageProtocol` n'a aucune ACL | — |
+| appartenance a un salon | oui | oui, mais **seulement pour distinguer un DM** |
+| niveau de pouvoir Tchap | oui, en principe | **non, jamais lu** |
+| identite de stockage d'un membre | **non** (D39, mesure) | — |
+
+### La conclusion structurante : l'index declassifie
+
+`retriever.py`, `faiss_store.py`, `indexer.py` ne portent **aucun** `user_id`. La
+recherche est par espace, jamais par personne. Et la reponse restitue le **contenu** des
+passages, pas un lien que le stockage arbitrerait.
+
+Donc : **Colaig lit avec son compte de service et redistribue au salon. Les droits par
+fichier a l'interieur d'un dossier partage ne survivent pas a l'indexation.**
+
+Ce n'est pas un defaut a corriger — c'est la nature d'un assistant documentaire, et la
+version deployee l'evitait en servant des liens de partage plutot que du texte (D41).
+Mais il faut le **dire**, parce que cela deplace la frontiere :
+
+> **Le dossier partage est l'unite de confidentialite, pas le fichier.**
+
+Consequence d'exploitation : ne jamais partager avec Colaig un dossier dont les fichiers
+n'ont pas tous la confidentialite du salon.
+
+### Pourquoi le mapping du Bureau numerique n'est pas reproductible
+
+Le Bureau numerique transposait les usages sur les droits de chacun, parce qu'il etait
+des deux cotes : il creait le salon ET le dossier, et voyait les deux ACL.
+
+Colaig n'en voit qu'une, et encore : **son propre droit**. Reconstituer les droits
+fichiers par personne est impossible, et le tenter produirait un faux sens de securite.
+
+### Ce que le mapping peut etre — et il est plus simple
+
+Les deux systemes de droits ne se croisent pas, ils **se composent** :
+
+- **Le salon decide QUI peut interroger** — la population. Lisible, vivante, deja
+  disponible par `joined_members`.
+- **Le dossier decide CE QUI est interrogeable** — le perimetre. C'est le partage
+  lui-meme qui le porte, pas une configuration.
+
+La jonction des deux n'existe que dans le sens ou **Colaig accorde** (D40, sens 2), et
+elle y est triviale puisque c'est lui qui decide.
+
+### Les quatre suites qui en decoulent
+
+1. **Cesser de traiter `user_ids` comme declaratif.** Il est aujourd'hui ecrit a la main
+   dans `config.yaml` et ne suit pas la vie du salon. L'appartenance Tchap est lisible :
+   c'est le mapping qui manque, et le seul qui soit fonde.
+2. **Lire les niveaux de pouvoir.** Ils distinguent naturellement le membre de
+   l'administrateur du salon — donc qui peut rattacher, configurer, deposer un prompt.
+   `WorkspaceACL.can_link_conversation` s'y adosserait au lieu d'une liste ecrite.
+3. **Inscrire « un dossier = un niveau de confidentialite »** dans la documentation
+   d'exploitation. C'est la contrepartie assumee de l'indexation.
+4. **Ne pas chercher a reconstituer les droits fichiers par personne.** Impossible, et
+   dangereux a simuler.
+
+Les points 1 et 2 sont des lots ; les points 3 et 4 sont des regles a ecrire. Aucun n'est
+engage ici.
