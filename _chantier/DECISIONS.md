@@ -2046,3 +2046,87 @@ elle y est triviale puisque c'est lui qui decide.
 
 Les points 1 et 2 sont des lots ; les points 3 et 4 sont des regles a ecrire. Aucun n'est
 engage ici.
+
+---
+
+## D43 — La resolution de contexte : trois dimensions, aucune inventee · 24/08/2026 · **actee**
+
+Reponse a la question « le mapping est-il complet, et optimal ? ». **Oui pour
+l'autorisation, non pour la configuration**, et une confusion est a eviter.
+
+### Ce qui rend le modele optimal
+
+Il n'emploie **que des faits lisibles**, et contourne exactement celui qui ne l'est pas.
+D39 a montre que Colaig ne peut pas savoir qui est un membre du salon cote stockage. Un
+modele fonde sur l'appartenance au salon n'en a **pas besoin** — c'est sa force, pas un
+pis-aller.
+
+Mieux : c'est deja le modele **implemente**. L'appariement salon -> espace est la
+frontiere d'acces du chemin conversationnel (L2.1d). Le formuler ne change pas le code,
+il le rend explicite — et un modele qu'on peut enoncer est un modele qu'on peut defendre.
+
+### Une correction sur le mecanisme
+
+« Le user ayant configure les droits des users sur le contenu, Colaig lit cet etat » :
+**il ne le peut pas**. `StorageProtocol` n'a aucune ACL, et Colaig ne lit qu'un seul
+droit — le sien.
+
+Mais le resultat est le bon, pour une autre raison : **l'index declassifie** (D42). La
+recherche ne porte aucun `user_id`, la reponse restitue du contenu. Les droits par
+fichier ne survivent donc pas a l'indexation, et la seule granularite reellement
+opposable est **le salon**. Le modele est juste parce que le salon est l'unite, non
+parce que Colaig lirait des droits par personne.
+
+### Les trois dimensions, et leurs sources
+
+| dimension | question | source | etat |
+|---|---|---|---|
+| **perimetre** | quoi ? | le dossier partage | acquis |
+| **population** | qui peut interroger ? | appartenance au salon | lisible, exploite seulement pour distinguer un DM |
+| **capacite** | que peut faire Colaig ? | son propre droit, lecture ou ecriture | mesurable (403), non exploite |
+| **configuration** | qui peut reconfigurer ? | niveau de pouvoir Tchap | **manquant** |
+
+La quatrieme ligne est le seul vrai trou. Le modele veut que la configuration soit
+devolue a celui qui cree l'espace et invite Colaig — mais **rien ne l'applique** :
+aujourd'hui n'importe quel membre du salon peut lancer `colaig lier` ou `colaig creer`.
+Les niveaux de pouvoir sont lisibles et resolvent cela sans rien declarer.
+
+### La separation a tenir
+
+**L'autorisation est collective, la personnalisation est individuelle.**
+
+- autorisation -> le salon. Tous ses membres voient la meme chose, par construction.
+- personnalisation -> l'utilisateur. `user_memory` et `paths.user_dir` existent deja,
+  scopees dans l'espace.
+
+Differencier le **comportement** par utilisateur est legitime — ton, memoire,
+preferences. Differencier l'**acces** par utilisateur dans un salon ne l'est pas : ce
+serait un faux sens de securite, puisque le corpus est le meme et que rien en aval ne le
+filtre. Les deux ne doivent jamais se confondre.
+
+### Le point de vigilance : l'appartenance est transitive
+
+Si le salon vaut autorisation, alors **tout membre pouvant inviter accorde l'acces au
+corpus entier**. C'est acceptable si le proprietaire de l'espace le sait ; ce ne doit pas
+etre une surprise. Le levier existe et c'est le meme que ci-dessus : les niveaux de
+pouvoir du salon reglent qui peut inviter. Deuxieme raison de les lire.
+
+### Le cas du DM, et ce qu'il fait a `user_ids`
+
+En DM il n'y a pas de salon pour autoriser. Deux situations :
+
+- **l'espace personnel** — cree a la volee, l'utilisateur y est seul. Rien a arbitrer.
+- **un espace metier atteint depuis un DM** — c'est la, et seulement la, que
+  l'autorisation par personne mord reellement.
+
+`user_ids` n'est donc pas mort : il devient **la liste d'autorisation du DM**, avec un
+sens etroit et clair, au lieu d'une declaration vague qui doublonne l'appartenance au
+salon. Cela precise la suite 1 de D42 : deriver la population du salon, garder `user_ids`
+pour ce qu'il sait faire.
+
+### Verdict
+
+Le mapping est **complet pour l'autorisation** et n'a besoin d'aucune brique manquante.
+Il lui faut **une addition** — les niveaux de pouvoir, pour la dimension configuration —
+et **une separation a tenir** : ne jamais laisser la personnalisation devenir de
+l'autorisation.
