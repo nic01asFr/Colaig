@@ -123,6 +123,19 @@ def _extract_domain(user_id: str) -> str:
     Supporte plusieurs formats :
     - Matrix  : @user:domain            → domain
     - Tchap   : @user-org.gouv.fr:server → org.gouv.fr (domaine métier)
+
+    LIMITE MESUREE — un domaine A TIRET est tronque.
+    `@prenom.nom-developpement-durable.gouv.fr:...` rend `durable.gouv.fr`, pas
+    `developpement-durable.gouv.fr`. Verifie le 24/08/2026 contre le compte reel du bot
+    (`_chantier/scripts/sonde_partage_inverse.py`), dont le serveur expose l'adresse.
+
+    Ce n'est pas decidable par decoupage : `@a-b.gouv.fr:...` peut etre le nom « a »
+    dans le domaine « b.gouv.fr », ou un nom contenant un tiret. Il y faudrait une liste
+    de domaines connus et un appariement par suffixe le plus long.
+
+    La consequence est aujourd'hui COSMETIQUE — `user_domain` ne sert qu'a dire au
+    modele « Organisation : ... ». Elle deviendrait structurelle si l'on en derivait une
+    identite de stockage : voir D39.
     - Email   : user@domain.com          → domain.com
     - Slack   : U12345 (pas de domaine)  → ""
     - Autre   : identifiant opaque       → ""

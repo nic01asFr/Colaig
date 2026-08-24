@@ -1658,3 +1658,85 @@ auto-spécialisation.
 Cela contredit la **lettre** du principe fondateur en en servant peut-être mieux
 l'esprit. **Arbitrage humain requis, rien n'est engagé.** Les trois options de D37
 restent ouvertes, celle-ci en précise une.
+
+---
+
+## D39 — Tchap ne dit pas qui est qui · 24/08/2026 · **actée**
+
+Arbitrage 1 de D37/D38 **validé** : l'état d'instance ne se découple que là où les
+droits l'imposent. Et une direction plus forte a été retenue en principe — **le partage
+inversé** : Colaig possède le dossier et le partage vers les membres du salon avec les
+droits qu'il décide, de sorte que `.colaig/` n'entre jamais dans le périmètre partagé.
+La frontière cesserait d'être une consigne d'exploitation pour devenir technique.
+
+Deux capacités manquent, et aucune n'existe dans le tronc : **partager** côté stockage,
+et **relier un membre de salon à une identité de stockage**. Sonde écrite et exécutée
+avant de bâtir : `_chantier/scripts/sonde_partage_inverse.py`, strictement en lecture,
+sorties masquées — le dépôt ne porte rien de nominatif (§4.7), une sonde non plus.
+
+### Ce que la sonde a mesuré, contre l'instance réelle
+
+**1. Le serveur expose l'adresse du compte, pour lui-même.** `/account/3pid` rend un
+courriel pour le bot. Cela a permis un test qu'aucune supposition ne remplace : un
+couple (identifiant, courriel) **vérifié**.
+
+**2. La dérivation actuelle du domaine est fausse sur ce couple.** `_extract_domain`
+coupe sur le dernier tiret : domaine attendu de 29 caractères, obtenu 15, l'obtenu étant
+un **suffixe strict** de l'attendu — `developpement-durable.gouv.fr` devient
+`durable.gouv.fr`. C'est le domaine du ministère de déploiement.
+
+Les tests existants étaient verts **pour une mauvaise raison** : ils n'emploient que des
+domaines sans tiret, où le découpage tombe juste par accident. Le comportement réel est
+désormais épinglé par `test_un_domaine_a_tiret_est_TRONQUE`.
+
+Ce n'est pas décidable par découpage : `@a-b.gouv.fr:…` peut être le nom « a » dans le
+domaine « b.gouv.fr », ou un nom contenant un tiret. Rien dans la chaîne ne tranche. Il
+y faudrait une liste de domaines connus et un appariement par suffixe le plus long.
+
+**3. Et surtout : Matrix n'expose PAS l'adresse des autres.** Sur les membres observés,
+les seuls champs remplis sont `display_name` et `avatar_url`. Ni courriel, ni identifiant
+tiers. L'annuaire ne rend rien d'exploitable.
+
+**4. Un tiers des identifiants observés sont opaques.** Six membres sur neuf portent le
+domaine métier dans le localpart ; **trois n'en portent aucun**. L'échantillon est petit
+— neuf membres sur cinq salons — mais le fait est catégoriel, pas statistique : il
+existe des membres qu'aucun analyseur, même parfait, ne saurait rattacher.
+
+### La conclusion, et elle est nette
+
+**Le salon ne peut pas être la source d'identité.** Ni par découpage — la dérivation est
+fausse et indécidable —, ni par interrogation — le serveur ne dit rien des autres.
+
+Le partage inversé n'est pas mort pour autant : c'est sa **source d'identité** qui change
+de place. Elle ne vient pas de l'appartenance au salon mais de l'**authentification** —
+et Colaig la possède déjà : `auth/oidc_validator.py` extrait un identifiant depuis
+`email` / `preferred_username` / `sub` d'un jeton. Un membre qui s'est authentifié une
+fois a une adresse **vérifiée**, à partir de laquelle une collaboration Box est
+adressable.
+
+Conséquence de conception, à assumer plutôt qu'à contourner : **le partage suit
+l'authentification, pas la présence dans le salon.** Un membre qui n'a jamais parlé à
+Colaig autrement qu'en salon ne peut pas se voir attribuer un accès automatiquement. Ce
+n'est pas une limite arbitraire : c'est le refus de deviner qui est quelqu'un.
+
+### Ce qui reste non mesuré
+
+**Les portées Box.** `STORAGE_BACKEND` vaut `box`, et Box modélise les droits par
+**collaboration** — un utilisateur, un dossier, un rôle — soit exactement la forme du
+partage inversé. Mais `BOX_CONFIG_FILE` pointe sur `/app/secrets/box-config.json`, qui
+vit dans le pod : cette moitié de la sonde **n'a pas pu tourner**. Elle est écrite et
+attend d'être exécutée là où le secret se trouve.
+
+Une capacité de partage n'entrerait de toute façon **pas** dans `StorageProtocol`, qui
+reste à sept verbes provider-agnostic (§5 préservé), mais dans une capacité
+**optionnelle** qu'un backend déclare ou non — le partage est irréductiblement
+spécifique : collaborations Box, OCS Nextcloud, politiques S3, Graph.
+
+### Préalables au partage inversé, dans l'ordre
+
+1. Exécuter la moitié Box de la sonde là où vit le secret — sans les portées, le reste
+   est théorique.
+2. Poser la capacité optionnelle de partage, hors `protocols.py`.
+3. Adosser l'identité à l'authentification, jamais à une analyse d'identifiant.
+4. Ne corriger `_extract_domain` que si une liste de domaines connus est décidée — sinon
+   le laisser épinglé et documenté, comme il l'est.

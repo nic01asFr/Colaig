@@ -100,6 +100,37 @@ class TestExtractDomain:
     def test_email_format(self):
         assert _extract_domain("user@example.com") == "example.com"
 
+    def test_un_domaine_a_tiret_est_TRONQUE(self):
+        """Limite connue, mesurée, et épinglée pour qu'on ne bâtisse pas dessus.
+
+        Les cas ci-dessus sont verts pour une mauvaise raison : ils n'emploient que des
+        domaines **sans tiret** — `education.gouv.fr`, `interieur.gouv.fr`. Le découpage
+        sur le dernier tiret y tombe juste par accident.
+
+        Sur un domaine à tiret, il mange le début. Vérifié le 24/08/2026 par
+        `_chantier/scripts/sonde_partage_inverse.py` contre le compte réel du bot, dont
+        le serveur expose l'adresse de courriel : domaine attendu de 29 caractères,
+        obtenu 15, et l'obtenu est un **suffixe strict** de l'attendu.
+
+        Ce n'est pas décidable par découpage. `@a-b.gouv.fr:…` peut être le nom « a »
+        dans le domaine « b.gouv.fr », ou un nom contenant un tiret : rien dans la
+        chaîne ne tranche. Il y faudrait une liste de domaines connus et un appariement
+        par suffixe le plus long.
+
+        Aujourd'hui la conséquence est **cosmétique** : `user_domain` sert uniquement à
+        dire au modèle « Organisation : … ». Elle deviendrait structurelle si l'on
+        dérivait de là une identité de stockage — voir D39, où c'est posé comme un
+        préalable au partage inversé, et non comme un détail.
+        """
+        obtenu = _extract_domain(
+            "@prenom.nom-developpement-durable.gouv.fr:agent.dev-durable.tchap.gouv.fr"
+        )
+        assert obtenu == "durable.gouv.fr", (
+            "comportement épinglé, non approuvé — s'il change, c'est que quelqu'un a "
+            "corrigé la dérivation : mettre à jour D39 et ce test ensemble"
+        )
+        assert "developpement-durable.gouv.fr".endswith(obtenu)
+
     def test_no_colon_no_at(self):
         assert _extract_domain("invalid") == ""
 
