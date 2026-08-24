@@ -1575,3 +1575,57 @@ niveaux de pouvoir.
 
 **L2.2**, sans hésitation : le plan le désigne comme le plus urgent, D37 en a mesuré le
 mécanisme exact, et il ne dépend d'aucune inconnue.
+
+---
+
+## L2.2a — Sans clé, le serveur web n'écoute que la boucle locale · 24/08/2026 · **TERMINÉ**
+
+Préalable à L2.2, tranché par l'utilisateur (option **b**). **Commit** `0caacdc`.
+
+La liste blanche de L2.2 vit dans `config/clients.yml`, réécrivable par
+`POST /api/platform/provision`, gardée par une clé absente par défaut. Livrer L2.2 sans
+cela aurait produit un lot dont le critère passe en test et **reste inerte en
+déploiement** — le défaut même que ce chantier passe son temps à trouver.
+
+La garde d'authentification n'est pas fermée — cela casserait les auto-hébergés qui s'en
+passent délibérément. **C'est le sens de l'échec qui change** : clé absente →
+`127.0.0.1` et le journal dit pourquoi ; clé posée → `0.0.0.0` ; `COLAIG_WEB_HOST` →
+ce qu'il dit. Une variable oubliée ne donne plus rien, et ouvrir redevient un acte.
+
+`docs/SECURITE.md` corrigé : §9 présentait comme protections des gardes éteintes par
+défaut, §8 annonçait un quota qui n'existe que dans `albert.py`.
+
+## L2.2 — Liste blanche MCP au niveau instance · 24/08/2026 · **TERMINÉ**
+
+**Critère du plan** : « un `mcp_servers.json` hors liste ne produit aucun outil ».
+**Atteint.** **Commit** `c9d1575`. **1898 tests verts.**
+
+Le lot que le plan désignait comme le plus urgent, avec ce motif : *« quiconque écrit
+dans le WebDAV d'un espace injecte un outil arbitraire dans le registre de l'agent »*.
+D37 l'avait confirmé sur pièces.
+
+L2.1 avait traité le champ `instructions` de ces serveurs — il entre désormais comme
+donnée balisée. **Mais l'outil, lui, s'exécute.** Déclarer n'est pas empêcher.
+
+`colaig/security/mcp_policy.py` est le point de passage unique, et un test de portée
+dépôt refuse qu'un module lise `mcp_connectors` sans y passer — un filtre appliqué à
+trois sites sur quatre ne filtre rien.
+
+**Le défaut est REFUS**, contrairement aux autres champs de `platform_policy`, et la
+divergence est visible dans la valeur : `absent`/`[]` → aucun ; `["*"]` → tous,
+explicitement ; une liste → ceux-là. Les autres champs bornent ce que l'**opérateur**
+déclare ; celui-ci borne ce que l'**utilisateur final** écrit dans son espace.
+
+La comparaison est ancrée sur l'autorité et le chemin — `startswith` nu laisserait
+passer `https://mcp.interieur.gouv.fr.attaquant.fr`. Un serveur écarté est journalisé
+avec l'endroit où l'autoriser.
+
+### La suite
+
+**L2.3** — épinglage des schémas d'outils MCP (`mcp_pins.json`). Il dépend de L2.2, qui
+est fait. Critère : *changement de schéma → outil désactivé + alerte*.
+
+Restent inchangés : les quatre arbitrages non tranchés (`/ask` et `/chat` ; séparer les
+trois rôles de la clé ; `storage_readonly` ; corriger le reste de la doc), et les dettes
+de mesure — dont l'essai « le raisonnement aide-t-il le vérificateur », relancé en tâche
+de fond le 24/08 après un premier essai à sortie vide.
