@@ -26,6 +26,7 @@ import httpx
 
 from colaig.exceptions import LLMError, LLMUnavailableError
 from colaig.integrations.llm.utils import normalize_tool_call_id as _normalize_id
+from colaig.metrics.quota import enregistrer_usage, verifier_quota
 from colaig.models import ChatCompletionResult, ToolCall
 from colaig.utils.reponses_llm import extraire_contenu
 
@@ -74,6 +75,8 @@ class OllamaClient:
         embed_max_concurrent: int = 2,  # Local — plus conservateur pour éviter OOM
         chat_max_concurrent: int = 2,   # Local — une GPU, accès concurrent limité
         bg_chat_max_concurrent: int = 1,
+        usage_tracker=None,   # UsageTracker | None — quota et comptage par tenant (L2.6)
+        client_id: str = "",  # tenant, pour le quota
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._model_chat = model_chat
@@ -85,6 +88,8 @@ class OllamaClient:
         self._embed_semaphore = asyncio.Semaphore(embed_max_concurrent)
         self._chat_semaphore = asyncio.Semaphore(chat_max_concurrent)
         self._bg_chat_semaphore = asyncio.Semaphore(bg_chat_max_concurrent)
+        self._usage_tracker = usage_tracker
+        self._client_id = client_id
 
     def _chat_url(self) -> str:
         return f"{self._base_url}/v1/chat/completions"
@@ -146,6 +151,9 @@ class OllamaClient:
         max_tokens: int = 2048,
         priority: str = "user",
     ) -> str:
+        # Quota du tenant — point de passage unique (L2.6). Il n'existait que
+        # dans albert.py, donc PAS sur le fournisseur de production.
+        verifier_quota(self._usage_tracker, self._client_id)
         sem = self._chat_semaphore if priority == "user" else self._bg_chat_semaphore
         payload = {
             "model": model or self._model_chat,
@@ -156,7 +164,9 @@ class OllamaClient:
         async with sem:
             response = await self._request_with_retry(self._chat_url(), payload, self._chat_timeout)
         try:
-            return extraire_contenu(response.json(), "Ollama", max_tokens)
+            _donnees = response.json()
+            enregistrer_usage(self._usage_tracker, self._client_id, _donnees)
+            return extraire_contenu(_donnees, "Ollama", max_tokens)
         except (KeyError, IndexError, ValueError) as e:
             raise LLMError(f"Réponse Ollama inattendue: {e}") from e
 
@@ -168,6 +178,9 @@ class OllamaClient:
         max_tokens: int = 2048,
         priority: str = "user",
     ) -> AsyncIterator[str]:
+        # Quota du tenant — point de passage unique (L2.6). Il n'existait que
+        # dans albert.py, donc PAS sur le fournisseur de production.
+        verifier_quota(self._usage_tracker, self._client_id)
         sem = self._chat_semaphore if priority == "user" else self._bg_chat_semaphore
         payload = {
             "model": model or self._model_chat,
@@ -206,6 +219,9 @@ class OllamaClient:
         tool_choice: str = "auto",
         priority: str = "user",
     ) -> ChatCompletionResult:
+        # Quota du tenant — point de passage unique (L2.6). Il n'existait que
+        # dans albert.py, donc PAS sur le fournisseur de production.
+        verifier_quota(self._usage_tracker, self._client_id)
         sem = self._chat_semaphore if priority == "user" else self._bg_chat_semaphore
         payload = {
             "model": model or self._model_chat,

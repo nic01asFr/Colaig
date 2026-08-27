@@ -27,6 +27,7 @@ import httpx
 
 from colaig.exceptions import LLMError, LLMRateLimitError, LLMUnavailableError
 from colaig.integrations.llm.utils import normalize_tool_call_id as _normalize_id
+from colaig.metrics.quota import enregistrer_usage, verifier_quota
 from colaig.models import ChatCompletionResult, ToolCall
 from colaig.utils.reponses_llm import extraire_contenu
 
@@ -79,6 +80,8 @@ class OpenAIClient:
         embed_max_concurrent: int = 4,
         chat_max_concurrent: int = 4,
         bg_chat_max_concurrent: int = 3,
+        usage_tracker=None,   # UsageTracker | None — quota et comptage par tenant (L2.6)
+        client_id: str = "",  # tenant, pour le quota
     ) -> None:
         self._api_key = api_key
         self._base_url = base_url.rstrip("/")
@@ -92,6 +95,8 @@ class OpenAIClient:
         self._embed_semaphore = asyncio.Semaphore(embed_max_concurrent)
         self._chat_semaphore = asyncio.Semaphore(chat_max_concurrent)
         self._bg_chat_semaphore = asyncio.Semaphore(bg_chat_max_concurrent)
+        self._usage_tracker = usage_tracker
+        self._client_id = client_id
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
@@ -168,6 +173,9 @@ class OpenAIClient:
         priority: str = "user",
     ) -> str:
         """Appel chat completions. Retourne le texte de la réponse."""
+        # Quota du tenant — point de passage unique (L2.6). Il n'existait que
+        # dans albert.py, donc PAS sur le fournisseur de production.
+        verifier_quota(self._usage_tracker, self._client_id)
         sem = self._chat_semaphore if priority == "user" else self._bg_chat_semaphore
         url = f"{self._base_url}/v1/chat/completions"
         payload = {
@@ -178,7 +186,9 @@ class OpenAIClient:
         }
         async with sem:
             response = await self._request_with_retry(url, payload, self._chat_timeout)
-        return extraire_contenu(response.json(), self._backend, max_tokens)
+            _donnees = response.json()
+            enregistrer_usage(self._usage_tracker, self._client_id, _donnees)
+            return extraire_contenu(_donnees, self._backend, max_tokens)
 
     async def chat_stream(
         self,
@@ -189,6 +199,9 @@ class OpenAIClient:
         priority: str = "user",
     ) -> AsyncIterator[str]:
         """Appel chat completions en streaming (SSE)."""
+        # Quota du tenant — point de passage unique (L2.6). Il n'existait que
+        # dans albert.py, donc PAS sur le fournisseur de production.
+        verifier_quota(self._usage_tracker, self._client_id)
         sem = self._chat_semaphore if priority == "user" else self._bg_chat_semaphore
         url = f"{self._base_url}/v1/chat/completions"
         payload = {
@@ -231,6 +244,9 @@ class OpenAIClient:
         priority: str = "user",
     ) -> ChatCompletionResult:
         """Chat completions avec tool calling (format OpenAI). Retourne ChatCompletionResult."""
+        # Quota du tenant — point de passage unique (L2.6). Il n'existait que
+        # dans albert.py, donc PAS sur le fournisseur de production.
+        verifier_quota(self._usage_tracker, self._client_id)
         sem = self._chat_semaphore if priority == "user" else self._bg_chat_semaphore
         url = f"{self._base_url}/v1/chat/completions"
         payload = {

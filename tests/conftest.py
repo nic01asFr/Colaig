@@ -276,14 +276,32 @@ def code_seul(source: str) -> str:
         tokenize.INDENT, tokenize.DEDENT, tokenize.NEWLINE, tokenize.NL,
         tokenize.ENCODING,
     }
-    garde = []
+    # LE TEXTE EST PRESERVE : on BLANCHIT commentaires et docstrings sur place, on ne
+    # reconstruit pas depuis les jetons.
+    #
+    # Second piege, mesure le 25/08/2026 : une version anterieure joignait les JETONS
+    # par des sauts de ligne. Elle coupait donc les noms pointes —
+    # `colaig.metrics.quota` devenait sept jetons sur sept lignes — et une garde
+    # cherchant « metrics.quota » ne trouvait plus rien. La garde de L2.2 sur
+    # `.mcp_connectors` etait ainsi ENTIEREMENT INERTE : aucun fichier n'etait examine.
+    #
+    # Un filtre qui denature ce qu'il filtre ne filtre pas.
+    lignes = source.splitlines(keepends=True)
+    a_blanchir = []
     precedent = tokenize.ENCODING
     for jeton in tokenize.generate_tokens(_io.StringIO(source).readline):
-        if jeton.type == tokenize.COMMENT:
-            continue
-        if jeton.type == tokenize.STRING and precedent in OUVRE_UNE_LIGNE:
-            precedent = jeton.type
-            continue
+        docstring = jeton.type == tokenize.STRING and precedent in OUVRE_UNE_LIGNE
+        if jeton.type == tokenize.COMMENT or docstring:
+            a_blanchir.append((jeton.start, jeton.end))
         precedent = jeton.type
-        garde.append(jeton.string)
-    return "\n".join(garde)
+
+    for (l1, c1), (l2, c2) in reversed(a_blanchir):
+        if l1 == l2:
+            ligne = lignes[l1 - 1]
+            lignes[l1 - 1] = ligne[:c1] + " " * (c2 - c1) + ligne[c2:]
+        else:
+            lignes[l1 - 1] = lignes[l1 - 1][:c1] + "\n"
+            for i in range(l1, l2 - 1):
+                lignes[i] = "\n"
+            lignes[l2 - 1] = " " * c2 + lignes[l2 - 1][c2:]
+    return "".join(lignes)

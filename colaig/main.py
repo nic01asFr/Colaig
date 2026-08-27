@@ -242,6 +242,7 @@ def create_llm_client(config: ColaigConfig, client_id: str = ""):
             model_chat=config.llm_model_chat or "gpt-4o",
             model_embed=config.llm_model_embed or "text-embedding-3-small",
             backend_name="OpenAI",
+            usage_tracker=_USAGE_TRACKER, client_id="",
         )
 
     elif backend == "azure":
@@ -252,6 +253,7 @@ def create_llm_client(config: ColaigConfig, client_id: str = ""):
             deployment_chat=config.llm_azure_deployment_chat,
             deployment_embed=config.llm_azure_deployment_embed,
             api_version=config.llm_azure_api_version,
+            usage_tracker=_USAGE_TRACKER, client_id="",
         )
 
     elif backend == "ollama":
@@ -260,6 +262,7 @@ def create_llm_client(config: ColaigConfig, client_id: str = ""):
             base_url=config.llm_api_url or "http://localhost:11434",
             model_chat=config.llm_model_chat or "llama3.2",
             model_embed=config.llm_model_embed or "nomic-embed-text",
+            usage_tracker=_USAGE_TRACKER, client_id="",
         )
 
     else:
@@ -435,6 +438,7 @@ def create_llm_for_client(cc, default_config: ColaigConfig):
             model_chat=cc.llm_model_chat or "gpt-4o",
             model_embed=cc.llm_model_embed or "text-embedding-3-small",
             backend_name=f"OpenAI[{cc.client_id}]",
+            usage_tracker=_USAGE_TRACKER, client_id=cc.client_id,
         )
 
     elif backend == "azure":
@@ -445,6 +449,7 @@ def create_llm_for_client(cc, default_config: ColaigConfig):
             deployment_chat=cc.llm_azure_deployment_chat,
             deployment_embed=cc.llm_azure_deployment_embed,
             api_version=cc.llm_azure_api_version,
+            usage_tracker=_USAGE_TRACKER, client_id=cc.client_id,
         )
 
     elif backend == "ollama":
@@ -453,6 +458,7 @@ def create_llm_for_client(cc, default_config: ColaigConfig):
             base_url=cc.llm_api_url or "http://localhost:11434",
             model_chat=cc.llm_model_chat or "llama3.2",
             model_embed=cc.llm_model_embed or "nomic-embed-text",
+            usage_tracker=_USAGE_TRACKER, client_id=cc.client_id,
         )
 
     else:
