@@ -1877,27 +1877,46 @@ message, les métadonnées d'espace, l'historique et des **noms** — jamais le 
 documents. Une injection déposée dans un document ne peut donc pas faire basculer
 `needs_tools`.
 
-**Mais faire du verdict de l'Analyseur la porte du catalogue en fait une cible.** Or son
-prompt reçoit plusieurs champs **ni balisés ni assainis**, dont certains sont contrôlés
-par un tiers :
+**Mais faire du verdict de l'Analyseur la porte du catalogue en fait une cible.**
 
-| champ | qui l'écrit |
-|---|---|
-| `user_display_name` | **un membre du salon, librement** — D39 a mesuré que c'est le seul champ d'identité exposé |
-| noms de documents connus | qui écrit dans le dossier partagé |
-| noms de compétences | le contenu de `.colaig/skills/` |
-| ancres de conversation | **résumés d'un contenu documentaire, revenus au tour suivant** |
-| faits de mémoire utilisateur | idem |
+### Correction d'une première analyse, sur question de l'arbitre humain
 
-Trois champs voisins de la même fonction passent par `sanitize_description` ; ceux-ci non.
-Et `sanitize_description` **ne retire pas** les injections : il tronque, nettoie les
-caractères de contrôle et journalise. C'est une borne et une trace, pas une défense.
+J'avais d'abord annoncé le **nom affiché** comme un canal d'attaque : « un membre du salon
+l'écrit librement ». La question posée — *le user n'est-il pas formellement identifié par
+son id de messagerie ?* — a remis les choses en place, et le code le confirme.
 
-Les ancres sont le canal le plus sérieux : elles font transiter du contenu documentaire
-jusqu'au prompt de l'Analyseur, avec un tour de retard.
+**L'identité est ancrée.** `message.user_id = event.sender`, délivré par le homeserver,
+non choisi par le membre. `can_access`, `owners` et `user_domain` s'appuient dessus.
 
-**Non traité ici.** C'est une conséquence de L2.5b, pas son objet, et le corriger touche
-le prompt de production — donc une remesure de la référence L1.5.
+Le nom affiché est bien libre — mais c'est celui de l'expéditeur du **tour courant**. Y
+écrire ne permet de s'injecter qu'à soi-même, sur un tour où l'on contrôle déjà le corps
+du message. **Aucune escalade : ce canal n'en est pas un**, et `user_domain` non plus.
+Un test l'épingle pour ne pas le re-signaler.
+
+### Ce qui traverse réellement d'un utilisateur à un autre
+
+La **trame**, partagée par tout le salon :
+
+    document → Synthétiseur (qui en lit le contenu) → `new_anchors`
+             → trame persistée → prompt de l'Analyseur, au tour suivant
+
+Vérifié dans `trame_manager.py` : les ancres naissent de trois sources, dont les
+`new_anchors` émises par le Synthétiseur, seul agent à voir le contenu des documents.
+**C'est le seul chemin par lequel un contenu documentaire peut atteindre le verdict
+`needs_tools`.** S'y ajoutent, plus étroits, les noms de documents et de compétences.
+
+### Ce qui est fait, et ce qui ne l'est pas
+
+Ces trois champs sont **alignés** sur leurs voisins immédiats de la même fonction, qui
+passaient déjà par `sanitize_description`.
+
+`sanitize_description` borne la longueur, retire les caractères de contrôle et journalise
+un motif connu. **Ce n'est pas une défense — c'est une atténuation et une trace**, et un
+test l'épingle explicitement pour qu'on ne la croie pas plus forte.
+
+La défense serait le **balisage** (principe 4). Il change la forme du prompt de
+production, donc appelle une remesure de la référence L1.5 : **c'est un arbitrage, pas un
+effet de bord de ce lot.**
 
 ### Ce qui n'est pas mesuré, et pourquoi
 

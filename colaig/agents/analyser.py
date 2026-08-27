@@ -437,18 +437,35 @@ class Analyser:
             if fc.get("vocabulary_terms"):
                 termes = ", ".join(fc["vocabulary_terms"][:10])
                 parts.append(f"Vocabulaire métier : {sanitize_description(termes)}")
+            # Ces trois champs traversent d'un utilisateur A UN AUTRE : la trame est
+            # partagee par tout le salon. Leurs voisins immediats (`domain`, `tone`,
+            # `vocabulary_terms`) passent par `sanitize_description` ; eux non.
+            #
+            # L'ecart devient important depuis L2.5b, qui fait du verdict `needs_tools`
+            # de l'Analyseur la porte du catalogue d'outils : ce prompt decide desormais
+            # de ce que le modele pourra appeler.
             if fc.get("known_documents"):
-                docs = fc["known_documents"][:5]
+                docs = [sanitize_description(d) for d in fc["known_documents"][:5]]
                 parts.append(f"Documents connus dans la conversation : {', '.join(docs)}")
             if pre_exec.selected_skills:
-                skill_names = [s.get("name", "") for s in pre_exec.selected_skills if s.get("name")]
+                skill_names = [sanitize_description(s.get("name", ""))
+                               for s in pre_exec.selected_skills if s.get("name")]
                 if skill_names:
                     parts.append(f"Procédures/compétences disponibles : {', '.join(skill_names)}")
 
         # Anchors de conversation (Phase 6 — éléments établis dans le fil)
         if context.context_anchors:
+            # LE canal qui compte. Une ancre peut naitre des `new_anchors` emises par le
+            # SYNTHETISEUR, qui a lu le contenu des documents : un texte injecte dans un
+            # document peut donc ressortir ici, dans le prompt de l'Analyseur, un tour
+            # plus tard — et la trame est partagee par tout le salon.
+            #
+            # `sanitize_description` borne et journalise ; il ne retire PAS les
+            # injections. C'est une attenuation et une trace, pas une defense : la
+            # defense serait le balisage (principe 4), qui change la forme du prompt de
+            # production et appelle donc une remesure de la reference L1.5.
             anchor_summaries = [
-                a.description or a.ref
+                sanitize_description(a.description or a.ref)
                 for a in context.context_anchors[:5]
                 if a.description or a.ref
             ]
