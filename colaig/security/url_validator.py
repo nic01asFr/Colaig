@@ -95,6 +95,46 @@ def _is_ip_blocked(
     return False
 
 
+def adresse_litterale(hostname: str):
+    """L'adresse IP que la pile reseau comprendra, quelle qu'en soit l'ecriture.
+
+    POURQUOI `ipaddress` SEUL NE SUFFIT PAS
+    -----------------------------------------
+    `ipaddress.ip_address("2130706433")` leve `ValueError` : la bibliotheque est
+    STRICTE et n'accepte que la forme pointee. Le controle retombait alors sur la
+    resolution DNS, qui ne traite pas ces ecritures — et quatre formes de 127.0.0.1
+    passaient, ainsi que trois de l'adresse de metadonnees cloud.
+
+    `socket.inet_aton` decode les ecritures heritees de BSD — decimale, hexadecimale,
+    abregee — exactement comme le fera la pile au moment de la connexion.
+
+    **Ce qu'il faut valider est ce que le systeme comprendra, pas ce qu'une
+    bibliotheque stricte accepte.**
+
+    Les IPv4 mappees en IPv6 (`::ffff:127.0.0.1`) sont ramenees a leur IPv4 : sinon
+    elles echappent aux plages IPv4 bloquees tout en atteignant la meme machine.
+
+    Returns:
+        Une adresse, ou `None` si le hostname est un vrai nom de domaine.
+    """
+    # Forme stricte d'abord — la plus courante.
+    try:
+        adresse = ipaddress.ip_address(hostname)
+    except ValueError:
+        adresse = None
+
+    if adresse is None:
+        # Ecritures heritees : 2130706433, 0x7f000001, 127.1
+        try:
+            adresse = ipaddress.ip_address(socket.inet_aton(hostname))
+        except (OSError, ValueError):
+            return None
+
+    # Une IPv4 mappee atteint la meme machine que l'IPv4 qu'elle porte.
+    mappee = getattr(adresse, "ipv4_mapped", None)
+    return mappee or adresse
+
+
 def _is_domain_allowed(hostname: str, allowed_domains: list[str]) -> bool:
     """Vérifie si le hostname correspond à un pattern autorisé.
 
@@ -160,20 +200,19 @@ def validate_navigation_url(
     ip_ranges = blocked_ip_ranges if blocked_ip_ranges is not None else DEFAULT_BLOCKED_IP_RANGES
     blocked_networks = _parse_ip_networks(ip_ranges)
 
-    # D'abord vérifier si le hostname est directement une IP
-    try:
-        ip = ipaddress.ip_address(hostname)
+    # Le hostname est-il une adresse, SOUS QUELQUE ECRITURE QUE CE SOIT ?
+    ip = adresse_litterale(hostname)
+    if ip is not None:
         for net in blocked_networks:
             if ip in net:
                 raise URLValidationError(
-                    f"IP bloquée : {hostname} (réseau {net})"
+                    f"IP bloquée : {hostname} → {ip} (réseau {net})"
                 )
-    except ValueError:
-        # Pas une IP littérale — c'est un hostname, vérifier via DNS
-        if resolve_dns and blocked_networks:
-            if _is_ip_blocked(hostname, blocked_networks):
-                raise URLValidationError(
-                    f"Hostname '{hostname}' résout vers une IP privée/bloquée"
-                )
+    elif resolve_dns and blocked_networks:
+        # Un vrai nom de domaine — verifier ou il pointe.
+        if _is_ip_blocked(hostname, blocked_networks):
+            raise URLValidationError(
+                f"Hostname '{hostname}' résout vers une IP privée/bloquée"
+            )
 
     return url
