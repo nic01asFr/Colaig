@@ -50,7 +50,15 @@ def executer(script: str, env: dict | None = None, args: list[str] | None = None
         errors="replace",
     )
     if resultat.returncode != 0:
-        raise SystemExit(f"{script} a échoué :\n{resultat.stderr[-1500:]}")
+        # stdout ET stderr : un sous-script qui rend son usage l'ecrit sur stdout, et ne
+        # remonter que stderr produisait un « a echoue : » suivi de RIEN. Mesure le
+        # 27/08/2026 sur `reanalyse_generation.py`. Un verificateur qui echoue sans dire
+        # pourquoi cesse d'etre lu — meme defaut que `test_live.py` avant D14.
+        motif = ((resultat.stderr or "") + (resultat.stdout or "")).strip()
+        raise SystemExit(
+            f"{script} a échoué (code {resultat.returncode}) :\n"
+            + (motif[-1500:] or "aucune sortie — vérifier les arguments passés")
+        )
     return resultat.stdout + resultat.stderr
 
 

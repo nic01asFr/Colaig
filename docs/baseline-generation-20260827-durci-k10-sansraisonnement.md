@@ -15,8 +15,8 @@ sur le texte produit, sans juge.
 
 | | cas concernés |
 |---|---|
-| **Citation fantôme** — article cité inexistant dans le corpus | **9/135** |
-| **Citation hors contexte** — article réel, absent des passages fournis | **21/135** |
+| **Citation fantôme** — article cité inexistant dans le corpus | **6/135** |
+| **Citation hors contexte** — article réel, absent des passages fournis | **18/135** |
 | **Montant inventé** — somme absente des passages | **0/135** |
 
 Une citation fantôme est le pire résultat possible : elle est indétectable pour qui
@@ -36,40 +36,39 @@ peut pas s'y fier, et rien n'indique à l'utilisateur dans quel cas il se trouve
 
 ## Citation de l'article attendu
 
-**92/113** cas positifs citent au moins un article attendu.
+**89/113** cas positifs citent au moins un article attendu.
 
-Latence de génération : médiane **2.0 s** (min 0.5, max 11.2) sur 179 appels.
+Latence de génération : médiane **2.0 s** (min 0.4, max 7.9) sur 179 appels.
 
 ## Détail des anomalies
 
-- **mp-004** — hors contexte : R2161-8
-- **mp-005** — fantômes : L2161-1 · hors contexte : R2161-1
-- **mp-008** — hors contexte : R2162-1
-- **mp-015** — hors contexte : R2161-9
-- **mp-020** — hors contexte : L2123-1
-- **mp-022** — fantômes : L551-1
-- **mp-023** — fantômes : R2164-4
-- **mp-025** — hors contexte : R2144-1
-- **mp-030** — hors contexte : R2162-21
-- **mp-034** — hors contexte : L2112-1
-- **mp-045** — hors contexte : L2123-1
-- **mp-047** — fantômes : R2141-1 · hors contexte : L2141-1
-- **mp-048** — fantômes : L2121-1 · hors contexte : L2111-1, L2112-1
-- **mp-078** (exécution 2) — hors contexte : L2112-1
-- **mp-078** (exécution 3) — hors contexte : L2194-1, R2194-7
-- **mp-080** (exécution 1) — hors contexte : R2122-1
-- **mp-080** (exécution 2) — fantômes : L212-1, R212-1
-- **mp-089** — fantômes : L2162-11
-- **mp-112** — hors contexte : L2124-1, L2124-2, R2124-1
+- **mp-005** — fantômes : L2161-1
+- **mp-008** — fantômes : L2161-1
+- **mp-023** — hors contexte : L2123-1
+- **mp-038** — fantômes : R2192-1
+- **mp-047** — hors contexte : L2141-1
+- **mp-048** — hors contexte : L2111-1
+- **mp-066** — hors contexte : L2112-1
+- **mp-070** — hors contexte : L2111-1
+- **mp-077** — hors contexte : L2112-1
+- **mp-078** (exécution 1) — hors contexte : L2194-1
+- **mp-078** (exécution 2) — hors contexte : L2194-1
+- **mp-078** (exécution 3) — hors contexte : L2194-1
+- **mp-081** — hors contexte : R2113-1
+- **mp-086** — hors contexte : L2113-8
+- **mp-094** — fantômes : L1414-1
+- **mp-112** — hors contexte : R2124-1, R2124-2
 - **mp-113** — fantômes : L3122-1 · hors contexte : L2122-1
-- **mp-127** — hors contexte : R2191-13
-- **mp-129** — hors contexte : L2191-1, R2191-1
+- **mp-120** (exécution 2) — hors contexte : L2122-1, R2122-1
+- **mp-125** — hors contexte : L2123-1
+- **mp-127** — hors contexte : L2191-1
+- **mp-128** — hors contexte : R2192-19
+- **mp-129** — fantômes : L300-2
 - **mp-130** (exécution 1) — hors contexte : R2191-1
 - **mp-132** (exécution 1) — hors contexte : L2111-1
 - **mp-132** (exécution 2) — hors contexte : L2111-1
 - **mp-132** (exécution 3) — hors contexte : L2111-1
-- **mp-133** (exécution 3) — hors contexte : L2151-1, R2151-1
-- **mp-134** (exécution 3) — fantômes : R2164-1 · hors contexte : R2162-1
+- **mp-133** (exécution 3) — hors contexte : L2112-1
 
 ## Rejouer
 

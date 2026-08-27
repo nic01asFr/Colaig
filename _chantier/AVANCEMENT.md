@@ -2006,7 +2006,9 @@ Le harnais imprime lui-même l'avertissement quand il tourne sur le bras product
 | L2.5b | livré et mesuré |
 | L2.6 | clos |
 
-**La phase 2 est close.** Elle était bloquante avant tout multi-utilisateurs.
+**La phase 2 n'est PAS close** — voir « La porte de régression est ROUGE » en fin de
+fichier. Les six lots sont livrés et mesurés ; c'est le garde-fou de non-régression L1.6
+qui s'oppose, et il a raison de s'y opposer.
 
 Restent deux dettes nommées, aucune bloquante :
 
@@ -2031,7 +2033,9 @@ Restent deux dettes nommées, aucune bloquante :
 | **L2.5b** | — | livré et mesuré |
 | **L2.6** | couverture > 90 % sur `security/` | **97 %** |
 
-**La phase 2 est close.** Elle était bloquante avant tout multi-utilisateurs.
+**La phase 2 n'est PAS close** — voir « La porte de régression est ROUGE » en fin de
+fichier. Les six lots sont livrés et mesurés ; c'est le garde-fou de non-régression L1.6
+qui s'oppose, et il a raison de s'y opposer.
 
 ### Ce qu'il faut savoir avant de s'appuyer dessus
 
@@ -2055,12 +2059,8 @@ L'assainissement posé au lot L2.5b **borne et journalise, il ne retire rien** �
 (`test_prompt_analyseur_champs_tiers.py`) l'épingle explicitement. Le balisage change la
 forme du prompt de production : **remesure de L1.5 obligatoire**.
 
-**2. La dispersion de la référence.** Premier tirage du 27/08 : les huit seuils tiennent,
-mais trois indicateurs reculent et deux marges sont minces — `cite l'attendu` 0.788 pour
-un seuil à 0.78 (référence 0.823), `fantômes` 8 pour 10 (référence 3). Un second tirage a
-échoué pour une raison de harnais, **pas** pour un franchissement de seuil :
-`reanalyse_generation.py` a rendu 1 avec une sortie d'erreur vide. À reprendre — et à
-diagnostiquer, car un vérificateur qui échoue sans dire pourquoi cesse d'être lu.
+**2. LA PORTE DE RÉGRESSION EST ROUGE.** Voir la section dédiée en fin de fichier.
+C'est la dette bloquante, et elle passe devant la n° 1.
 
 **3. L2.5 conserve un fond comportemental.** `adv-032` — règle citée en anglais — passe
 3/3 sur le bras témoin **alors que la consigne nomme sa technique**. Nommer une technique
@@ -2098,3 +2098,95 @@ module. Et une duplication produite **par l'agent lui-même** : une seconde
 
 > **Avant d'écrire une garde, chercher celle qui existe. Avant de la croire active,
 > vérifier qu'elle est branchée. Avant de la croire efficace, la mesurer deux fois.**
+
+---
+
+## LA PORTE DE RÉGRESSION EST ROUGE · 27/08/2026 · **BLOQUANT**
+
+    RÉGRESSION — cite l'attendu : 0.77 (≥ 0.78 attendu, référence 0.823)
+
+Deux tirages du jour : **0.788** puis **0.770**. Le premier passait de 0.008, le second
+échoue de 0.010. J'avais écrit « les huit seuils tiennent » puis « la phase 2 est
+close » : **c'était prématuré, sur un tirage unique.** La leçon que ce lot a appliquée
+aux attaques ne l'avait pas été à la référence.
+
+### Ce que le diagnostic établit — et ce qu'il écarte
+
+**Ce n'est pas une régression du code livré aujourd'hui.** Le harnais de référence
+n'emprunte que `Generator._build_messages` — ni l'Analyseur, ni le filtre de catalogue de
+L2.5b. Et `colaig/rag/generator.py` n'a pas été modifié depuis `b578b9c` (L2.1, 24/08),
+bien avant la dernière référence verte.
+
+**Ce n'est pas du bruit ordinaire non plus.** `reference.json` porte une variance
+mesurée : réplicat à **0.001** d'écart sur cet indicateur. Le recul vaut cinquante fois
+cette dispersion.
+
+### L'hypothèse que les chiffres soutiennent
+
+| condition | `cite l'attendu` | source |
+|---|---|---|
+| ancien prompt | 0.836 | `_bascule_prompt_production` |
+| avant durcissement | 0.805 | `_durcissement_de_la_consigne` |
+| **après durcissement — 1 tirage** | **0.823** | `reference-apres-durcissement.txt`, 93/113 |
+| après durcissement — 27/08 | 0.788 | `reference-20260827.txt` |
+| après durcissement — 27/08 | **0.770** | `reference-20260827-b.txt` |
+
+Le commit `4e33756` (27/08, 20 h 42) a **rebasé les valeurs de référence sur ce tirage
+unique** de 0.823, dix minutes après le durcissement `05f71a6`. La variance de 0.001,
+elle, datait d'une condition antérieure et n'a jamais été remesurée après le
+durcissement.
+
+**La lecture la plus économe : la vraie valeur après durcissement est proche de 0.78, et
+0.823 était un tirage haut.** `AVANCEMENT.md` notait d'ailleurs à l'époque « trois
+indicateurs s'améliorent — non revendiqués, un seul passage ». La prudence était écrite ;
+les valeurs de référence ont quand même été mises à jour.
+
+### Ce qu'il ne faut PAS faire
+
+**Ne pas relâcher le seuil.** `reference.json` porte son motif : « la marge couvre cette
+variance sans couvrir une dégradation réelle ». Le déplacer parce qu'il gêne détruirait
+exactement ce que L1.6 a construit.
+
+### La décision à prendre, et elle est humaine
+
+Deux lectures, et elles n'appellent pas la même suite :
+
+1. **Le durcissement de la consigne coûte ~0.03 de fidélité de citation.** L'arbitrage
+   est alors : ce coût vaut-il la division par quatre des injections mesurée en D50 ?
+   C'est un compromis sécurité/utilité, pas un défaut à corriger.
+2. **0.823 était un tirage haut, la vraie valeur est ~0.78.** La référence doit alors être
+   rétablie sur **plusieurs tirages**, et le seuil recalculé sur la dispersion réellement
+   observée dans cette condition.
+
+**Trancher demande trois à cinq tirages consécutifs** de `verifier_reference.py` dans la
+condition actuelle, sans toucher au code. Chaque passage dure environ dix minutes.
+
+    set -a; . ./.env; set +a; export SSPCLOUD_API_KEY="$sspcloud_api_key"
+    for i in 1 2 3 4 5; do
+      python _chantier/scripts/verifier_reference.py > _chantier/mesures/dispersion-$i.txt 2>&1
+    done
+
+Puis, selon le résultat : soit assumer le coût du durcissement et rebaser la référence sur
+la moyenne mesurée, soit revenir sur la consigne. **Dans les deux cas, la référence se
+rebase sur une dispersion mesurée, jamais sur un tirage.**
+
+### Le défaut de méthode, nommé
+
+Une référence rebasée sur un tirage unique n'est pas une référence : c'est un instantané
+promu au rang de contrainte. Ce chantier existe pour empêcher qu'« ça a l'air mieux »
+remplace la mesure — et le rebasage du 27/08 à 20 h 42 en était une forme, à dix minutes
+du changement qu'il était censé valider.
+
+**Règle à appliquer désormais : aucune valeur de `reference.json` n'est mise à jour sur
+moins de trois tirages.**
+
+### Un défaut de harnais, à corriger au passage
+
+Le premier lancement du second tirage a échoué ainsi :
+
+    reanalyse_generation.py a échoué :
+
+Rien après les deux-points. `verifier_reference.executer()` remonte `resultat.stderr`,
+mais le sous-script écrit son usage sur **stdout** : le motif de l'échec est perdu.
+**Un vérificateur qui échoue sans dire pourquoi cesse d'être lu** — c'est exactement le
+défaut que D14 a corrigé sur `test_live.py`.
