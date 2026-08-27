@@ -8,27 +8,26 @@ Utilisé par FederationService et workspace_delegate._call_peer_search().
 from __future__ import annotations
 
 import logging
-import re
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
-# IPs et hostnames bloqués pour prévenir le SSRF
-_BLOCKED_HOSTS_RE = re.compile(
-    r'^('
-    r'localhost'
-    r'|127\.\d{1,3}\.\d{1,3}\.\d{1,3}'
-    r'|0\.0\.0\.0'
-    r'|::1'
-    r'|10\.\d{1,3}\.\d{1,3}\.\d{1,3}'
-    r'|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}'
-    r'|192\.168\.\d{1,3}\.\d{1,3}'
-    r'|169\.254\.\d{1,3}\.\d{1,3}'
-    r'|metadata\.google\.internal'
-    r'|100\.64\.\d{1,3}\.\d{1,3}'
-    r')$',
-    re.I,
-)
+# NOMS d'hote bloques — ceux qu'aucune plage d'adresses ne couvre.
+#
+# La verification des ADRESSES est deleguee a `security/url_validator.py`. Ce module
+# portait sa propre liste noire, en expression reguliere sur la chaine du nom d'hote :
+# une seconde copie du meme controle, et PLUS FAIBLE. Mesure le 25/08/2026, elle
+# laissait passer six formes sur neuf — loopback en decimal, hexadecimal, abrege, IPv4
+# mappee en IPv6, et les plages IPv6 `fc00::/7` et `fe80::/10` qui manquaient purement
+# et simplement.
+#
+# C'est le cout d'une garde dupliquee, mesure : on corrige la premiere et la seconde
+# reste ouverte.
+_BLOCKED_HOST_NAMES = frozenset({
+    "localhost",
+    "metadata.google.internal",
+    "metadata.goog",
+})
 
 _MAX_URL_LENGTH = 512
 _MAX_CHUNKS = 20
@@ -73,9 +72,25 @@ def validate_peer_url(url: str) -> str:
         raise ValueError("URL peer sans hôte valide")
 
     # Extraire le host sans port
-    host = parsed.hostname or ""
-    if _BLOCKED_HOSTS_RE.match(host):
+    host = (parsed.hostname or "").lower()
+    if host in _BLOCKED_HOST_NAMES:
         raise ValueError(f"URL peer pointe vers un hôte bloqué (SSRF): '{host}'")
+
+    # Les ADRESSES sont jugees par le point de passage unique — y compris les ecritures
+    # heritees (decimale, hexadecimale, abregee) et les IPv4 mappees en IPv6.
+    from colaig.security.url_validator import (
+        URLValidationError,
+        validate_navigation_url,
+    )
+
+    try:
+        # `resolve_dns=False` : un pair est declare par l'operateur dans `peers.yaml`,
+        # pas soumis par un tiers. Resoudre le DNS a la validation ajouterait une
+        # dependance reseau a une fonction pure, sans fermer la reliaison DNS pour
+        # autant — voir la limite epinglee dans les tests d'`url_validator`.
+        validate_navigation_url(url, resolve_dns=False)
+    except URLValidationError as exc:
+        raise ValueError(f"URL peer bloquée : {exc}") from exc
 
     if parsed.username or parsed.password:
         raise ValueError("Credentials dans l'URL peer non autorisés")
