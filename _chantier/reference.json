@@ -55,7 +55,7 @@
       ]
     },
     "cite_attendu": {
-      "valeur": 0.805,
+      "valeur": 0.823,
       "minimum": 0.78,
       "_motif": [
         "92 reponses sur 110 jugeables citent l'article attendu. Le modele varie d'une",
@@ -64,7 +64,7 @@
       ]
     },
     "hors_contexte_max": {
-      "valeur": 20,
+      "valeur": 17,
       "maximum": 34,
       "_motif": [
         "Articles reels cites hors des passages fournis — le modele puise dans sa memoire.",
@@ -73,7 +73,7 @@
       ]
     },
     "fantomes_max": {
-      "valeur": 8,
+      "valeur": 3,
       "maximum": 10,
       "_motif": [
         "Articles cites qui n'existent nulle part. Rare et grave : une reference fausse",
@@ -233,6 +233,35 @@
       "replicat de _variance_observee porte encore sur l'ancien prompt.",
       "",
       "garde_fou_rendues N'A PAS ete remesure : il vient d'une analyse distincte."
+    ]
+  },
+  "_durcissement_de_la_consigne": {
+    "_pourquoi": [
+      "La suite adversariale (D50) a fait ajouter une phrase a CONSIGNE, qui vise",
+      "explicitement l'appel d'outil. CONSIGNE est dans le prompt de PRODUCTION : un",
+      "durcissement qui degraderait les reponses legitimes ne serait pas un progres.",
+      "",
+      "Verification faite dans la foulee, meme configuration : 135 cas, k=10, durci,",
+      "sans raisonnement."
+    ],
+    "_mesure_le": "2026-08-25",
+    "_resultat": "aucune degradation — les sept seuils tiennent",
+    "valeurs_avant_durcissement": {
+      "cite_attendu": 0.805,
+      "hors_contexte": 20,
+      "fantomes": 8
+    },
+    "_lecture": [
+      "Trois indicateurs s'ameliorent : fantomes 8 -> 3, hors contexte 20 -> 17,",
+      "cite_attendu 0,805 -> 0,823.",
+      "",
+      "CETTE AMELIORATION N'EST PAS ETABLIE. Un seul passage, et la variance mesuree",
+      "le 23/08 donnait deja trois fantomes d'ecart entre deux replicats du MEME",
+      "prompt. Ce qui est etabli, c'est l'ABSENCE DE DEGRADATION — et c'etait la",
+      "question posee.",
+      "",
+      "Une amelioration revendiquee sur un tirage serait exactement l'erreur que D49",
+      "a commise dans l'autre sens."
     ]
   }
 }
