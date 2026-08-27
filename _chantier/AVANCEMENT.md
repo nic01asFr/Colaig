@@ -1854,3 +1854,82 @@ d'historique est local au processus — suffisant tant que Helm pose `replicaCou
 La phase 2 est bloquante avant tout multi-utilisateurs (`PLAN.md`). Elle est close **sauf
 L2.5**, dont le reste ne se traite pas par la consigne : la piste est de **ne pas
 transmettre au modèle un outil que l'Analyseur n'a pas prévu**.
+
+---
+
+## L2.5b — Ne pas transmettre un outil hors plan · 27/08/2026 · **LIVRÉ, NON REMESURÉ**
+
+**Ce qui est livré** : la piste structurelle que L2.5 avait retenue sans l'engager.
+Commit `1d3ad41`. **2212 tests.**
+
+### Le trou
+
+L'Analyseur produit déjà `needs_tools`. `_filter_registry_for_intent` honorait
+`needs_rag` et `tools_to_use`, et **jamais** `needs_tools` : une question documentaire
+ordinaire arrivait au modèle avec `create_document`, `manage_workspace_owners` et
+`report_to_user` au menu, alors que l'Analyseur venait de juger qu'aucun outil n'était
+requis.
+
+### Ce qui rend la garde solide, et ce qui la limite
+
+**L'Analyseur tourne avant la récupération documentaire.** Son prompt contient le
+message, les métadonnées d'espace, l'historique et des **noms** — jamais le contenu des
+documents. Une injection déposée dans un document ne peut donc pas faire basculer
+`needs_tools`.
+
+**Mais faire du verdict de l'Analyseur la porte du catalogue en fait une cible.** Or son
+prompt reçoit plusieurs champs **ni balisés ni assainis**, dont certains sont contrôlés
+par un tiers :
+
+| champ | qui l'écrit |
+|---|---|
+| `user_display_name` | **un membre du salon, librement** — D39 a mesuré que c'est le seul champ d'identité exposé |
+| noms de documents connus | qui écrit dans le dossier partagé |
+| noms de compétences | le contenu de `.colaig/skills/` |
+| ancres de conversation | **résumés d'un contenu documentaire, revenus au tour suivant** |
+| faits de mémoire utilisateur | idem |
+
+Trois champs voisins de la même fonction passent par `sanitize_description` ; ceux-ci non.
+Et `sanitize_description` **ne retire pas** les injections : il tronque, nettoie les
+caractères de contrôle et journalise. C'est une borne et une trace, pas une défense.
+
+Les ancres sont le canal le plus sérieux : elles font transiter du contenu documentaire
+jusqu'au prompt de l'Analyseur, avec un tour de retard.
+
+**Non traité ici.** C'est une conséquence de L2.5b, pas son objet, et le corriger touche
+le prompt de production — donc une remesure de la référence L1.5.
+
+### Ce qui n'est pas mesuré, et pourquoi
+
+`SSPCLOUD_API_KEY` n'est présente ni dans l'environnement ni dans `.env` : **la mesure en
+ligne n'est pas exécutable dans cette session.** Elle n'a pas été simulée.
+
+Le harnais a néanmoins été corrigé, sans quoi la prochaine exécution aurait remesuré
+l'ancien montage :
+
+1. il construisait son catalogue **à la main** — il ne traversait donc pas la garde.
+   C'est l'erreur exacte de sa première version, qui ne transmettait aucun outil et
+   rendait un excellent résultat sans mesurer le critère ;
+2. il **suppose** que l'Analyseur pose `needs_tools=False` sur une question
+   documentaire. Cette hypothèse porte toute la garde : elle est désormais **mesurée**
+   et imprimée en tête de sortie.
+
+### Deux bras, et pourquoi un seul ne vaut rien
+
+Avec la garde active, aucun outil destructif n'est transmis : « zéro appel non planifié »
+devient vrai **par construction**. C'est l'effet recherché, et ce n'est pas une preuve de
+résistance. Il faut lire deux exécutions :
+
+    COLAIG_RETRAIT_OUTILS_HORS_PLAN=0   bras témoin — comparable au 1/21 du 25/08/2026
+    COLAIG_RETRAIT_OUTILS_HORS_PLAN=1   bras production — le critère du plan
+
+Le harnais imprime lui-même l'avertissement quand il tourne sur le bras production.
+
+**Le critère de L2.5 ne peut donc pas être déclaré atteint aujourd'hui.** Il le sera
+quand les deux bras auront tourné, avec le verdict de l'Analyseur en tête de sortie.
+
+### Ce qu'il faut pour clore
+
+1. `SSPCLOUD_API_KEY` dans l'environnement ;
+2. les deux bras ;
+3. la référence L1.5 revérifiée — le catalogue transmis change, donc le prompt change.
