@@ -23,6 +23,7 @@ from nio import (
     JoinError,
     KeysQueryResponse,
     LoginResponse,
+    MegolmEvent,
     RoomEncryptedAudio,
     RoomMessageAudio,
     RoomMessageText,
@@ -241,6 +242,9 @@ class MatrixMessaging:
         self._client: AsyncClient | None = None
         self._message_callbacks: list[Callable] = []
         self._start_time: float = 0.0
+        # Un salon n'est prévenu qu'une fois d'un message illisible (L2.6) : un appareil
+        # mal apparié en produit des dizaines, et un message répété cesse d'être lu.
+        self._salons_prevenus_indechiffrable: set[str] = set()
         # Fichier de persistance du token (évite de créer une nouvelle session à chaque démarrage)
         self._token_store = token_store or paths.local_file("matrix_token.json")
         # Répertoire du crypto store E2E (clés Olm/Megolm — nécessite matrix-nio[e2e])
@@ -276,6 +280,8 @@ class MatrixMessaging:
             config=client_config,
         )
         self._start_time = time.time()
+        # Un salon n'est prevenu qu'une fois d'un message illisible (L2.6).
+        self._salons_prevenus_indechiffrable: set[str] = set()
 
         # Réutiliser le token existant via restore_login() qui initialise aussi le store Olm
         if self._token_store.exists():
@@ -330,6 +336,9 @@ class MatrixMessaging:
         # Audio : non-chiffré (rare) ET chiffré E2E (Tchap = RoomEncryptedAudio)
         self._client.add_event_callback(self._on_room_audio, RoomMessageAudio)
         self._client.add_event_callback(self._on_room_audio, RoomEncryptedAudio)
+        # Messages que nio n'a pas pu dechiffrer. Sans ce rappel ils sont ignores
+        # EN SILENCE : l'utilisateur voit un assistant qui ne repond pas (L2.6).
+        self._client.add_event_callback(self._on_undecryptable, MegolmEvent)
 
     def _do_auto_trust(self) -> None:
         """Marque tous les devices non-vérifiés comme user_ignored (pattern bot).
@@ -510,6 +519,42 @@ class MatrixMessaging:
             logger.error("impossible de rejoindre %s: %s", room.room_id, result)
         else:
             logger.info("salon rejoint: %s", room.room_id)
+
+    async def _on_undecryptable(self, room, event) -> None:
+        """Un message que nio n'a pas pu dechiffrer.
+
+        Sans ce traitement, l'evenement etait ignore SANS UN MOT. Ce n'est pas
+        theorique : D34 a releve des « undecryptable Megolm event from a unknown
+        device » dans le journal du bot, et note qu'un appareil neuf ne lit pas
+        l'historique chiffre. L'utilisateur, lui, voit un assistant qui ne repond pas.
+
+        Le salon n'est prevenu QU'UNE FOIS par processus : un appareil mal apparie
+        produit des dizaines d'evenements illisibles, et un message repete cesse d'etre
+        lu — ce qui reviendrait au silence par un autre chemin.
+        """
+        salon = getattr(room, "room_id", "") or ""
+        logger.warning(
+            "message non dechiffre dans %s (expediteur %s, session %s) — Colaig ne "
+            "peut pas le lire. Cause habituelle : l'appareil du bot est plus recent "
+            "que le message, ou les cles n'ont pas ete partagees avec lui.",
+            salon, getattr(event, "sender", "?"), getattr(event, "session_id", "?"),
+        )
+
+        if salon in self._salons_prevenus_indechiffrable:
+            return
+        self._salons_prevenus_indechiffrable.add(salon)
+
+        try:
+            await self.send(
+                salon,
+                "Je ne parviens pas a dechiffrer un message de ce salon — il a "
+                "probablement ete envoye avant que je n'y sois, ou depuis un appareil "
+                "dont je n'ai pas les cles. Reformulez-le et je pourrai le lire.",
+            )
+        except Exception as exc:  # noqa: BLE001
+            # Prevenir est un mieux, pas une obligation : un envoi en echec ne doit pas
+            # arreter la boucle de reception.
+            logger.warning("impossible de prevenir %s (%s)", salon, exc)
 
     async def _on_room_message(self, room, event: RoomMessageText) -> None:
         """Traite un message reçu dans un salon."""

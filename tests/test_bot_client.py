@@ -76,7 +76,11 @@ class TestMatrixMessagingConnect:
             await messaging.connect()
 
         mock_client.login.assert_called_once_with("secret", device_name="Colaig")
-        assert mock_client.add_event_callback.call_count == 4  # invite + text + audio + encrypted audio
+        # invite + texte + audio + audio chiffre + MEGOLM (message indechiffrable).
+        # Le cinquieme a ete ajoute au lot L2.6 : sans lui, un message que nio ne sait
+        # pas dechiffrer etait ignore SANS UN MOT, et l'utilisateur voyait un
+        # assistant qui ne repond pas.
+        assert mock_client.add_event_callback.call_count == 5
 
     async def test_connect_validates_token_with_whoami(self, messaging, tmp_path):
         """restore_login suivi de whoami() — si valide, pas de re-login."""

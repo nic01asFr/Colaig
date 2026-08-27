@@ -178,6 +178,12 @@ class ConversationMemory:
         #
         # Il vit ICI et non dans le gestionnaire de messages, parce que c'est ici qu'est
         # la course : le planificateur de tâches appelle aussi `save_turn`.
+        #
+        # LIMITE ASSUMÉE — le verrou est propre au PROCESSUS. Le déploiement Helm pose
+        # `replicaCount: 1`, donc il suffit aujourd'hui. À deux répliques, la course
+        # reviendrait **sans que rien ne le signale** : il faudrait alors un contrôle
+        # optimiste par etag (`StorageProtocol.get_etag` existe) plutôt qu'un verrou.
+        # TODO-HAUTE : si `replicaCount` passe à plus de 1, ce verrou ne protège plus.
         cle = f"{workspace_path}::{conversation_id}"
         verrou = self._verrous.get(cle)
         if verrou is None:
