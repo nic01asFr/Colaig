@@ -98,9 +98,39 @@ def setup_logging(level: str = "INFO") -> None:
         ):
             logging.getLogger(internal_logger).setLevel(logging.INFO)
 
-    # Filtre de masquage des secrets — installé sur le logger racine
+    installer_masquage_secrets()
+
+
+def installer_masquage_secrets() -> None:
+    """Pose le masquage des secrets sur les HANDLERS de la racine, pas sur le logger.
+
+    POURQUOI PAS `logging.getLogger().addFilter(...)`
+    --------------------------------------------------
+    C'est ce que faisait la version precedente, et **elle ne protegeait rien**.
+
+    Un filtre attache a un LOGGER ne s'applique qu'aux enregistrements emis
+    DIRECTEMENT sur lui. Ceux qui remontent depuis ses enfants atteignent bien ses
+    handlers, mais pas ses filtres.
+
+    Or toute l'application journalise depuis des loggers nommes —
+    `colaig.rag.generator`, `colaig.messaging.matrix`... Aucun n'etait masque. Verifie
+    le 25/08/2026 :
+
+        depuis un logger enfant : token=abcdef0123456789     <- en clair
+        depuis la racine        : token=***
+
+    Les HANDLERS, eux, voient les enregistrements propages. C'est donc la qu'il faut
+    poser le filtre.
+
+    Idempotent : `setup_logging` peut etre appele plusieurs fois, et des filtres qui
+    s'accumulent n'ajoutent rien qu'un cout.
+    """
     from colaig.security.secrets_filter import SecretsMaskingFilter
-    logging.getLogger().addFilter(SecretsMaskingFilter())
+
+    racine = logging.getLogger()
+    for handler in racine.handlers:
+        if not any(isinstance(f, SecretsMaskingFilter) for f in handler.filters):
+            handler.addFilter(SecretsMaskingFilter())
 
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
