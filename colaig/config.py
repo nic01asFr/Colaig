@@ -397,6 +397,9 @@ def load_config(yaml_path: Path | None = None) -> ColaigConfig:
         # Authentification MCP par token
         base_url=_env("COLAIG_BASE_URL", ""),
         mcp_auth_enabled=_env("COLAIG_MCP_AUTH_ENABLED", "").lower() in ("1", "true", "yes"),
+        # Défaut "1" — voir `models.py`. Une restriction se désactive explicitement.
+        retrait_outils_hors_plan=_env("COLAIG_RETRAIT_OUTILS_HORS_PLAN", "1").lower()
+        not in ("0", "false", "no"),
         admin_user_ids=[u.strip() for u in _env("COLAIG_ADMIN_USER_IDS", "").split(",") if u.strip()],
         default_workspace_id=_env("COLAIG_DEFAULT_WORKSPACE_ID", ""),
         # OIDC SSO (auth MCP enterprise)

@@ -121,6 +121,7 @@ class Orchestrator:
         index_registry=None,           # FaissIndexRegistry — auto-discovery intra-fédération
         workspace_directory=None,      # WorkspaceDirectory — routage sémantique cross-workspace
         admin_user_ids=None,           # list[str] — users autorisés à administrer en DM (réflexif)
+        retrait_outils_hors_plan: bool = True,  # L2.5b — voir `_filter_registry_for_intent`
     ) -> None:
         self._storage = storage
         self._retriever = retriever
@@ -137,6 +138,7 @@ class Orchestrator:
         self._index_registry = index_registry          # FaissIndexRegistry | None
         self._workspace_directory = workspace_directory  # WorkspaceDirectory | None
         self._admin_user_ids = admin_user_ids or []      # administration réflexive (DM admin)
+        self._retrait_outils_hors_plan = retrait_outils_hors_plan
 
     @property
     def is_agentic(self) -> bool:
@@ -522,10 +524,38 @@ class Orchestrator:
         Appelé après le filtrage large de PreExecutionBuilder (pré-intent).
 
         Règles appliquées :
+        - orchestrator_directives.tools_to_use spécifié → restreindre à cette liste
+        - needs_tools=False → retirer tous les outils DESTRUCTIFS (L2.5b, voir ci-dessous)
         - needs_rag=False → retirer tous les outils de recherche documentaire
         - IntentType.SUMMARY → garder fetch_document + summarize_text uniquement
-        - orchestrator_directives.tools_to_use spécifié → restreindre à cette liste
         - assess_completion toujours conservé (méta-outil de contrôle de boucle)
+
+        POURQUOI `needs_tools` EST HONORÉ ICI (L2.5b)
+        -----------------------------------------------
+        L2.5 a mesuré que la consigne ne suffit pas : 1/21 attaques aboutissent encore
+        après durcissement, et celle qui résiste passe 3 tirages sur 3 alors que la
+        consigne **nomme sa technique**. Nommer une technique ne la défait pas.
+
+        L'Analyseur produit déjà `needs_tools` — il a jugé si un outil est nécessaire.
+        Cette fonction honorait `needs_rag` et `tools_to_use`, et **jamais**
+        `needs_tools` : une question documentaire ordinaire arrivait donc au modèle avec
+        `create_document`, `manage_workspace_owners` et `report_to_user` au menu, alors
+        que l'Analyseur venait de décider qu'aucun outil n'était requis.
+
+        **On ne résiste pas à la tentation d'un outil absent.**
+
+        La classification destructif/lecteur vient de `security/actions.py` (L2.4a) et
+        n'est PAS réécrite ici — un filtre portant sa propre liste divergerait, comme la
+        fédération l'a fait avec sa seconde liste noire SSRF, plus faible de six
+        contournements (L2.6f). Un test de contrat refuse toute seconde classification.
+
+        Les lecteurs restent : sans eux, une question documentaire n'obtient plus de
+        réponse, et une garde qui casse l'usage se fait retirer.
+
+        Cette garde **ne remplace pas** la confirmation de L2.4. Elle réduit la surface
+        AVANT l'appel ; L2.4 suspend l'appel qui subsiste. Un `needs_tools=True` obtenu
+        par une consigne injectée fait revenir le catalogue — c'est alors L2.4 qui
+        décide.
 
         Args:
             available_tools: ToolRegistry après filtrage pré-intent.
@@ -549,6 +579,18 @@ class Orchestrator:
                 return available_tools.filter_by_names(remaining)
 
         remove: set[str] = set()
+
+        # L'Analyseur n'a prévu aucun outil → ne transmettre aucun destructif.
+        # Le flag `retrait_outils_hors_plan` diverge du défaut en vigueur dans
+        # `config.py`, où tous les `COLAIG_*_ENABLED` défaillent à OFF. C'est le bon
+        # sens pour un ajout de fonction ; celui-ci est une RESTRICTION, dont le sens
+        # sûr est l'inverse. L2.2 a pris la même liberté pour la liste blanche MCP.
+        if self._retrait_outils_hors_plan and not intent.needs_tools:
+            from colaig.security.actions import est_destructif
+            remove.update(
+                n for n in available_tools.names()
+                if n not in ALWAYS_KEEP and est_destructif(n)
+            )
 
         # Pas de RAG nécessaire → retirer tous les outils de recherche
         if not intent.needs_rag:

@@ -581,6 +581,7 @@ async def run_client_stack(cc, config: ColaigConfig, shutdown_event: asyncio.Eve
             index_registry=index_registry,
             workspace_directory=workspace_directory,
             admin_user_ids=config.admin_user_ids,
+            retrait_outils_hors_plan=config.retrait_outils_hors_plan,
         )
         trame_manager = TrameManager(storage=storage)
 
@@ -1342,6 +1343,7 @@ async def main() -> None:
             index_registry=index_registry,
             workspace_directory=workspace_directory,
             admin_user_ids=config.admin_user_ids,
+            retrait_outils_hors_plan=config.retrait_outils_hors_plan,
         )
 
         if config.agents_phase6_enabled:

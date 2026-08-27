@@ -1404,6 +1404,13 @@ class ColaigConfig:
     base_url: str = ""                  # URL publique de l'instance (ex: https://colaig.org.fr)
                                         # Utilisée pour générer les configs MCP clients
     mcp_auth_enabled: bool = False      # Activer l'auth token sur /mcp (false = pass-through)
+    retrait_outils_hors_plan: bool = True
+                                        # L2.5b — quand l'Analyseur pose needs_tools=False,
+                                        # ne transmettre AUCUN outil destructif au modèle.
+                                        # Défaut ACTIF, à rebours des autres flags : c'est
+                                        # une restriction, dont le sens sûr est l'inverse
+                                        # d'un ajout de fonction. COLAIG_RETRAIT_OUTILS_
+                                        # HORS_PLAN=0 pour revenir en arrière.
     admin_user_ids: list = field(default_factory=list)
                                         # user_ids avec rôle admin (ex: ["@alice:tchap.fr"])
                                         # Miroir de COLAIG_ADMIN_USER_IDS — utilisé pour
