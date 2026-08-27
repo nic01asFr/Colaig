@@ -2283,3 +2283,95 @@ pour rien, soit de l'ordre de **20 minutes sur 72**.
 Un cache indexé sur l'empreinte du corpus ramènerait un tirage de ~9 à ~6 minutes. Non
 fait ici : modifier le harnais en cours de campagne aurait invalidé les tirages déjà
 obtenus.
+
+---
+
+## REBASAGE APPLIQUÉ · 28/08/2026 · la porte est verte, sur une base mesurée
+
+Les deux décisions arbitrées sont appliquées.
+
+### A — `reference.json` rebasé sur quatre tirages
+
+| indicateur | avant | après | fondé sur |
+|---|---|---|---|
+| `cite_attendu` | 0.823 · ≥ 0.78 | **0.790 · ≥ 0.748** | 4 tirages, σ = 0.021 |
+| `fantomes` | 3 · ≤ 10 | **8 · ≤ 13** | 4 tirages, σ = 2.36 |
+| `hors_contexte` | 17 · ≤ 34 | **23** · ≤ 34 *(seuil inchangé)* | 4 tirages, σ = 1.71 |
+
+Chaque bloc porte désormais `_tirages`, `_observe` (les valeurs brutes), `_sigma` et le
+motif du rebasage. Valeur = moyenne ; seuil = moyenne ± 2σ **de la condition
+effectivement mesurée**.
+
+Ce n'est pas un relâchement : la méthode est celle du seuil initial — une marge adossée
+à la variance. C'est la valeur centrale qui était fausse.
+
+### B — D50 est conservé
+
+Coût non établi (−0.018, dans le bruit des deux bras). Bénéfice mesuré ailleurs :
+**4/21 → 1/21** attaques abouties sur la suite adversariale.
+
+### La vérification, et pourquoi elle ne sert pas à calculer le seuil
+
+`verifier_reference.py` rejoué après rebasage : **aucune régression**, huit seuils tenus.
+
+    cite l'attendu     0.773   ≥ 0.748    référence 0.79
+    fantômes            11.0   ≤ 13       référence 8
+    hors contexte       23.0   ≤ 34       référence 23
+
+Ce passage est un **neuvième tirage indépendant** et il tombe dans la plage observée.
+Il n'est **pas** intégré au calcul du seuil : recalculer une borne à partir du tirage qui
+sert à la vérifier reviendrait à ajuster le seuil pour qu'il passe.
+
+**Le rebasage n'était pas complaisant** : `fantômes` à 11 aurait franchi l'ancien plafond
+de 10. L'ancienne configuration aurait donc ouvert la porte une seconde fois, toujours
+sans la moindre régression réelle.
+
+### Deux indicateurs quittent zéro pour la première fois
+
+    montants inventés   1   ≤ 2    référence 0
+    tronquées           3   ≤ 12   référence 0
+
+Leurs seuils tiennent largement, et **ces deux blocs ne déclarent pas leur nombre de
+tirages** — ils font partie des sept antérieurs au 28/08. Une valeur de référence à 0
+posée sur peu de tirages est le même motif que celui qui vient d'être corrigé : le zéro
+décrit peut-être un tirage, pas une distribution.
+
+**Rien n'est conclu ici** — un tirage ne dit rien, c'est toute la leçon du jour. C'est un
+signal à surveiller, inscrit pour ne pas être découvert le jour où la porte s'ouvrira
+dessus. `garde_fou_rendues` est dans le même cas : 0.812 mesuré contre 0.847 en
+référence, seuil 0.78 tenu.
+
+### La règle est devenue une garde
+
+`tests/test_reference_tirages.py` — sept tests, hors ligne :
+
+1. un bloc qui déclare ses tirages en a au moins **quatre** ;
+2. il donne ses **observations brutes**, en nombre cohérent avec ce qu'il annonce ;
+3. **la valeur déclarée est la moyenne**, pas un tirage choisi — la faute exacte du 27/08 ;
+4. **aucun tirage observé ne franchit son propre seuil** — l'ancien 0.78 était franchi par
+   un des tirages qui l'avaient produit ; ce test l'aurait attrapé au rebasage, pas trois
+   jours plus tard quand la porte s'est ouverte ;
+5. la **liste des blocs sans nombre de tirages ne s'allonge pas** — les sept blocs
+   antérieurs sont listés tels quels, car leur attribuer un nombre reviendrait à inventer
+   une donnée (`CLAUDE.md` §4.8) ;
+6. un test qui prouve que le garde-fou **sait échouer** ;
+7. le bloc `_variance_observee` porte sa limite par écrit.
+
+Une règle écrite dans un document ne bloque rien : elle se lit après coup, quand la
+dégradation est déjà livrée. C'est le constat qui a fait naître `verifier_reference.py` —
+il valait aussi pour la règle qui gouverne ce fichier.
+
+### État de la phase 2
+
+**Close.** Six lots livrés et mesurés, porte de régression verte sur une base fondée.
+
+| lot | critère | état |
+|---|---|---|
+| L2.1 → L2.4 | — | clos |
+| L2.5 | zéro appel d'outil non planifié, ≥ 20 attaques | 0/21 — **structurel** |
+| L2.5b | — | livré, deux bras mesurés |
+| L2.6 | couverture > 90 % sur `security/` | 97 % |
+
+**2226 tests.** Le rappel qui doit survivre à ce journal : le 0/21 de L2.5 est obtenu en
+**retirant** les outils, pas en y résistant. Bras témoin, garde coupée : 2/21. Si
+`needs_tools` bascule à `True`, c'est la confirmation de L2.4 qui agit seule.

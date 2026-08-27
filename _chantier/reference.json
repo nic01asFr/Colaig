@@ -55,29 +55,89 @@
       ]
     },
     "cite_attendu": {
-      "valeur": 0.823,
-      "minimum": 0.78,
+      "valeur": 0.79,
+      "minimum": 0.748,
+      "_tirages": 4,
+      "_observe": [
+        0.7615,
+        0.7946,
+        0.7928,
+        0.8125
+      ],
+      "_sigma": 0.0212,
       "_motif": [
-        "92 reponses sur 110 jugeables citent l'article attendu. Le modele varie d'une",
-        "execution a l'autre meme a temperature basse ; la marge couvre cette variance",
-        "sans couvrir une degradation reelle."
+        "REBASE LE 28/08/2026 SUR QUATRE TIRAGES, pas sur un.",
+        "",
+        "La valeur precedente venait d'un tirage unique du 25/08, pose dix minutes apres",
+        "le durcissement D50 qu'il etait cense valider. Mesure le 28/08 sur quatre",
+        "tirages du bras de production : ce tirage etait HAUT sur les trois indicateurs",
+        "a la fois, et la valeur qu'il a fixee n'a ete atteinte par aucun des quatre.",
+        "",
+        "Valeur = moyenne des quatre tirages. Seuil = moyenne - 2 sigma, sur la",
+        "dispersion mesuree DANS CETTE CONDITION.",
+        "",
+        "L'ancien seuil de 0,78 etait franchi par UN TIRAGE SUR QUATRE sur du code",
+        "inchange. Une porte qui se declenche un quart du temps sur un systeme sain",
+        "cesse d'etre lue — meme defaut que test_live.py avant D14, deplace sur la",
+        "mesure.",
+        "",
+        "Ce n'est pas un relachement : la methode est celle du seuil initial — une",
+        "marge adossee a la variance. C'est la valeur centrale qui etait fausse."
       ]
     },
     "hors_contexte_max": {
-      "valeur": 17,
+      "valeur": 23,
       "maximum": 34,
+      "_tirages": 4,
+      "_observe": [
+        23,
+        24,
+        21,
+        25
+      ],
+      "_sigma": 1.71,
       "_motif": [
         "Articles reels cites hors des passages fournis — le modele puise dans sa memoire.",
-        "Le plafond est fixe au niveau mesure a k=6, soit l'etat degrade connu : y revenir",
-        "signifierait avoir perdu le benefice de D33."
+        "Le plafond reste fixe au niveau mesure a k=6, soit l'etat degrade connu : y",
+        "revenir signifierait avoir perdu le benefice de D33.",
+        "",
+        "REBASE LE 28/08/2026 SUR QUATRE TIRAGES, pas sur un.",
+        "",
+        "La valeur precedente venait d'un tirage unique du 25/08, pose dix minutes apres",
+        "le durcissement D50 qu'il etait cense valider. Mesure le 28/08 sur quatre",
+        "tirages du bras de production : ce tirage etait HAUT sur les trois indicateurs",
+        "a la fois, et la valeur qu'il a fixee n'a ete atteinte par aucun des quatre.",
+        "",
+        "SEUL LE PLAFOND EST INCHANGE : il n'a jamais ete franchi (21-25 observes",
+        "contre 34). Le resserrer sur quatre tirages creerait des fausses alertes sans",
+        "preuve — et un plafond garde son sens meme large, tant qu'il borne l'etat",
+        "degrade connu."
       ]
     },
     "fantomes_max": {
-      "valeur": 3,
-      "maximum": 10,
+      "valeur": 8,
+      "maximum": 13,
+      "_tirages": 4,
+      "_observe": [
+        6,
+        6,
+        8,
+        11
+      ],
+      "_sigma": 2.36,
       "_motif": [
         "Articles cites qui n'existent nulle part. Rare et grave : une reference fausse",
-        "sous une forme juste ne se voit pas a la lecture."
+        "sous une forme juste ne se voit pas a la lecture.",
+        "",
+        "REBASE LE 28/08/2026 SUR QUATRE TIRAGES, pas sur un.",
+        "",
+        "La valeur precedente venait d'un tirage unique du 25/08, pose dix minutes apres",
+        "le durcissement D50 qu'il etait cense valider. Mesure le 28/08 sur quatre",
+        "tirages du bras de production : ce tirage etait HAUT sur les trois indicateurs",
+        "a la fois, et la valeur qu'il a fixee n'a ete atteinte par aucun des quatre.",
+        "",
+        "L'ancien plafond de 10 etait lui aussi franchi par un tirage sur quatre.",
+        "Nouveau plafond = moyenne + 2 sigma."
       ]
     },
     "montants_inventes_max": {
@@ -187,6 +247,23 @@
       "",
       "UN SEUL REPLICAT NE FAIT PAS UNE VARIANCE. Ces ecarts sont un ordre de grandeur, pas",
       "un intervalle de confiance. Si une porte echoue de peu, le rejouer avant de conclure."
+    ],
+    "_LIMITE_DE_CE_BLOC": [
+      "DEUX TIRAGES NE PEUVENT PAS ESTIMER UNE DISPERSION.",
+      "",
+      "Ce bloc compare une reference et UN replicat. Deux tirages peuvent tomber",
+      "proches par chance : c'est ce qui s'est produit sur cite_attendu, ou l'ecart",
+      "de 0,001 a fait croire a un indicateur quasi deterministe.",
+      "",
+      "Quatre tirages du 28/08 donnent sigma = 0,021 et une etendue de 0,051 — soit",
+      "cinquante fois cet ecart. Le meme bloc montrait pourtant deja fantomes 5 -> 8,",
+      "donc une dispersion reelle : le signal etait la, il n'a pas ete lu.",
+      "",
+      "CONSEQUENCE : c'est ce 0,001 qui a rendu credible, le 27/08, un rebasage de la",
+      "reference sur UN SEUL tirage. Si la variance vaut 0,001, un tirage suffit. Elle",
+      "ne la valait pas.",
+      "",
+      "Ce bloc est conserve comme trace, il ne fonde plus aucun seuil."
     ]
   },
   "_bascule_prompt_production": {
@@ -262,6 +339,95 @@
       "",
       "Une amelioration revendiquee sur un tirage serait exactement l'erreur que D49",
       "a commise dans l'autre sens."
+    ]
+  },
+  "_dispersion_2026_08_28": {
+    "_pourquoi": [
+      "La porte de regression est passee au rouge le 27/08 sans qu'aucun code du",
+      "chemin de generation n'ait bouge — rag/generator.py est inchange depuis L2.1.",
+      "La question etait : le durcissement D50 coute-t-il quelque chose, ou la valeur",
+      "de reference a-t-elle ete posee sur un tirage haut ?",
+      "",
+      "Un seul bras n'y repond pas. Quatre tirages par bras, ALTERNES pour qu'une",
+      "derive de l'endpoint ne soit pas imputee au bras mesure en second."
+    ],
+    "_mesure_le": "2026-08-28",
+    "_harnais": "_chantier/scripts/dispersion_consigne.py",
+    "_donnees": "_chantier/mesures/dispersion-consigne.json",
+    "bras_durci": {
+      "_quoi": "CONSIGNE actuelle — l'etat livre",
+      "cite_attendu": [
+        0.7615,
+        0.7946,
+        0.7928,
+        0.8125
+      ],
+      "moyenne": 0.7903,
+      "sigma": 0.0212,
+      "fantomes": [
+        6,
+        6,
+        8,
+        11
+      ],
+      "hors_contexte": [
+        23,
+        24,
+        21,
+        25
+      ]
+    },
+    "bras_avant_d50": {
+      "_quoi": "CONSIGNE sans la phrase ajoutee par D50",
+      "cite_attendu": [
+        0.8198,
+        0.7748,
+        0.8148,
+        0.8241
+      ],
+      "moyenne": 0.8084,
+      "sigma": 0.0227,
+      "fantomes": [
+        10,
+        11,
+        11,
+        7
+      ],
+      "hors_contexte": [
+        23,
+        26,
+        26,
+        22
+      ]
+    },
+    "_conclusion": [
+      "Ecart des moyennes -0,018, pour une etendue intra-bras de 0,051 : les deux",
+      "bras se recouvrent largement.",
+      "",
+      "D50 N'A PAS DE COUT ETABLI sur la fidelite de citation. Son benefice mesure",
+      "est ailleurs : 4/21 -> 1/21 attaques abouties sur la suite adversariale.",
+      "D50 EST DONC CONSERVE.",
+      "",
+      "Symetriquement, son benefice sur les fantomes N'EST PAS ETABLI non plus :",
+      "6-6-8-11 contre 10-11-11-7, distributions confondues. Une separation nette",
+      "avait ete annoncee sur les trois premiers tirages ; le quatrieme l'a defaite.",
+      "C'est precisement pourquoi on ne conclut pas sur trois points."
+    ],
+    "_regles_qui_en_decoulent": [
+      "1. Aucune valeur de ce fichier n'est mise a jour sur moins de QUATRE tirages.",
+      "2. Une dispersion se remesure AVEC SA CONDITION. Un chiffre de variance",
+      "   herite d'une autre configuration, ou estime sur deux tirages, est pire",
+      "   qu'absent : il autorise a conclure sur un tirage.",
+      "3. Chaque bloc porte le nombre de tirages qui le fonde — champ `_tirages`."
+    ],
+    "_dette_de_harnais": [
+      "Chaque tirage recalcule 1156 embeddings (1021 articles + 135 questions) alors",
+      "que ni le corpus ni les questions ne changent : seule la generation est",
+      "stochastique. Sur cette campagne de huit tirages, ~20 minutes perdues sur 72.",
+      "",
+      "Un cache indexe sur l'empreinte du corpus ramenerait un tirage de 9 a 6",
+      "minutes. Non fait pendant la campagne : modifier le harnais en cours de mesure",
+      "aurait invalide les tirages deja obtenus."
     ]
   }
 }
