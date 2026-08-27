@@ -1,0 +1,30 @@
+4 tirages par bras · variante durci · k=10
+  durci      tirage 1 : cite 0.7615  fantômes 6  hors contexte 23
+  avant_d50  tirage 1 : cite 0.8198  fantômes 10  hors contexte 23
+  durci      tirage 2 : cite 0.7946  fantômes 6  hors contexte 24
+  avant_d50  tirage 2 : cite 0.7748  fantômes 11  hors contexte 26
+  durci      tirage 3 : cite 0.7928  fantômes 8  hors contexte 21
+  avant_d50  tirage 3 : cite 0.8148  fantômes 11  hors contexte 26
+  durci      tirage 4 : cite 0.8125  fantômes 11  hors contexte 25
+  avant_d50  tirage 4 : cite 0.8241  fantômes 7  hors contexte 22
+
+BRAS DURCI
+  cite_attendu     moyenne 0.7903  min 0.7615  max 0.8125  étendue 0.0510
+  fantomes         moyenne 7.7500  min 6.0000  max 11.0000  étendue 5.0000
+  hors_contexte    moyenne 23.2500  min 21.0000  max 25.0000  étendue 4.0000
+
+BRAS AVANT_D50
+  cite_attendu     moyenne 0.8084  min 0.7748  max 0.8241  étendue 0.0493
+  fantomes         moyenne 9.7500  min 7.0000  max 11.0000  étendue 4.0000
+  hors_contexte    moyenne 24.2500  min 22.0000  max 26.0000  étendue 4.0000
+
+écart des moyennes (durci − avant_d50) : -0.0180
+plus grande étendue intra-bras          : 0.0510
+
+LECTURE : l'écart entre les bras est INFÉRIEUR à la dispersion
+interne. D50 ne coûte rien de mesurable — c'est la VALEUR DE
+RÉFÉRENCE 0.823 qui est fausse, posée sur un tirage haut.
+
+Dans les deux cas : rebaser reference.json sur la MOYENNE du bras
+retenu, jamais sur un tirage. Seuil = moyenne − étendue observée.
+SORTIE 0

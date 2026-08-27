@@ -2190,3 +2190,96 @@ Rien après les deux-points. `verifier_reference.executer()` remonte `resultat.s
 mais le sous-script écrit son usage sur **stdout** : le motif de l'échec est perdu.
 **Un vérificateur qui échoue sans dire pourquoi cesse d'être lu** — c'est exactement le
 défaut que D14 a corrigé sur `test_live.py`.
+
+---
+
+## DISPERSION MESURÉE · 28/08/2026 · huit tirages, deux bras
+
+La porte de régression étant rouge, la question était : **D50 coûte-t-il quelque chose,
+ou la valeur de référence 0.823 a-t-elle été posée sur un tirage haut ?**
+
+Un seul bras n'y répond pas. Quatre tirages par bras, **alternés** pour qu'une dérive de
+l'endpoint ne soit pas imputée au bras mesuré en second.
+
+### Ce qui est mesuré
+
+| bras | `cite l'attendu` | moyenne | σ | fantômes |
+|---|---|---|---|---|
+| `durci` (production) | 0.7615 · 0.7946 · 0.7928 · 0.8125 | **0.7903** | 0.0212 | 6 · 6 · 8 · 11 |
+| `avant_d50` | 0.8198 · 0.7748 · 0.8148 · 0.8241 | **0.8084** | 0.0227 | 10 · 11 · 11 · 7 |
+
+Écart des moyennes : **−0.0180**, pour une étendue intra-bras de **0.0510**. Les deux
+bras se recouvrent largement.
+
+### Les trois conclusions
+
+**1. La valeur de référence 0.823 est fausse.** Elle est **au-dessus de la totalité** des
+tirages du bras de production : 0 sur 4 l'atteignent. Elle a été posée le 27/08 à 20 h 42
+sur un tirage unique, dix minutes après le durcissement qu'elle était censée valider.
+
+**2. Le seuil de 0.78 est intenable.** Un tirage sur quatre passe dessous **sur du code
+inchangé**. Une porte qui se déclenche un quart du temps sur un système sain cesse d'être
+lue — c'est le défaut que D14 a corrigé sur `test_live.py`, reproduit ici sur la mesure.
+
+**3. D50 n'a pas de coût établi.** L'écart de −0.018 est inférieur à la dispersion
+interne des deux bras. Et son bénéfice mesuré n'est pas ici : il est sur la suite
+adversariale, **4/21 → 1/21 attaques abouties**. Aucune raison de revenir dessus.
+
+Symétriquement, **le bénéfice de D50 sur les fantômes n'est pas établi non plus** : 7.75
+contre 9.75 de moyenne, mais les deux distributions se recouvrent (6-11 contre 7-11).
+J'avais annoncé une séparation nette sur les trois premiers tirages ; le quatrième l'a
+défaite. C'est exactement pourquoi on ne conclut pas sur trois points.
+
+### Le défaut de fond : une dispersion prise dans la mauvaise condition
+
+`reference.json` porte `_variance_observee.cite_attendu.ecart = 0.001`, mesuré le 23/08.
+La dispersion réelle de cette condition est **σ ≈ 0.021**, soit une étendue de 0.051 —
+**cinquante fois plus**.
+
+Ce chiffre de 0.001 n'était pas faux : il était **mesuré ailleurs**, dans une autre
+configuration, et transporté tel quel. Une dispersion ne se transporte pas d'une
+condition à l'autre — elle se remesure avec la condition.
+
+C'est ce qui a rendu crédible un rebasage sur un tirage unique : si la variance est de
+0.001, un tirage suffit. Elle ne l'était pas.
+
+### Le rebasage proposé — À ARBITRER
+
+Relâcher un seuil est une décision humaine, et `reference.json` le dit lui-même : « Ne
+pas relâcher un seuil sans avoir compris ce qu'il protégeait ». Le motif est compris :
+il protège d'une dégradation réelle, et il doit donc être posé à `moyenne − 2σ` de la
+condition **effectivement mesurée**.
+
+| indicateur | valeur actuelle | seuil actuel | valeur proposée | seuil proposé |
+|---|---|---|---|---|
+| `cite_attendu` | 0.823 | ≥ 0.78 | **0.790** | **≥ 0.748** |
+| `fantomes` | 3 | ≤ 10 | **8** | **≤ 13** |
+| `hors_contexte` | 17 | ≤ 34 | **23** | ≤ 34 *(inchangé)* |
+
+Les trois valeurs actuelles viennent du **même** tirage du 25/08, haut sur les trois
+indicateurs à la fois. `hors_contexte` garde son seuil : il n'a jamais été franchi
+(21-25 observés contre 34), et le resserrer sur quatre tirages créerait des fausses
+alertes sans preuve.
+
+**Ce que ce rebasage n'est pas** : un relâchement pour faire passer la porte. Le seuil
+proposé est calculé sur la dispersion mesurée de la condition, exactement selon la
+méthode que le seuil initial appliquait — c'est la valeur centrale qui était fausse, pas
+la méthode.
+
+### Règles qui en découlent
+
+1. **Aucune valeur de `reference.json` n'est mise à jour sur moins de quatre tirages.**
+2. **Une dispersion se remesure avec sa condition.** Un `_variance_observee` hérité d'une
+   autre configuration est pire qu'absent : il autorise à conclure sur un tirage.
+3. Chaque bloc de `reference.json` porte désormais le **nombre de tirages** qui le fonde.
+
+### Une dette de harnais, chiffrée
+
+Chaque tirage recalcule **1 156 embeddings** (1 021 articles + 135 questions) alors que
+ni le corpus ni les questions ne changent d'un tirage à l'autre — seule la génération est
+stochastique. Sur cette campagne de huit tirages, ce sont ~9 000 embeddings recalculés
+pour rien, soit de l'ordre de **20 minutes sur 72**.
+
+Un cache indexé sur l'empreinte du corpus ramènerait un tirage de ~9 à ~6 minutes. Non
+fait ici : modifier le harnais en cours de campagne aurait invalidé les tirages déjà
+obtenus.
