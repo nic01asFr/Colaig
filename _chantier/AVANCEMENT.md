@@ -1757,3 +1757,100 @@ après l'avoir manqué**. Ce chantier existe pour ne pas faire cela.
 **L2.6** — câblage de `security/` aux points de passage réels. D46 en a nommé le contenu :
 `TaskExecutor` non branché, `check_quota` absent de trois clients sur quatre dont celui de
 production, `MegolmEvent` sans rappel.
+
+---
+
+## L2.6 — Câblage de `security/` aux points de passage réels · 27/08/2026 · **CLOS**
+
+**Critère du plan** : couverture > 90 % sur `security/`.
+**Atteint** : `security/` passe de **82 % à 97 %**. Commits `b53cf2a` → `4327dbc`.
+
+### Ce que « câbler » a voulu dire, en pratique
+
+Le lot ne consistait pas à écrire des gardes : elles existaient. Il consistait à
+constater qu'**elles n'étaient pas branchées**, ou branchées au mauvais endroit. Neuf
+défauts, tous mesurés avant correction.
+
+| défaut | ce qui ne protégeait rien |
+|---|---|
+| quota | absent de trois clients LLM sur quatre — **dont celui de production** |
+| historique | lecture-modification-écriture concurrente : des tours perdus |
+| `MegolmEvent` | message indéchiffrable ignoré **sans un mot** |
+| masquage des secrets | filtre posé sur le **Logger** racine, qui ne voit pas les enregistrements propagés — **aucun module n'était masqué** |
+| anti-SSRF | sept écritures alternatives d'une IP passaient |
+| fédération | **seconde** liste noire SSRF, plus faible de six contournements |
+| cible de livraison | garde existante branchée sur **un** des trois chemins |
+| `validate_delivery_target` | promettait `ValueError`, levait `StorageError` |
+| `can_access` | ignorait `owners` |
+
+### Le défaut le plus instructif est de moi
+
+`WorkspaceACL.validate_delivery_target` **existait** quand le trou de L2.1b a été trouvé,
+branché sur le seul chemin MCP. J'ai bouché le trou en **écrivant une seconde
+implémentation**, sans chercher celle qui existait — et plus faible : elle refusait
+`.colaig/` mais ne confinait pas la cible à l'espace.
+
+C'est exactement le motif que ce chantier corrige chez les autres depuis le début,
+produit dans le même mouvement. **La règle qui en sort : avant d'écrire une garde,
+chercher celle qui existe.**
+
+Les trois chemins passent désormais par le même prédicat, et un test refuse toute
+seconde implémentation — la forme déjà employée pour `wrap.py`, `mcp_policy.py` et
+`metrics/quota.py`. Effet mesurable : une tâche vivant dans `/alice_tchap_fr/` ne livre
+plus dans `/espace-rh/`.
+
+### Le créateur d'un espace ne pouvait pas le lire
+
+Mesuré le 27/08/2026 sur un espace créé par `manage_workspace(action="create")`, qui
+pose `owners=[créateur]` et laisse `user_ids` vide :
+
+    can_manage_workspace  → True    il administre
+    can_link_conversation → True    il y rattache une conversation
+    can_access            → False   il ne peut pas le LIRE
+
+`filter_accessible` cachait donc l'espace à son propre propriétaire. L'ajout d'`owners`
+**n'accorde aucun droit nouveau** — un propriétaire peut déjà s'inscrire dans `user_ids`
+en un appel — il retire un piège qui poussait à élargir `user_ids` pour contourner le
+symptôme.
+
+### Un contrat annoncé et non tenu
+
+`validate_delivery_target` documentait `ValueError` et laissait passer `StorageError`,
+qui n'en hérite pas ; l'appelant MCP écrit `except ValueError`. Un refus s'échappait donc
+en erreur non traitée. L'échec allait dans le bon sens — la tâche n'était pas créée —
+mais rien n'était diagnosticable. **Un contrat annoncé et non tenu est pire qu'un contrat
+absent : l'appelant écrit du code qui a l'air correct.**
+
+### Ce que la couverture a réellement acheté
+
+Les chemins nouvellement exercés ne sont pas du remplissage. Chacun décide seul, sans
+personne devant l'écran :
+
+- résolution DNS d'un nom **public** pointant vers une IP privée — et une seule adresse
+  privée parmi plusieurs suffit à bloquer, l'ordre d'un jeu DNS n'étant pas garanti ;
+- chargement de `peers.yaml`, où un pair fautif ne doit pas emporter les autres ;
+- forme d'un espace : un dossier de **premier niveau**, sinon un espace contiendrait un
+  espace — deux `.colaig/`, deux jeux de droits, et rien ne dirait lequel fait foi ;
+- franchissement d'espace par une sous-tâche, seule primitive qui traverse une frontière
+  d'espace, et qui s'exécute la nuit avec les identifiants de Colaig.
+
+**2193 tests**, suite hors ligne, 38 s.
+
+### Limites écrites plutôt que découvertes
+
+Trois comportements sont épinglés **sans correctif**, pour qu'on ne les croie pas
+couverts : le masquage des secrets ne traite pas les traces d'exception (`exc_info` est
+formaté après le filtre) ; l'anti-SSRF ne couvre pas la reliaison DNS ; le verrou
+d'historique est local au processus — suffisant tant que Helm pose `replicaCount: 1`.
+
+### Où en est la phase 2
+
+| lot | état |
+|---|---|
+| L2.1 à L2.4 | clos |
+| **L2.5** | **mesuré, non atteint** — 1/21, piste retenue non engagée |
+| **L2.6** | **clos** |
+
+La phase 2 est bloquante avant tout multi-utilisateurs (`PLAN.md`). Elle est close **sauf
+L2.5**, dont le reste ne se traite pas par la consigne : la piste est de **ne pas
+transmettre au modèle un outil que l'Analyseur n'a pas prévu**.
