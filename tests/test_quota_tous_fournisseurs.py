@@ -146,3 +146,75 @@ def test_aucun_client_ne_garde_sa_propre_copie():
     assert not fautifs, (
         f"copies privées du contrôle de quota — les retirer : {fautifs}"
     )
+
+
+# ── Les clients AGISSENT, ils ne se contentent pas de citer ─────────────────
+
+
+def _config_minimale():
+    """La configuration minimale qu'AlbertClient exige — il prend un objet, pas une cle."""
+    from colaig.models import ColaigConfig
+
+    return ColaigConfig(albert_api_url="https://exemple.invalid",
+                        albert_api_key="x", albert_model_chat="m")
+
+
+class _TrackerQuiRefuse:
+    def check_quota(self, client_id):
+        return False, "quota journalier depasse"
+
+    def record_from_usage(self, client_id, usage):
+        pass
+
+
+def _clients_avec_tracker():
+    """Un exemplaire de chaque client, arme d'un tracker qui refuse tout.
+
+    Aucun reseau n'est necessaire : le controle est la PREMIERE instruction de `chat`,
+    donc il doit lever avant qu'une requete ne parte. Si un test devait simuler HTTP,
+    c'est que la garde serait posee trop tard.
+    """
+    from colaig.integrations.albert import AlbertClient
+    from colaig.integrations.llm.azure_client import AzureClient
+    from colaig.integrations.llm.ollama_client import OllamaClient
+    from colaig.integrations.llm.openai_client import OpenAIClient
+
+    tracker = _TrackerQuiRefuse()
+    return [
+        ("albert", AlbertClient(config=_config_minimale(),
+                                usage_tracker=tracker, client_id="t")),
+        ("openai", OpenAIClient(api_key="x", usage_tracker=tracker, client_id="t")),
+        ("azure", AzureClient(api_key="x", resource_name="exemple",
+                              usage_tracker=tracker, client_id="t")),
+        ("ollama", OllamaClient(usage_tracker=tracker, client_id="t")),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_chaque_client_refuse_reellement_quand_le_quota_est_depasse():
+    """Le test qui manquait : l'import ne prouve pas l'appel.
+
+    C'est exactement la distinction posee pour l'epinglage MCP — un test verifie que le
+    module est CITE, l'autre qu'il AGIT — et elle n'avait pas ete appliquee ici. Un
+    `verifier_quota` importe puis jamais appele passerait le premier.
+    """
+    for nom, client in _clients_avec_tracker():
+        with pytest.raises(QuotaExceededError):
+            await client.chat(messages=[{"role": "user", "content": "bonjour"}])
+        assert True, nom
+
+
+@pytest.mark.asyncio
+async def test_le_refus_precede_tout_appel_reseau():
+    """Le controle doit couper AVANT la requete, pas apres.
+
+    Les clients pointent ici vers un domaine invalide : si la garde laissait passer,
+    l'echec serait une erreur reseau et non un refus de quota. Distinguer les deux est
+    tout l'objet de ce test.
+    """
+    from colaig.integrations.llm.openai_client import OpenAIClient
+
+    client = OpenAIClient(api_key="x", base_url="https://hote.invalid",
+                          usage_tracker=_TrackerQuiRefuse(), client_id="t")
+    with pytest.raises(QuotaExceededError):
+        await client.chat(messages=[{"role": "user", "content": "bonjour"}])
