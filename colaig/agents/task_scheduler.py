@@ -29,7 +29,7 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 
-from colaig.security.path_validator import validate_storage_path
+from colaig.security.acl import WorkspaceACL
 
 logger = logging.getLogger(__name__)
 
@@ -740,9 +740,10 @@ async def _deliver_result(
         # lui-même modifiable par qui écrit sur l'espace : valider seulement à la
         # création laisserait passer une tâche éditée après coup.
         try:
-            cible = validate_storage_path(
-                task.delivery_target, allow_dotcolaig=False,
-                context=f"livraison tâche {task.task_id}",
+            cible = WorkspaceACL.validate_delivery_target(
+                "document", task.delivery_target,
+                user_id=task.user_id,
+                personal_workspace_path=task.workspace_path or "",
             )
         except Exception as exc:
             logger.error(

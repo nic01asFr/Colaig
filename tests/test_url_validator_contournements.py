@@ -167,3 +167,92 @@ def test_la_reliaison_dns_n_est_PAS_couverte():
     limite visible.
     """
     assert validate_navigation_url("https://exemple.gouv.fr/", resolve_dns=False)
+
+
+# ── La resolution DNS ───────────────────────────────────────────────────────
+#
+# `resolve_dns=True` est le seul chemin qui traite un vrai NOM de domaine. Il decide si
+# `interne.exemple.fr` — publiquement resolvable, pointant vers 10.x — est atteignable.
+# C'est le controle qui protege des noms deliberement pointes vers un reseau prive, et
+# il n'avait jamais ete exerce : la couverture du module s'arretait aux formes
+# litterales.
+
+
+def _resolution(*adresses):
+    """Une resolution DNS deterministe, sans reseau."""
+    import socket as _s
+
+    def _faux(hote, port, *a, **k):
+        return [(_s.AF_INET, _s.SOCK_STREAM, 6, "", (ip, 0)) for ip in adresses]
+
+    return _faux
+
+
+def test_un_nom_qui_pointe_vers_une_ip_privee_est_bloque(monkeypatch):
+    """Le nom est public, la destination ne l'est pas."""
+    import socket
+
+    monkeypatch.setattr(socket, "getaddrinfo", _resolution("10.1.2.3"))
+    with pytest.raises(URLValidationError):
+        validate_navigation_url("https://interne.exemple.fr/", resolve_dns=True)
+
+
+def test_un_nom_qui_pointe_vers_les_metadonnees_est_bloque(monkeypatch):
+    import socket
+
+    monkeypatch.setattr(socket, "getaddrinfo", _resolution("169.254.169.254"))
+    with pytest.raises(URLValidationError):
+        validate_navigation_url("https://innocent.exemple.fr/", resolve_dns=True)
+
+
+def test_UNE_SEULE_adresse_privee_suffit_a_bloquer(monkeypatch):
+    """Un nom peut resoudre vers plusieurs adresses.
+
+    Ne regarder que la premiere laisserait passer un nom qui rend une IP publique en
+    tete et une IP privee ensuite — l'ordre d'un jeu d'enregistrements DNS n'est pas
+    garanti, et un attaquant le controle.
+    """
+    import socket
+
+    monkeypatch.setattr(socket, "getaddrinfo", _resolution("93.184.216.34", "127.0.0.1"))
+    with pytest.raises(URLValidationError):
+        validate_navigation_url("https://mixte.exemple.fr/", resolve_dns=True)
+
+
+def test_un_nom_qui_pointe_vers_une_ip_publique_passe(monkeypatch):
+    import socket
+
+    monkeypatch.setattr(socket, "getaddrinfo", _resolution("93.184.216.34"))
+    assert validate_navigation_url("https://exemple.gouv.fr/", resolve_dns=True)
+
+
+def test_un_nom_qui_ne_resout_pas_passe(monkeypatch):
+    """Comportement documente, epingle parce qu'il surprend.
+
+    Un nom sans resolution est LAISSE PASSER : la connexion echouera d'elle-meme plus
+    loin. Refuser ici transformerait toute panne DNS transitoire en refus de securite,
+    et un refus qu'on ne comprend pas se fait desactiver.
+    """
+    import socket
+
+    def _echoue(*a, **k):
+        raise socket.gaierror("pas de resolution")
+
+    monkeypatch.setattr(socket, "getaddrinfo", _echoue)
+    assert validate_navigation_url("https://inexistant.exemple.fr/", resolve_dns=True)
+
+
+def test_une_plage_bloquee_malformee_est_ignoree_sans_tout_casser(monkeypatch):
+    """Une entree de configuration fautive ne doit pas desactiver les autres.
+
+    La configuration des plages est editable ; une faute de frappe ne peut pas faire
+    tomber toute la garde. Les plages valides continuent de s'appliquer.
+    """
+    import socket
+
+    monkeypatch.setattr(socket, "getaddrinfo", _resolution("10.1.2.3"))
+    with pytest.raises(URLValidationError):
+        validate_navigation_url(
+            "https://interne.exemple.fr/", resolve_dns=True,
+            blocked_ip_ranges=["pas-un-cidr", "10.0.0.0/8"],
+        )

@@ -88,14 +88,36 @@ class TestDeliverResult:
 
     @pytest.mark.asyncio
     async def test_document_delivery(self):
-        task = _make_task(delivery_type="document", delivery_target="/espace-rh/rapport.md")
+        task = _make_task(delivery_type="document",
+                          delivery_target="/alice_tchap_fr/rapport.md")
         storage = MockStorage()
 
         await _deliver_result(task, "Contenu du rapport.", messaging=None, storage=storage)
 
-        assert "/espace-rh/rapport.md" in storage.files
-        content = storage.files["/espace-rh/rapport.md"].decode("utf-8")
+        assert "/alice_tchap_fr/rapport.md" in storage.files
+        content = storage.files["/alice_tchap_fr/rapport.md"].decode("utf-8")
         assert "Contenu du rapport." in content
+
+    @pytest.mark.asyncio
+    async def test_document_delivery_hors_espace_refusee(self):
+        """Une tache ne livre pas hors de son espace.
+
+        Ce test livrait auparavant dans `/espace-rh/` depuis une tache vivant dans
+        `/alice_tchap_fr/`, et passait. C'est la garde qui manquait : Colaig ecrit avec
+        SES identifiants, jamais avec ceux du demandeur. Livrer dans un espace tiers
+        contourne donc le partage de stockage — le demandeur obtient une ecriture la ou
+        il n'a peut-etre aucun droit.
+
+        Le confinement existait dans `WorkspaceACL.validate_delivery_target` et n'etait
+        branche que sur le chemin MCP.
+        """
+        task = _make_task(delivery_type="document",
+                          delivery_target="/espace-rh/rapport.md")
+        storage = MockStorage()
+
+        await _deliver_result(task, "Contenu.", messaging=None, storage=storage)
+
+        assert storage.files == {}, "la livraison hors espace doit etre refusee"
 
     @pytest.mark.asyncio
     async def test_empty_response_skipped(self):

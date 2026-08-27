@@ -529,7 +529,11 @@ def build_background_tool_registry(
     if task.delivery_type == "document":
         registry.register(
             CREATE_DOCUMENT_DEFINITION,
-            create_document_handler(storage=storage),
+            create_document_handler(
+                storage=storage,
+                workspace_path=task.workspace_path,
+                user_id=task.user_id,
+            ),
         )
 
     # ── pause_and_ask_user (human-in-the-loop) ──────────────────────────────

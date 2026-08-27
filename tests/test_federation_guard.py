@@ -36,7 +36,11 @@ from __future__ import annotations
 
 import pytest
 
-from colaig.security.federation_guard import validate_peer_chunks, validate_peer_url
+from colaig.security.federation_guard import (
+    validate_peer_chunks,
+    validate_peer_url,
+    validate_peers_config,
+)
 
 CONTOURNEMENTS = [
     ("https://2130706433/mcp", "loopback en décimal"),
@@ -168,3 +172,59 @@ def test_le_contenu_d_un_pair_reste_NON_FIABLE():
         "la normalisation ne doit pas modifier le contenu — c'est le balisage qui le "
         "declare non fiable, et il intervient plus loin"
     )
+
+
+# ── Le chargement de la liste de pairs ──────────────────────────────────────
+#
+# `validate_peers_config` lit `federation/peers.yaml`, qui est un fichier de l'espace de
+# stockage — donc du contenu que Colaig ne maitrise pas. C'est le point d'entree reel de
+# toutes les URL de pairs : `validate_peer_url` ne protege rien si la liste qui l'appelle
+# tombe au premier pair fautif.
+
+
+def test_un_pair_fautif_n_emporte_pas_les_autres():
+    """LA propriete de ce chargeur.
+
+    Lever sur un pair invalide priverait Colaig de TOUS ses pairs a cause d'un seul —
+    et un fichier YAML edite a la main en contient tot ou tard un. Le pair fautif est
+    ecarte, journalise, et les autres restent.
+    """
+    retenus = validate_peers_config([
+        {"name": "bon", "url": "https://pair.exemple.gouv.fr/mcp"},
+        {"name": "ssrf", "url": "https://127.0.0.1/mcp"},
+        {"name": "clair", "url": "http://autre.exemple.gouv.fr/mcp"},
+        {"name": "encode", "url": "https://2130706433/mcp"},
+    ])
+    assert [p["name"] for p in retenus] == ["bon"]
+
+
+def test_un_pair_fautif_est_journalise(caplog):
+    """Un pair ecarte en silence se diagnostique comme une panne reseau."""
+    import logging
+
+    with caplog.at_level(logging.WARNING):
+        validate_peers_config([{"name": "ssrf", "url": "https://127.0.0.1/mcp"}])
+
+    journal = " ".join(r.getMessage() for r in caplog.records)
+    assert "ssrf" in journal, "le pair ecarte doit etre nomme"
+
+
+@pytest.mark.parametrize("brut", [None, {}, "une chaine", 42])
+def test_un_fichier_de_pairs_qui_n_est_pas_une_liste_rend_vide(brut):
+    """`peers.yaml` est edite a la main : sa forme n'est pas garantie."""
+    assert validate_peers_config(brut) == []
+
+
+@pytest.mark.parametrize("entree", [
+    "pas un dict", 42, None, {}, {"url": ""}, {"url": "   "}, {"url": None},
+])
+def test_une_entree_sans_url_utile_est_ecartee(entree):
+    assert validate_peers_config([entree]) == []
+
+
+def test_les_champs_du_pair_sont_conserves():
+    """Ce module filtre, il ne reecrit pas : la configuration du pair traverse intacte."""
+    retenus = validate_peers_config([
+        {"name": "bon", "url": "https://pair.exemple.gouv.fr/mcp", "poids": 3},
+    ])
+    assert retenus[0]["poids"] == 3

@@ -36,8 +36,27 @@ class WorkspaceACL:
         Règles (ordre de priorité) :
         1. auth_enabled=False → True (backward compat : Colaig sans auth)
         2. workspace.public=True → True (accès public déclaré)
-        3. user_id in workspace.user_ids → True (accès explicite)
-        4. Sinon → False
+        3. user_id in workspace.owners → True (le propriétaire lit son espace)
+        4. user_id in workspace.user_ids → True (accès explicite)
+        5. Sinon → False
+
+        POURQUOI `owners` FIGURE ICI (corrigé au lot L2.6)
+        ---------------------------------------------------
+        Ce prédicat ignorait `owners`. Mesuré le 27/08/2026 sur un espace créé par
+        `manage_workspace(action="create")`, qui pose `owners=[createur]` et laisse
+        `user_ids` vide :
+
+            can_manage_workspace  → True    il administre
+            can_link_conversation → True    il y rattache une conversation
+            can_access            → False   il ne peut pas le LIRE
+
+        Le créateur d'un espace en était donc exclu, et `filter_accessible` le lui
+        cachait dans sa propre liste. Les deux autres prédicats du module consultaient
+        `owners` ; celui-ci était seul à ne pas le faire.
+
+        L'ajout **n'accorde aucun droit nouveau** : un propriétaire peut déjà s'inscrire
+        lui-même dans `user_ids` par `manage_workspace(action="update")`. Il supprime un
+        piège qui poussait à élargir `user_ids` pour contourner le symptôme.
 
         Args:
             workspace: WorkspaceConfig.
@@ -49,6 +68,8 @@ class WorkspaceACL:
         if not user_id:
             return getattr(workspace, "public", False)
         if getattr(workspace, "public", False):
+            return True
+        if user_id in (getattr(workspace, "owners", None) or []):
             return True
         user_ids = getattr(workspace, "user_ids", None) or []
         return user_id in user_ids
@@ -270,12 +291,25 @@ class WorkspaceACL:
             return delivery_target
 
         if delivery_type == "document":
+            from colaig.exceptions import StorageError
             from colaig.security.path_validator import is_subpath, validate_storage_path
-            validated = validate_storage_path(
-                delivery_target,
-                allow_dotcolaig=False,
-                context=f"delivery_target user={user_id}",
-            )
+
+            # `validate_storage_path` leve `StorageError`, qui N'EST PAS un `ValueError`.
+            # La docstring de cette fonction promet `ValueError`, et l'appelant MCP ecrit
+            # `except ValueError` : sans cette conversion, un refus s'echappait en erreur
+            # non traitee au lieu d'un message. La tache n'etait pas creee — l'echec
+            # allait donc dans le bon sens — mais rien n'etait diagnosticable.
+            #
+            # Un contrat annonce et non tenu est pire qu'un contrat absent : l'appelant
+            # ecrit du code qui a l'air correct.
+            try:
+                validated = validate_storage_path(
+                    delivery_target,
+                    allow_dotcolaig=False,
+                    context=f"delivery_target user={user_id}",
+                )
+            except StorageError as exc:
+                raise ValueError(str(exc)) from exc
             if personal_workspace_path and not is_subpath(validated, personal_workspace_path):
                 raise ValueError(
                     f"delivery_target '{validated}' hors du workspace personnel"

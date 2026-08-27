@@ -281,12 +281,21 @@ def create_task_handler(
         # Refus à la création, pour que l'erreur soit lisible au moment où elle se
         # commet. La barrière qui protège vraiment est à la livraison : une tâche
         # enregistrée peut être éditée après coup.
-        if delivery_type == "document":
-            from colaig.security.path_validator import validate_storage_path
+        # La garde est `WorkspaceACL.validate_delivery_target`, et elle EXISTAIT deja
+        # quand ce trou a ete trouve — branchee sur le seul chemin MCP. J'y ai d'abord
+        # ajoute une seconde implementation, plus faible : elle refusait `.colaig/` mais
+        # ne confinait pas la cible a l'espace. Ecrire une garde sans chercher celle qui
+        # existe est exactement le defaut que ce chantier corrige ailleurs.
+        if delivery_type in ("document", "messaging"):
+            from colaig.security.acl import WorkspaceACL
             try:
-                delivery_target_resolved = validate_storage_path(
-                    delivery_target_resolved, allow_dotcolaig=False,
-                    context="create_task",
+                delivery_target_resolved = WorkspaceACL.validate_delivery_target(
+                    delivery_type,
+                    delivery_target_resolved,
+                    user_id=_user_id,
+                    personal_workspace_path=(
+                        _workspace_path if delivery_type == "document" else ""
+                    ),
                 )
             except Exception as exc:
                 return json.dumps({
@@ -598,15 +607,23 @@ def create_pause_handler(
     return _handler
 
 
-def create_document_handler(storage) -> Callable:
+def create_document_handler(
+    storage, workspace_path: str = "", user_id: str = "",
+) -> Callable:
     """Handler pour create_document.
 
     Sauvegarde le contenu textuel dans le storage au chemin spécifié.
 
     Args:
         storage: StorageProtocol.
+        workspace_path: espace de la tâche. Fourni, la cible y est **confinée** ;
+            omis, seul le refus de `.colaig/` s'applique. Ce paramètre n'invente rien :
+            le seul appelant de production a la tâche en portée et passe sa valeur.
+        user_id: demandeur, pour la trace du refus.
     """
     _storage = storage
+    _workspace_path = workspace_path
+    _user_id = user_id
 
     async def _handler(content: str, path: str, **kwargs) -> str:
         if not path:
@@ -620,10 +637,12 @@ def create_document_handler(storage) -> Callable:
         #
         # Le refus est ANNONCÉ au modèle, pas silencieux : un échec muet le fait
         # réessayer, et une boucle agentique a plusieurs tours pour insister.
-        from colaig.security.path_validator import validate_storage_path
+        from colaig.security.acl import WorkspaceACL
         try:
-            path = validate_storage_path(path, allow_dotcolaig=False,
-                                         context="create_document")
+            path = WorkspaceACL.validate_delivery_target(
+                "document", path,
+                user_id=_user_id, personal_workspace_path=_workspace_path,
+            )
         except Exception as exc:
             return json.dumps({
                 "success": False,
