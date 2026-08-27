@@ -14,6 +14,7 @@ Stockage : JSON via StorageProtocol, chemin .colaig/conversations/{id}.json
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import math
@@ -23,6 +24,9 @@ from datetime import datetime
 from colaig import paths
 
 logger = logging.getLogger(__name__)
+
+# Au-dela, les verrous des conversations inactives sont relaches.
+_MAX_VERROUS = 256
 
 # Toujours inclure les N derniers messages pour le contexte récent
 ALWAYS_INCLUDE_RECENT = 3
@@ -70,6 +74,8 @@ class ConversationMemory:
         self._embedding_service = embedding_service
         self._max_stored = max_stored
         self._max_retrieved = max_retrieved
+        # Un verrou PAR CONVERSATION — voir `save_turn`.
+        self._verrous: dict[str, asyncio.Lock] = {}
 
     # ------------------------------------------------------------------
     # API publique
@@ -160,15 +166,44 @@ class ConversationMemory:
             {"role": "assistant", "content": assistant_response, "ts": now_ts},
         ]
 
-        # Reconstituer depuis l'historique complet pour ne pas perdre l'historique tronqué
-        full_history = await self._load_full_history(workspace_path, conversation_id)
-        updated = full_history + new_messages
+        # LECTURE-MODIFICATION-ÉCRITURE, sous verrou (L2.6).
+        #
+        # Sans lui, deux tours simultanés dans la même conversation chargent tous deux
+        # le même historique, ajoutent chacun le leur, et le second écrase : **un tour
+        # disparaît**. Deux messages envoyés coup sur coup y suffisent.
+        #
+        # Le verrou est PAR CONVERSATION : un verrou global ferait qu'une conversation
+        # lente retienne toutes les autres — ce qui échangerait une perte de données
+        # contre une panne de débit.
+        #
+        # Il vit ICI et non dans le gestionnaire de messages, parce que c'est ici qu'est
+        # la course : le planificateur de tâches appelle aussi `save_turn`.
+        cle = f"{workspace_path}::{conversation_id}"
+        verrou = self._verrous.get(cle)
+        if verrou is None:
+            verrou = self._verrous.setdefault(cle, asyncio.Lock())
 
-        # Tronquer aux max_stored derniers messages
-        if len(updated) > self._max_stored:
-            updated = updated[-self._max_stored:]
+        async with verrou:
+            # Reconstituer depuis l'historique complet pour ne pas perdre l'historique
+            # tronqué
+            full_history = await self._load_full_history(workspace_path, conversation_id)
+            updated = full_history + new_messages
 
-        await self._save_full_history(workspace_path, conversation_id, updated)
+            # Tronquer aux max_stored derniers messages
+            if len(updated) > self._max_stored:
+                updated = updated[-self._max_stored:]
+
+            await self._save_full_history(workspace_path, conversation_id, updated)
+
+        # Les verrous des conversations inactives sont relâchés : un dictionnaire qui ne
+        # se vide jamais est une fuite lente sur une instance qui sert des milliers de
+        # salons. On ne retire QUE les verrous libres — jamais un verrou derrière lequel
+        # quelqu'un attend.
+        if len(self._verrous) > _MAX_VERROUS:
+            for autre, v in list(self._verrous.items()):
+                if autre != cle and not v.locked():
+                    del self._verrous[autre]
+
         return updated
 
     # ------------------------------------------------------------------
