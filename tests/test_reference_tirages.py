@@ -145,12 +145,16 @@ def test_aucun_tirage_observe_ne_franchit_son_propre_seuil():
 # ── La dette, rendue visible plutôt qu'oubliée ──────────────────────────────
 
 
+# Les quatre blocs de `generation` qui figuraient ici ont ete fondes le 28/08 sur
+# dix-sept observations : ils se lisent tous dans le rapport de `reanalyse_generation`,
+# qui ne fait AUCUN appel au modele. Les mesurer ne coutait donc que la relecture
+# d'archives deja produites.
+#
+# Les trois qui restent demandent d'autres harnais : `recherche` passe par
+# `reference_l15.py`, `verificateur_fidelite` par le sien. Leur attribuer un nombre de
+# tirages aujourd'hui reviendrait a inventer une donnee (`CLAUDE.md` §4.8).
 SANS_TIRAGES_CONNUS = {
     "recherche.complets_sur_attendus",
-    "generation.refus_systematique",
-    "generation.montants_inventes_max",
-    "generation.tronquees_max",
-    "generation.garde_fou_rendues",
     "verificateur_fidelite.detection_derives",
     "verificateur_fidelite.faux_negatifs_max",
 }

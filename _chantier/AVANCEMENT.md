@@ -2551,3 +2551,82 @@ sur 3 espaces — resserrerait cette limite. Les deux dettes sont liées.
 - `cite_attendu` juge contre **un seul** article attendu.
 - Le vérificateur de fidélité est à 82,7 % de sensibilité, et 50 % sur les omissions.
 - Le corpus adversarial est écrit par l'agent.
+
+---
+
+## LES SEPT INDICATEURS DE GÉNÉRATION SONT FONDÉS · 28/08/2026
+
+Dix-sept observations de la même condition : douze tirages du harnais de dispersion et
+cinq passages de la porte. Les deux chemins mesurent la même chose ; les séparer n'avait
+pas lieu d'être.
+
+La dette passe de **sept blocs non fondés à trois**.
+
+| indicateur | valeur | seuil | n | règle |
+|---|---|---|---|---|
+| `refus_systematique` | 1.000 | ≥ 0.95 | 17 | plancher fixe, **σ = 0** |
+| `cite_attendu` | 0.782 | ≥ 0.747 | 17 | moyenne − 2σ |
+| `garde_fou_rendues` | 0.843 | ≥ 0.78 | 17 | plancher **conservé, non resserré** |
+| `fantomes` | 7.53 | ≤ 16 | 17 | moyenne + 3σ |
+| `hors_contexte` | 23.24 | ≤ 34 | 17 | ancré sur l'état dégradé (k=6) |
+| `montants_inventes` | 0.65 | ≤ 3 | 17 | moyenne + 3σ |
+| `tronquees` | 2.35 | ≤ 12 | 17 | plafond **conservé, non resserré** |
+
+### Deux valeurs de référence à zéro étaient fausses
+
+`montants_inventes` affirmait que le système **n'invente jamais de montant**. Mesuré :
+**0,65 par exécution en moyenne, jusqu'à 2**. `tronquees` disait zéro pour **2,35**
+réelles.
+
+Même défaut que la veille — un zéro posé sur un tirage — mais portant cette fois sur une
+**propriété du produit**, pas sur un seuil. C'est l'indicateur le plus grave des sept :
+sur un corpus juridique, un montant fabriqué produit une procédure irrégulière et rien
+dans la réponse ne le signale.
+
+Son plafond passe de 2 à 3 : moyenne + 3σ vaut 2,75 et le maximum observé est 2. Un
+plafond de 2 serait franchi au premier tirage de queue.
+
+### Douze tirages consécutifs ont manqué la queue
+
+Le harnais de dispersion plafonnait à **8 fantômes** sur douze tirages. Les valeurs **11
+et 15** sont venues des passages de porte — même condition, autre chemin.
+
+**Fonder ce seuil sur ces douze tirages aurait donné 10, et il aurait été franchi.**
+
+Quatrième démonstration de la journée qu'un échantillon sous-estime une dispersion, et la
+plus contre-intuitive : ici, *plus* de tirages menaient à une *pire* conclusion, parce
+qu'ils formaient un lot homogène.
+
+### Deux seuils que les chiffres autorisaient à resserrer, et qui ne l'ont pas été
+
+`garde_fou_rendues` : moyenne − 2σ donnerait 0,798 pour un minimum observé de 0,808 —
+une marge de 0,010 sur un indicateur dont on venait de mesurer que dix-sept tirages
+peuvent manquer la queue.
+
+`tronquees` : moyenne + 3σ donnerait 6,7 pour un plafond de 12 — mais une réponse
+tronquée dépend de `max_tokens`, dont ce chantier a mesuré qu'il décide de tout (à 2 048
+jetons la réponse est tronquée, à 900 elle est vide). Le plafond garde une marge face à
+un réglage qui n'est pas du bruit.
+
+**Un seuil qu'on resserre parce qu'on a des chiffres est un seuil qu'on rouvrira au
+premier tirage de queue.**
+
+### Une convergence indépendante
+
+`hors_contexte` donne **moyenne + 3σ = 32,9** sur dix-sept observations, pour un plafond
+fixé à **34** par ancrage sur l'état dégradé connu à k=6. Deux raisonnements sans rapport
+se rejoignent à un point près.
+
+### Vérification
+
+Porte rejouée après consolidation : **aucune régression**, et chaque valeur mesurée tombe
+près de sa référence — 0,786 contre 0,782 ; fantômes 8 contre 7,53 ; garde-fou 0,848
+contre 0,843. C'est à quoi ressemble une référence qui décrit le système, par opposition
+à une qui décrit un tirage.
+
+### Ce qui reste non fondé
+
+Trois blocs, qui demandent d'autres harnais : `recherche.complets_sur_attendus` passe par
+`reference_l15.py`, et les deux blocs de `verificateur_fidelite` par le leur. Les quatre
+qui viennent d'être fondés ne coûtaient que la **relecture d'archives déjà produites** —
+`reanalyse_generation.py` ne fait aucun appel au modèle.
