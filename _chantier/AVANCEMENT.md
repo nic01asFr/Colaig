@@ -3104,3 +3104,20 @@ ne plus faire dépendre le catalogue d'un verdict LLM seul.
 
 À ne pas surestimer : `needs_tools=true` **ouvre** le catalogue, il ne déclenche pas un
 appel. C'est une escalade d'exposition, pas d'exécution.
+
+---
+
+## L2.5c — LA GARDE ETAIT POSEE AU MAUVAIS MOMENT · 29/08/2026 · **corrige**
+
+Voir D53. Le filtre par intention etait applique AVANT six enregistrements qui lui
+echappaient. Mesure : en mode PERSONAL avec `needs_tools=False`, le modele recevait
+`create_background_task`.
+
+La correction est un deplacement : le filtre est appele apres tous les enregistrements.
+Un test lit la source et refuse qu un `register` reapparaisse apres lui — ce sera le cas
+au lot L3.4, ou les outils MCP comptent pour destructifs faute d annotation.
+
+Verifie et non suppose : l Analyseur repond `needs_tools=True` 3/3 sur une demande
+d action, `False` 3/3 sur une question documentaire. Le chemin d administration tient.
+
+**5 tests pour ce lot, 2406 au total.**

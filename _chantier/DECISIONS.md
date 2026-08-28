@@ -2812,3 +2812,95 @@ sens qui rassure.
 Le bras témoin manquait également à la première version : sans lui, « 100 % dans les
 deux bras » se lisait aussi bien « l'attaque fonctionne » que « le modèle répond `true`
 de toute façon ».
+
+---
+
+## D53 — Aucune des trois issues de D52 : le vrai défaut était un ordre · 29/08/2026 · **actée**
+
+D52 proposait trois issues pour la bascule de `needs_tools` obtenue par une ancre
+empoisonnée : couper le canal, contraindre la forme des ancres, ou ne plus faire
+dépendre le catalogue d'un verdict LLM. **Aucune n'était la bonne**, et le vérifier
+avant de construire a évité de traiter un symptôme.
+
+### Ce que la vérification a donné
+
+**Le catalogue interactif ordinaire ne contient aucun outil destructif.**
+
+    catalogue ASSISTANT : search_documents, fetch_document, list_documents,
+                          summarize_text, search_skill
+    dont destructifs    : aucun
+
+    needs_tools=False -> ces cinq
+    needs_tools=True  -> ces cinq
+    difference        -> AUCUNE
+
+La bascule mesurée en D52 est donc **réelle comme verdict, et sans conséquence** sur ce
+chemin. C'est aussi ce qui explique le « 0/21 structurel » de L2.5 : il n'y avait rien à
+appeler.
+
+### Le défaut, lui, était ailleurs — et il est présent
+
+`_filter_registry_for_intent` était appelé **au milieu** de la construction du catalogue,
+dans `_execute_agentic`. Six enregistrements le suivaient :
+
+    filtre par intention          <- la garde s'appliquait ICI
+    handler de recherche isolé
+    ask_workspace
+    find_workspace
+    create_background_task        <- DESTRUCTIF, en mode PERSONAL
+    outils d'administration       <- destructifs, sous garde ACL
+    outils MCP                    <- destructifs PAR DÉFAUT
+    tool_schemas = list_openai_schemas()   <- ce que le modèle reçoit
+
+**Tout ce qui était enregistré après lui échappait.** La garde portait sur un état
+intermédiaire qui n'était plus celui qu'on transmettait.
+
+Mesuré, en mode PERSONAL avec `needs_tools=False` :
+
+    transmis au modèle : create_background_task, fetch_document, list_documents,
+                         search_documents, search_skill, summarize_text
+    dont destructifs   : create_background_task
+
+`create_background_task` fait exécuter une requête plus tard, **sans témoin**.
+
+### Pourquoi les tests de L2.5b ne pouvaient pas le voir
+
+`test_outils_hors_plan.py` exerce le filtre **isolément**, sur un registre factice. Le
+filtre y fait exactement ce qu'on lui demande. La question posée était « la garde
+fonctionne-t-elle ? » ; celle qui décrit le produit est « qu'est-ce qui arrive au
+modèle ? ».
+
+C'est la neuvième fois que ce dépôt trouve une garde correcte appliquée au mauvais
+moment, ou testée hors de son chemin.
+
+### La correction
+
+Le filtre est appelé **après tous les enregistrements**, juste avant
+`list_openai_schemas()`. Un test lit la source et refuse qu'un `register` réapparaisse
+après lui — car **ce sera le cas au lot L3.4** : les outils MCP sont enregistrés
+dynamiquement, et l'absence d'annotation vaut « destructif » au sens de la spécification.
+
+### Ce que la correction change pour l'administration, mesuré
+
+Le déplacement soumet aussi les outils d'administration au filtre. Vérifié plutôt que
+supposé, 3 tirages par demande sur l'endpoint réel :
+
+| demande | `needs_tools` |
+|---|---|
+| « crée un espace de travail nommé Équipe RH » | **True** 3/3 |
+| « planifie une veille hebdomadaire » | **True** 3/3 |
+| « que dit le code sur l'allotissement ? » | **False** 3/3 |
+
+L'Analyseur discrimine. Le chemin d'administration n'est pas cassé, et une éventuelle
+erreur de verdict ferait échouer une action destructive — le sens sûr.
+
+### Ce qui reste de D52
+
+Le canal de l'ancre reste **réel et total** comme verdict (0/8 → 8/8). Il est sans
+conséquence tant qu'aucun outil destructif n'est joignable en mode ASSISTANT. Un test
+épingle désormais cette condition (`test_le_mode_ASSISTANT_ordinaire_n_expose_rien_de_destructif`) :
+elle échouera le jour où quelqu'un ajoutera un destructif au registre interactif,
+plutôt que d'être redécouverte par une mesure adversariale des mois plus tard.
+
+Les trois issues de D52 redeviendront pertinentes ce jour-là. Elles ne le sont pas
+aujourd'hui.

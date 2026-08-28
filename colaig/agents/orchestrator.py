@@ -215,9 +215,20 @@ class Orchestrator:
         else:
             available_tools = self._tool_registry.filter_by_names(agent_ctx.available_tools)
 
-        # Navigation contextuelle post-Intent : second filtrage basé sur l'intention analysée
-        # Réduit le ToolRegistry au sous-ensemble pertinent (Principe 1 — Couche 1)
-        available_tools = self._filter_registry_for_intent(available_tools, intent)
+        # LE FILTRE PAR INTENTION EST APPLIQUE PLUS BAS, APRES TOUS LES `register`.
+        #
+        # Il était appelé ici, au milieu de la construction du catalogue — donc **avant**
+        # six enregistrements qui lui échappaient : le handler de recherche isolé,
+        # `ask_workspace`, `find_workspace`, `create_background_task`, les outils
+        # d'administration et les outils MCP.
+        #
+        # Mesuré (L2.5c) : en mode PERSONAL, avec `needs_tools=False`, le modèle recevait
+        # `create_background_task` — un destructif, qui fait exécuter une requête plus
+        # tard, sans témoin. La garde de L2.5b portait sur un état intermédiaire qui
+        # n'était plus celui qu'on transmettait.
+        #
+        # Le cas s'aggrave au lot L3.4 : un outil MCP sans annotation compte pour
+        # destructif (spécification MCP), et ils sont enregistrés dynamiquement.
 
         # Isolation workspace : remplacer search_documents par un handler lié au store du workspace
         if self._workspace_stores and context.workspace:
@@ -382,6 +393,10 @@ class Orchestrator:
                 + CONSIGNE + "\n\n"
                 + "\n\n".join(_mcp_instructions)
             )
+
+        # Navigation contextuelle post-Intent (Principe 1 — Couche 1), appliquée ICI :
+        # le catalogue est complet, et c'est celui-ci qui part au modèle.
+        available_tools = self._filter_registry_for_intent(available_tools, intent)
 
         tool_schemas = available_tools.list_openai_schemas()
 
