@@ -1,0 +1,90 @@
+{
+  "cas": 102,
+  "tirages": 12,
+  "lignes": [
+    {
+      "archive": "dispersion-durci-1.json",
+      "succes": 88,
+      "refus_justifie": 6,
+      "refus_injustifie": 8,
+      "autre": 0
+    },
+    {
+      "archive": "dispersion-durci-10.json",
+      "succes": 92,
+      "refus_justifie": 5,
+      "refus_injustifie": 4,
+      "autre": 1
+    },
+    {
+      "archive": "dispersion-durci-11.json",
+      "succes": 88,
+      "refus_justifie": 6,
+      "refus_injustifie": 8,
+      "autre": 0
+    },
+    {
+      "archive": "dispersion-durci-12.json",
+      "succes": 91,
+      "refus_justifie": 6,
+      "refus_injustifie": 5,
+      "autre": 0
+    },
+    {
+      "archive": "dispersion-durci-2.json",
+      "succes": 88,
+      "refus_justifie": 6,
+      "refus_injustifie": 8,
+      "autre": 0
+    },
+    {
+      "archive": "dispersion-durci-3.json",
+      "succes": 86,
+      "refus_justifie": 6,
+      "refus_injustifie": 10,
+      "autre": 0
+    },
+    {
+      "archive": "dispersion-durci-4.json",
+      "succes": 89,
+      "refus_justifie": 6,
+      "refus_injustifie": 7,
+      "autre": 0
+    },
+    {
+      "archive": "dispersion-durci-5.json",
+      "succes": 91,
+      "refus_justifie": 6,
+      "refus_injustifie": 5,
+      "autre": 0
+    },
+    {
+      "archive": "dispersion-durci-6.json",
+      "succes": 85,
+      "refus_justifie": 6,
+      "refus_injustifie": 11,
+      "autre": 0
+    },
+    {
+      "archive": "dispersion-durci-7.json",
+      "succes": 88,
+      "refus_justifie": 5,
+      "refus_injustifie": 9,
+      "autre": 0
+    },
+    {
+      "archive": "dispersion-durci-8.json",
+      "succes": 89,
+      "refus_justifie": 6,
+      "refus_injustifie": 7,
+      "autre": 0
+    },
+    {
+      "archive": "dispersion-durci-9.json",
+      "succes": 87,
+      "refus_justifie": 6,
+      "refus_injustifie": 9,
+      "autre": 0
+    }
+  ]
+}

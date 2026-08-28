@@ -2630,3 +2630,116 @@ Trois blocs, qui demandent d'autres harnais : `recherche.complets_sur_attendus` 
 `reference_l15.py`, et les deux blocs de `verificateur_fidelite` par le leur. Les quatre
 qui viennent d'être fondés ne coûtaient que la **relecture d'archives déjà produites** —
 `reanalyse_generation.py` ne fait aucun appel au modèle.
+
+---
+
+## QUATRE ANGLES MORTS DE L'INSTRUMENT · 28/08/2026
+
+L'arbitre humain a posé la question qui manquait : *les erreurs de Colaig viennent-elles
+du corpus, et prête-t-on au modèle des défauts qui sont ceux de la mesure ?*
+
+Quatre angles morts trouvés. **Aucun n'est un défaut du produit.** Trois faisaient
+paraître Colaig moins bon qu'il n'est ; le quatrième le fait paraître meilleur.
+
+### 1. Onze cas structurellement impossibles
+
+Onze cas positifs sur 113 attendent une référence **CCAG ou d'annexe** (« CCAG
+Travaux 4 »), que l'extracteur ne peut pas produire : il ne reconnaît que `L/R/D` suivi
+de chiffres. Le plafond théorique de `cite_attendu` n'est donc pas 1.0 mais **0.903**.
+
+Mesuré sur douze archives : **4,67 de ces onze cas contiennent la bonne réponse** —
+`mp-013` répond « CCAG Travaux, **Article 4.1** [Document 1] », ce qui est juste et compté
+faux.
+
+| lecture | valeur |
+|---|---|
+| `cite_attendu` mesuré | 0.782 |
+| corrigé, CCAG crédités | **0.823** |
+| sur les cas où c'est possible | **0.866** |
+
+### 2. La notation est trop indulgente sur onze autres cas
+
+Onze cas attendent **plusieurs** articles et la notation utilise une intersection :
+citer l'un suffit. `mp-002` dit pourtant dans sa propre justification « la réponse exige
+l'article législatif ET le réglementaire ».
+
+Les deux défauts vont en **sens opposés** et portent sur des cas différents : ils ne se
+compensent pas.
+
+### 3. On ne distinguait pas un refus d'une mauvaise citation
+
+Levé. Sur 102 cas positifs à référence codifiée, douze tirages :
+
+| | par exécution | où porter l'effort |
+|---|---|---|
+| succès | 88.5 (86.8 %) | — |
+| **refus alors que l'article ÉTAIT un passage reçu** | **7.6 (7.4 %)** | **génération** |
+| refus, article absent des passages | 5.8 (5.7 %) | recherche |
+| mauvaise citation | 0.1 (0.1 %) | — |
+
+**Colaig ne cite presque jamais le mauvais article — il refuse.** `cite_attendu` mesure
+donc une **couverture**, pas une fidélité : 0.78 ne veut pas dire « 22 % de réponses
+fausses » mais « 22 % du temps, l'assistant dit qu'il ne sait pas ». Pour un assistant
+juridique, c'est le mode de défaillance sûr.
+
+**57 % des échecs sont un sur-refus** portant sur un texte reçu. L'effort le plus rentable
+est donc dans le **prompt**, pas dans l'index — l'inverse de l'hypothèse naturelle.
+
+> **Réserve** : la référence est mesurée en `variante: durci`, une addition du harnais qui
+> impose une formule de refus. Ce sur-refus pourrait être fabriqué par notre propre
+> instrument. À comparer avec la variante `temoin` avant d'agir.
+
+Deux détecteurs faux ont été écrits avant celui-ci — l'un cherchait un en-tête `## Article`
+que le découpeur retire, et rendait un **0.0 rassurant et vide de sens**. Le bon ancrage
+est `chunk.section`. Le contrôle « 7,7 articles définis par jeu de dix passages » est
+désormais imprimé : un détecteur qui rend zéro doit se dénoncer.
+
+### 4. `montants_inventes` couvre 4 % de la surface
+
+Le plus grave, et le seul qui flatte. Notre motif est `\d{1,3}( \d{3})+` — « 25 000 » et
+rien d'autre.
+
+    grandeurs en CHIFFRES + unité      :  130
+    grandeurs en LETTRES + unité       : 1042      89 %
+    vues par notre métrique            :   42       4 %
+
+**Un montant fabriqué écrit « quarante-cinq mille euros » est invisible.** Nous croyions
+mesurer les montants inventés sur un corpus dont 89 % des grandeurs sont en lettres.
+
+Trouvé en cherchant ailleurs dans wikichat : le projet **`redacteur-corpus`** — dont le
+corpus est *assemblé depuis le nôtre* — a mesuré 71 % sur son sous-ensemble de 399
+sources. Deux mesures indépendantes, même conclusion.
+
+### Ce que le voisinage a déjà construit, sur nos données
+
+`Editeur/redacteur/src/coherence.js`, 331 lignes, sans dépendance, « rejouable seul » :
+
+- **`lireNombre`** — lit les nombres en lettres, gère `quatre-vingt` et `soixante-dix`, et
+  **rend `null` plutôt qu'une valeur à moitié lue**. Leur mesure : le motif naïf lit
+  « quarante-cinq jours » comme « 5 jours » **2 fois sur 146**. Une correction naïve serait
+  donc pire que l'absence de correction.
+- **`grandeurs`** — nombre + unité contractuelle, avec la nature (durée / montant / taux)
+  et une conversion qui est de l'arithmétique, pas de l'interprétation : jours et mois ne
+  se convertissent **pas** l'un dans l'autre, « trente jours » et « un mois » n'étant pas
+  la même échéance en droit.
+- **366 arêtes de renvoi** et la **numérotation CCAG comme classe** (20 % de leurs 399
+  sources) — exactement les deux briques qui manquaient aux angles morts 1 et 3.
+
+Un résultat négatif utile aussi : extraire « ce qui nomme un nombre » dans les mots qui le
+précèdent **ne marche pas**, pour une raison grammaticale — en prose juridique française
+le nom vient *après*, dans une subordonnée à distance variable.
+
+### La suite, et son ordre
+
+Les trois corrections de notation se tiennent : elles changent toutes `cite_attendu` ou
+`montants_inventes`, et chacune invalide les valeurs de référence. **Les faire ensemble,
+remesurer une fois** — pas trois.
+
+1. Reconnaître les références CCAG et d'annexe **dans la notation**, pas dans
+   l'extracteur : élargir `articles_cites` à « Article 4 » créerait des faux positifs
+   partout, y compris sur la détection de fantômes.
+2. Distinguer articles **requis** et **acceptables** sur les onze cas multi-articles.
+3. Porter `lireNombre` en Python pour `montants()`, avec ses tests — la valeur du portage
+   est dans le `null`, pas dans la lecture.
+
+Puis seulement : agrandir le jeu doré. Multiplier un instrument faussé multiplie le faux.
