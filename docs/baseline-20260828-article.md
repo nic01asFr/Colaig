@@ -30,7 +30,7 @@ Sur les **113 cas ayant des articles attendus** :
 
 Rang du premier article attendu : médiane **1**, moyenne 1.9, max 10 (sur k=10).
 
-Latence de recherche : médiane **0.0 ms** (min 0.0, max 47.0).
+Latence de recherche : médiane **0.0 ms** (min 0.0, max 172.0).
 Embedding d'une question : **0 ms** en moyenne.
 
 ### Détail par cas
@@ -198,8 +198,8 @@ Ce qu'il devra mesurer, par ordre d'importance :
 
 ## Coûts d'établissement
 
-- Embedding du corpus : **0 s** pour 1021 chunks (3633 chunks/s).
-- Construction de l'index : 47 ms.
+- Embedding du corpus : **1 s** pour 1021 chunks (1556 chunks/s).
+- Construction de l'index : 187 ms.
 - Empreinte de l'index : **4.2 Mo** en float32.
 
 ## Comment rejouer

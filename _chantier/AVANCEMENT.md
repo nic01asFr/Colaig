@@ -2822,3 +2822,54 @@ Trois pistes de correction, aucune engagée :
    l'avoir décidé.
 
 Le choix relève de l'arbitrage humain : il porte sur ce que le produit promet.
+
+---
+
+## LES TROIS CORRECTIONS DE NOTATION SONT FAITES · 28/08/2026
+
+Porte verte, **neuf indicateurs** fondés et branchés. 2306 tests.
+
+| correction | effet mesuré | remesure |
+|---|---|---|
+| reconnaître les références CCAG | `cite_attendu` **0.784 → 0.806** | faite **sur archives, sans génération** |
+| `cite_attendu_complet` ajouté | **0.775** — l'exigence stricte coûte 0.031 | sans objet |
+| `montants()` sur `lire_nombre` | **0.58 → 0.58** | **aucune** |
+
+### Deux affirmations que la mesure a défaites
+
+**`montants_inventes` ne surestimait pas la sécurité.** J'avais écrit qu'il couvrait 4 %
+de la surface et flattait le produit. Mesuré : l'ancien motif était aveugle aux lettres
+**mais aussi trop large sur les chiffres** — « 25 000 » comptait comme montant sans
+unité, donc « l'article 25 000 » aussi. Les deux défauts se compensaient exactement.
+
+**L'angle mort était réel et VIDE.** La correction est faite quand même — un indicateur
+juste pour de mauvaises raisons cesse de l'être au premier texte différent — mais elle
+n'oblige à aucune remesure.
+
+**Le défaut d'indulgence est petit** : 0.031, pas l'écart redouté. Quand Colaig cite un
+des articles attendus, il les cite presque toujours tous.
+
+### Le défaut que j'ai créé en le corrigeant
+
+`cite_attendu_complet` a été inscrit dans `reference.json` et **aucune porte ne le
+lisait** — dixième occurrence du motif « écrit et non branché », commise cinq minutes
+après l'avoir décrit. Il est désormais comparé.
+
+Le brancher n'est **pas** le promouvoir : les deux lectures coexistent, et décider
+laquelle fait foi reste un arbitrage humain.
+
+### Ce que je n'ai pas fait, et pourquoi
+
+**Le jeu doré n'est pas modifié.** Inscrire « tous les articles requis » y encoderait
+mon interprétation de onze justifications — sept la disent explicitement, quatre
+l'impliquent. `CLAUDE.md` §4.8 et §5.
+
+### Les quatre arbitrages ouverts
+
+1. **PORTE 1 — sécurité.** 0/21 structurel, bras témoin 2/21. Bloquant avant tout
+   multi-utilisateurs.
+2. **Confusion de régime — 39,5 %.** Filtrer / annoter / documenter. Le seul défaut qui
+   produit du **droit faux** plutôt qu'un défaut de provenance.
+3. **Promouvoir la lecture stricte ?** Coût chiffré : 3 points.
+4. **Sur-refus — 7,4 %.** À mesurer en variante `temoin` avant d'y toucher : il pourrait
+   être fabriqué par notre propre harnais.
