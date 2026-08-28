@@ -2375,3 +2375,78 @@ il valait aussi pour la règle qui gouverne ce fichier.
 **2226 tests.** Le rappel qui doit survivre à ce journal : le 0/21 de L2.5 est obtenu en
 **retirant** les outils, pas en y résistant. Bras témoin, garde coupée : 2/21. Si
 `needs_tools` bascule à `True`, c'est la confirmation de L2.4 qui agit seule.
+
+---
+
+## CANARI DE MODÈLES · 28/08/2026 · le trou le plus sérieux du dispositif
+
+### Ce qu'il bouche
+
+Toutes les valeurs de `reference.json` sont mesurées contre **deux modèles distants** :
+
+    génération   qwen3-6-35b-moe   SSPCloud
+    embeddings   BAAI/bge-m3       Albert
+
+Vérifié : les catalogues rendent le **nom** du modèle servi, mais **ni version, ni date,
+ni empreinte**. Un changement de poids sous le même nom rendrait toute la référence
+caduque **en silence**, et la porte imputerait la dérive à notre code.
+
+Ce n'est pas théorique. La soirée du 27/08 a été passée à faire exactement cette
+distinction à la main, sur une porte devenue rouge sans qu'une ligne du chemin de
+génération n'ait bougé.
+
+### La calibration a inversé les deux hypothèses de départ
+
+Le canari a d'abord été écrit sur deux convictions. **Les deux étaient fausses**, et le
+mode `--calibrer` les a défaites en trois minutes.
+
+| hypothèse | mesure |
+|---|---|
+| « un embedding est déterministe » | **non** — écart absolu **2.6 × 10⁻⁴** entre deux appels du même texte |
+| « la génération à température 0 est bruitée » | **non** — 5 tirages, une seule réponse pour chacune des 3 questions |
+
+Aucun arrondi ne stabilise une empreinte par hachage sur les embeddings : testé de 3 à 6
+décimales, toujours trois empreintes distinctes sur cinq tirages. Un arrondi ne fait que
+déplacer la frontière où le bruit bascule.
+
+**La règle de comparaison est donc l'inverse de ce qui était prévu** : cosinus pour les
+embeddings, égalité stricte pour la génération.
+
+### Discrimination mesurée
+
+| situation | cosinus |
+|---|---|
+| bruit propre, même modèle même texte | **0.999999** |
+| **seuil retenu** | **0.9999** |
+| même modèle, textes différents | **0.433** |
+| autre modèle (`qwen3-vl-embedding-8b`) | attrapé par la dimension, 4096 ≠ 1024 |
+
+Trois ordres de grandeur entre le bruit et un changement réel. **Le canari sait ne pas
+crier, et il sait crier** — les deux ont été éprouvés.
+
+### Ce qui est branché, et comment
+
+`verifier_reference.py` consulte le canari **avant** de comparer les seuils :
+
+- **dérive détectée → la porte s'arrête**, avec le message qu'il ne faut pas imputer de
+  régression au code avant d'avoir remesuré la référence. Continuer produirait un
+  diagnostic faux ;
+- **canari absent → avertissement, sans blocage.** Un poste neuf ou une chaîne
+  d'intégration n'en a pas encore ; bloquer rendrait la porte inutilisable et ferait
+  retirer le canari. Une garde trop zélée se fait désactiver.
+
+`tests/test_canari_branche.py` — sept tests, dont celui qui compte : **le seuil est
+au-dessus du bruit propre mesuré**. Un garde-fou dont le seuil touche son propre bruit
+crie au loup, et l'on apprend à ne plus le lire.
+
+### Un renseignement obtenu au passage
+
+L'API Albert **refuse une chaîne vide** en entrée d'embedding : `inputs cannot be empty`,
+et c'est le **lot entier** qui échoue, pas seulement l'entrée fautive. À savoir pour
+l'indexation : un document vide dans un lot fait tomber ses voisins.
+
+### Ce que le canari ne fait pas
+
+Il détecte un changement de modèle, **pas** une dérive lente de qualité à modèle
+constant. Et il ne couvre que les deux modèles de la référence — un espace configuré sur
+un autre fournisseur n'est pas surveillé.

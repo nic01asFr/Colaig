@@ -86,7 +86,43 @@ def comparer(nom: str, mesure: float, seuil: dict, ecarts: list[str]) -> str:
             f"référence {seuil['valeur']}")
 
 
+def canari() -> None:
+    """Le modele mesure est-il encore le meme ?
+
+    Sans ce controle, un changement de poids sous le meme nom rendrait toutes les
+    valeurs de reference caduques EN SILENCE, et cette porte imputerait la derive au
+    code. La soiree du 27/08/2026 a ete passee a faire cette distinction a la main.
+
+    Verifie le 28/08 : le catalogue SSPCloud n'expose ni version ni empreinte — le nom
+    du modele ne prouve rien. Le canari compare des sorties reelles.
+
+    Absent, on avertit sans bloquer : la porte doit rester utilisable sur un poste ou
+    une chaine d'integration qui ne l'a pas encore calibre. Present et en derive, on
+    ARRETE : continuer produirait un diagnostic faux.
+    """
+    empreinte = RACINE / "_chantier" / "canari.json"
+    if not empreinte.exists():
+        print("canari absent — impossible de dire si les modeles ont change. "
+              "Calibrer avec `canari_modeles.py --calibrer`.\n", file=sys.stderr)
+        return
+    resultat = subprocess.run(
+        [sys.executable, str(RACINE / "_chantier" / "scripts" / "canari_modeles.py")],
+        cwd=RACINE, env=os.environ.copy(), capture_output=True, text=True,
+        encoding="utf-8", errors="replace",
+    )
+    if resultat.returncode != 0:
+        raise SystemExit(
+            "DERIVE DE MODELE — les valeurs de reference.json ont ete mesurees contre "
+            "d'autres modeles.\n"
+            + (resultat.stderr or resultat.stdout or "")[-1200:]
+            + "\nNe pas imputer de regression au code avant d'avoir remesure la "
+              "reference."
+        )
+    print("canari : modeles inchanges\n", file=sys.stderr)
+
+
 def main() -> int:
+    canari()
     ref = lire_reference()
     conf = ref["_configuration"]
     print(f"référence du {ref['_mesure_le']} — {conf['articles']} articles, "
