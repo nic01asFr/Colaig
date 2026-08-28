@@ -57,6 +57,10 @@ SCRIPTS = RACINE / "_chantier" / "scripts"
 MESURES = RACINE / "_chantier" / "mesures"
 
 TIRAGES = int(sys.argv[1]) if len(sys.argv) > 1 else 4
+# Second argument optionnel : ne mesurer qu'un bras. Sert a completer la dispersion
+# d'un indicateur dont quatre tirages se sont averes insuffisants — sans repayer le
+# bras temoin, qui lui a deja conclu.
+BRAS_DEMANDE = sys.argv[2] if len(sys.argv) > 2 else ""
 
 # La configuration de la référence — ne pas la changer sans changer reference.json.
 CONF = {"COLAIG_REF_K": "10", "COLAIG_REF_RAISONNEMENT": "0"}
@@ -66,6 +70,8 @@ BRAS = {
     "durci": {},                                  # CONSIGNE actuelle
     "avant_d50": {"COLAIG_REF_CONSIGNE": "avant_d50"},
 }
+if BRAS_DEMANDE:
+    BRAS = {BRAS_DEMANDE: BRAS[BRAS_DEMANDE]}
 
 
 def lancer(script: str, env_sup: dict, args: list[str]) -> str:
@@ -135,7 +141,7 @@ def main() -> int:
             print(f"  {bras:10} tirage {i} : cite {o['cite_attendu']:.4f}  "
                   f"fantômes {o['fantomes']:.0f}  hors contexte {o['hors_contexte']:.0f}",
                   file=sys.stderr)
-            (MESURES / "dispersion-consigne.json").write_text(
+            (MESURES / f"dispersion-consigne{'-' + BRAS_DEMANDE if BRAS_DEMANDE else ''}.json").write_text(
                 json.dumps(observations, ensure_ascii=False, indent=1), encoding="utf-8")
 
     print()

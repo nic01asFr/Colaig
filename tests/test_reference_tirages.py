@@ -44,7 +44,16 @@ import pytest
 RACINE = pathlib.Path(__file__).resolve().parent.parent
 REFERENCE = RACINE / "_chantier" / "reference.json"
 
-TIRAGES_MINIMUM = 4
+# Releve de 4 a 10 le 28/08/2026, APRES mesure.
+#
+# Quatre tirages ont tenu quelques heures : le rebasage des fantomes sur quatre
+# observations (6, 6, 8, 11) a pose un plafond de 13, et le passage suivant de la porte
+# a rendu 15. Quinze tirages donnent une etendue de 5 a 15 la ou quatre en montraient 5.
+#
+# Quatre tirages restent le minimum pour ne pas conclure sur un accident ; ils ne
+# suffisent pas a caracteriser une DISPERSION, surtout sur un petit compte entier dont
+# la queue est droite.
+TIRAGES_MINIMUM = 10
 
 
 def _reference() -> dict:
@@ -164,6 +173,23 @@ def test_la_liste_des_blocs_sans_tirages_ne_grandit_pas():
         f"ces seuils ne disent pas sur combien de tirages ils reposent : "
         f"{sorted(nouveaux)}. Mesurer quatre tirages, ou justifier ici."
     )
+
+
+def test_un_bloc_rebase_declare_sa_regle_de_seuil():
+    """Une regle ecrite se discute ; une regle implicite se choisit au jugement.
+
+    Les quinze tirages du 28/08 ont montre que la regle depend de la NATURE de
+    l'indicateur : `moyenne - 2 sigma` convient a une fraction, dont la distribution est
+    proche de la symetrie ; un COMPTE suit un Poisson et sa queue droite demande trois
+    sigma. A deux sigma, le plafond des fantomes etait franchi par une observation sur
+    quinze — sur du code sain.
+    """
+    for nom, bloc in _blocs_de_seuil(_reference()):
+        if "_tirages" not in bloc:
+            continue
+        assert bloc.get("_regle"), (
+            f"{nom} est rebase sans dire selon quelle regle son seuil est pose"
+        )
 
 
 def test_le_test_sait_echouer():

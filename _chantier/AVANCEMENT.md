@@ -2450,3 +2450,104 @@ l'indexation : un document vide dans un lot fait tomber ses voisins.
 Il détecte un changement de modèle, **pas** une dérive lente de qualité à modèle
 constant. Et il ne couvre que les deux modèles de la référence — un espace configuré sur
 un autre fournisseur n'est pas surveillé.
+
+---
+
+## CACHE D'EMBEDDINGS ET REFONTE SUR QUINZE TIRAGES · 28/08/2026
+
+### Le cache, et ce qu'il a permis
+
+Chaque tirage recalculait **1 156 embeddings** — 1 021 articles et 135 questions —
+alors que seule la génération est stochastique. Le cache est posé dans `embed()`, point
+unique appelé par sept harnais, avec sortie de secours `COLAIG_REF_CACHE=0`.
+
+**Ce qu'il change à la mesure, et qui doit être su** : un embedding n'est pas
+déterministe (2,6 × 10⁻⁴ d'écart entre deux appels). Le cache retire cette variance.
+C'est souhaitable — on veut isoler la variance de génération, et ce bruit ne déplace pas
+le classement — mais c'est un **choix**, pas un effet de bord.
+
+La troncature `float32` du stockage a été mesurée : **5 × 10⁻⁹**, soit 53 000 fois
+moins que le bruit du service. Négligeable.
+
+**Deux défauts trouvés en le construisant.** `numpy.savez_compressed` ajoute lui-même
+`.npz` à un chemin, et l'écriture provisoire atterrissait à côté de sa cible. Et un
+essai a affiché « 2/2 connus » sur un cache fraîchement supprimé — c'était mon harnais
+de test, qui passait `__file__ = "x"` : `RACINE` se résolvait deux niveaux au-dessus du
+dépôt. J'ai failli conclure à un défaut du code.
+
+**Ce qu'il a permis** : passer de quatre à quinze observations dans la nuit. Le coût
+d'une mesure décide de sa fréquence, et une mesure qu'on rechigne à relancer est une
+mesure qu'on remplace par une intuition.
+
+### Le rebasage sur quatre tirages n'a pas tenu
+
+Quelques heures. Le passage suivant de la porte a rendu **15 fantômes** pour un plafond
+de 13.
+
+Quinze observations de la même condition donnent :
+
+| indicateur | observé | moyenne | σ |
+|---|---|---|---|
+| `cite_attendu` | 0.7523 → 0.8125 | 0.7798 | 0.0173 |
+| `fantomes` | 5 → 15 | 8.00 | 2.62 |
+| `hors_contexte` | 17 → 25 | 22.47 | 1.92 |
+
+Quatre tirages montraient une étendue de 5 sur les fantômes ; quinze en montrent 10.
+
+### La règle n'est pas la même pour une fraction et pour un compte
+
+C'est la mesure qui l'a imposé, pas une préférence :
+
+| règle | `cite_attendu` | `fantomes` |
+|---|---|---|
+| moyenne ± 2σ | **0/15** franchissements | **1/15** — sur du code sain |
+| moyenne ± 3σ | 0/15 | 0/15 |
+
+`cite_attendu` est une **fraction** sur 113 cas, de distribution proche de la symétrie —
+2σ suffit. Les fantômes sont un **compte** dont la dispersion suit un Poisson : σ observé
+**2,62** pour un σ théorique de **2,83** à moyenne 8. Sa queue est **droite**, et une
+règle symétrique la sous-couvre.
+
+### Les seuils retenus
+
+| indicateur | valeur | seuil | règle |
+|---|---|---|---|
+| `cite_attendu` | 0.780 | ≥ **0.745** | moyenne − 2σ, n=15 |
+| `fantomes` | 8 | ≤ **16** | moyenne + 3σ, n=15 |
+| `hors_contexte` | 22 | ≤ 34 | **ancré sur l'état dégradé connu (k=6)** |
+
+**Le plafond de `hors_contexte` a été validé le soir même, et par accident.** Le passage
+de vérification a rendu **27**, au-dessus du maximum des quinze observations (25). Un
+plafond resserré sur la dispersion mesurée — moyenne + 2σ donnait 26,3 — aurait ouvert la
+porte. Le plafond ancré sur un **état identifié** a tenu là où un plafond statistique
+aurait cédé.
+
+**Un plafond ancré sur un état connu vaut mieux qu'un plafond statistique, quand cet
+état existe.**
+
+### Le plancher passe de 4 à 10 tirages
+
+Quatre tirages évitent de conclure sur un accident ; ils ne caractérisent pas une
+dispersion. Et chaque bloc rebasé doit désormais **déclarer sa règle de seuil** — une
+règle implicite se choisit au jugement, une règle écrite se discute.
+
+`tests/test_reference_tirages.py` porte les deux exigences.
+
+### Une limite de sensibilité, écrite plutôt que découverte
+
+Avec σ = 0,017 sur `cite_attendu`, cette porte ne détecte qu'une dégradation supérieure à
+environ **0,035**. Une dégradation plus fine existe peut-être et **ne sera pas vue**.
+
+C'est une borne du jeu doré à 135 cas. L'agrandir — critère non atteint de L1.4, 200 cas
+sur 3 espaces — resserrerait cette limite. Les deux dettes sont liées.
+
+### Ce qui reste ouvert sur la mesure
+
+- **Sept blocs** de `reference.json` ne déclarent toujours pas leurs tirages. Deux
+  d'entre eux — `montants_inventes` et `tronquees` — ont quitté zéro (1 et 3 observés,
+  seuils 2 et 12) : leur valeur de référence à 0 vient probablement du même motif que
+  celui corrigé ici.
+- Le jeu doré : 135 cas sur **un seul** corpus.
+- `cite_attendu` juge contre **un seul** article attendu.
+- Le vérificateur de fidélité est à 82,7 % de sensibilité, et 50 % sur les omissions.
+- Le corpus adversarial est écrit par l'agent.

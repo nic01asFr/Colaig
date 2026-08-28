@@ -26,3 +26,5 @@ _local/
 .wikichat/
 .claude-session
 _chantier/mesures/remesure-prompt-production.txt
+.cache-embeddings-*.npz
+_chantier/mesures/.cache-embeddings-*

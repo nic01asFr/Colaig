@@ -100,7 +100,90 @@ def cle_albert() -> str:
                 RACINE.parent / "colaig-v3" / ".env", RACINE / ".env")
 
 
+# Cache d'embeddings
+# -------------------
+# POURQUOI. Chaque tirage de la reference recalculait 1156 embeddings — 1021 articles
+# du corpus et 135 questions — alors que ni le corpus ni les questions ne changent d'un
+# tirage a l'autre. Seule la GENERATION est stochastique. Sur la campagne de dispersion
+# du 28/08 (huit tirages), une vingtaine de minutes sur 72 y sont passees pour rien.
+#
+# CE QUE LE CACHE CHANGE A LA MESURE, ET C'EST A SAVOIR. Un embedding n'est PAS
+# deterministe : 2,6e-04 d'ecart absolu mesure entre deux appels du meme texte (voir
+# `canari_modeles.py`, dont la calibration a defait cette hypothese). Le cache retire
+# donc cette variance de la mesure.
+#
+# C'est souhaitable ici : on veut isoler la variance de GENERATION, et le bruit
+# d'embedding ne deplace pas le classement — `recherche_complets` donnait deja 0,929
+# contre 0,929 entre deux replicats. Mais c'est un CHOIX, pas un effet de bord :
+# COLAIG_REF_CACHE=0 le desactive pour remesurer la jambe de recherche a neuf.
+#
+# LA CLE PORTE LE NOM DU MODELE : un changement de modele ne peut pas etre servi depuis
+# le cache. Le canari le detecterait de toute facon en amont.
+CACHE_ACTIF = os.environ.get("COLAIG_REF_CACHE", "1").lower() not in ("0", "false", "no")
+_CACHE_FICHIER = (RACINE / "_chantier" / "mesures"
+                  / f".cache-embeddings-{MODELE_EMBED.replace('/', '_')}.npz")
+_CACHE: dict | None = None
+
+
+def _cle_cache(texte: str) -> str:
+    import hashlib
+
+    return hashlib.sha256((MODELE_EMBED + "\x00" + texte).encode("utf-8")).hexdigest()
+
+
+def _cache_charger() -> dict:
+    global _CACHE
+    if _CACHE is None:
+        _CACHE = {}
+        if CACHE_ACTIF and _CACHE_FICHIER.exists():
+            try:
+                import numpy as _np
+
+                d = _np.load(_CACHE_FICHIER)
+                for k, v in zip(d["cles"], d["vecteurs"]):
+                    _CACHE[str(k)] = v.tolist()
+            except Exception as e:  # un cache illisible ne doit jamais bloquer
+                print(f"  cache d'embeddings illisible, ignore ({e})", file=sys.stderr)
+                _CACHE = {}
+    return _CACHE
+
+
+def _cache_ecrire() -> None:
+    if not CACHE_ACTIF or not _CACHE:
+        return
+    import numpy as _np
+
+    _CACHE_FICHIER.parent.mkdir(parents=True, exist_ok=True)
+    # Un fichier OUVERT, pas un chemin : `savez_compressed` ajoute lui-meme « .npz »
+    # a un chemin, et l'ecriture provisoire atterrissait alors a cote de sa cible.
+    provisoire = _CACHE_FICHIER.with_suffix(".tmp")
+    with open(provisoire, "wb") as f:
+        _np.savez_compressed(f,
+                             cles=_np.array(list(_CACHE.keys())),
+                             vecteurs=_np.array(list(_CACHE.values()),
+                                                dtype=_np.float32))
+    # Remplacement atomique : une campagne interrompue ne laisse pas un cache tronque.
+    provisoire.replace(_CACHE_FICHIER)
+
+
 def embed(textes: list[str], cle: str, lot: int = 32) -> list[list[float]]:
+    if not CACHE_ACTIF:
+        return _embed_distant(textes, cle, lot)
+    cache = _cache_charger()
+    # Dedoublonnage : le corpus contient des passages identiques, et les demander deux
+    # fois coute deux fois.
+    manquants = list(dict.fromkeys(t for t in textes if _cle_cache(t) not in cache))
+    connus = len(textes) - sum(1 for t in textes if _cle_cache(t) not in cache)
+    print(f"  cache : {connus}/{len(textes)} connus, {len(manquants)} a calculer",
+          file=sys.stderr)
+    if manquants:
+        for v, t in zip(_embed_distant(manquants, cle, lot), manquants):
+            cache[_cle_cache(t)] = v
+        _cache_ecrire()
+    return [cache[_cle_cache(t)] for t in textes]
+
+
+def _embed_distant(textes: list[str], cle: str, lot: int = 32) -> list[list[float]]:
     vecteurs: list[list[float]] = []
     for i in range(0, len(textes), lot):
         charge = json.dumps({"model": MODELE_EMBED, "input": textes[i:i + lot]}).encode()
