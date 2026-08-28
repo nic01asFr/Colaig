@@ -115,6 +115,38 @@ def trame_file(workspace_path: str, conversation_id: str) -> str:
     return f"{conversations_dir(workspace_path)}{conversation_id}_trame.json"
 
 
+def notes_file(workspace_path: str) -> str:
+    """Notes gardées par l'utilisateur — `{ws}/.colaig/notes.md`.
+
+    Alimenté par la réaction ➕ (L3.3) : ce que quelqu'un a jugé digne d'être conservé.
+    Markdown, et non JSON : c'est un document que l'on relit, pas un état que l'on
+    rejoue.
+
+    ⚠️ **Ce fichier n'est PAS indexé.** `document_index` et `indexer` écartent tout
+    chemin sous `.colaig/` (`is_instance_path`). Les notes se relisent donc à la main
+    et ne ressortent pas d'une recherche. L'emplacement est celui que fixe le lot L3.3 ;
+    le déplacer à la racine de l'espace les rendrait interrogeables, et relève d'un
+    arbitrage produit — pas d'un choix de nommage.
+    """
+    return f"{colaig_dir(workspace_path)}notes.md"
+
+
+def feedback_dir(workspace_path: str) -> str:
+    """Dossier des retours utilisateur — `{ws}/.colaig/feedback/`."""
+    return f"{colaig_dir(workspace_path)}feedback/"
+
+
+def feedback_file(workspace_path: str, empreinte: str) -> str:
+    """Un retour — `{ws}/.colaig/feedback/{empreinte}.json`.
+
+    `empreinte` est un condensat de l'identifiant d'événement, pas l'identifiant
+    lui-même : un `event_id` Matrix peut contenir `:` et `$`, illégaux ou piégeux comme
+    nom de fichier. L'identifiant d'origine est conservé DANS le contenu — c'est lui qui
+    dédoublonne un événement redélivré.
+    """
+    return f"{feedback_dir(workspace_path)}{empreinte}.json"
+
+
 def tasks_dir(workspace_path: str) -> str:
     """Dossier des tâches planifiées — `{ws}/.colaig/tasks/`."""
     return f"{colaig_dir(workspace_path)}tasks/"

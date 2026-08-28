@@ -2663,3 +2663,65 @@ La piste 2 est la plus prometteuse et la moins couteuse. Aucune n'est engagee.
 `CONSIGNE` est dans le prompt de production. La reference de generation L1.5 est
 revérifiée dans la foulee — un durcissement de consigne qui degraderait les reponses
 legitimes ne serait pas un progres.
+
+---
+
+## D51 — Les réactions sont un Protocol séparé, pas cinq méthodes de plus · 28/08/2026 · **actée**
+
+Arbitrage demandé par le lot L3.3 et rendu par l'humain. Il touche `colaig/protocols.py`,
+que le `CLAUDE.md` racine §5 interdit de modifier sans cela.
+
+### La question
+
+`MessagingProtocol` compte cinq méthodes — `connect`, `run`, `send`, `send_typing`,
+`on_message` — et **aucune notion de réaction**. Or L3.3 en demande deux : poser une
+réaction, en recevoir une.
+
+Trois issues étaient posées :
+
+1. **étendre `MessagingProtocol`** de deux méthodes ;
+2. **un Protocol séparé** qu'un canal implémente *en plus* s'il en est capable ;
+3. **ne pas faire L3.3**, et obtenir le retour utilisateur par une commande.
+
+### Ce qui a été retenu : la deuxième
+
+Une réaction est une **capacité de canal**, pas une propriété universelle de la
+messagerie. `noop` n'en a pas ; un webchat peut ne pas en avoir. Les inscrire dans le
+contrat commun aurait obligé trois implémentations sur cinq à porter des méthodes vides
+pour rester conformes — et l'appelant n'aurait eu **aucun moyen de distinguer un canal
+qui répond d'un canal qui feint**.
+
+Séparés, la capacité se teste : `isinstance(messaging, ReactionProtocol)`. C'est
+l'idiome que `capability_chain` applique déjà aux LLM dans ce dépôt.
+
+Deux tests épinglent les deux faces : `MatrixMessaging` **est** un `ReactionProtocol`,
+un canal réduit aux cinq méthodes **ne l'est pas**.
+
+### Le dessin du produit, tel que l'humain l'a précisé
+
+> « c'est colaig qui le pose à la fin de son message et le user qui va en ajouter un »
+
+**Colaig pose lui-même les quatre gestes** sous chacune de ses réponses. Répondre coûte
+alors un seul tapotement sur une réaction déjà présente, au lieu d'ouvrir un sélecteur
+d'emoji et d'y chercher le bon. C'est la différence entre un retour que l'on obtient et
+un retour que l'on espère.
+
+Cette précision impose la règle centrale du lot : **les réactions de Colaig ne comptent
+pas**. Elles sont là par construction ; seul l'ajout d'un tiers porte un signal. Sans ce
+filtre, chaque réponse s'attribuerait quatre retours à elle-même, et le premier chiffre
+lu sur la qualité serait **entièrement fabriqué par nous**.
+
+### Une conséquence sur L2.4, à connaître
+
+L2.4 prévoyait la confirmation des actions destructives **par réaction**, et s'est
+arrêtée à la classification précisément parce que cela demandait d'étendre
+`MessagingProtocol` (D47). Les réactions étant désormais disponibles, **ce lot peut
+revenir à son dessin d'origine**. Ce n'est pas fait ici : L2.4 est clos par la
+confirmation en texte, qui fonctionne.
+
+### Ce qui reste non résolu
+
+`notes.md` vit sous `.colaig/`, que `document_index` et `indexer` écartent
+(`is_instance_path`). **Les notes gardées ne ressortent donc pas d'une recherche.**
+L'emplacement est celui que fixe le lot ; le déplacer à la racine de l'espace les
+rendrait interrogeables, et relève d'un arbitrage produit — il n'est pas fait ici.

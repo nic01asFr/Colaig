@@ -24,6 +24,7 @@ from nio import (
     KeysQueryResponse,
     LoginResponse,
     MegolmEvent,
+    ReactionEvent,
     RoomEncryptedAudio,
     RoomEncryptedFile,
     RoomEncryptedImage,
@@ -37,7 +38,7 @@ from nio.crypto.device import TrustState
 
 from colaig import paths
 from colaig.exceptions import MessagingError
-from colaig.models import Attachment, ConversationType, IncomingMessage
+from colaig.models import Attachment, ConversationType, IncomingMessage, Reaction
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,13 @@ _STALE_MESSAGE_SECONDS = 300
 # La purge retire les PLUS ANCIENS. Purger au hasard, ou purger le dernier, ferait
 # perdre la conversation en cours — précisément celle que l'utilisateur écrit.
 _MAX_FILS_SUIVIS = 1024
+
+# Combien de salons dont on retient le dernier message émis (L3.3).
+#
+# Sert à poser une réaction sous SA PROPRE réponse, qui exige d'en connaître
+# l'identifiant. Même raison de borner que ci-dessus : une entrée par salon jamais
+# purgée croît avec le nombre de salons vus, pas avec l'activité.
+_MAX_SALONS_SUIVIS = 512
 
 # Taille maximale d'une piece jointe acceptee, en octets.
 #
@@ -270,6 +278,10 @@ class MatrixMessaging:
         # il faut un ORDRE pour purger les plus anciens, et l'ordre d'insertion d'un
         # dict est garanti depuis Python 3.7.
         self._fils_suivis: dict[str, None] = {}
+        # Le dernier message NON-STATUT émis par salon (L3.3) — pour poser une réaction
+        # sous sa propre réponse. Même structure ordonnée, même raison de purge.
+        self._derniers_envois: dict[str, str] = {}
+        self._reaction_callback: Callable | None = None
         # Fichier de persistance du token (évite de créer une nouvelle session à chaque démarrage)
         self._token_store = token_store or paths.local_file("matrix_token.json")
         # Répertoire du crypto store E2E (clés Olm/Megolm — nécessite matrix-nio[e2e])
@@ -371,6 +383,9 @@ class MatrixMessaging:
         self._client.add_event_callback(self._on_room_file, RoomEncryptedImage)
         # Messages que nio n'a pas pu dechiffrer. Sans ce rappel ils sont ignores
         # EN SILENCE : l'utilisateur voit un assistant qui ne repond pas (L2.6).
+        # Reactions (L3.3) : le retour de l'utilisateur en un seul geste.
+        self._client.add_event_callback(self._on_reaction, ReactionEvent)
+
         self._client.add_event_callback(self._on_undecryptable, MegolmEvent)
 
     def _do_auto_trust(self) -> None:
@@ -529,9 +544,13 @@ class MatrixMessaging:
         # pas une réponse, et ouvrir un fil dessus n'aurait pas de sens.
         #
         # La signature reste `-> None` : la remonter changerait `MessagingProtocol`,
-        # ce qui relève d'un arbitrage humain (`CLAUDE.md` §5).
+        # donc TOUS les canaux. L'identifiant est exposé par `dernier_message_envoye()`,
+        # sur le Protocol optionnel `ReactionProtocol`, où il ne coûte rien à ceux qui
+        # ne savent pas réagir (L3.3, D51).
         if not is_status:
-            self.suivre_fil(getattr(reponse, "event_id", "") or "")
+            event_id = getattr(reponse, "event_id", "") or ""
+            self.suivre_fil(event_id)
+            self._retenir_envoi(conversation_id, event_id)
 
     async def send_typing(
         self,
@@ -617,6 +636,88 @@ class MatrixMessaging:
         self._fils_suivis[event_id] = None
         while len(self._fils_suivis) > _MAX_FILS_SUIVIS:
             self._fils_suivis.pop(next(iter(self._fils_suivis)))
+
+    # ── ReactionProtocol (L3.3, D51) ─────────────────────────────────
+
+    def _retenir_envoi(self, conversation_id: str, event_id: str) -> None:
+        """Retient le dernier message non-statut émis dans ce salon."""
+        if not conversation_id or not event_id:
+            return
+        self._derniers_envois.pop(conversation_id, None)   # remettre en tête
+        self._derniers_envois[conversation_id] = event_id
+        while len(self._derniers_envois) > _MAX_SALONS_SUIVIS:
+            self._derniers_envois.pop(next(iter(self._derniers_envois)))
+
+    def dernier_message_envoye(self, conversation_id: str) -> str:
+        """Identifiant du dernier message NON-STATUT émis ici. `""` si aucun."""
+        return self._derniers_envois.get(conversation_id, "")
+
+    async def reagir(self, conversation_id: str, message_id: str, emoji: str) -> None:
+        """Pose une réaction sur un message.
+
+        NE LÈVE JAMAIS. Poser une réaction est un confort ; la réponse est le produit.
+        Un homeserver qui refuse `m.reaction` ne doit pas faire échouer le tour de
+        conversation qui vient d'aboutir.
+        """
+        if self._client is None or not message_id or not emoji:
+            return
+        try:
+            await self._client.room_send(
+                room_id=conversation_id,
+                message_type="m.reaction",
+                content={"m.relates_to": {"rel_type": "m.annotation",
+                                          "event_id": message_id,
+                                          "key": emoji}},
+                ignore_unverified_devices=True,
+            )
+        except Exception:
+            logger.debug("réaction %s non posée dans %s", emoji, conversation_id)
+
+    def on_reaction(self, callback: Callable) -> None:
+        """Enregistre le rappel appelé pour chaque réaction porteuse de signal."""
+        self._reaction_callback = callback
+
+    async def _on_reaction(self, room, event: ReactionEvent) -> None:
+        """Réaction reçue — trois filtres avant de la faire remonter.
+
+        **1. Pas les nôtres.** Colaig pose lui-même les gestes proposés sous chaque
+        réponse. Si sa propre pose remontait, chaque réponse s'auto-attribuerait autant
+        de retours qu'elle propose de gestes, et le premier chiffre lu sur la qualité
+        serait entièrement fabriqué par nous.
+
+        **2. Seulement sur NOS messages.** `_fils_suivis` est exactement l'ensemble des
+        messages que nous avons émis : le réutiliser évite un second registre qui
+        divergerait. Deux collègues qui se félicitent dans un salon ne parlent pas de
+        Colaig.
+
+        **3. Pas l'historique rejoué.** Au démarrage, le serveur redélivre le passé ;
+        sans ce garde, chaque relance réenregistrerait tous les retours déjà comptés.
+        """
+        if event.sender == self._username:
+            return
+
+        reagit_a = getattr(event, "reacts_to", "") or ""
+        if reagit_a not in self._fils_suivis:
+            return
+
+        if event.server_timestamp / 1000 < self._start_time - _STALE_MESSAGE_SECONDS:
+            return
+
+        if self._reaction_callback is None:
+            return
+
+        reaction = Reaction(
+            user_id=event.sender,
+            conversation_id=room.room_id,
+            message_id=reagit_a,
+            emoji=getattr(event, "key", "") or "",
+            reaction_id=event.event_id,
+            horodatage=event.server_timestamp,
+        )
+        try:
+            await self._reaction_callback(reaction)
+        except Exception:
+            logger.exception("traitement de réaction en échec: %s", event.event_id)
 
     def _nous_concerne(self, event, contenu: dict, thread_root: str) -> bool:
         """En salon, ce message appelle-t-il l'assistant ?

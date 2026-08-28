@@ -198,6 +198,63 @@ class MessagingProtocol(Protocol):
 MatrixBotProtocol = MessagingProtocol
 
 
+@runtime_checkable
+class ReactionProtocol(Protocol):
+    """Capacité **optionnelle** d'un canal : poser et recevoir des réactions.
+
+    Ajouté au lot L3.3 sur arbitrage humain explicite (D51) — `CLAUDE.md` §5.
+
+    Pourquoi un Protocol séparé plutôt que deux méthodes de plus sur
+    `MessagingProtocol`
+    ---------------------------------------------------------------------
+    Les réactions ne sont pas une propriété universelle de la messagerie. `noop` n'en a
+    pas ; un webchat peut ne pas en avoir. Les inscrire dans le contrat commun aurait
+    obligé chaque canal à porter des méthodes vides pour rester conforme — et l'appelant
+    n'aurait eu **aucun moyen de distinguer** un canal qui répond d'un canal qui feint.
+
+    Séparés, la capacité se teste : `isinstance(messaging, ReactionProtocol)`. C'est
+    l'idiome que `capability_chain` applique déjà aux LLM.
+
+    Implémenté par : `colaig/messaging/matrix.py`.
+
+    Exemple :
+        if isinstance(messaging, ReactionProtocol):
+            evt = messaging.dernier_message_envoye(conversation_id)
+            await messaging.reagir(conversation_id, evt, "\N{THUMBS UP SIGN}")
+    """
+
+    async def reagir(self, conversation_id: str, message_id: str, emoji: str) -> None:
+        """Pose une réaction sur un message.
+
+        Ne doit pas lever : poser une réaction est un confort, la réponse est le
+        produit. Un serveur qui refuse l'annotation ne doit pas faire échouer le tour
+        de conversation qui vient d'aboutir.
+        """
+        ...
+
+    def dernier_message_envoye(self, conversation_id: str) -> str:
+        """Identifiant du dernier message NON-STATUT que nous avons émis ici. `""` sinon.
+
+        Sert à poser une réaction sous sa propre réponse. `send()` rend `None` et le
+        faire rendre l'identifiant modifierait `MessagingProtocol`, donc **tous** les
+        canaux ; l'exposer ici ne coûte rien à ceux qui ne savent pas réagir.
+
+        Les messages de statut en sont exclus : « je cherche… » n'est pas une réponse,
+        et proposer un retour dessous n'aurait pas de sens.
+        """
+        ...
+
+    def on_reaction(self, callback) -> None:
+        """Enregistre un callback appelé pour chaque `Reaction` reçue.
+
+        Le canal ne remonte que ce qui porte un signal : une réaction posée par
+        **autrui** sur un message que **nous** avons émis. Ses propres poses
+        automatiques ne remontent pas, sans quoi chaque réponse s'auto-attribuerait
+        autant de retours qu'elle propose de gestes.
+        """
+        ...
+
+
 # =============================================================================
 # RAG — Pipeline de recherche documentaire
 # =============================================================================

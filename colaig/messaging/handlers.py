@@ -22,7 +22,9 @@ if TYPE_CHECKING:
 
 from colaig.context.layers import save_conversation_history
 from colaig.messaging.progress import ProgressReporter, resolve_channel
+from colaig.messaging.retours import GestionnaireRetours, proposer_gestes
 from colaig.models import ContextMode, IncomingMessage, IntentType, PipelinePhase
+from colaig.protocols import ReactionProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +176,16 @@ class MessageHandler:
         self._trame_manager = trame_manager
         self._pre_exec_builder = pre_exec_builder
         self._user_memory = user_memory
+
+        # RETOURS PAR RÉACTION (L3.3).
+        #
+        # Le branchement est fait ICI, et non dans `main.py` qui câble `on_message` à
+        # deux endroits : un troisième câblage tenu en double se serait désynchronisé.
+        # Le handler possède déjà `messaging` et `storage` — câbler là où les pièces
+        # sont présentes rend l'oubli impossible plutôt qu'improbable.
+        self._retours = GestionnaireRetours(storage, rejouer=self._rejouer_tour)
+        if isinstance(messaging, ReactionProtocol):
+            messaging.on_reaction(self._retours.traiter)
 
     @property
     def is_phase2(self) -> bool:
@@ -508,6 +520,50 @@ class MessageHandler:
             await self._dire(message, "Je n'ai pas pu ranger : "
                                       + ", ".join(refuses) + ".")
 
+    # ── Retours par réaction (L3.3) ──────────────────────────────────
+
+    async def _proposer_retour(self, message: IncomingMessage, context,
+                               reponse: str) -> None:
+        """Pose les gestes sous la réponse et retient de quoi agir dessus.
+
+        NE LÈVE JAMAIS. La réponse est le produit ; les gestes sont un confort. Un
+        homeserver qui refuse `m.reaction` ne doit pas faire échouer le tour de
+        conversation qui vient d'aboutir.
+        """
+        if not isinstance(self._messaging, ReactionProtocol):
+            return
+        try:
+            evt = self._messaging.dernier_message_envoye(message.conversation_id)
+            if not evt:
+                return
+            espace = ""
+            if context is not None and getattr(context, "workspace", None):
+                espace = context.workspace.storage_path or ""
+            self._retours.retenir(
+                evt,
+                conversation_id=message.conversation_id,
+                espace=espace,
+                question=message.body,
+                reponse=reponse,
+            )
+            await proposer_gestes(self._messaging, message.conversation_id)
+        except Exception:
+            logger.debug("gestes non proposés dans %s", message.conversation_id)
+
+    async def _rejouer_tour(self, reaction, question: str) -> None:
+        """🔄 — rejoue le tour avec la question d'origine.
+
+        Le message reconstruit porte l'identifiant du GESTE comme `message_id` : il ne
+        se confond donc pas avec la question initiale dans les journaux, et l'on peut
+        retrouver ce qui a déclenché la seconde réponse.
+        """
+        await self.handle_message(IncomingMessage(
+            user_id=reaction.user_id,
+            conversation_id=reaction.conversation_id,
+            body=question,
+            message_id=reaction.reaction_id,
+        ))
+
     async def _dire(self, message: IncomingMessage, texte: str) -> None:
         """Envoie une réponse sans laisser une panne d'envoi casser la réception."""
         try:
@@ -757,6 +813,9 @@ class MessageHandler:
             # 5. Envoyer la réponse
             await self._messaging.send(message.conversation_id, response.text)
 
+            # Proposer les gestes de retour SOUS la réponse (L3.3)
+            await self._proposer_retour(message, context, response.text)
+
             # Log échange complet pour suivi et amélioration de la pertinence
             logger.info(
                 "échange workspace=%s user=%r question=%r sources=%s confiance=%.2f temps_ms=%d",
@@ -946,6 +1005,9 @@ class MessageHandler:
                     logger.debug("trame sauvegardée conv=%s", message.conversation_id)
                 except Exception:
                     logger.warning("trame non sauvegardée conv=%s", message.conversation_id)
+
+            # Proposer les gestes de retour SOUS la réponse (L3.3)
+            await self._proposer_retour(message, context, response.text)
 
             # Sauvegarder l'historique (via ConversationMemory si disponible)
             if self._conversation_memory and context.workspace and context.workspace.storage_path:

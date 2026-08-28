@@ -170,6 +170,27 @@ class IncomingMessage:
         return self.reply_to
 
 
+@dataclass
+class Reaction:
+    """Réaction posée par un tiers sur un message que Colaig a émis.
+
+    Colaig pose lui-même les réactions proposées sous chacune de ses réponses, pour que
+    répondre coûte un seul geste plutôt qu'une recherche dans un sélecteur d'emoji.
+    D'où la règle que le canal applique avant de construire cet objet : **les réactions
+    de Colaig lui-même n'en produisent pas**. Elles sont là par construction ; seul
+    l'ajout d'un tiers porte un signal.
+
+    `horodatage` vient du serveur (`server_timestamp`), jamais de l'horloge locale :
+    c'est une donnée de l'événement, ce qui la rend reproductible en test.
+    """
+    user_id: str                 # Qui a réagi
+    conversation_id: str         # Où
+    message_id: str              # Le message annoté — l'un des NÔTRES
+    emoji: str                   # La clé de l'annotation (`key` dans la spec Matrix)
+    reaction_id: str = ""        # L'événement de réaction lui-même, pour dédoublonner
+    horodatage: int = 0          # Millisecondes serveur
+
+
 # =============================================================================
 # STORAGE / FICHIERS
 # =============================================================================

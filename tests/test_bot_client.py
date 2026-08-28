@@ -84,9 +84,14 @@ class TestMatrixMessagingConnect:
         # l'on en remplace un par un autre, ce qui est une regression. Il a casse au
         # lot L3.7 pour la seule raison qu'on ecoutait desormais les fichiers.
         #
+        # L'EGALITE EST VOULUE, y compris pour les ajouts. Ecouter un type d'evenement
+        # de plus elargit la surface par laquelle l'exterieur atteint Colaig : cela se
+        # reconnait explicitement, cela ne se constate pas apres coup.
+        #
         # La liste porte l'histoire : MEGOLM vient de L2.6 — sans lui, un message que
-        # nio ne sait pas dechiffrer etait ignore SANS UN MOT. Les quatre derniers
+        # nio ne sait pas dechiffrer etait ignore SANS UN MOT. Les quatre fichiers
         # viennent de L3.7 — sans eux, deposer un PDF dans un salon ne produisait rien.
+        # REACTION vient de L3.3 : c'est le retour de l'utilisateur en un seul geste.
         ecoutes = {appel.args[1].__name__
                    for appel in mock_client.add_event_callback.call_args_list}
         assert ecoutes == {
@@ -96,6 +101,7 @@ class TestMatrixMessagingConnect:
             "MegolmEvent",
             "RoomMessageFile", "RoomMessageImage",
             "RoomEncryptedFile", "RoomEncryptedImage",
+            "ReactionEvent",
         }
 
     async def test_connect_validates_token_with_whoami(self, messaging, tmp_path):

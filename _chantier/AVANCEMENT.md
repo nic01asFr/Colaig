@@ -2951,3 +2951,75 @@ a mesuré neuf fois le coût du code écrit et non branché ; il n'a pas besoin 
 un dixième délibérément.
 
 **Mieux vaut pas de code qu'un code dont la raison de ne pas être branché s'oublie.**
+
+---
+
+## L3.3 — LES RÉACTIONS · 28/08/2026 · **critère atteint**
+
+Critère : « ➕ écrit dans `.colaig/notes.md` ; feedback survit au redémarrage ».
+Les deux sont épinglés par un test. **50 tests pour ce lot, 2383 au total.**
+
+### L'arbitrage préalable (D51)
+
+`MessagingProtocol` n'avait aucune notion de réaction. L'humain a arbitré pour un
+**Protocol séparé** — `ReactionProtocol` — plutôt que d'élargir le contrat commun :
+une réaction est une capacité de canal, pas une propriété universelle de la messagerie.
+
+### La règle centrale, venue d'une précision de l'humain
+
+Colaig **pose lui-même** les quatre gestes sous chaque réponse ; l'utilisateur tape sur
+celle qui est déjà là. D'où : **les réactions de Colaig ne comptent pas**. Sans ce
+filtre, chaque réponse s'attribuerait quatre retours à elle-même — et le premier chiffre
+lu sur la qualité serait entièrement fabriqué par nous.
+
+Trois filtres à la réception, tous testés : pas les nôtres, seulement sur nos messages,
+pas l'historique rejoué au démarrage.
+
+### Un fichier par geste, et pourquoi
+
+Un journal unique se lit, se modifie et se réécrit. Deux personnes qui approuvent la
+même réponse en même temps produiraient deux lectures du même état et **une seule des
+deux écritures survivrait**. Un fichier par geste n'a pas de lecture préalable, donc pas
+de course — un test le vérifie par `asyncio.gather`.
+
+Le nom du fichier est un condensat de l'`event_id` : un identifiant Matrix peut contenir
+deux-points et dollar. L'identifiant d'origine est conservé **dans** le contenu, car
+c'est lui qui dédoublonne un événement redélivré.
+
+### Le câblage, fait là où on ne peut pas l'oublier
+
+Dans le **constructeur de `MessageHandler`**, pas dans `main.py` qui branche
+`on_message` à deux endroits — un troisième câblage tenu en double se serait
+désynchronisé. Trois tests l'épinglent, dont un qui lit la source pour vérifier que les
+**deux** chemins de réponse (phase 1 et phase 2) proposent les gestes : n'en câbler
+qu'un donnerait un produit où le retour dépend de la configuration, et l'on conclurait
+« les utilisateurs ne notent pas » alors qu'on ne leur a rien proposé.
+
+### Une erreur que j'ai commise et corrigée
+
+J'avais écrit dans `paths.notes_file` que les notes seraient « indexées comme les autres
+documents de l'espace ». **C'est faux** : `document_index` et `indexer` écartent tout
+chemin sous `.colaig/`. Vérifié, la phrase est corrigée, et la conséquence est remontée
+comme arbitrage plutôt que masquée.
+
+### Ce que ce lot ne fait pas, dit explicitement
+
+La table `message → (espace, question, réponse)` est **en mémoire et bornée**. Après un
+redémarrage, ➕ et 🔄 sur une réponse ancienne ne retrouvent rien et ne font rien. Seul
+le RETOUR — ce que le critère exige — est persisté : il ne dépend que de l'identifiant
+du message et de l'emoji, tous deux portés par l'événement.
+
+L'espace, lui, se retient **par conversation**, ce qui suffit tant que le processus vit.
+
+### Points ouverts
+
+- **`notes.md` n'est pas indexé** (sous `.colaig/`). On garde des notes qu'on ne peut
+  pas retrouver par une recherche. Arbitrage produit.
+- **L2.4 peut revenir à son dessin d'origine** : la confirmation par réaction était
+  bloquée par l'absence de réactions (D47). Elle ne l'est plus.
+- Quatre poses = quatre allers-retours HTTP par réponse. `GESTES_PROPOSES` est une
+  constante ; si le coût se voit, la réduire est une ligne.
+
+### Reste de la phase 3
+
+L3.4 (client MCP), L3.6 (chart Helm), la moitié « commandes » de L3.7.
