@@ -1,0 +1,23 @@
+Xet Storage is enabled for this repo, but the 'hf_xet' package is not installed. Falling back to regular HTTP download. For better performance, install the package with: `pip install huggingface_hub[hf_xet]` or `pip install hf_xet`
+C:\Users\Omen\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\LocalCache\local-packages\Python311\site-packages\huggingface_hub\file_download.py:143: UserWarning: `huggingface_hub` cache-system uses symlinks by default to efficiently store duplicated files but your machine does not support them in C:\Users\Omen\.cache\huggingface\hub\datasets--AgentPublic--legi. Caching files will still work but in a degraded version that might require more space on your disk. This warning can be disabled by setting the `HF_HUB_DISABLE_SYMLINKS_WARNING` environment variable. For more details, see https://huggingface.co/docs/huggingface_hub/how-to-cache#limitations.
+To support symlinks on Windows, you either need to activate Developer Mode or to run Python as an administrator. In order to activate developer mode, see this article: https://docs.microsoft.com/en-us/windows/apps/get-started/enable-your-device-for-development
+  warnings.warn(message)
+articles en vigueur : 1806
+  CCAG Travaux                          56 articles
+  CCAG Maîtrise d'œuvre                 36 articles
+  CCAG Fournitures et services          47 articles
+  CCAG Prestations intellectuelles      44 articles
+  CCAG Techniques de l'information      56 articles
+  CCAG Marchés industriels              56 articles
+    4 version(s) anterieure(s) ecartee(s)
+  Annexe 2 — Seuils de procédure         1 articles
+  Annexe 7 — Profils d'acheteurs         8 articles
+  Annexe 12 — Signature électronique    12 articles
+    1 version(s) anterieure(s) ecartee(s)
+  Annexe 13 — Modèles de garantie        6 articles
+sources annexes : 322 articles
+documents produits  : 247
+articles par document : min 1, médiane 6, max 37
+octets écrits : 2.38 Mo dans C:\Users\Omen\AppData\Local\Temp\corpus-ccp-complet
+manifeste : 248 empreintes
+SORTIE 0

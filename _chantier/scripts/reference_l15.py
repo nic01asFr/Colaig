@@ -46,7 +46,22 @@ sys.path.insert(0, str(RACINE))
 from colaig.rag.chunker import Chunker  # noqa: E402
 from colaig.rag.faiss_store import FaissStore  # noqa: E402
 
-CORPUS = RACINE / "tests" / "golden" / "corpus-marches-publics"
+# Le corpus de mesure. Pilotable par `COLAIG_REF_CORPUS` depuis le 28/08/2026, pour
+# opposer DEUX CONDITIONS et non pour en remplacer une :
+#
+#   défaut   corpus restreint au régime ordinaire (2e partie, livre Ier) — 1021 sources.
+#            C'est la condition de la PORTE DE NON-RÉGRESSION, celle dont les seuils
+#            sont fondés sur dix-sept observations.
+#
+#   complet  le code entier — 2128 sources. C'est la condition qui ressemble à la
+#            PRODUCTION : là, Colaig n'a pas le droit de restreindre son corpus, il
+#            indexe ce que contient le dossier partagé.
+#
+# La restriction du périmètre était une bonne décision de mesure (D33 : 115 citations
+# du mauvais régime contre 1). Elle est aussi le point où la référence s'écarte le plus
+# du produit, et cet écart n'était mesuré nulle part.
+CORPUS = Path(os.environ.get(
+    "COLAIG_REF_CORPUS", str(RACINE / "tests" / "golden" / "corpus-marches-publics")))
 JEU = RACINE / "tests" / "golden" / "v1.jsonl"
 
 MODELE_EMBED = "BAAI/bge-m3"

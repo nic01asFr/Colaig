@@ -30,3 +30,4 @@ _chantier/mesures/remesure-prompt-production.txt
 _chantier/mesures/.cache-embeddings-*
 _chantier/mesures/dispersion-durci-*.json
 _chantier/mesures/dispersion-avant_d50-*.json
+_chantier/mesures/regime-complet-*.json

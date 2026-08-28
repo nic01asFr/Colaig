@@ -48,6 +48,7 @@ s'arrêtait sur « au moins 80 % de son chiffre » et le fragment 2 reprenait su
 « d'affaires » — la coupe avait mangé une espace, sans recouvrement. Les fragments sont
 donc recollés par une espace simple, dans l'ordre de `chunk_index`.
 """
+import os
 import re
 import unicodedata
 from collections import defaultdict
@@ -57,7 +58,11 @@ from huggingface_hub import hf_hub_download
 import duckdb
 
 MAX_ARTICLES = 40
-SORTIE = Path(r"C:\Users\Omen\AppData\Local\Temp\corpus-marches-publics")
+# Destination pilotable. Ce dossier est EFFACÉ au démarrage : il ne doit jamais pointer
+# sur `tests/golden/corpus-marches-publics`, qui est la référence commitée.
+SORTIE = Path(os.environ.get(
+    "COLAIG_CORPUS_SORTIE",
+    r"C:\Users\Omen\AppData\Local\Temp\corpus-marches-publics"))
 # **Instantané daté et révision épinglés.** `legi-latest` bouge : un corpus de
 # référence qui bouge n'est pas une référence, et un jeu doré écrit contre lui
 # deviendrait faux sans prévenir. C'est exactement le mode de dérive que L1.5 doit
@@ -93,7 +98,20 @@ DATE_REFERENCE = "2026-08-23"
 #
 # Mettre PERIMETRE a None reconstruit le code entier — l'ancien corpus reste donc
 # reproductible, et il est dans l'historique git.
-PERIMETRE = ("DEUXIÈME PARTIE", "Livre Ier")
+#
+# PILOTABLE (28/08/2026). `COLAIG_CORPUS_PERIMETRE=complet` reconstruit le code entier.
+#
+# POURQUOI ON VEUT POUVOIR LE FAIRE, malgré la mesure ci-dessus. La restriction est une
+# bonne décision DE MESURE, et c'est en même temps le point où la référence s'écarte le
+# plus de la production : en production, Colaig n'a pas le droit de restreindre son
+# corpus — il indexe ce que contient le dossier partagé. Un espace mêlant le régime
+# ordinaire et le livre défense expose donc l'utilisateur aux 22 % d'erreurs
+# silencieuses que la référence, elle, a écartées.
+#
+# Le corpus complet ne REMPLACE pas le corpus restreint : il s'y ajoute comme condition
+# plus dure, pour rendre la confusion de régime MESURABLE au lieu de latente.
+PERIMETRE = (None if os.environ.get("COLAIG_CORPUS_PERIMETRE") == "complet"
+             else ("DEUXIÈME PARTIE", "Livre Ier"))
 
 # Le Titre Preliminaire est retenu QUOI QU'IL ARRIVE.
 #
