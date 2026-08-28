@@ -2743,3 +2743,82 @@ remesurer une fois** — pas trois.
    est dans le `null`, pas dans la lecture.
 
 Puis seulement : agrandir le jeu doré. Multiplier un instrument faussé multiplie le faux.
+
+---
+
+## LA CONFUSION DE RÉGIME EST MESURÉE · 28/08/2026
+
+**39,5 % des réponses citent du droit d'un autre régime** quand le corpus n'est pas
+restreint. Trois tirages : 43, 43 et 48 réponses sur 113 (38,1 % · 38,1 % · 42,5 %).
+
+Sur le corpus restreint, cette valeur est **0 par construction** : il ne contient aucun
+article d'un autre régime.
+
+### Ce que citent les réponses fautives
+
+Toutes les occurrences examinées viennent du **Livre III — DISPOSITIONS APPLICABLES AUX
+MARCHÉS DE DÉFENSE OU DE SÉCURITÉ**, 420 articles.
+
+    mp-003  cite R2322-14, R2322-16     défense-sécurité
+    mp-004  cite R2361-8, R2361-14      défense-sécurité
+    mp-007  cite L2393-1, L2393-12      défense-sécurité
+    mp-015  cite R2361-3                défense-sécurité
+    mp-016  cite R2323-1                défense-sécurité
+
+C'est exactement le défaut que le constructeur du corpus avait nommé : *« le livre
+défense pose 100 000 euros là où l'ordinaire pose 60 000 »*.
+
+### Pourquoi aucun garde-fou ne le voit
+
+Ni `fantomes` — l'article existe. Ni `hors_contexte` — il était dans les passages
+fournis. Ni `montants_inventes` — le montant figure dans le passage cité. La réponse est
+**fluide, sourcée, et fausse**.
+
+C'est le seul des cinq indicateurs qui mesure une erreur *substantielle* plutôt qu'un
+défaut de provenance.
+
+### Deux unités qu'il ne faut pas confondre
+
+La mesure du 23/08 annonçait **22 %** ; celle-ci **39,5 %**. Ce ne sont pas les mêmes
+unités : 22 % des **citations** relevaient d'un autre régime, contre 39,5 % des
+**réponses** qui en contiennent au moins une. Les deux chiffres sont cohérents — il n'y
+a pas d'aggravation, il y a deux angles de lecture.
+
+### Ce que la mesure n'établit pas
+
+Elle compte les réponses contenant **au moins une** citation d'un autre régime, pas les
+réponses dont la **substance** est fausse. Une citation de régime étranger peut être
+incidente — un renvoi de contexte plutôt qu'un fondement. Distinguer les deux demanderait
+de juger le fond, et ce chantier s'interdit les juges non mécaniques.
+
+Le chiffre à retenir est donc : **4 réponses sur 10 mêlent deux régimes de droit**, pas
+« 4 réponses sur 10 sont fausses ».
+
+### Ce que cela dit du produit, et pas seulement de la mesure
+
+**En production, Colaig n'a pas le droit de restreindre son corpus.** Il indexe ce que
+contient le dossier partagé. Un espace portant le code entier — ce qu'un service achat
+aurait naturellement — expose donc son utilisateur à ce mélange, sans qu'aucun signal ne
+l'avertisse.
+
+La restriction du périmètre protégeait la **référence**, pas le **produit**. Cet écart
+n'était écrit nulle part, et il est désormais chiffré.
+
+### La suite
+
+Le corpus complet **ne devient pas** la condition de la porte : ses seuils sont fondés
+sur dix-sept observations du corpus restreint, et les déplacer effacerait ce travail.
+Il devient une **seconde condition**, à mesurer périodiquement, dont l'indicateur propre
+est `regime_incorrect`.
+
+Trois pistes de correction, aucune engagée :
+
+1. **Le filtrage de régime à la recherche** — ne servir que les passages du régime de la
+   question. Suppose de savoir déterminer ce régime, ce qui n'est pas acquis.
+2. **L'annotation dans la réponse** — le garde-fou de provenance existe et sait annoter ;
+   il ne connaît pas la notion de régime.
+3. **Rien, et le dire** — documenter que Colaig ne distingue pas les régimes, et laisser
+   l'exploitant restreindre son espace. C'est ce que fait la référence aujourd'hui, sans
+   l'avoir décidé.
+
+Le choix relève de l'arbitrage humain : il porte sur ce que le produit promet.

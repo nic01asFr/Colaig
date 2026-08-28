@@ -1,0 +1,21 @@
+{
+  "corpus": "C:\\Users\\Omen\\AppData\\Local\\Temp\\corpus-ccp-complet",
+  "surface_confusion": 1058,
+  "tirages": [
+    {
+      "archive": "regime-complet-1.json",
+      "cas": 113,
+      "regime_incorrect": 43
+    },
+    {
+      "archive": "regime-complet-2.json",
+      "cas": 113,
+      "regime_incorrect": 43
+    },
+    {
+      "archive": "regime-complet-3.json",
+      "cas": 113,
+      "regime_incorrect": 48
+    }
+  ]
+}
