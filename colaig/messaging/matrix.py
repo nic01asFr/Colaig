@@ -40,6 +40,15 @@ logger = logging.getLogger(__name__)
 # Messages de plus de 5 minutes ignorés au démarrage
 _STALE_MESSAGE_SECONDS = 300
 
+# Combien de fils l'instance retient. Un processus qui tourne des semaines ne peut pas
+# se souvenir de tous les siens : même exigence que le verrou d'historique et que la
+# retenue des messages indéchiffrables — une structure qui ne décroît jamais finit par
+# tenir la mémoire.
+#
+# La purge retire les PLUS ANCIENS. Purger au hasard, ou purger le dernier, ferait
+# perdre la conversation en cours — précisément celle que l'utilisateur écrit.
+_MAX_FILS_SUIVIS = 1024
+
 
 # ── Helpers Markdown → HTML (SPEC-48 : Matrix utilise HTML sanitisé) ─────────
 
@@ -245,6 +254,10 @@ class MatrixMessaging:
         # Un salon n'est prévenu qu'une fois d'un message illisible (L2.6) : un appareil
         # mal apparié en produit des dizaines, et un message répété cesse d'être lu.
         self._salons_prevenus_indechiffrable: set[str] = set()
+        # Les fils ouverts sur une réponse du bot (L3.2). Un `dict` et non un `set` :
+        # il faut un ORDRE pour purger les plus anciens, et l'ordre d'insertion d'un
+        # dict est garanti depuis Python 3.7.
+        self._fils_suivis: dict[str, None] = {}
         # Fichier de persistance du token (évite de créer une nouvelle session à chaque démarrage)
         self._token_store = token_store or paths.local_file("matrix_token.json")
         # Répertoire du crypto store E2E (clés Olm/Megolm — nécessite matrix-nio[e2e])
@@ -478,12 +491,27 @@ class MatrixMessaging:
             "formatted_body": formatted or _markdown_to_html(text),  # Rendu riche
         }
 
-        await self._client.room_send(
+        reponse = await self._client.room_send(
             room_id=conversation_id,
             message_type="m.room.message",
             content=content,
             ignore_unverified_devices=True,
         )
+
+        # RETENIR CE MESSAGE COMME RACINE DE FIL POSSIBLE (L3.2).
+        #
+        # C'est ce qui rend le critère du lot opérant : « un fil ouvert sur une réponse
+        # du bot est suivi sans nouvelle mention ». Sans cet enregistrement,
+        # `suivre_fil` existerait sans que rien ne l'appelle — le motif « écrit et non
+        # branché » que ce dépôt a trouvé neuf fois.
+        #
+        # Les messages de STATUT en sont exclus : un indicateur de progression n'est
+        # pas une réponse, et ouvrir un fil dessus n'aurait pas de sens.
+        #
+        # La signature reste `-> None` : la remonter changerait `MessagingProtocol`,
+        # ce qui relève d'un arbitrage humain (`CLAUDE.md` §5).
+        if not is_status:
+            self.suivre_fil(getattr(reponse, "event_id", "") or "")
 
     async def send_typing(
         self,
@@ -556,6 +584,56 @@ class MatrixMessaging:
             # arreter la boucle de reception.
             logger.warning("impossible de prevenir %s (%s)", salon, exc)
 
+    def suivre_fil(self, event_id: str) -> None:
+        """Retient un fil ouvert sur une réponse du bot.
+
+        Appelé après l'envoi d'une réponse : les tours suivants de ce fil n'auront pas
+        à mentionner le bot de nouveau. C'est le critère du lot L3.2 — exiger une
+        mention à chaque tour rendrait le fil inutile, autant écrire dans le salon.
+        """
+        if not event_id:
+            return
+        self._fils_suivis.pop(event_id, None)      # remettre en tête s'il existait
+        self._fils_suivis[event_id] = None
+        while len(self._fils_suivis) > _MAX_FILS_SUIVIS:
+            self._fils_suivis.pop(next(iter(self._fils_suivis)))
+
+    def _nous_concerne(self, event, contenu: dict, thread_root: str) -> bool:
+        """En salon, ce message appelle-t-il l'assistant ?
+
+        TROIS RÈGLES, DANS CET ORDRE.
+
+        **1. Un fil que le bot a ouvert se poursuit sans mention.** C'est le critère du
+        lot : quelqu'un pose une question, Colaig répond, la conversation continue dans
+        le fil. Le bot ne suit QUE les fils enracinés sur ses propres réponses — sans
+        cela, « suivre les fils » reviendrait à répondre à tout, et l'on aurait
+        remplacé un excès de zèle par un autre.
+
+        **2. `m.mentions` fait foi quand il est présent.** C'est le champ natif de
+        Matrix depuis la version 1.7, renseigné par le client quand l'utilisateur pose
+        une vraie mention : une DÉCLARATION D'INTENTION, et non une coïncidence de
+        vocabulaire. S'il est là et ne nomme pas le bot, la réponse est non — même si
+        le corps contient son nom.
+
+        **3. À défaut, le corps du message.** Repli pour les clients qui ne posent pas
+        `m.mentions` : anciens clients, ponts, bots.
+
+        CE QUE LA RÈGLE 2 CORRIGE. La décision se prenait par recherche de sous-chaîne
+        dans le corps, sur le LOCALPART de l'identifiant — donc « il faudrait demander
+        à colaig ce qu'il en pense » réveillait l'assistant. Dans un salon actif, il
+        répondait à des messages qui parlaient de lui.
+        """
+        if thread_root and thread_root in self._fils_suivis:
+            return True
+
+        mentions = contenu.get("m.mentions")
+        if isinstance(mentions, dict):
+            return self._username in (mentions.get("user_ids") or [])
+
+        corps = getattr(event, "body", "") or ""
+        localpart = self._username.split(":")[0].lstrip("@")
+        return localpart in corps or self._username in corps
+
     async def _on_room_message(self, room, event: RoomMessageText) -> None:
         """Traite un message reçu dans un salon."""
         if self._client is None:
@@ -577,21 +655,26 @@ class MatrixMessaging:
         # Déterminer le type de conversation
         conversation_type = await self._resolve_conversation_type(room.room_id)
 
-        # En salon (non-DM), ignorer si pas mentionné
-        if conversation_type not in (ConversationType.DM, ConversationType.UNKNOWN):
-            bot_display = self._username.split(":")[0].lstrip("@")
-            if bot_display not in event.body and self._username not in event.body:
-                return
+        contenu = (event.source or {}).get("content", {}) if isinstance(
+            getattr(event, "source", None), dict) else {}
 
-        # Détecter les réponses
-        is_reply = False
-        reply_to = ""
-        if hasattr(event, "source") and isinstance(event.source, dict):
-            relates = event.source.get("content", {}).get("m.relates_to", {})
-            in_reply = relates.get("m.in_reply_to", {})
-            if in_reply.get("event_id"):
-                is_reply = True
-                reply_to = in_reply["event_id"]
+        # Le FIL, distinct de la citation.
+        #
+        # `rel_type: m.thread` ouvre une conversation séparée, qui a sa propre
+        # continuité. `m.in_reply_to` seul est une CITATION dans le flux du salon.
+        # Les confondre ferait suivre comme un fil toute réponse citée, et
+        # l'assistant s'inviterait dans des échanges qui ne le concernent pas.
+        relates = contenu.get("m.relates_to") or {}
+        thread_root = (relates.get("event_id", "")
+                       if relates.get("rel_type") == "m.thread" else "")
+        in_reply = relates.get("m.in_reply_to") or {}
+        is_reply = bool(in_reply.get("event_id"))
+        reply_to = in_reply.get("event_id", "")
+
+        # En salon (non-DM), décider s'il faut répondre.
+        if conversation_type not in (ConversationType.DM, ConversationType.UNKNOWN):
+            if not self._nous_concerne(event, contenu, thread_root):
+                return
 
         # Construire l'IncomingMessage (noms provider-agnostic)
         message = IncomingMessage(
@@ -603,6 +686,7 @@ class MatrixMessaging:
             display_name=room.user_name(event.sender) or event.sender,
             is_reply=is_reply,
             reply_to=reply_to,
+            thread_root=thread_root,
             platform="matrix",
         )
 

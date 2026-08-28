@@ -135,7 +135,17 @@ class IncomingMessage:
     timestamp: datetime = field(default_factory=datetime.utcnow)
     display_name: str = ""       # Nom affiché de l'auteur
     is_reply: bool = False       # Est-ce une réponse à un message
-    reply_to: str = ""           # ID du message auquel on répond (thread)
+    reply_to: str = ""           # ID du message auquel on répond (citation)
+    # Racine du FIL, si le message en fait partie. Vide sinon.
+    #
+    # Distinct de `reply_to`, et la distinction compte : une réponse riche
+    # (`m.in_reply_to`) est une CITATION — on répond à un message précis, dans le flux
+    # du salon. Un fil (`rel_type: m.thread`) est une CONVERSATION SÉPARÉE, qui a sa
+    # propre continuité. Les confondre ferait suivre comme un fil toute réponse citée,
+    # et l'assistant s'inviterait dans des échanges qui ne le concernent pas.
+    #
+    # Le nom reste provider-agnostic : Slack a la même notion sous `thread_ts`.
+    thread_root: str = ""
     platform: str = ""           # Plateforme source (matrix, slack, webchat, mcp)
     attachments: list[Attachment] = field(default_factory=list)
 
