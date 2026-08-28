@@ -64,6 +64,8 @@ from colaig.rag.faiss_store import FaissStore  # noqa: E402
 from colaig.rag.garde_fou_reponse import appliquer  # noqa: E402
 from colaig.rag.verification_citations import articles_cites  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))   # pour `nombres`
+
 JEU = RACINE / "tests" / "golden" / "v1.jsonl"
 MESURES = RACINE / "_chantier" / "mesures"
 
@@ -75,9 +77,75 @@ MARQUEURS_REFUS = (
 )
 
 
-def montants(texte: str) -> set[str]:
-    return {m.replace(" ", " ").replace("\xa0", " ")
-            for m in re.findall(r"\b\d{1,3}(?:[  \xa0]\d{3})+\b", texte)}
+# Le motif d'origine etait `\d{1,3}( \d{3})+` : il exigeait un groupement par milliers
+# ET N'EXIGEAIT PAS D'UNITE. Deux defauts OPPOSES, mesures le 28/08 :
+#
+#   - aveugle aux lettres — 89 % des grandeurs du corpus sont ecrites ainsi, et
+#     « quarante-cinq mille euros » lui echappait entierement ;
+#   - trop large sur les chiffres — « 25 000 » comptait comme un montant meme SANS
+#     unite, donc « l'article 25 000 » aussi.
+#
+# `nombres.montants` exige l'unite et lit les lettres. MESURE, sur douze archives :
+# l'indicateur `montants_inventes` NE BOUGE PAS (0,58 contre 0,58) — les deux defauts
+# se compensaient. L'angle mort etait reel et VIDE.
+#
+# On corrige quand meme : un indicateur juste pour de mauvaises raisons cesse de l'etre
+# au premier texte different. La valeur de reference (0,65 · plafond 3) reste valable
+# telle quelle — cette correction n'oblige a AUCUNE remesure.
+from nombres import montants  # noqa: E402,F401
+
+
+def cite_reference_libre(texte: str, ref: str) -> bool:
+    """La reponse cite-t-elle une reference NON codifiee — CCAG, annexe ?
+
+    LE DEFAUT CORRIGE (28/08/2026). Onze cas positifs sur 113 attendent « CCAG
+    Travaux 4 » ou « Annexe 2 — Seuils de procedure — texte 1 ». `articles_cites` ne
+    connait que `L/R/D` + chiffres : il ne peut PAS produire ces references. Le
+    plafond de `cite_attendu` n'etait donc pas 1.0 mais 0.903, et le modele qui repond
+    « CCAG Travaux, Article 4.1 [Document 1] » — ce qui est juste — etait compte faux.
+
+    LA RECONNAISSANCE EST ICI, PAS DANS `articles_cites`. Elargir l'extracteur a
+    « Article 4 » creerait des faux positifs partout, y compris sur la detection de
+    fantomes, ou un numero nu se confondrait avec une reference inventee.
+
+    Deux formes :
+      « CCAG Travaux 4 »   le document ET « article 4 » — ou 4.1, 4.2 : le CCAG
+                           numerote ses subdivisions et un CCAP cite « art. 11.1 ».
+      « … — texte 1 »      le document SEUL. Ces pseudo-articles expliquent comment
+                           CHOISIR un CCAG et ne portent pas de numero citable ; le
+                           projet voisin les exclut de son corpus pour cette raison.
+                           Citer le document EST alors la citation.
+
+    La frontiere apres le numero evite de confondre l'article 4 et l'article 41.
+    """
+    ref = (ref or "").strip()
+    bas = texte.lower()
+    pseudo = re.match(r"^(.*?)\s*[—–-]\s*texte\s+\d+$", ref, re.I)
+    if pseudo:
+        return pseudo.group(1).strip().lower() in bas
+    m = re.match(r"^(.*?)\s+(\d+)$", ref)
+    if not m:
+        return ref.lower() in bas
+    doc = re.sub(r"\s*[—–-]\s*$", "", m.group(1).strip()).split("—")[0].strip()
+    if doc.lower() not in bas:
+        return False
+    return bool(re.search(rf"articles?\s+{m.group(2)}(?![\d])", texte, re.I))
+
+
+def cites_attendus(texte: str, attendus: list[str]) -> tuple[bool, bool]:
+    """Rend (au moins un attendu cite, TOUS les attendus cites).
+
+    Le second est un indicateur AJOUTE, pas un remplacement. Onze cas attendent
+    plusieurs articles et la notation historique accepte l'un d'eux — `mp-002` dit
+    pourtant « la reponse exige l'article legislatif ET l'article reglementaire ».
+
+    Le jeu dore n'est PAS modifie : encoder cette exigence reviendrait a inscrire une
+    interpretation de onze justifications. Les deux lectures sont rendues cote a cote,
+    et l'arbitrage de promouvoir la stricte reste humain.
+    """
+    trouves = articles_cites(texte)
+    ok = [(a in trouves) or cite_reference_libre(texte, a) for a in attendus]
+    return any(ok), all(ok)
 
 
 def tronquee(reponse: str) -> bool:
@@ -127,6 +195,7 @@ def main() -> int:
     # garde-fou est precisement ce qui rattrape une reference hors contexte.
     garde = {"rendue": 0, "annotée": 0, "remplacée": 0}
     n = coupees = fantomes = hors_ctx = inventes = cite_ok = positifs = 0
+    cite_complet = 0
     positifs_jugeables = cite_ok_jugeables = 0
     refus_toujours = refus_parfois = refus_jamais = negatifs_jugeables = 0
     anomalies: list[str] = []
@@ -182,9 +251,12 @@ def main() -> int:
             # meme defaut, et la comparaison entre profondeurs serait faussee.
             if jugeables:
                 positifs_jugeables += 1
-                if set(c["articles_attendus"]) & articles_cites(jugeables[0]):
+                un, tous = cites_attendus(jugeables[0], c["articles_attendus"])
+                if un:
                     cite_ok += 1
                     cite_ok_jugeables += 1
+                if tous:
+                    cite_complet += 1
 
     print(f"fichier              : {fichier.name}   (k={k})")
     print(f"cas                  : {n}")
@@ -194,6 +266,8 @@ def main() -> int:
     print(f"montants inventés    : {inventes}")
     print(f"cite l'attendu       : {cite_ok}/{positifs} (tous) · "
           f"{cite_ok_jugeables}/{positifs_jugeables} (reponses jugeables)")
+    print(f"cite l'attendu complet : {cite_complet}/{positifs_jugeables} "
+          f"(TOUS les articles attendus)")
     print(f"refus — toujours {refus_toujours} · parfois {refus_parfois} · "
           f"jamais {refus_jamais}  (sur {negatifs_jugeables} négatifs jugeables)")
     total_garde = sum(garde.values())

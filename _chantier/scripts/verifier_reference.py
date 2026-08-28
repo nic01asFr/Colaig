@@ -158,6 +158,18 @@ def main() -> int:
     cite_n = valeur(recompte, r"cite l'attendu\s*:.*·\s*\d+/(\d+)")
     lignes.append(comparer("cite l'attendu", round(cite / cite_n, 3), g["cite_attendu"], ecarts))
 
+    # La lecture STRICTE : tous les articles attendus, pas seulement l'un d'eux.
+    #
+    # Elle est comparée ici parce qu'un seuil inscrit dans `reference.json` que RIEN ne
+    # lit est exactement le défaut que ce dépôt a trouvé neuf fois. Le porter dans la
+    # porte n'est pas la promouvoir : les deux lectures sont rendues côte à côte, et
+    # décider laquelle fait foi reste un arbitrage humain.
+    if "cite_attendu_complet" in g:
+        complet = valeur(recompte, r"cite l'attendu complet\s*:\s*(\d+)/")
+        complet_n = valeur(recompte, r"cite l'attendu complet\s*:\s*\d+/(\d+)")
+        lignes.append(comparer("cite l'attendu complet", round(complet / complet_n, 3),
+                               g["cite_attendu_complet"], ecarts))
+
     for nom, cle, motif in (
         ("hors contexte", "hors_contexte_max", r"hors contexte\s*:\s*(\d+)"),
         ("fantômes", "fantomes_max", r"fantômes\s*:\s*(\d+)"),
