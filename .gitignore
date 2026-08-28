@@ -28,3 +28,5 @@ _local/
 _chantier/mesures/remesure-prompt-production.txt
 .cache-embeddings-*.npz
 _chantier/mesures/.cache-embeddings-*
+_chantier/mesures/dispersion-durci-*.json
+_chantier/mesures/dispersion-avant_d50-*.json
