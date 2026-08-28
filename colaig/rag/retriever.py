@@ -70,6 +70,61 @@ class Retriever:
         """Configure le VectorStore à utiliser (changement de workspace)."""
         self._store = store
 
+    async def retrieve_many(
+        self,
+        queries: list[str],
+        k: int = 5,
+        score_threshold: float = 0.3,
+        store=None,
+        bm25_store=None,
+    ) -> list[list[SearchResult]]:
+        """Recherche pour PLUSIEURS requêtes, en UNE seule vectorisation.
+
+        POURQUOI (L3.5)
+        ----------------
+        L'Analyseur produit 2 a 3 reformulations d'une meme question, plus des
+        `document_queries`. `PreExecutionBuilder` bouclait dessus en appelant
+        `retrieve()` a chaque fois : deux a six allers-retours reseau par tour, sur le
+        chemin du message, avant que l'utilisateur voie quoi que ce soit.
+
+        `embed_texts` existait deja, et l'indexation s'en servait pour des centaines de
+        chunks. La brique du groupage etait la ; elle n'etait pas employee ici.
+
+        CE QUI EST GROUPE, ET CE QUI NE L'EST PAS
+        -------------------------------------------
+        Seule la VECTORISATION est groupee — c'est le seul aller-retour reseau de
+        l'etape. La recherche FAISS, le RRF et le MMR restent par requete : ils sont
+        locaux, et les grouper ne gagnerait rien tout en changeant les resultats.
+
+        HyDE retombe sur la boucle d'origine : il demande une GENERATION par requete,
+        ce qui releve d'un autre arbitrage. Un test epingle cette limite pour qu'on ne
+        croie pas le gain acquis partout.
+
+        Returns:
+            Une liste de resultats PAR requete, dans l'ordre des requetes.
+        """
+        if not queries:
+            return []
+
+        effective_store = store if store is not None else self._store
+        if effective_store is None or effective_store.count == 0:
+            # Meme court-circuit que `retrieve` : interroger un index vide ne vaut pas
+            # un aller-retour reseau.
+            return [[] for _ in queries]
+
+        if self._hyde_enabled and self._albert_client is not None:
+            return [await self.retrieve(q, k=k, score_threshold=score_threshold,
+                                        store=store, bm25_store=bm25_store)
+                    for q in queries]
+
+        vecteurs = await self._embeddings.embed_texts(queries)
+        return [
+            await self.retrieve(q, k=k, score_threshold=score_threshold,
+                                store=store, bm25_store=bm25_store,
+                                query_embedding=v)
+            for q, v in zip(queries, vecteurs)
+        ]
+
     async def retrieve(
         self,
         query: str,
@@ -77,6 +132,7 @@ class Retriever:
         score_threshold: float = 0.3,
         store=None,
         bm25_store=None,
+        query_embedding: list[float] | None = None,
     ) -> list[SearchResult]:
         """Recherche les documents les plus pertinents.
 
@@ -94,6 +150,9 @@ class Retriever:
             k: Nombre de résultats à retourner.
             score_threshold: Score minimum pour inclure un résultat (sans reranker Albert).
             store: VectorStore spécifique (isolation workspace). Si None, utilise self._store.
+            query_embedding: vecteur déjà calculé. Fourni, l'étape 1 est sautée — c'est
+                ce qui permet à `retrieve_many` de grouper la vectorisation sans
+                dupliquer le reste du pipeline. Aucun appelant existant ne le passe.
             bm25_store: BM25Store spécifique (hybrid search). Si None, désactive BM25.
 
         Returns:
@@ -110,9 +169,10 @@ class Retriever:
             return []
 
         # 1. Embed la query (+ expansion HyDE optionnelle)
-        query_embedding = await self._embeddings.embed_text(query)
-        if self._hyde_enabled and self._albert_client is not None:
-            query_embedding = await self._hyde_expand_query(query, query_embedding)
+        if query_embedding is None:
+            query_embedding = await self._embeddings.embed_text(query)
+            if self._hyde_enabled and self._albert_client is not None:
+                query_embedding = await self._hyde_expand_query(query, query_embedding)
 
         # 2. FAISS search — 2x plus de candidats pour le reranking
         candidates = effective_store.search(query_embedding, k=k * 2)

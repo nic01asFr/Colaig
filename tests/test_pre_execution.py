@@ -252,8 +252,11 @@ class TestExecuteRetrieval:
     @pytest.mark.asyncio
     async def test_calls_retriever_for_chunk_queries(self, mock_storage, mock_embeddings, mock_profile_service, sample_workspace_context):
         chunk = DocumentChunk(text="contenu", source_path="/doc.pdf", source_name="doc.pdf")
+        # Depuis L3.5, les reformulations sont groupees en UN aller-retour : le
+        # constructeur appelle `retrieve_many` une fois, pas `retrieve` N fois.
         mock_retriever = AsyncMock()
-        mock_retriever.retrieve = AsyncMock(return_value=[SearchResult(chunk=chunk, score=0.9)])
+        mock_retriever.retrieve_many = AsyncMock(
+            return_value=[[SearchResult(chunk=chunk, score=0.9)]] * 2)
         builder = PreExecutionBuilder(
             storage=mock_storage,
             embeddings=mock_embeddings,
@@ -265,15 +268,21 @@ class TestExecuteRetrieval:
         pre_exec = MagicMock(spec=PreExecutionCard)
         pre_exec.selected_skills = []
         results = await builder.execute_retrieval(search_dirs, pre_exec, sample_workspace_context)
-        assert mock_retriever.retrieve.await_count == 2
+        assert mock_retriever.retrieve_many.await_count == 1, (
+            "les deux reformulations doivent tenir en UN appel"
+        )
+        assert mock_retriever.retrieve_many.await_args.args[0] == ["query 1", "query 2"]
         assert len(results["chunks"]) >= 1
 
     @pytest.mark.asyncio
     async def test_deduplicates_chunks_by_source_path(self, mock_storage, mock_embeddings, mock_profile_service, sample_workspace_context):
         chunk = DocumentChunk(text="contenu", source_path="/doc.pdf", source_name="doc.pdf")
         mock_retriever = AsyncMock()
-        # Même chunk retourné 2 fois
-        mock_retriever.retrieve = AsyncMock(return_value=[SearchResult(chunk=chunk, score=0.9)])
+        # Même chunk rendu pour les deux reformulations — la deduplication par
+        # source_path doit survivre au groupage.
+        mock_retriever.retrieve_many = AsyncMock(
+            return_value=[[SearchResult(chunk=chunk, score=0.9)],
+                          [SearchResult(chunk=chunk, score=0.9)]])
         builder = PreExecutionBuilder(
             storage=mock_storage,
             embeddings=mock_embeddings,
