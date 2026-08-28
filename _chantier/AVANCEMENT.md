@@ -2873,3 +2873,81 @@ l'impliquent. `CLAUDE.md` §4.8 et §5.
 3. **Promouvoir la lecture stricte ?** Coût chiffré : 3 points.
 4. **Sur-refus — 7,4 %.** À mesurer en variante `temoin` avant d'y toucher : il pourrait
    être fabriqué par notre propre harnais.
+
+---
+
+## L3.1 — LE SCORING DE BINDING EST RETIRÉ · 28/08/2026 · **lot caduc**
+
+Le lot demandait « scoring de binding 6 niveaux + auto-bind à l'invitation ». Il a été
+écrit **avant** D42/D43. L'arbitrage l'a rendu caduc, et le porter aurait introduit une
+régression de confidentialité dans un dessin qui n'en avait pas.
+
+### Ce que le mappage dit déjà, et qui suffit
+
+`DECISIONS.md` porte les trois états, tous implémentés :
+
+| conversation | mode | conduite |
+|---|---|---|
+| salon **lié** | `ASSISTANT` | corpus de l'espace |
+| salon **inconnu** | `CHATBOT` | accueil, `storage_path=""`, `rag_enabled=False` |
+| **DM** | `PERSONAL` | espace personnel créé à la volée |
+
+Et : « Colaig ne peut rien lire tant que rien n'est lié. […] Accepter une invitation
+n'expose donc rien — ce qui rend l'auto-adhésion défendable comme comportement
+produit. »
+
+Le rattachement **est formel** : `colaig lier <workspace_id>`, un acte délibéré.
+
+### Pourquoi le scoring était redondant ou indésirable, sur toute son étendue
+
+| niveau | verdict |
+|---|---|
+| `conversation` | **déjà** dans le resolver (`_conversation_mapping`) |
+| `user_id` | **déjà** dans le resolver (`find_workspace_for_user`) |
+| `room_name`, `room_topic` | inférence, et **instable** — voir ci-dessous |
+| `name_convention` | l'inférence que D42/D43 interdisait |
+| `default_workspace` | le mode CHATBOT y pourvoit sans exposer de documents |
+
+**L'argument qui achève : un nom de salon est modifiable.** N'importe quel membre
+habilité peut renommer un salon Matrix. Un rattachement fondé sur `room_name` peut donc
+**changer silencieusement de dossier** quand quelqu'un renomme le salon. Un `room_id`,
+lui, ne change jamais.
+
+Les niveaux d'inférence ne sont donc pas seulement non consentis — ils sont **instables
+par construction**, ce qui est pire que ce que l'arbitrage reprochait.
+
+### Ce que le portage a tout de même appris
+
+Deux défauts de la version déployée, trouvés en la lisant :
+
+1. **`_reason_for_score` reconstituait le motif depuis le score**, or le score inclut
+   `priority`, qui vient du `config.yaml`. Un espace par défaut (score 10) avec
+   `priority: 90` était annoncé comme rattaché *par convention de nom*. Le motif ment
+   dès que la priorité comble l'écart entre deux niveaux — et c'est ce motif qu'on
+   montre à l'utilisateur pour justifier un rattachement.
+2. **`priority` pouvait faire remonter un niveau faible au-dessus d'un niveau fort** :
+   un repli à `priority: 10000` battait un rattachement explicite. Un propriétaire
+   d'espace pouvait ainsi capter les salons rattachés à d'autres.
+
+À signaler à `Plateforme_colaig` si cette version reste en service.
+
+### Le contexte Tchap, vérifié
+
+`ConversationType` distingue DM, PRIVATE, PUBLIC, CHANNEL ; `_resolve_conversation_type`
+lit `room.join_rule`. Le contexte est **lu et typé**. Il sert à détecter le DM et à
+décider si une mention est requise — et n'a pas besoin de servir davantage, le
+rattachement étant un acte humain : c'est la personne qui lie qui sait si le salon est
+ouvert.
+
+**Un résidu pour L6.1**, noté sans être traité : un salon lié peut être **ouvert à un
+public plus large après coup**, et rien ne réévalue le rattachement. Le lien reste
+correct — le `room_id` ne change pas — mais l'audience s'élargit en silence.
+
+### Pourquoi retirer plutôt que garder non branché
+
+Un moteur d'inférence non branché, portant sur une décision de confidentialité, est une
+dette : quelqu'un le branchera un jour sans relire pourquoi il ne l'était pas. Ce dépôt
+a mesuré neuf fois le coût du code écrit et non branché ; il n'a pas besoin d'en ajouter
+un dixième délibérément.
+
+**Mieux vaut pas de code qu'un code dont la raison de ne pas être branché s'oublie.**
