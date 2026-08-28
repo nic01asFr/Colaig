@@ -41,6 +41,7 @@ from colaig.models import (
     WorkspaceContext,
 )
 from colaig.security.prompt_sanitizer import sanitize_description
+from colaig.security.wrap import CONSIGNE, baliser, contient_balise
 
 logger = logging.getLogger(__name__)
 
@@ -201,6 +202,18 @@ ANALYSE_INTENT_TOOL = {
 }
 
 
+def _enrobe(morceaux: list[str]) -> str:
+    """Entoure d'une balise unique tout ce qui vient de l'exterieur.
+
+    Rend une chaine vide si la liste l'est : une balise vide declarerait une donnee
+    qui n'existe pas, et changerait le prompt de tous les tours ordinaires pour rien.
+    """
+    if not morceaux:
+        return ""
+    return baliser("\n".join(morceaux), source="conversation et espace",
+                   nature="contexte")
+
+
 class Analyser:
     """Agent Analyseur — comprend l'intention du message.
 
@@ -281,9 +294,19 @@ class Analyser:
             workspace_context=workspace_info,
         )
 
+        # La CONSIGNE explique les balises que `workspace_info` vient peut-etre de
+        # poser. Sans elle, `<untrusted>` n'est qu'un caractere de plus dans le prompt.
+        #
+        # AJOUTEE SEULEMENT S'IL Y A UN BLOC : une consigne posee sans bloc parlerait
+        # d'une donnee absente, et changerait le prompt des tours ordinaires — ceux-la
+        # memes que la reference mesure.
+        systeme = agent_ctx.system_prompt
+        if contient_balise(workspace_info):
+            systeme = f"{systeme}\n\n{CONSIGNE}"
+
         # Historique conversationnel — permet à l'Analyser de contextualiser
         # les reformulations dans les conversations multi-tours
-        messages = [{"role": "system", "content": agent_ctx.system_prompt}]
+        messages = [{"role": "system", "content": systeme}]
         for hist_msg in context.conversation_history[-8:]:
             if hist_msg.get("role") in ("user", "assistant") and hist_msg.get("content"):
                 messages.append({"role": hist_msg["role"], "content": hist_msg["content"]})
@@ -335,8 +358,18 @@ class Analyser:
             f"{workspace_info}"
         )
 
+        # La CONSIGNE explique les balises que `workspace_info` vient peut-etre de
+        # poser. Sans elle, `<untrusted>` n'est qu'un caractere de plus dans le prompt.
+        #
+        # AJOUTEE SEULEMENT S'IL Y A UN BLOC : une consigne posee sans bloc parlerait
+        # d'une donnee absente, et changerait le prompt des tours ordinaires — ceux-la
+        # memes que la reference mesure.
+        systeme = agent_ctx.system_prompt
+        if contient_balise(workspace_info):
+            systeme = f"{systeme}\n\n{CONSIGNE}"
+
         # Historique conversationnel — idem json_prompt pour la cohérence multi-turns
-        messages = [{"role": "system", "content": agent_ctx.system_prompt}]
+        messages = [{"role": "system", "content": systeme}]
         for hist_msg in context.conversation_history[-8:]:
             if hist_msg.get("role") in ("user", "assistant") and hist_msg.get("content"):
                 messages.append({"role": hist_msg["role"], "content": hist_msg["content"]})
@@ -387,90 +420,95 @@ class Analyser:
         Phase 6 : enrichit avec les infos du pre_exec (behavior, phase, skills).
         Toujours : injecte le contexte utilisateur (display_name, domain, mode, mémoire).
         """
+        # CE QUI EST DÉCLARÉ COMME DONNÉE, ET CE QUI NE L'EST PAS (L2.1c, principe 4)
+        # ---------------------------------------------------------------------------
+        # `externe` rassemble tout ce qui dérive d'un document, d'un tour de
+        # conversation ou d'un choix d'utilisateur. Il sort de cette fonction entouré
+        # d'UN SEUL couple de balises : la déclaration est la même pour tous les
+        # champs, et en poser une par champ gonflerait le prompt sans rien ajouter.
+        #
+        # Reste HORS balise ce que l'instance énonce en son nom propre — `name`,
+        # `description`, `language` du `config.yaml`, et le mode d'interaction. Les
+        # baliser dirait au modèle de ne pas en tenir compte, ce qui viderait de leur
+        # fonction des paramètres que le propriétaire de l'espace a posés délibérément.
+        externe: list[str] = []
+
         # Contexte utilisateur — injecté quel que soit le mode
         user_parts = []
         if context.user_display_name:
-            user_parts.append(f"Nom affiché : {context.user_display_name}")
+            user_parts.append(f"Nom affiché : {sanitize_description(context.user_display_name)}")
         if context.user_domain:
-            user_parts.append(f"Domaine : {context.user_domain}")
-        if context.mode:
-            user_parts.append(f"Mode d'interaction : {context.mode.value}")
-        # Faits mémoire issus du pre_exec (Phase 6 ou chargés par handlers)
+            user_parts.append(f"Domaine : {sanitize_description(context.user_domain)}")
+        # Faits mémoire issus du pre_exec (Phase 6 ou chargés par handlers). Ils
+        # entraient BRUTS — sans même l'assainissement que recevaient leurs voisins.
         if pre_exec and pre_exec.fixed_context and pre_exec.fixed_context.get("user_memory"):
-            facts = pre_exec.fixed_context["user_memory"][:5]
+            facts = [sanitize_description(f) for f in pre_exec.fixed_context["user_memory"][:5]]
             user_parts.append("Mémoire utilisateur : " + " | ".join(facts))
-        user_section = ("Utilisateur :\n" + "\n".join(f"  {p}" for p in user_parts)) if user_parts else ""
+        if user_parts:
+            externe.append("Utilisateur :\n" + "\n".join(f"  {p}" for p in user_parts))
+
+        mode_part = f"Mode d'interaction : {context.mode.value}" if context.mode else ""
 
         if not context.workspace:
             # Sans workspace : retourner au moins le contexte utilisateur + pre_exec si dispo
             if pre_exec and pre_exec.fixed_context:
                 pre_exec_info = self._build_pre_exec_info(pre_exec)
-                return "\n\n".join(filter(None, [user_section, pre_exec_info]))
-            return user_section
+                if pre_exec_info:
+                    externe.append(pre_exec_info)
+            return "\n\n".join(filter(None, [mode_part, _enrobe(externe)]))
 
-        # `name`, `description` et `language` viennent du `config.yaml` de l'espace :
-        # cinquième famille du principe 4. Ils ne sont pas balisés mais **assainis** —
-        # ce sont des paramètres que le prompt énonce en son nom propre, et les baliser
-        # dirait au modèle de ne pas en tenir compte, ce qui les viderait de leur
-        # fonction. `sanitize_description` existait depuis l'origine et n'était appelée
-        # nulle part (L2.1).
         ws = context.workspace
         parts = [
             f"Contexte workspace : {sanitize_description(ws.name)}",
             f"Description : {sanitize_description(ws.description)}",
             f"Langue : {sanitize_description(ws.language)}",
         ]
-        if user_section:
-            parts.insert(0, user_section)
+        if mode_part:
+            parts.append(mode_part)
 
         # Phase 6 : enrichissement avec le contexte fixe du pre_exec
         if pre_exec and pre_exec.fixed_context:
             fc = pre_exec.fixed_context
             if fc.get("conversation_phase"):
-                parts.append(f"Phase conversation : {fc['conversation_phase']}")
+                externe.append(f"Phase conversation : {sanitize_description(fc['conversation_phase'])}")
             if fc.get("active_behavior"):
-                parts.append(f"Behavior actif : {fc['active_behavior']}")
+                externe.append(f"Behavior actif : {sanitize_description(fc['active_behavior'])}")
             if fc.get("domain"):
-                parts.append(f"Domaine : {sanitize_description(fc['domain'])}")
+                externe.append(f"Domaine : {sanitize_description(fc['domain'])}")
             if fc.get("tone"):
-                parts.append(f"Ton attendu : {sanitize_description(fc['tone'])}")
+                externe.append(f"Ton attendu : {sanitize_description(fc['tone'])}")
             if fc.get("vocabulary_terms"):
                 termes = ", ".join(fc["vocabulary_terms"][:10])
-                parts.append(f"Vocabulaire métier : {sanitize_description(termes)}")
-            # Ces trois champs traversent d'un utilisateur A UN AUTRE : la trame est
-            # partagee par tout le salon. Leurs voisins immediats (`domain`, `tone`,
-            # `vocabulary_terms`) passent par `sanitize_description` ; eux non.
-            #
-            # L'ecart devient important depuis L2.5b, qui fait du verdict `needs_tools`
-            # de l'Analyseur la porte du catalogue d'outils : ce prompt decide desormais
-            # de ce que le modele pourra appeler.
+                externe.append(f"Vocabulaire métier : {sanitize_description(termes)}")
             if fc.get("known_documents"):
                 docs = [sanitize_description(d) for d in fc["known_documents"][:5]]
-                parts.append(f"Documents connus dans la conversation : {', '.join(docs)}")
+                externe.append(f"Documents connus dans la conversation : {', '.join(docs)}")
             if pre_exec.selected_skills:
                 skill_names = [sanitize_description(s.get("name", ""))
                                for s in pre_exec.selected_skills if s.get("name")]
                 if skill_names:
-                    parts.append(f"Procédures/compétences disponibles : {', '.join(skill_names)}")
+                    externe.append(f"Procédures/compétences disponibles : {', '.join(skill_names)}")
 
         # Anchors de conversation (Phase 6 — éléments établis dans le fil)
         if context.context_anchors:
-            # LE canal qui compte. Une ancre peut naitre des `new_anchors` emises par le
-            # SYNTHETISEUR, qui a lu le contenu des documents : un texte injecte dans un
-            # document peut donc ressortir ici, dans le prompt de l'Analyseur, un tour
-            # plus tard — et la trame est partagee par tout le salon.
+            # LE canal qui compte. Une ancre peut naître des `new_anchors` émises par le
+            # SYNTHÉTISEUR, qui a lu le contenu des documents : un texte injecté dans un
+            # document ressort ici, dans le prompt de l'Analyseur, un tour plus tard —
+            # et la trame est partagée par tout le salon.
             #
-            # `sanitize_description` borne et journalise ; il ne retire PAS les
-            # injections. C'est une attenuation et une trace, pas une defense : la
-            # defense serait le balisage (principe 4), qui change la forme du prompt de
-            # production et appelle donc une remesure de la reference L1.5.
+            # C'est le seul chemin par lequel un contenu documentaire atteint le verdict
+            # `needs_tools`, donc le catalogue d'outils (L2.5b).
             anchor_summaries = [
                 sanitize_description(a.description or a.ref)
                 for a in context.context_anchors[:5]
                 if a.description or a.ref
             ]
             if anchor_summaries:
-                parts.append(f"Éléments établis dans la conversation : {', '.join(anchor_summaries)}")
+                externe.append(f"Éléments établis dans la conversation : {', '.join(anchor_summaries)}")
+
+        bloc_externe = _enrobe(externe)
+        if bloc_externe:
+            parts.append(bloc_externe)
 
         # Inclure descriptions des tools si tool_registry disponible
         tools_source = (

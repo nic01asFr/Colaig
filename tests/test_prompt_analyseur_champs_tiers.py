@@ -38,8 +38,23 @@ Il **aligne** ces champs sur leurs voisins immédiats de la même fonction, déj
 un motif d'injection — c'est une atténuation et une trace, **pas une défense**.
 
 La défense serait le **balisage** (principe 4). Il change la forme du prompt de
-production, donc appelle une remesure de la référence L1.5 : c'est un arbitrage, pas un
-effet de bord de ce lot.
+production, donc appelle une remesure : c'est un arbitrage, pas un effet de bord de ce
+lot.
+
+> **Suite — L2.1c, 29/08/2026.** Le balisage a été posé. Ce que ce fichier décrit reste
+> vrai : l'assainissement continue de borner, nettoyer et journaliser, et il ne retire
+> toujours pas l'injection. Ce qui a changé, c'est que le contenu est désormais
+> **déclaré comme donnée** dans le prompt — voir `tests/test_balisage_analyseur.py`.
+>
+> La remesure annoncée ici s'est révélée moins coûteuse que prévu : la référence L1.5
+> est purement retrieval (embeddings, FAISS, vérification de citations) et n'exerce
+> aucun prompt d'agent. `verdict_analyseur` non plus — il écrit son propre prompt
+> minimal. **Rien ne mesurait le prompt réel de l'Analyseur** ; c'est l'objet de
+> `_chantier/scripts/mesure_ancre_empoisonnee.py`, écrit pour ce lot.
+>
+> Ce qu'il a mesuré est dur : une ancre empoisonnée fait basculer `needs_tools` de
+> **0/8 à 8/8**, et le balisage n'y change **rien**. Le canal décrit dans ce fichier
+> n'est donc pas théorique — il est total.
 """
 from __future__ import annotations
 
@@ -183,13 +198,13 @@ def test_l_identite_qui_DECIDE_vient_du_homeserver():
 def test_l_assainissement_ne_RETIRE_PAS_l_injection():
     """Limite connue, épinglée : ce n'est pas une défense.
 
-    `sanitize_description` borne, nettoie et journalise. Le texte injecté traverse.
-    La défense serait le balisage (principe 4), qui change le prompt de production et
-    appelle une remesure de la référence L1.5 — c'est un arbitrage, pas un effet de
-    bord de ce lot.
+    `sanitize_description` borne, nettoie et journalise. **Le texte injecté traverse**,
+    et cela reste vrai après le balisage de L2.1c : baliser DÉCLARE ce qui est donnée,
+    cela ne retire rien.
 
-    Si ce test échoue, c'est que le balisage a été posé : bonne nouvelle, mettre à jour
-    cette docstring et `AVANCEMENT.md`.
+    Ce test garde donc tout son sens. Ce qui a changé, c'est qu'autour de ce texte il y
+    a désormais une balise et une consigne — condition nécessaire, et **mesurée
+    insuffisante** sur l'ordre administratif (`mesure_ancre_empoisonnee.py`).
     """
     ctx = _contexte(context_anchors=[
         ContextAnchor(anchor_type="decision", ref="d1",

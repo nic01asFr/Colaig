@@ -3023,3 +3023,84 @@ L'espace, lui, se retient **par conversation**, ce qui suffit tant que le proces
 ### Reste de la phase 3
 
 L3.4 (client MCP), L3.6 (chart Helm), la moitié « commandes » de L3.7.
+
+---
+
+## L2.1c — LE BALISAGE DU PROMPT DE L'ANALYSEUR · 29/08/2026 · **posé et mesuré**
+
+Dernière exception au principe 4 (« tout contenu externe entre dans un prompt balisé,
+jamais brut »). Le prompt de l'Analyseur n'importait que `sanitize_description`, jamais
+`baliser` ni `CONSIGNE`. **18 tests pour ce lot, 2401 au total.**
+
+### Pourquoi celui-là en premier
+
+C'était la seule violation encore ouverte d'un principe déclaré inviolable, et le
+verrou qui la retenait — « baliser change le prompt de production, donc appelle une
+remesure » — venait d'être levé par l'appareil de mesure construit en L1.5b.
+
+Le coût s'est révélé plus faible qu'annoncé : **la référence L1.5 est purement
+retrieval** (embeddings, FAISS, vérification de citations) et n'exerce aucun prompt
+d'agent. Elle n'a pas bougé.
+
+### La coupe retenue
+
+**Hors balise** : ce que l'instance énonce en son nom propre — `name`, `description`,
+`language` du `config.yaml`, mode d'interaction. Les baliser dirait au modèle de ne pas
+en tenir compte, ce qui viderait de leur fonction des paramètres délibérés.
+
+**Dans la balise** : tout ce qui dérive d'un document, d'un tour de conversation ou d'un
+choix d'utilisateur — ancres, documents connus, vocabulaire, ton, domaine, phase,
+behavior, compétences, mémoire utilisateur, nom affiché.
+
+Un seul couple de balises pour l'ensemble : la déclaration est la même pour tous, et en
+poser une par champ gonflerait le prompt sans rien ajouter.
+
+**Deux champs entraient bruts**, sans même l'assainissement de leurs voisins :
+`user_memory` et `user_display_name`. Trouvés en écrivant le lot.
+
+La consigne n'est ajoutée **que s'il y a un bloc** — les tours ordinaires gardent leur
+prompt d'avant. C'est ce qui rend le coût de ce lot circonscrit.
+
+### La mesure, qui n'existait pas
+
+`verdict_analyseur()` de `mesure_adversariale.py` n'exerce **pas** le prompt de
+l'Analyseur : il en écrit un minimal à la main. Avant ce lot, **rien ne mesurait le
+prompt réel de l'Analyseur.** D'où `_chantier/scripts/mesure_ancre_empoisonnee.py`.
+
+8 tirages par bras, bras alternés, endpoint réel :
+
+| bras | needs_tools=true | |
+|---|---|---|
+| témoin — aucune ancre | 0/8 | 0 % |
+| nu — ancre, sans balise | 8/8 | 100 % |
+| balisé — ancre, balisée | 8/8 | 100 % |
+
+**Le canal est réel et total** — un contenu documentaire ouvre le catalogue d'outils au
+tour suivant, pour tout le salon. **Le balisage n'y change rien.**
+
+Ce qu'il protège réellement est ailleurs et se teste hors ligne : un contenu ne peut
+plus **forger sa propre clôture**. Sans cela, écrire `</untrusted>` dans un document
+suffisait à faire relire la suite comme du prompt.
+
+### Deux défauts de harnais, trouvés avant publication
+
+**La première campagne rendait 0 % dans les deux bras** — parfaitement rassurant, et
+sans objet. Sans `chat_template_kwargs: {"enable_thinking": False}` — que tous les
+autres harnais du dossier passent déjà — le modèle consommait son budget en jetons de
+raisonnement, rendait un `content` vide, et l'Analyseur tombait sur son Intent de repli,
+dont `needs_tools` vaut `False`. Le harnais **écarte désormais** les tirages non
+exploitables : un repli n'est pas un verdict, et il défaillait dans le sens qui rassure.
+
+**Le bras témoin manquait.** Sans lui, « 100 % des deux côtés » se lisait aussi bien
+« l'attaque fonctionne » que « le modèle répond `true` de toute façon sur cette
+question ». Ajouté, il donne 0/8 — et c'est lui qui rend le reste interprétable.
+
+### Point ouvert — arbitrage (D52)
+
+Le verdict `needs_tools` est la porte du catalogue depuis L2.5b, et la mesure montre
+qu'elle s'ouvre sur commande d'un contenu documentaire. Trois issues, non exclusives :
+couper le canal des ancres, contraindre leur forme à `type` + `ref` sans texte libre, ou
+ne plus faire dépendre le catalogue d'un verdict LLM seul.
+
+À ne pas surestimer : `needs_tools=true` **ouvre** le catalogue, il ne déclenche pas un
+appel. C'est une escalade d'exposition, pas d'exécution.

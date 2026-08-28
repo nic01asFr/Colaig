@@ -109,6 +109,19 @@ def baliser(contenu: str, source: str, nature: str = "document") -> str:
     return f"{entete}\n{nettoye}\n{FERMETURE}"
 
 
+def contient_balise(texte: str) -> bool:
+    """Ce prompt porte-t-il un contenu declare non fiable ?
+
+    Sert a n'ajouter la CONSIGNE que lorsqu'il y a quelque chose a expliquer. Une
+    consigne posee sans bloc parlerait d'une donnee absente, et changerait le prompt
+    des tours ordinaires — ceux-la memes que la reference mesure.
+
+    Ici plutot que chez l'appelant : le marqueur est defini dans ce module, et le
+    chercher ailleurs ferait une seconde source de verite sur la forme de la balise.
+    """
+    return OUVERTURE.split(' ')[0] in (texte or '')
+
+
 def formater_skills(skills, taille_max: int | None = None) -> str:
     """Met en forme les skills d'un espace pour un prompt.
 

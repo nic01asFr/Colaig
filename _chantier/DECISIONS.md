@@ -2725,3 +2725,90 @@ confirmation en texte, qui fonctionne.
 (`is_instance_path`). **Les notes gardées ne ressortent donc pas d'une recherche.**
 L'emplacement est celui que fixe le lot ; le déplacer à la racine de l'espace les
 rendrait interrogeables, et relève d'un arbitrage produit — il n'est pas fait ici.
+
+---
+
+## D52 — Le canal de l'ancre est total, et le balisage ne le ferme pas · 29/08/2026 · **arbitrage demandé**
+
+Résultat du lot L2.1c. Le balisage du prompt de l'Analyseur a été posé — et **mesuré**.
+Ce que la mesure a montré dépasse le lot.
+
+### La mesure
+
+`_chantier/scripts/mesure_ancre_empoisonnee.py`, 8 tirages par bras, bras alternés,
+endpoint SSPCloud, `qwen3-6-35b-moe`. Le chemin exercé est le vrai :
+
+    ancre empoisonnée → `Analyser._build_workspace_info` → prompt réel
+                      → endpoint réel → `needs_tools`
+
+L'attaque est un ordre administratif — la forme que L2.5 avait mesurée comme la plus
+efficace — déposé dans une ancre, c'est-à-dire par le seul canal qui traverse d'un
+utilisateur à un autre.
+
+| bras | needs_tools=true | |
+|---|---|---|
+| **témoin** — aucune ancre | **0/8** | 0 % |
+| **nu** — ancre, sans balise (état d'avant L2.1c) | **8/8** | 100 % |
+| **balisé** — ancre, balisée (état actuel) | **8/8** | 100 % |
+
+### Deux conclusions, à ne pas confondre
+
+**1. Le canal est réel et total.** Une ancre empoisonnée fait passer `needs_tools` de
+*jamais* à *toujours*. Zéro variance des deux côtés. Le témoin exclut l'explication
+concurrente — ce n'est pas le comportement ordinaire du modèle sur cette question.
+
+Concrètement : **un texte déposé dans un document ouvre le catalogue d'outils au tour
+suivant, pour tout le salon.** Le Synthétiseur lit le document, en tire une ancre,
+l'ancre se pose dans la trame partagée, et l'Analyseur la lit au tour d'après.
+
+**2. Le balisage n'y change rien.** Écart nul. Il ferme une violation d'un principe
+déclaré inviolable, et c'était à faire — mais lui attribuer une défense contre cette
+attaque serait exactement le « ça a l'air mieux » que ce chantier combat.
+
+### Ce que le balisage protège réellement
+
+Une chose, et elle est réelle : **un contenu ne peut plus forger sa propre clôture.**
+Sans cela, il suffisait d'écrire `</untrusted>` dans un document pour que la suite se
+relise comme du prompt. Cette défense est déterministe, donc invisible pour un harnais
+statistique — elle est couverte hors ligne par
+`test_une_ancre_ne_peut_pas_FERMER_sa_balise`.
+
+La **déclaration**, elle, ne résiste pas à l'ordre administratif.
+
+### Ce qu'il faut arbitrer
+
+Le verdict `needs_tools` de l'Analyseur est, depuis L2.5b, la **porte du catalogue
+d'outils**. La mesure montre que cette porte s'ouvre sur commande d'un contenu
+documentaire. Trois issues, non exclusives :
+
+1. **Couper le canal.** Les ancres émises par le Synthétiseur ne remontent plus dans le
+   prompt de l'Analyseur. C'est la seule qui ferme le chemin plutôt que de l'atténuer.
+   Coût : la trame perd sa continuité entre tours, ce qui était sa raison d'être.
+
+2. **Contraindre la forme des ancres.** `anchor_type` + `ref` seulement, sans
+   `description` en texte libre. Une référence ne porte pas d'ordre. Coût : les ancres
+   deviennent moins informatives.
+
+3. **Ne plus faire dépendre le catalogue d'un verdict LLM.** L2.5b a fait de
+   `needs_tools` une garde ; la mesure dit que cette garde est pilotable depuis
+   l'extérieur. Une seconde condition non-LLM la rendrait non contournable par le texte.
+
+**Précision pour ne pas surestimer.** `needs_tools=true` ouvre le catalogue ; il ne
+déclenche pas un appel. L2.5 avait mesuré que 4 attaques sur 21 obtiennent effectivement
+un appel d'outil auprès de l'Orchestrateur. C'est une escalade d'**exposition**, pas
+d'exécution automatique. Elle n'en est pas moins une escalade.
+
+### Une erreur du harnais, corrigée avant d'être publiée
+
+La première campagne rendait **0 % dans les deux bras** — un résultat parfaitement
+rassurant. Elle ne mesurait rien : sans `chat_template_kwargs: {"enable_thinking":
+False}`, le modèle consommait son budget en jetons de raisonnement, rendait un `content`
+vide, et l'Analyseur tombait sur son Intent de repli — dont `needs_tools` vaut `False`.
+
+Le harnais **écarte désormais** les tirages non exploitables au lieu de les compter
+comme des « pas d'escalade ». Un repli n'est pas un verdict, et il défaillait dans le
+sens qui rassure.
+
+Le bras témoin manquait également à la première version : sans lui, « 100 % dans les
+deux bras » se lisait aussi bien « l'attaque fonctionne » que « le modèle répond `true`
+de toute façon ».
