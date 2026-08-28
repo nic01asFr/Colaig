@@ -76,11 +76,27 @@ class TestMatrixMessagingConnect:
             await messaging.connect()
 
         mock_client.login.assert_called_once_with("secret", device_name="Colaig")
-        # invite + texte + audio + audio chiffre + MEGOLM (message indechiffrable).
-        # Le cinquieme a ete ajoute au lot L2.6 : sans lui, un message que nio ne sait
-        # pas dechiffrer etait ignore SANS UN MOT, et l'utilisateur voyait un
-        # assistant qui ne repond pas.
-        assert mock_client.add_event_callback.call_count == 5
+
+        # CE QUI EST ECOUTE, ET NON COMBIEN.
+        #
+        # Ce test epinglait `call_count == 5`. Un compte ne dit pas ce qui manque : il
+        # casse quand on AJOUTE un rappel — ce qui est un progres — et reste vert si
+        # l'on en remplace un par un autre, ce qui est une regression. Il a casse au
+        # lot L3.7 pour la seule raison qu'on ecoutait desormais les fichiers.
+        #
+        # La liste porte l'histoire : MEGOLM vient de L2.6 — sans lui, un message que
+        # nio ne sait pas dechiffrer etait ignore SANS UN MOT. Les quatre derniers
+        # viennent de L3.7 — sans eux, deposer un PDF dans un salon ne produisait rien.
+        ecoutes = {appel.args[1].__name__
+                   for appel in mock_client.add_event_callback.call_args_list}
+        assert ecoutes == {
+            "InviteMemberEvent",
+            "RoomMessageText",
+            "RoomMessageAudio", "RoomEncryptedAudio",
+            "MegolmEvent",
+            "RoomMessageFile", "RoomMessageImage",
+            "RoomEncryptedFile", "RoomEncryptedImage",
+        }
 
     async def test_connect_validates_token_with_whoami(self, messaging, tmp_path):
         """restore_login suivi de whoami() — si valide, pas de re-login."""

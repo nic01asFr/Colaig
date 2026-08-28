@@ -26,6 +26,49 @@ from colaig.models import ContextMode, IncomingMessage, IntentType, PipelinePhas
 
 logger = logging.getLogger(__name__)
 
+
+# Ce que Colaig sait ranger. Les IMAGES en font partie : un plan photographié, un devis
+# scanné, un panneau relevé sur le terrain sont des documents, et l'OCR existe (L1.3b).
+#
+# La VIDÉO n'y est pas : Colaig ne sait pas la lire, et l'accepter promettrait un
+# traitement qui n'existe pas.
+_TYPES_DOCUMENT = (
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument",   # docx, xlsx, pptx
+    "application/msword",
+    "application/vnd.oasis.opendocument",              # odt, ods
+    "text/",
+    "image/",
+)
+
+
+def est_audio(piece) -> bool:
+    """Cette pièce jointe est-elle une parole à transcrire ?"""
+    return (piece.content_type or "").startswith("audio/")
+
+
+def est_document(piece) -> bool:
+    """Cette pièce jointe est-elle un document à ranger ?
+
+    LE TYPE MIME FAIT FOI, PAS LE NOM. Un fichier nommé `rapport.pdf` mais annoncé
+    `video/mp4` n'est pas un PDF : se fier à l'extension, c'est se fier à ce que
+    l'expéditeur a bien voulu écrire.
+
+    UN TYPE INCONNU OU ABSENT N'EST PAS UN DOCUMENT. C'est le sens sûr : mieux vaut ne
+    pas ranger un fichier qu'on ne sait pas lire que l'écrire dans l'espace sur une
+    supposition.
+
+    SANS CONTENU, RIEN À RANGER. Le téléchargement peut échouer sans que la pièce
+    disparaisse du message ; écrire un document vide serait pire que ne rien faire — il
+    occuperait une place, serait indexé, et répondrait du vide à une question.
+    """
+    if not piece.content:
+        return False
+    mime = (piece.content_type or "").lower()
+    if not mime or est_audio(piece):
+        return False
+    return any(mime.startswith(prefixe) for prefixe in _TYPES_DOCUMENT)
+
 # Message d'erreur envoyé à l'utilisateur en cas de problème
 ERROR_MESSAGE = (
     "Désolé, je rencontre un problème technique. "
@@ -198,6 +241,22 @@ class MessageHandler:
         2. Vérifie si le salon est en mode CHATBOT et intercepte les commandes d'onboarding.
         Toute erreur lors de la pré-résolution est traitée par le pipeline.
         """
+        # AIGUILLAGE DES PIÈCES JOINTES (L3.7).
+        #
+        # Cette branche disait « pièce jointe + corps vide = message vocal ». C'était
+        # vrai tant que Matrix ne délivrait QUE de l'audio — quatre rappels enregistrés,
+        # aucun pour les fichiers. En ouvrant la réception aux documents, l'équivalence
+        # devient fausse, et déposer un PDF répondrait « Je n'arrive pas à traiter ce
+        # message vocal » : l'assistant nommerait une chose que personne n'a faite.
+        #
+        # L'audio passe D'ABORD sur un message mixte : c'est une PAROLE, elle porte une
+        # intention et attend une réponse, tandis que le document attend un rangement.
+        if (message.attachments and not message.body.strip()
+                and not any(est_audio(p) for p in message.attachments)
+                and any(est_document(p) for p in message.attachments)):
+            await self._ranger_documents(message)
+            return
+
         # Transcription audio : si message vocal sans texte → transcrire d'abord
         if message.attachments and not message.body.strip():
             await self._transcribe_audio(message)
@@ -393,6 +452,68 @@ class MessageHandler:
     # =========================================================================
     # Audio — transcription des messages vocaux
     # =========================================================================
+
+    async def _ranger_documents(self, message: IncomingMessage) -> None:
+        """Range les documents déposés dans l'espace, et le dit.
+
+        LE CLASSEMENT N'EST PAS RÉÉCRIT ICI. `ClassificationEngine` existe, est branché
+        dans `document_index.py`, et lit ses règles dans `.colaig/rules/`. Ce chemin ne
+        fait que **déposer** le fichier dans l'espace documentaire ; l'indexation
+        incrémentale le prendra et le classera comme n'importe quel autre document.
+
+        Réécrire un second chemin de classement produirait deux règles divergentes —
+        ce dépôt en a mesuré le coût neuf fois.
+
+        LE NOM EST VALIDÉ. Un nom de fichier vient de l'extérieur : il peut contenir une
+        traversée (`../`) ou viser `.colaig/`, ce qui ferait écrire dans le dossier
+        d'instance depuis un simple dépôt en salon. C'est la même garde que pour les
+        cibles de livraison (L2.6).
+
+        ON DIT CE QU'ON A FAIT. Un dépôt silencieux laisse l'utilisateur ignorer si le
+        document est arrivé — et il le redéposera.
+        """
+        from colaig.security.path_validator import validate_storage_path
+
+        try:
+            contexte = await self._resolver.resolve(message)
+            espace = getattr(getattr(contexte, "workspace", None), "storage_path", "")
+        except Exception:
+            espace = ""
+        if not espace:
+            logger.warning("document déposé hors espace connu (%s)", message.conversation_id)
+            await self._dire(message, "Je ne sais pas dans quel espace ranger ce "
+                                      "document : ce salon n'est rattaché à aucun dossier.")
+            return
+
+        ranges, refuses = [], []
+        for piece in message.attachments:
+            if not est_document(piece):
+                continue
+            try:
+                cible = validate_storage_path(
+                    f"{espace.rstrip('/')}/{piece.filename}",
+                    allow_dotcolaig=False, context="dépôt en salon")
+                await self._storage.upload(cible, piece.content)
+                ranges.append(piece.filename)
+            except Exception as exc:
+                logger.warning("dépôt refusé pour %s : %s", piece.filename, exc)
+                refuses.append(piece.filename)
+
+        if ranges:
+            await self._dire(message, "Document déposé dans l'espace : "
+                                      + ", ".join(f"**{n}**" for n in ranges)
+                                      + ". Il sera indexé et classé à la prochaine "
+                                        "analyse.")
+        if refuses:
+            await self._dire(message, "Je n'ai pas pu ranger : "
+                                      + ", ".join(refuses) + ".")
+
+    async def _dire(self, message: IncomingMessage, texte: str) -> None:
+        """Envoie une réponse sans laisser une panne d'envoi casser la réception."""
+        try:
+            await self._messaging.send(message.conversation_id, texte)
+        except Exception:
+            logger.exception("envoi impossible dans %s", message.conversation_id)
 
     async def _transcribe_audio(self, message: IncomingMessage) -> None:
         """Transcrit les pièces jointes audio et injecte le texte dans message.body.

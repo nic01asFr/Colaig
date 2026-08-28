@@ -25,7 +25,11 @@ from nio import (
     LoginResponse,
     MegolmEvent,
     RoomEncryptedAudio,
+    RoomEncryptedFile,
+    RoomEncryptedImage,
     RoomMessageAudio,
+    RoomMessageFile,
+    RoomMessageImage,
     RoomMessageText,
     SyncError,
 )
@@ -48,6 +52,14 @@ _STALE_MESSAGE_SECONDS = 300
 # La purge retire les PLUS ANCIENS. Purger au hasard, ou purger le dernier, ferait
 # perdre la conversation en cours — précisément celle que l'utilisateur écrit.
 _MAX_FILS_SUIVIS = 1024
+
+# Taille maximale d'une piece jointe acceptee, en octets.
+#
+# Le telechargement se fait EN MEMOIRE — comme celui de l'audio, dont ce chemin
+# reutilise le code. Un fichier de plusieurs centaines de megaoctets tuerait le
+# processus, et un salon partage en contient tot ou tard un : une video, une archive,
+# un plan. Le refus est journalise, jamais silencieux.
+_MAX_PIECE_JOINTE_OCTETS = 25 * 1024 * 1024
 
 
 # ── Helpers Markdown → HTML (SPEC-48 : Matrix utilise HTML sanitisé) ─────────
@@ -349,6 +361,14 @@ class MatrixMessaging:
         # Audio : non-chiffré (rare) ET chiffré E2E (Tchap = RoomEncryptedAudio)
         self._client.add_event_callback(self._on_room_audio, RoomMessageAudio)
         self._client.add_event_callback(self._on_room_audio, RoomEncryptedAudio)
+        # Fichiers et images, clairs ET chiffres (Tchap chiffre par defaut). Sans ces
+        # quatre rappels, deposer un PDF dans un salon ne produisait RIEN — ni erreur,
+        # ni trace. Colaig etait aveugle aux documents dans le canal meme ou on lui en
+        # parle, alors que le classement documentaire est sa raison d'etre.
+        self._client.add_event_callback(self._on_room_file, RoomMessageFile)
+        self._client.add_event_callback(self._on_room_file, RoomMessageImage)
+        self._client.add_event_callback(self._on_room_file, RoomEncryptedFile)
+        self._client.add_event_callback(self._on_room_file, RoomEncryptedImage)
         # Messages que nio n'a pas pu dechiffrer. Sans ce rappel ils sont ignores
         # EN SILENCE : l'utilisateur voit un assistant qui ne repond pas (L2.6).
         self._client.add_event_callback(self._on_undecryptable, MegolmEvent)
@@ -751,6 +771,82 @@ class MatrixMessaging:
                 await callback(message)
             except Exception:
                 logger.exception("erreur handler audio pour %s", room.room_id)
+
+    async def _on_room_file(self, room, event) -> None:
+        """Traite un fichier déposé dans un salon — document, image, clair ou chiffré.
+
+        POURQUOI UNE PIÈCE JOINTE N'EXIGE PAS DE MENTION. Le texte en salon en demande
+        une (L3.2) ; le fichier, non : **déposer un document EST l'intention**.
+        Personne n'écrit « @colaig » en glissant un PDF, et le chemin audio suit déjà
+        cette règle.
+
+        La contrepartie est assumée : Colaig ne RÉPOND pas à un fichier, il le classe.
+        Répondre à chaque dépôt inonderait un salon où des collègues s'échangent des
+        documents.
+
+        LE CORPS RESTE VIDE. Le nom du fichier n'est pas une question : le mettre dans
+        `body` ferait chercher « marche-2026.pdf » dans le corpus par le pipeline de
+        réponse, alors que le fichier ne demande rien.
+        """
+        if self._client is None:
+            return
+        if event.sender == self._username:
+            # Colaig produit des documents ; les réingérer ferait une boucle.
+            return
+
+        # Au démarrage, le serveur rejoue l'historique : sans ce garde, un redémarrage
+        # réingérerait tous les documents du salon.
+        if event.server_timestamp / 1000 < self._start_time - _STALE_MESSAGE_SECONDS:
+            logger.info("ignoré: fichier trop vieux (%s)", event.event_id)
+            return
+
+        contenu = (event.source or {}).get("content", {}) if isinstance(
+            getattr(event, "source", None), dict) else {}
+        info = contenu.get("info") or {}
+        nom = getattr(event, "body", None) or "piece-jointe"
+        annonce = int(info.get("size") or 0)
+
+        # Refus AVANT téléchargement : la borne ne servirait à rien si l'on chargeait
+        # d'abord en mémoire ce qu'on refuse ensuite.
+        if annonce > _MAX_PIECE_JOINTE_OCTETS:
+            logger.warning(
+                "pièce jointe refusée: %s annonce %.1f Mo (plafond %.0f Mo) — salon %s",
+                nom, annonce / 1e6, _MAX_PIECE_JOINTE_OCTETS / 1e6, room.room_id)
+            return
+
+        # `_download_audio` gère `mxc://` ET le déchiffrement E2E. Rien dans son corps
+        # n'est propre à l'audio — seul son nom le laisse croire.
+        octets = await self._download_audio(event)
+        if not octets:
+            logger.warning("téléchargement impossible: %s (%s)", nom, event.event_id)
+            return
+        if len(octets) > _MAX_PIECE_JOINTE_OCTETS:
+            # Un `info.size` absent ou menteur ne doit pas contourner la borne.
+            logger.warning("pièce jointe refusée après téléchargement: %s (%.1f Mo)",
+                           nom, len(octets) / 1e6)
+            return
+
+        piece = Attachment(
+            filename=nom,
+            content_type=info.get("mimetype", "application/octet-stream"),
+            size=len(octets),
+            content=octets,
+        )
+        message = IncomingMessage(
+            user_id=event.sender,
+            conversation_id=room.room_id,
+            body="",
+            conversation_type=await self._resolve_conversation_type(room.room_id),
+            message_id=event.event_id,
+            display_name=room.user_name(event.sender) or event.sender,
+            platform="matrix",
+            attachments=[piece],
+        )
+        for callback in self._message_callbacks:
+            try:
+                await callback(message)
+            except Exception:
+                logger.exception("erreur handler fichier pour %s", room.room_id)
 
     async def _download_audio(self, event: RoomMessageAudio) -> bytes | None:
         """Télécharge (et décrypte si E2E) l'audio d'un événement Matrix.
