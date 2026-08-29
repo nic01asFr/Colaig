@@ -68,7 +68,7 @@ complète. Aucune modification de `protocols.py` sans arbitrage.
 | L3.4 | Client MCP (registre, transport, cache, compaction, timeout 20 s) ; `cacheScope` + `ttlMs` honorés — **⚠️ `cache_scope`→`cacheScope` N'EST PAS un renommage, voir D54** | L1.3, L2.2, L2.3 | ✅ 29/08/2026 |
 | L3.5 | Aucun texte vectorisé deux fois par tour — **⚠️ « 1 seul `embed()` » est inatteignable : l'Analyseur sépare message et reformulations ; les 2 niveaux de filtrage ne se recouvrent pas et le niveau 2 doit rester tardif (L2.5c)** | L3.4 | ✅ 29/08/2026 |
 | L3.6 | Chart Helm Onyxia + `sspcloud.py` (auto-découverte clé, rôle `edit`) | L0.1 | `helm install` → pod qui répond `/ready` |
-| L3.7 | Pièces jointes + commandes réduites (`!aide !space !index !classer !skills`) | L1.2 | une PJ est classée dans le bon dossier |
+| L3.7 | Pièces jointes + commandes réduites (`!aide !space !index !classer !skills`) — toutes en lecture | L1.2 | ✅ 28-29/08/2026 |
 
 ## Phase 4 — Qualité perçue · 3 agents · **mesurée contre L1.5**
 

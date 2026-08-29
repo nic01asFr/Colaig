@@ -117,6 +117,23 @@ mémoriser le contexte de vos échanges, et lancer des tâches autonomes.\
 _CMD_CREATE = ("colaig créer", "colaig create", "colaig init", "/colaig init")
 _CMD_LINK = ("colaig lier", "colaig link", "/colaig link")
 
+# Les cinq commandes réduites (L3.7). Toutes des LECTURES : aucune ne déclenche de
+# travail coûteux. Un nom hors de cet ensemble n'est PAS intercepté — il descend au
+# pipeline, plutôt que de disparaître en silence.
+_COMMANDES = ("aide", "space", "index", "classer", "skills")
+
+_AIDE = """\
+Commandes disponibles :
+
+- `!aide` — cette liste
+- `!space` — l'espace auquel ce salon est lié
+- `!index` — l'état de l'index documentaire
+- `!classer` — où les documents ont été rangés
+- `!skills` — les procédures déposées dans l'espace
+
+Pour lier ce salon à un espace : `colaig lier <identifiant>`.
+Toutes ces commandes lisent — aucune ne modifie l'espace."""
+
 
 class MessageHandler:
     """Handler de messages — orchestre le pipeline Phase 1 ou Phase 2.
@@ -292,6 +309,17 @@ class MessageHandler:
                 await self._handle_phase2(message)
             else:
                 await self._handle_phase1(message)
+            return
+
+        # ── Commandes réduites (L3.7) ─────────────────────────────────────────
+        #
+        # AVANT le pipeline : répondre « !skills » par un appel LLM coûterait un
+        # aller-retour pour cinq caractères, et l'assistant improviserait.
+        #
+        # Elles passent par le même canal que n'importe quel message : c'est du contenu
+        # extérieur. La garde est dans `_repondre_commande`, qui ne lit rien tant qu'un
+        # espace n'est pas lié — même frontière que D42/D43.
+        if await self._repondre_commande(message, pre_context):
             return
 
         if pre_context.mode == ContextMode.CHATBOT:
@@ -519,6 +547,101 @@ class MessageHandler:
         if refuses:
             await self._dire(message, "Je n'ai pas pu ranger : "
                                       + ", ".join(refuses) + ".")
+
+    # ── Commandes réduites (L3.7) ────────────────────────────────────
+
+    async def _repondre_commande(self, message: IncomingMessage, context) -> bool:
+        """Traite `!aide !space !index !classer !skills`. Rend True si c'est fait.
+
+        TOUTES SONT DES LECTURES. Relancer une indexation depuis une phrase de salon
+        exigerait d'injecter l'`Indexer` ici — une dépendance décidée dans `main.py`, et
+        un coût que personne n'aurait consenti en tapant cinq caractères.
+
+        Une commande INCONNUE n'est pas interceptée : elle descend au pipeline. L'avaler
+        en silence ferait croire à une commande qui n'existe pas.
+        """
+        corps = message.body.strip()
+        if not corps.startswith("!"):
+            return False
+
+        nom = corps.split()[0].lower().lstrip("!")
+        nom = {"espace": "space", "help": "aide", "competences": "skills"}.get(nom, nom)
+        if nom not in _COMMANDES:
+            return False
+
+        espace = getattr(context, "workspace", None) if context else None
+        chemin = getattr(espace, "storage_path", "") if espace else ""
+
+        if nom == "aide":
+            await self._dire(message, _AIDE)
+            return True
+
+        # LA GARDE. Un salon que personne n'a lié n'a pas d'espace, et il ne doit y
+        # avoir AUCUNE lecture — sans quoi `!index` ferait parler Colaig d'un espace
+        # auquel ce salon n'a pas accès, et il suffirait de l'inviter.
+        if not chemin:
+            await self._dire(message, "Ce salon n'est lié à aucun espace. "
+                                      "Tapez `colaig lier <identifiant>` pour l'y "
+                                      "rattacher, ou `!aide`.")
+            return True
+
+        try:
+            await self._dire(message, await self._etat_espace(nom, espace, chemin))
+        except Exception:
+            logger.exception("commande !%s en échec sur %s", nom, chemin)
+            await self._dire(message, f"Je n'arrive pas à lire l'espace pour `!{nom}`.")
+        return True
+
+    async def _etat_espace(self, nom: str, espace, chemin: str) -> str:
+        """Rend le texte d'une commande d'état. Peut lever — l'appelant le dit."""
+        from colaig import paths
+
+        if nom == "space":
+            lignes = [f"**{espace.name}** (`{espace.workspace_id}`)",
+                      f"Dossier : `{chemin}`",
+                      f"Recherche documentaire : {'activée' if espace.rag_enabled else 'désactivée'}",
+                      f"Salons liés : {len(espace.conversations or [])}"]
+            if espace.description:
+                lignes.insert(1, espace.description)
+            return "\n".join(lignes)
+
+        if nom == "skills":
+            fichiers = await self._storage.list_files(paths.skills_dir(chemin))
+            noms = sorted(f.name.removesuffix(".md") for f in fichiers
+                          if f.name.endswith(".md"))
+            if not noms:
+                return ("Aucune procédure déposée. Ajoutez des fichiers `.md` dans "
+                        "`.colaig/skills/` de l'espace.")
+            return "Procédures disponibles :\n" + "\n".join(f"- {n}" for n in noms)
+
+        if nom == "index":
+            fichiers = await self._storage.list_files(paths.indexes_dir(chemin))
+            if not fichiers:
+                return ("Aucun index pour cet espace — les documents n'ont pas encore "
+                        "été analysés.")
+            lignes = [f"- `{f.name}` — {f.size // 1024} Ko" for f in sorted(
+                fichiers, key=lambda f: f.name)]
+            return "État de l'index :\n" + "\n".join(lignes)
+
+        # !classer — où les documents ont été rangés.
+        #
+        # On LIT le registre de classification ; on ne le reconstruit pas. Déclencher
+        # une passe de classification coûte un appel LLM par document.
+        registre = paths.index_file(chemin, "documents") + "/registry.json"
+        if not await self._storage.exists(registre):
+            return ("Aucun classement enregistré. Les documents sont rangés lors de "
+                    "l'analyse incrémentale, pas à la demande.")
+        import json as _json
+        enregistrements = _json.loads(await self._storage.download(registre))
+        dossiers: dict[str, int] = {}
+        for record in (enregistrements.values() if isinstance(enregistrements, dict)
+                       else enregistrements):
+            chemin_virtuel = (record or {}).get("virtual_path") or "(non classé)"
+            dossiers[chemin_virtuel] = dossiers.get(chemin_virtuel, 0) + 1
+        if not dossiers:
+            return "Le registre de classement est vide."
+        return "Classement des documents :\n" + "\n".join(
+            f"- `{d}` : {n}" for d, n in sorted(dossiers.items()))
 
     # ── Retours par réaction (L3.3) ──────────────────────────────────
 

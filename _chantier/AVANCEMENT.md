@@ -3223,3 +3223,37 @@ Une fixture qui ne declenchait pas le chemin mesure (compteur a zero pour une bo
 raison), une doublure plus etroite que le contrat dont l erreur etait avalee par la
 degradation gracieuse, et mon propre test de TTL qui courait apres l horloge. **2438
 tests, trois executions identiques.**
+
+---
+
+## L3.7 (suite) — LES CINQ COMMANDES · 29/08/2026 · **lot complet**
+
+La moitie « commandes reduites » du lot, apres les pieces jointes. `!aide !space
+!index !classer !skills`, **toutes en lecture**.
+
+Relancer une indexation depuis un salon exigerait d injecter l `Indexer` dans le
+handler — une dependance decidee dans `main.py`, et un cout que personne n aurait
+consenti en tapant cinq caracteres. `!classer` LIT le registre, il ne le reconstruit
+pas.
+
+### La garde
+
+En mode CHATBOT il n y a pas d espace, et il ne doit y avoir **aucune lecture** — sans
+quoi `!index` ferait parler Colaig d un espace auquel le salon n a pas acces, et il
+suffirait de l inviter. Le test verifie qu aucun appel de lecture n a eu lieu, pas
+seulement le texte rendu.
+
+### Trois decisions de forme
+
+Traitee **avant** le pipeline (sinon un appel LLM pour cinq caracteres) ; un nom
+inconnu **descend** au pipeline plutot que de disparaitre ; interception sur le DEBUT
+du message, pour ne pas avaler « que fait !index dans ce dossier ? ».
+
+**10 tests, 2448 au total.**
+
+### Ce qui reste hors de ce lot, et pourquoi
+
+Declencher une indexation ou une classification a la demande. Il faudrait injecter
+l `Indexer` et le `DocumentIndex` dans `MessageHandler` — un choix de cablage qui
+appartient a `main.py`, et une commande qui declenche N appels LLM devrait etre
+arbitree (§2.6).
