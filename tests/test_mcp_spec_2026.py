@@ -379,3 +379,74 @@ async def test_dans_un_flux_c_est_le_RESULTAT_qui_est_retenu():
 
     outils = await MCPConnectorClient(_connecteur()).list_tools()
     assert len(outils) == 1
+
+
+# ── Compaction : couper sans fabriquer ──────────────────────────────────────
+
+FICHE = ("{n}. Jeu de donnees numero {n}\n"
+         "   ID: 62c62307e70f9853a4a1f{n:03d}\n"
+         "   Organization: Ministere\n"
+         "   URL: https://www.data.gouv.fr/datasets/jeu-{n}")
+
+LISTE = ("Found 1979 dataset(s) for query: 'budget'\nPage 1 of results:\n\n"
+         + "\n\n".join(FICHE.format(n=i) for i in range(1, 41)))
+
+
+def test_une_coupe_ne_produit_JAMAIS_une_demi_fiche():
+    """LE défaut de la troncature au caractère, sur la forme réelle des résultats.
+
+    Un résultat `search_datasets` est une suite de fiches portant chacune un ID et une
+    URL. Couper au caractère tombe au milieu de l'une d'elles et rend
+    `ID: 62c62307e70f9853a4a1f` ou une URL amputée — **qui ont l'air valides et ne le
+    sont pas**.
+
+    Perdre une fiche entière est bénin : le modèle voit qu'il en manque. En fabriquer
+    une moitié plausible ne l'est pas : il la cite.
+    """
+    from colaig.integrations.mcp_connector import _compacter
+
+    rendu = _compacter(LISTE, 1200)
+
+    for bloc in rendu.split("\n\n"):
+        if not bloc.startswith(tuple("0123456789")):
+            continue
+        assert bloc.count("\n") == 3, f"fiche incomplete rendue :\n{bloc}"
+        assert "URL: https://www.data.gouv.fr/datasets/jeu-" in bloc
+
+
+def test_l_en_tete_qui_porte_le_TOTAL_est_conserve():
+    """« Found 1979 dataset(s) » est la seule ligne qui dit l'ampleur.
+
+    La perdre ferait lire quarante fiches comme si c'était tout le corpus.
+    """
+    from colaig.integrations.mcp_connector import _compacter
+
+    assert _compacter(LISTE, 1200).startswith("Found 1979 dataset(s)")
+
+
+def test_le_nombre_de_fiches_OMISES_est_annonce():
+    """Un extrait qui ne se déclare pas se lit comme un tout."""
+    from colaig.integrations.mcp_connector import _compacter
+
+    rendu = _compacter(LISTE, 1200)
+    assert "omis" in rendu
+    assert "40" in rendu, "le total de fiches doit apparaitre"
+
+
+def test_un_texte_SANS_structure_garde_ses_deux_bouts():
+    """Un document n'est pas une liste : sa conclusion est à la fin.
+
+    Les deux formes reçoivent donc deux traitements — enregistrements entiers pour une
+    liste triée par pertinence, tête et queue pour un texte suivi.
+    """
+    from colaig.integrations.mcp_connector import _compacter
+
+    texte = "DEBUT " + ("x" * 5000) + " FIN"
+    rendu = _compacter(texte, 500)
+    assert rendu.startswith("DEBUT") and rendu.endswith("FIN")
+
+
+def test_une_liste_qui_TIENT_n_est_pas_touchee():
+    from colaig.integrations.mcp_connector import _compacter
+
+    assert _compacter(LISTE, 100_000) == LISTE

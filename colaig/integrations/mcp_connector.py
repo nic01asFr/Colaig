@@ -397,13 +397,71 @@ def _compacter(texte: str, max_length: int) -> str:
     if len(texte) <= max_length:
         return texte
 
-    # Deux tiers en tête, un tiers en queue : ce qui vient d'abord porte le plus de sens
-    # dans une liste triée par pertinence, ce qui vient à la fin porte le bilan.
+    blocs = texte.split("\n\n")
+    if len(blocs) >= 3:
+        return _compacter_enregistrements(blocs, max_length)
+
+    # Texte suivi : deux tiers en tête, un tiers en queue. Un document porte sa
+    # conclusion à la fin, et une coupe franche la perdrait sans le dire.
     tete = (max_length * 2) // 3
     queue = max_length - tete
     omis = len(texte) - max_length
     marqueur = f"\n\n[… {omis} caractères omis — extrait, pas le contenu entier …]\n\n"
     return texte[:tete] + marqueur + texte[-queue:]
+
+
+def _compacter_enregistrements(blocs: list[str], max_length: int) -> str:
+    """Coupe sur les FRONTIÈRES D'ENREGISTREMENT, jamais au milieu de l'un d'eux.
+
+    POURQUOI, sur la forme réelle des résultats
+    ---------------------------------------------
+    Un `search_datasets` de data.gouv rend ceci — relevé le 29/08/2026 :
+
+        Found 1979 dataset(s) for query: 'budget'
+        Page 1 of results:
+
+        1. Balances comptables des collectivités …
+           ID: 62c62307e70f9853a4a1f848
+           Organization: Ministères économiques et financiers
+           URL: https://www.data.gouv.fr/datasets/balances-comptables-…
+
+    Couper au caractère tombe **au milieu d'une fiche** et rend
+    `ID: 62c62307e70f9853a4a1f` ou une URL amputée. Ces valeurs **ont l'air valides et
+    ne le sont pas** — le modèle les cite.
+
+    Perdre une fiche entière est bénin : il voit qu'il en manque, on le lui dit.
+    En fabriquer une moitié plausible ne l'est pas.
+
+    L'EN-TÊTE EST TOUJOURS GARDÉ. C'est lui qui porte « Found 1979 dataset(s) » : sans
+    cette ligne, quarante fiches se lisent comme si c'était tout le corpus.
+
+    On garde les PREMIERS enregistrements, pas les derniers : une liste de recherche
+    arrive triée par pertinence. C'est l'inverse du texte suivi, dont on garde les deux
+    bouts — deux formes, deux traitements.
+    """
+    entete, enregistrements = blocs[0], blocs[1:]
+    total = len(enregistrements)
+
+    # Réservé au marqueur final, dont la longueur dépend du nombre annoncé.
+    reserve = 80
+    place = max_length - len(entete) - reserve
+
+    gardes: list[str] = []
+    occupe = 0
+    for bloc in enregistrements:
+        cout = len(bloc) + 2                      # le séparateur qui le précède
+        if occupe + cout > place:
+            break
+        gardes.append(bloc)
+        occupe += cout
+
+    omis = total - len(gardes)
+    if not omis:
+        return "\n\n".join(blocs)
+
+    marqueur = (f"[… {omis} éléments omis sur {total} — extrait, "
+                "pas le résultat entier …]")
+    return "\n\n".join([entete, *gardes, marqueur])
 
 
 def _should_expose_tool(

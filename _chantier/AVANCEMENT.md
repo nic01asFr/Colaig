@@ -3166,3 +3166,25 @@ factices avaient ete commitees — deux au lot L2.3, quatre dans mon commit `d05
 L issue d un test dependait donc des executions precedentes, contre le contrat de
 `tests/CLAUDE.md`. Magasin isole en dossier temporaire, fichier du depot vide, et un
 test du harnais refuse que le chemin repointe dans le depot.
+
+---
+
+## L3.4b — LA COMPACTION, REPOSEE · 29/08/2026 · **corrige**
+
+J avais oppose troncature et resume LLM comme si c etait sur contre lossy. **La
+troncature tete+queue est lossy aussi** — elle perd le milieu, en silence. Et je
+n avais pas regarde la forme reelle d un resultat.
+
+Un `search_datasets` rend du texte **structure en enregistrements**, chacun portant un
+ID et une URL. Couper au caractere tombe au milieu d une fiche et rend un identifiant
+amputee — **qui a l air valide et ne l est pas**. Perdre une fiche entiere est benin ;
+en fabriquer une moitie plausible ne l est pas.
+
+Deux formes, deux traitements : une LISTE garde son en-tete (qui porte le total) puis
+des enregistrements entiers, en annoncant combien manquent ; un TEXTE SUIVI garde ses
+deux bouts. Verifie contre le vrai serveur : 7537 -> 1093 caracteres, aucune fiche
+amputee.
+
+Le resume par LLM reste non porte, et mieux justifie : la voie deterministe resout le
+defaut reel sans rien pouvoir inventer, sur un chemin ou l on a mesure 0,1 citation
+fausse sur 102 cas. **2434 tests.**
