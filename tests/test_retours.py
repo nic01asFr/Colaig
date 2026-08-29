@@ -40,10 +40,11 @@ import pytest
 
 from colaig.models import Reaction
 
-POUCE = "\N{THUMBS UP SIGN}"
-POUCE_BAS = "\N{THUMBS DOWN SIGN}"
-REJOUER = "\N{CLOCKWISE RIGHTWARDS AND LEFTWARDS OPEN CIRCLE ARROWS}"
-GARDER = "\N{HEAVY PLUS SIGN}"
+# Les gestes viennent de leur source unique. Ce fichier en tenait sa propre copie, et
+# elle a divergé : il pinnait 🔁 (U+1F501) quand la documentation annonçait 🔄
+# (U+1F504). Un test qui redéclare la valeur qu'il vérifie confirme la faute au lieu de
+# la trouver. Le codepoint est épinglé une fois, dans `test_capacites.py`.
+from colaig.capacites import GARDER, POUCE, POUCE_BAS, REJOUER
 
 ESPACE = "/espace-marches"
 SALON = "!salon:tchap.gouv.fr"

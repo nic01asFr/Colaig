@@ -59,19 +59,25 @@ from datetime import UTC, datetime
 from typing import Any
 
 from colaig import paths
+from colaig.capacites import GARDER, GESTES, POUCE, POUCE_BAS, REJOUER
 from colaig.models import Reaction
 
 logger = logging.getLogger(__name__)
 
 # ── Les quatre gestes ───────────────────────────────────────────────────────
+#
+# Ils sont DÉCLARÉS dans `colaig/capacites.py`, avec le texte qui les explique, et
+# seulement réexportés ici. Le module les définissait auparavant pour son compte : le
+# code émettait alors 🔁 (U+1F501) quand l'aide et le PLAN annonçaient 🔄 (U+1F504) —
+# la campagne d'usage du 29/08/2026 a trouvé la divergence sur le fil. Un geste que
+# Colaig pose et un geste qu'il explique doivent venir du même endroit.
 
-POUCE = "\N{THUMBS UP SIGN}"
-POUCE_BAS = "\N{THUMBS DOWN SIGN}"
-REJOUER = "\N{CLOCKWISE RIGHTWARDS AND LEFTWARDS OPEN CIRCLE ARROWS}"
-GARDER = "\N{HEAVY PLUS SIGN}"
+__all__ = ["POUCE", "POUCE_BAS", "REJOUER", "GARDER", "GESTES_PROPOSES",
+           "GESTES_DE_JUGEMENT", "GestionnaireRetours", "proposer_gestes",
+           "lire_retours"]
 
 # L'ordre est celui de l'affichage sous la réponse : d'abord juger, puis agir.
-GESTES_PROPOSES: tuple[str, ...] = (POUCE, POUCE_BAS, REJOUER, GARDER)
+GESTES_PROPOSES: tuple[str, ...] = tuple(emoji for emoji, _ in GESTES)
 
 # Ceux qui comptent comme un jugement sur la réponse. 🔄 et ➕ n'en sont pas : l'un est
 # une demande, l'autre un classement. Les verser dans les retours brouillerait la seule

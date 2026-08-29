@@ -122,17 +122,14 @@ _CMD_LINK = ("colaig lier", "colaig link", "/colaig link")
 # pipeline, plutôt que de disparaître en silence.
 _COMMANDES = ("aide", "space", "index", "classer", "skills")
 
-_AIDE = """\
-Commandes disponibles :
-
-- `!aide` — cette liste
-- `!space` — l'espace auquel ce salon est lié
-- `!index` — l'état de l'index documentaire
-- `!classer` — où les documents ont été rangés
-- `!skills` — les procédures déposées dans l'espace
-
-Pour lier ce salon à un espace : `colaig lier <identifiant>`.
-Toutes ces commandes lisent — aucune ne modifie l'espace."""
+# Le texte d'aide n'est plus écrit ici : il est produit par `colaig/capacites.py`, à
+# partir de la même table que celle versée au prompt système.
+#
+# Il était constant, et donc faux dans deux modes sur trois. `_repondre_commande`
+# répond dans TOUS les modes ; `_handle_onboarding_command` — qui intercepte
+# `colaig lier` — est en dessous de la porte `mode == CHATBOT`. L'aide envoyait donc
+# l'utilisateur d'une conversation directe taper une commande que le pipeline traitait
+# comme une phrase ordinaire. Relevé sur le fil le 29/08/2026.
 
 
 class MessageHandler:
@@ -572,17 +569,22 @@ class MessageHandler:
         espace = getattr(context, "workspace", None) if context else None
         chemin = getattr(espace, "storage_path", "") if espace else ""
 
+        mode = getattr(context, "mode", None) or ContextMode.CHATBOT
+
         if nom == "aide":
-            await self._dire(message, _AIDE)
+            from colaig.capacites import texte_aide
+            await self._dire(message, texte_aide(mode))
             return True
 
         # LA GARDE. Un salon que personne n'a lié n'a pas d'espace, et il ne doit y
         # avoir AUCUNE lecture — sans quoi `!index` ferait parler Colaig d'un espace
         # auquel ce salon n'a pas accès, et il suffirait de l'inviter.
         if not chemin:
-            await self._dire(message, "Ce salon n'est lié à aucun espace. "
-                                      "Tapez `colaig lier <identifiant>` pour l'y "
-                                      "rattacher, ou `!aide`.")
+            # Le conseil dépend du mode, pour la même raison que le texte d'aide :
+            # `colaig lier` n'est intercepté qu'en CHATBOT.
+            suite = ("Tapez `colaig lier <identifiant>` pour l'y rattacher, ou `!aide`."
+                     if mode == ContextMode.CHATBOT else "Tapez `!aide`.")
+            await self._dire(message, f"Ce salon n'est lié à aucun espace. {suite}")
             return True
 
         try:

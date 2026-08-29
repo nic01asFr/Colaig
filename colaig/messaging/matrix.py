@@ -635,6 +635,24 @@ class MatrixMessaging:
             salon, getattr(event, "sender", "?"), getattr(event, "session_id", "?"),
         )
 
+        # Un message illisible ANCIEN est de l'historique, pas une attente.
+        #
+        # La retenue par salon ci-dessous est en memoire de PROCESSUS : chaque
+        # redemarrage la vide, et la relecture de l'historique chiffre reprevient. La
+        # campagne du 29/08/2026 a compte 22 avertissements pour 46 messages apres six
+        # redeploiements — pres d'un message sur deux. En CrashLoopBackOff, le salon de
+        # l'utilisateur se remplit.
+        #
+        # Les quatre autres rappels de ce module ecartent deja l'anterieur au demarrage.
+        # Celui-ci ne le faisait pas. Un horodatage ABSENT ne vaut pas « ancien » : le
+        # defaut par exces de silence est precisement celui que ce traitement corrige.
+        horodatage = getattr(event, "server_timestamp", None)
+        if (horodatage is not None
+                and horodatage / 1000 < self._start_time - _STALE_MESSAGE_SECONDS):
+            logger.debug("message illisible anterieur au demarrage dans %s — "
+                         "le salon n'est pas prevenu", salon)
+            return
+
         if salon in self._salons_prevenus_indechiffrable:
             return
         self._salons_prevenus_indechiffrable.add(salon)

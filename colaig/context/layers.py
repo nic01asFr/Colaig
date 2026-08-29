@@ -114,7 +114,21 @@ def _build_system_prompt(
         if tone_instruction:
             prompt = f"{prompt}\n{tone_instruction}"
 
-    return prompt
+    # ── Ce que Colaig offre réellement ─────────────────────────────────────────
+    #
+    # EN DERNIER, et dans TOUS les modes — y compris quand un espace fournit son propre
+    # prompt, qui remplace sinon tout ce qui précède.
+    #
+    # Sans ce bloc, le modèle ne connaît de lui-même que ce que la branche de mode lui
+    # dit. La campagne du 29/08/2026 l'a vérifié : le seul outil nommé dans le prompt
+    # PERSONAL, `ask_workspace`, est le seul qu'il ait cité — puis il a inventé le
+    # reste (Notion, Confluence) et nié l'existence de commandes qu'il possède.
+    #
+    # C'est notre texte, pas celui d'un document : il n'est donc pas balisé. Le prompt
+    # de l'espace, lui, est déjà passé par `sanitize_system_prompt` au-dessus.
+    from colaig.capacites import notice_de_soi
+
+    return f"{prompt}\n\n{notice_de_soi(mode)}"
 
 
 def _extract_domain(user_id: str) -> str:
