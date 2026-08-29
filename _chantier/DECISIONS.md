@@ -2904,3 +2904,136 @@ plutôt que d'être redécouverte par une mesure adversariale des mois plus tard
 
 Les trois issues de D52 redeviendront pertinentes ce jour-là. Elles ne le sont pas
 aujourd'hui.
+
+---
+
+## D54 — `cache_scope` et `cacheScope` ne sont pas le même champ · 29/08/2026 · **actée**
+
+Étude de la spécification MCP 2026-07-28 (SEP-2549), demandée avant d'ouvrir L3.4. Elle
+**corrige une ligne du PLAN** qui, suivie littéralement, aurait produit une fuite entre
+utilisateurs.
+
+### Ce que le PLAN demande
+
+> L3.4 — Client MCP (registre, transport, cache, compaction, timeout 20 s) ;
+> `cache_scope`→`cacheScope`, honorer `ttlMs`
+
+La flèche se lit comme un renommage vers la forme camelCase de la spec. **Ce n'en est
+pas un.**
+
+### Les deux champs, et ce qui les sépare
+
+| | `cache_scope` (le nôtre) | `cacheScope` (spec 2026-07-28) |
+|---|---|---|
+| **qui l'écrit** | nous, dans la config du serveur | **le serveur**, dans sa réponse |
+| **valeurs** | `server`, `workspace`, `none` | `public`, `private` |
+| **ce qu'il décide** | la **clé** du cache | **qui a le droit** de lire l'entrée |
+| **ce qui est mis en cache** | les **résultats d'appels** d'outils | les réponses de **`tools/list`**, `prompts/list`, `resources/list`, `resources/read`, `resources/templates/list` |
+
+Ils ne portent ni sur les mêmes réponses, ni sur la même décision. Le seul point commun
+est un mot.
+
+**Et les confondre serait une faille.** La spec dit de `private` :
+
+> Shared caches (e.g., multi-tenant gateways) MUST NOT serve a cached copy to a
+> different user.
+
+Or notre portée `workspace` est **partagée par tous les membres de l'espace**. Mapper un
+`private` déclaré par un serveur sur notre `workspace` servirait donc la réponse d'un
+utilisateur à un autre — exactement ce que `private` interdit. Colaig est multi-tenant :
+c'est précisément le cas que la spec vise.
+
+**Les deux mécanismes coexistent, ils ne fusionnent pas.**
+
+### La sémantique, relevée sur la source
+
+`ttlMs` — durée de fraîcheur en millisecondes, analogue à `Cache-Control: max-age`.
+
+| condition | conduite du client |
+|---|---|
+| `ttlMs` absent | traiter comme **0** — immédiatement périmé |
+| `ttlMs` négatif | ignorer, traiter comme **0** |
+| `ttlMs` = 0 | périmé d'emblée, refetch à chaque besoin |
+| `ttlMs` > 0 | frais pendant `ttlMs` ms **à compter de la réception** |
+| notification `list_changed` reçue | **invalide** l'entrée, quel que soit le TTL restant |
+
+Pagination : chaque page porte son propre `ttlMs` et se met en cache indépendamment,
+**mais toutes les pages d'une même requête partagent le `cacheScope`**. Un curseur
+invalidé fait jeter toutes les pages.
+
+Le TTL est un **indice de fraîcheur, pas un intervalle de sondage** : on vérifie la
+fraîcheur au moment où l'on a besoin de la liste, on ne rafraîchit pas en tâche de fond.
+
+### Une contradiction dans la spec, et comment on la tranche
+
+Le commentaire du schéma TypeScript dit :
+
+> Defaults to "public" if absent.
+
+Mais la section de compatibilité ascendante dit l'inverse :
+
+> `cacheScope` is required **because there is no safe default for older servers**. The
+> server must explicitly declare the intended cache scope to prevent unintended caching
+> of user-specific data.
+
+Les deux ne peuvent pas être vrais. **On retient `private` en cas d'absence**, pour deux
+raisons :
+
+1. C'est le sens sûr, et la seconde formulation dit explicitement *pourquoi* : il n'y a
+   pas de défaut sûr pour les serveurs anciens — et tous ceux que nous atteignons
+   aujourd'hui sont anciens.
+2. **Le dépôt applique déjà exactement cette règle** à l'autre champ MCP par défaut
+   dangereux : `security/actions.py` pose « annotation absente = destructif », au motif
+   que « c'est au serveur de se déclarer inoffensif, pas à nous de le supposer ». Le
+   même raisonnement, sur le même protocole.
+
+### Ce que la mesure de terrain ajoute
+
+`mcp.data.gouv.fr` — le serveur que le critère du lot nomme — a été interrogé :
+
+    protocolVersion : 2025-11-25   (notre client annonce la même)
+    Mcp-Session-Id  : aucun
+    capabilities    : tools.listChanged = false
+                      prompts.listChanged = false
+                      resources.listChanged = false
+
+Trois conséquences :
+
+**1. Ne pas migrer le client vers 2026-07-28 dans ce lot.** La spec étudiée est
+*stateless-first* : plus de `initialize`, plus de `Mcp-Session-Id`. Le serveur que le
+critère nomme attend encore `initialize`. Migrer le client casserait le lot contre sa
+propre cible. C'est l'objet de L5.1, côté serveur.
+
+**2. `ttlMs` ne nous parviendra de personne aujourd'hui.** Aucun serveur en 2025-11-25 ne
+l'émet. En lire un absent revient à « immédiatement périmé », c'est-à-dire au
+comportement actuel : **implémenter `ttlMs` seul ne change rien d'observable.**
+
+**3. Et pourtant le cache est la vraie valeur du lot** — pour une autre raison.
+`listChanged: false` signifie que **le serveur ne nous préviendra jamais** d'un
+changement. Le TTL local est donc le seul mécanisme disponible, et la spec l'autorise
+explicitement (« rely on their own caching heuristics »).
+
+### Le coût que le cache supprime, mesuré dans le code
+
+`_execute_agentic` appelle, **à chaque tour et pour chaque connecteur activé** :
+
+    await client.list_tools()               (orchestrator.py:363)
+    await client.get_server_instructions()  (orchestrator.py:367)
+
+Deux allers-retours HTTP par tour, pour une liste d'outils que le serveur déclare
+lui-même ne jamais voir changer. **C'est cela que L3.4 doit corriger**, et c'est
+mesurable en latence par tour.
+
+### Ce que L3.4 devient
+
+1. **Cache de `tools/list`** et des instructions serveur, avec un TTL **local**
+   configurable, écrasé par `ttlMs` quand un serveur en émet.
+2. **`cacheScope` honoré** dès qu'il apparaît : `private` interdit le partage entre
+   utilisateurs, absent vaut `private`.
+3. **`cache_scope` conservé tel quel** — champ distinct, portée de clé pour le cache des
+   résultats d'appels. Le PLAN est corrigé, pas exécuté.
+4. Invalidation sur `notifications/*/list_changed` quand un serveur les annonce.
+5. Timeout ramené à 20 s (il est à 30 s).
+6. Compaction des résultats d'outils, portée depuis la version déployée.
+7. **Ne pas remplacer `mcp_connector.py`** : L2.2 (liste blanche) et L2.3 (épinglage des
+   schémas) y sont câblés. On greffe, on ne substitue pas.
