@@ -34,5 +34,13 @@ mcp[cli]>=1.8.0
 # Box storage (optionnel — requis si STORAGE_BACKEND=box)
 box-sdk-gen>=1.4.0
 
+# S3/MinIO storage (optionnel — requis si STORAGE_BACKEND=s3)
+#
+# Son absence ne se voyait qu'a chaud : la configuration valide, `create_storage`
+# construit l'objet, et l'ImportError ne survient qu'au premier acces au stockage —
+# donc dans la sonde de disponibilite, en pod qui ne devient jamais pret. Releve le
+# 29/08/2026 en branchant le seau MinIO de SSPCloud.
+boto3>=1.26.0
+
 # Dev dependencies
 # pip install -e ".[dev]"
