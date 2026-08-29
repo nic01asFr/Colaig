@@ -3061,3 +3061,74 @@ Corrige au lot L3.4a : la cle devient l empreinte de la declaration entiere. Voi
 **Ce qui reste vrai de D54** : la distinction `cache_scope` / `cacheScope` (deux
 mecanismes, pas un renommage), le defaut `private` en cas d absence, et le refus de
 migrer le client vers 2026-07-28 dans ce lot.
+
+---
+
+## D56 — La trame vaut 100 %, et deux des trois issues de D52 sont réfutées · 29/08/2026 · **actée**
+
+D52 posait trois issues au canal d'injection de la trame, **sans mesure**. Elles sont
+maintenant mesurées, et deux d'entre elles coûteraient l'intégralité du bénéfice.
+
+### Ce qui manquait
+
+La trame vivante tourne en production depuis l'origine. On connaissait son **coût** —
+une ancre empoisonnée fait basculer `needs_tools` de 0/8 à 8/8 (D52). On ignorait
+totalement son **bénéfice** : la référence L1.5 est purement retrieval et n'exerce aucun
+prompt d'agent.
+
+Un mécanisme dont on connaît le coût et pas le bénéfice ne peut pas être arbitré.
+
+### La mesure
+
+`_chantier/scripts/mesure_utilite_trame.py`, 8 tirages par bras, bras alternés, endpoint
+réel. Ce qui est mesuré est la **continuité** — la raison d'être annoncée de la trame.
+
+Une question elliptique, « et pour les travaux ? », ne se reformule correctement que si
+le sujet du tour précédent est disponible. On lit `query_reformulated` et l'on cherche
+mécaniquement le concept — pas de juge LLM.
+
+| bras | ellipse résolue | |
+|---|---|---|
+| **explicite** — question non elliptique (témoin) | 8/8 | 100 % |
+| **sans_trame** — aucune ancre | 0/8 | 0 % |
+| **ref_seule** — ancres réduites à `type` + `ref` | **0/8** | **0 %** |
+| **avec_trame** — ancres complètes | 8/8 | 100 % |
+
+Zéro variance sur les quatre bras. Le témoin établit que la détection fonctionne quand
+l'information est dans la question.
+
+### Ce que cela tranche
+
+**La trame a un bénéfice total sur la continuité.** Sans elle, l'ellipse n'est jamais
+résolue ; avec elle, toujours. Ce n'est pas un confort.
+
+**Et `ref_seule` se comporte exactement comme l'absence de trame.** C'est le **texte
+libre** qui porte le sens — un identifiant comme `seuil-fournitures` ne suffit pas.
+
+Les trois issues de D52 deviennent :
+
+1. **Couper le canal des ancres** — coûterait 100 % de la continuité. **Réfutée.**
+2. **Contraindre les ancres à `type` + `ref`** — coûterait 100 % de la continuité.
+   **Réfutée par la mesure directe de cette configuration.**
+3. **Ne plus faire dépendre le catalogue d'un verdict LLM seul** — **la seule qui
+   tienne.** Elle ne touche pas à la trame : elle empêche le verdict de l'Analyseur
+   d'être la porte unique.
+
+C'est aussi la seule qui traite la cause plutôt que le symptôme : le problème n'est pas
+que la trame porte du texte, c'est qu'un verdict LLM ouvre seul un catalogue.
+
+### Une erreur de détecteur, corrigée en route
+
+La première version cherchait « procédure » et « montant » parmi les marqueurs. Or
+« Quelles sont les **procédures** et obligations légales relatives aux travaux » est une
+reformulation qui **n'a rien résolu** — elle comptait pourtant comme un succès sans
+trame, ce qui minorait l'apport mesuré (+50 % au lieu de +100 %).
+
+Le mot qui discrimine, sur les textes observés, est **seuil** : présent dans tous les cas
+résolus, absent de tous les cas génériques.
+
+### Ce que la mesure ne dit pas
+
+Une forme d'ellipse, un sujet. Elle ne dit rien de la valeur de la trame sur les
+documents connus, le vocabulaire métier ou la phase de conversation. Élargir demanderait
+un jeu de scénarios.
