@@ -3376,3 +3376,150 @@ deviendrait un vestige à retirer plutôt qu'une garde à généraliser.
 
 **Rien de tout cela n'est construit.** Ce document décrit ce qui est, ce qui manque, et
 ce que chaque voie coûte.
+
+---
+
+## D59 — Amendement de D58 : le modèle Bnum, et la topologie des partages · 29/08/2026 · **actée**
+
+D58 a été écrite sans le contexte d'origine. Deux de ses conclusions étaient fausses, et
+la génération déployée avait déjà résolu ce que je décrivais comme ouvert.
+
+---
+
+### 1. Ce que D58 prenait pour un défaut était un choix
+
+D58 disait :
+
+> « cela règle un problème que personne n'avait posé : aujourd'hui, lier un dossier
+> partagé inscriptible ferait apparaître un `.colaig/` chez son propriétaire, sans qu'il
+> l'ait demandé. »
+
+**Ce n'est pas un problème, c'est le dessin.** Le propriétaire reste propriétaire de ses
+données — l'instance vit **chez lui**, dans son dossier, sous son contrôle. Il peut la
+lire, la sauvegarder, la supprimer, et la retirer à Colaig en révoquant le partage.
+
+C'est la **conséquence directe** du principe fondateur : *un espace de stockage + un
+dossier `.colaig` = une instance complète*. L'instance est **dans** l'espace parce que
+l'espace appartient à quelqu'un.
+
+**La lecture seule dégrade cela** — et c'est le mot juste. Elle sépare l'instance de son
+espace, donc elle éloigne les données de leur propriétaire. Mais elle apporte une
+protection d'un autre ordre : Colaig ne peut rien écrire chez autrui.
+
+**Deux usages, pas un défaut à corriger.** La scission `source_path` / `instance_path`
+reste la seule façon dont la lecture seule peut exister, mais elle ne doit **jamais**
+devenir le mode par défaut : elle échangerait une propriété contre une autre.
+
+---
+
+### 2. Le modèle d'origine : Bnum créait le quadruplet d'un seul geste
+
+Bnum permettait de créer un « espace de travail », et **cette création unique associait** :
+
+    un dossier documentaire
+    un salon Tchap
+    des droits
+    un groupe d'utilisateurs
+
+**C'est de là que venait le lien salon ↔ espace** : le salon portait **le nom** de
+l'espace de travail, et le dossier aussi. Toujours **à la racine du WebDAV de Colaig**,
+comme tout partage qui lui était fait.
+
+**Cela relit entièrement L3.1.** J'avais retiré le scoring par nom de salon en objectant
+qu'un nom Matrix est modifiable, donc instable. C'était vrai **et hors sujet** : dans le
+modèle d'origine, le nom n'était pas une ressemblance devinée, c'était une **convention
+garantie par le système qui créait les trois objets ensemble**.
+
+Le retrait reste juste **aujourd'hui**, parce que Bnum ne crée plus rien pour nous et que
+la garantie a disparu. Mais la raison n'est pas « l'inférence par nom est mauvaise » —
+c'est **« la garantie qui la fondait n'existe plus »**. La nuance compte : si un système
+recrée un jour ce geste atomique, la convention redevient fiable.
+
+---
+
+### 3. Ce qui a remplacé Bnum, et qui existait déjà
+
+La génération déployée s'est adaptée par **trois briques**, que le tronc n'a que
+partiellement :
+
+**Les commandes `space`** — `Colaig_26072025/app/commands/document_commands/space_management.py` :
+
+    !space list     lister les espaces documentaires
+    !space link ID  associer CE salon a l'espace
+    !space unlink   defaire l'association
+    !space info     ce a quoi ce salon est lie
+    !space index    forcer l'indexation
+
+C'est le geste humain qui remplace la création atomique de Bnum. **Le tronc n'a que
+`!space` en lecture** (L3.7) — `link`, `unlink` et `index` manquent, et `colaig lier`
+existe seulement en mode CHATBOT.
+
+**L'espace d'accueil** — un espace comme les autres, contenant la documentation de
+Colaig, `public: true`, servi aux salons non liés. Il existe encore dans le tronc
+(`default_workspace_id`, `acl.py:101`), et c'est ce qui rend le mode CHATBOT utile
+plutôt que muet.
+
+**La découverte au démarrage** — `discover_documentation_spaces()` cherche le marqueur
+`.albert/` (devenu `.colaig/`) à deux niveaux : la racine du service elle-même, et les
+sous-dossiers de premier niveau.
+
+---
+
+### 4. LA propriété de fournisseur qui fait marcher le modèle
+
+C'est le point que D58 avait manqué, et il est décisif.
+
+**Sur Nextcloud, un dossier partagé avec le compte de Colaig apparaît À LA RACINE de son
+propre arbre WebDAV.** Il n'y a donc **rien de spécial à faire** : lister la racine liste
+les partages. C'est ce que fait `discover_documentation_spaces`, et c'est ce que fait
+déjà `run_workspace_discovery_loop` dans le tronc.
+
+Il y a **deux topologies de partage**, et elles ne demandent pas le même code :
+
+| topologie | fournisseurs | ce qu'il faut faire |
+|---|---|---|
+| **monté dans l'arbre** — le partage apparaît à la racine du compte | **Nextcloud/WebDAV**, **Box** (racine du compte de service) | **rien** : `list_files("/")` les voit. Déjà fait. |
+| **listing séparé** — le partage n'est pas dans l'arbre | **MSGraph/OneDrive** (`/drive/sharedWithMe`) | appeler l'endroit dédié — **non câblé** |
+| **aucun partage** | S3, local, bigfolder, gdrive | `colaig lier` sur un dossier déjà atteint |
+
+**D58 se trompait donc en disant « le partage entrant n'est câblé nulle part ».** Il l'est
+pour la topologie montée — qui est celle du déploiement réel — depuis toujours, par la
+boucle de découverte. Ce qui manque, c'est **la seconde topologie**, celle d'OneDrive.
+
+Et le commentaire de `list_shared_with_me` de Box le dit lui-même : *« les dossiers
+partagés via collaboration avec le service account apparaissent dans son arbre racine »* —
+donc cette méthode est, pour Box, **redondante avec la boucle de découverte**.
+
+---
+
+### 5. Le marqueur est ce qui décide, et il est déjà là
+
+`discover_documentation_spaces` ne retient un dossier que s'il contient `.colaig/`. Et
+`set_room_webdav_context` refuse de lier un chemin qui n'en a pas.
+
+**C'est le protocole d'épreuve des droits que D58 cherchait à inventer** — il existe, et
+il est plus simple que ce que je proposais : le marqueur **est** la preuve. Il n'a pu
+être créé que par quelqu'un qui pouvait écrire ; sa présence atteste à la fois que
+l'espace est voulu et qu'il fut inscriptible.
+
+Reste le cas que le marqueur ne couvre pas : un dossier partagé **en lecture seule**, où
+Colaig ne peut pas créer le marqueur. C'est exactement le cas où la scission
+`source_path` / `instance_path` devient nécessaire — et **seulement celui-là**.
+
+---
+
+### 6. Ce que le tronc doit rattraper
+
+Par ordre de dépendance :
+
+1. **`!space link` / `unlink` / `index` en mode ASSISTANT.** Le tronc a `colaig lier`
+   uniquement en CHATBOT, et un `!space` qui ne fait que lire. C'est le geste humain qui
+   remplace Bnum : sans lui, un salon déjà lié ne peut pas être relié ailleurs.
+2. **La topologie « listing séparé »** pour OneDrive — `list_shared_with_me` existe et
+   n'est appelée par personne.
+3. **La scission source/instance**, pour le seul cas de la lecture seule, et jamais par
+   défaut.
+
+Et **ce qui n'est pas à faire** : généraliser `storage_readonly` sur les 55 sites
+d'écriture. Le marqueur suffit dans le cas inscriptible, et la scission rend la garde
+sans objet dans le cas lecture.
