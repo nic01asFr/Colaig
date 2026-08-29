@@ -3668,3 +3668,182 @@ l'identité de stockage d'une personne sont **deux faits différents** — mais 
 2. **`!space link` / `unlink` / `index`** en mode ASSISTANT. Sans l'acte de rattachement,
    rien de ce qui précède n'aboutit.
 3. **La proposition**, une fois qu'on sait ce qu'on peut lire.
+
+---
+
+## D62 — Colaig crée le pendant manquant · 30/08/2026 · **à arbitrer**
+
+Proposition posée : si Colaig est invité dans un dossier, **c'est lui** qui crée le
+salon, le nomme comme le dossier, y invite les participants du dossier et donne
+l'administration à qui l'a invité. Et symétriquement : à partir d'un salon, **c'est lui**
+qui crée le dossier et y donne accès aux membres du salon.
+
+---
+
+### 1. Ce que la proposition change vraiment, et c'est plus fort qu'il n'y paraît
+
+D59 §2 a établi que le lien salon ↔ espace venait de Bnum, qui créait le quadruplet
+— dossier, salon, droits, groupe — **d'un seul geste**. Le nom du salon n'était pas une
+ressemblance devinée : c'était une **convention garantie par le système qui créait les
+deux objets ensemble**. J'y ai conclu :
+
+> Le retrait du scoring par nom reste juste **aujourd'hui**, parce que la garantie qui le
+> fondait a disparu. Si un système recrée un jour ce geste atomique, la convention
+> redevient fiable.
+
+**La proposition, c'est de faire de Colaig ce système.** Ce n'est pas une commodité
+d'ergonomie : c'est le rétablissement de l'invariant fondateur par **construction** au
+lieu de l'inférence. Un lien créé est vrai ; un lien deviné ne l'est jamais tout à fait.
+
+C'est la bonne réponse au problème que L3.1 avait tenté de résoudre par le mauvais bout.
+
+---
+
+### 2. La direction salon → dossier existe déjà, à un détail près
+
+`colaig créer <nom>` (`handlers.py:755`) fait aujourd'hui, en un geste :
+
+    create_workspace(storage_path=/<nom-slugifié>/,
+                     conversations=[le salon courant],
+                     owners=[l'expéditeur])
+
+Le dossier est créé, `.colaig/` posé, **le salon lié**, et l'auteur inscrit
+propriétaire. Le commentaire du code dit pourquoi ce dernier point compte : *« un espace
+orphelin dès sa création n'est pas un espace »*.
+
+**Il ne manque donc que « inviter les membres du salon sur le dossier ».** Et sous D60 —
+une équipe, un Colaig, un fournisseur — cette moitié n'a pas d'objet : le dossier vit
+**sur le stockage de Colaig**, et les humains atteignent les documents **par Colaig,
+dans le salon**. Le dossier n'a pas de participants au sens humain ; il a Colaig.
+L'appartenance, c'est le salon.
+
+Autrement dit : **la direction salon → dossier est complète**, et ce qu'on croyait
+manquant est en réalité sans objet.
+
+Reste une seule limite réelle : `colaig créer` n'est intercepté qu'en mode CHATBOT
+(défaut A du 29/08). Un salon déjà lié ne peut pas en créer un second.
+
+---
+
+### 3. La direction dossier → salon bute sur trois faits, relevés dans le code
+
+**Il n'y a pas d'événement déclencheur sur le déploiement réel.** S3/MinIO n'a **aucune
+notion de partage** (D58 §8). Sur le stockage où Colaig tourne aujourd'hui, « être
+invité dans un dossier » n'existe pas. Le déclencheur n'existe que sur Nextcloud et Box,
+où un partage remonte à la racine de l'arbre — et là, la boucle de découverte le voit
+déjà (D59 §4, vérifié le 30/08 : `workspaces trouvés: 1`).
+
+**Un partage reçu ne dit ni son propriétaire ni les droits.** `list_shared_with_me`
+existe sur Box et MSGraph, et rend un `StorageFile` : chemin, nom, etag, taille.
+**Aucun backend ne lit les droits d'un dossier.** « Inviter les participants du dossier »
+et « mettre administrateur celui qui a invité Colaig » supposent deux informations que
+le stockage ne fournit pas.
+
+**`MessagingProtocol` ne sait pas créer de salon.** Cinq méthodes : `connect`, `run`,
+`send`, `send_typing`, `on_message`. Ni création, ni liste de membres. `joined_members`
+existe dans `matrix.py:1067` mais ne sert qu'à **compter** pour détecter un DM.
+
+---
+
+### 4. Le vrai obstacle : deux espaces d'identité sans pont
+
+C'est le point qui décide, et il n'est pas d'implémentation.
+
+| espace | ce que Colaig sait | quand |
+|---|---|---|
+| **messagerie** | le MXID, **authentifié** | quand quelqu'un parle |
+| **stockage** | un identifiant de compte, chez les fournisseurs qui le rendent | quand quelqu'un partage |
+
+Rien ne relie les deux. La sonde du 24/08 l'a établi, et D41 a **démontré** que dériver
+le domaine depuis un identifiant Tchap est indécidable par découpage.
+
+D'où l'asymétrie qui gouverne toute la proposition :
+
+> **L'acte porte l'identité, et seulement dans l'espace où il a lieu.**
+
+- Un **message** identifie son auteur dans la messagerie. Colaig peut donc créer un
+  dossier pour lui — et le dossier n'a besoin de personne d'autre.
+- Un **partage** identifie son auteur dans le stockage. Colaig ne peut donc inviter
+  **personne** dans le salon qu'il créerait : il ne connaît aucun MXID.
+
+Un salon créé automatiquement, sans membre, est un salon que personne ne voit. La
+direction dossier → salon ne se casse pas sur du code : elle se casse sur le fait qu'il
+n'y a personne à inviter.
+
+---
+
+### 5. La forme sous laquelle elle devient possible
+
+Ce n'est pas « créer et inviter », c'est **proposer à quelqu'un que Colaig connaît
+déjà** — le chemin que D58 §6 avait ouvert :
+
+> Colaig annonce, dans un salon lié ou en DM : « le dossier *Marchés 2026* m'a été
+> partagé. Voulez-vous que j'ouvre un salon pour lui ? » L'humain répond, et **son
+> message porte son MXID**.
+
+Le pont d'identité n'est pas calculé : **il est fourni par la réponse**. Celui qui
+accepte devient administrateur du salon — non pas parce qu'on a lu les droits du
+dossier, mais parce qu'il a posé l'acte, ce qui est la même règle que pour `colaig créer`.
+
+Et l'inférence reste interdite : la proposition repose sur un **acte** — un partage
+délibéré vers le compte de Colaig — et non sur une ressemblance de nom.
+
+---
+
+### 6. Conséquences techniques
+
+**`protocols.py` doit gagner la création de salon.** C'est une **porte humaine** (§5),
+et c'est le vrai coût du lot. Deux méthodes suffisent, et il faut résister à en ajouter
+plus : `creer_salon(nom, invites) -> conversation_id`, et éventuellement
+`membres(conversation_id)`. Un `MessagingProtocol` qui grossit devient un client Matrix
+déguisé, et les autres backends (webchat, telegram, slack) devront tous répondre.
+
+**Créer un salon est un acte sortant et irréversible.** Le scaffold automatique a déjà
+montré aujourd'hui ce que coûte un automatisme non borné : pointé sur le mauvais seau,
+il aurait écrit dans une dizaine de projets. Un salon créé par erreur sur un homeserver
+d'administration ne se retire pas d'un `kubectl`. Donc : **drapeau, plafond par cycle, et
+jamais sans un humain qui a répondu oui.**
+
+**Idempotence.** La boucle de découverte tourne toutes les N secondes. Le lien créé doit
+être écrit — `conversations: [...]` dans `.colaig/config.yaml` — avant tout second cycle,
+sinon chaque passage crée un salon de plus.
+
+**Le nommage redevient fiable, et c'est réutilisable.** Si Colaig crée les deux objets,
+le nom du salon **est** celui du dossier par construction. Le scoring par nom retiré en
+L3.1 pourrait redevenir légitime — non comme inférence, mais comme **vérification** d'une
+convention que Colaig garantit lui-même.
+
+---
+
+### 7. Conséquences sur le principe
+
+**Rien ne heurte les invariants.** Pas de base de données ; le lien vit dans
+`.colaig/config.yaml`. Provider-agnostic préservé si la création passe par le Protocol.
+Le contenu externe reste non fiable — un nom de dossier qui devient un nom de salon doit
+être **assaini**, car il vient du stockage.
+
+**Mais Colaig change de nature, et il faut le dire.** Jusqu'ici il répond ; là il
+**crée** des objets dans l'espace de messagerie, de sa propre initiative. C'est un
+élargissement réel de son rôle, pas un détail d'implémentation. C'est aussi ce qui le
+rend utile : le geste atomique de Bnum n'a jamais été remplacé, et `!space link` (D59
+§6.1) ne fait que déplacer le travail sur l'humain.
+
+**Une fuite à surveiller.** D58 §7 : nommer un dossier partagé dans un salon révèle son
+existence. Une proposition ne doit donc partir qu'en **DM** ou dans un **salon déjà lié**
+— jamais dans un salon inconnu.
+
+---
+
+### 8. Ce qu'il faut arbitrer
+
+1. **Ouvrir `MessagingProtocol` à la création de salon.** Porte humaine. Sans elle, rien
+   de la direction dossier → salon n'est possible.
+2. **`colaig créer` hors du mode CHATBOT** — c'est déjà le lot 1 de D59 §6, et la
+   direction salon → dossier n'a besoin de rien d'autre.
+3. **La proposition de rattachement d'un partage reçu** (D58 §6), qui est la seule forme
+   viable de la direction dossier → salon.
+4. **Faut-il inviter sur le dossier ?** Ma lecture : non, sous D60. À trancher, parce que
+   c'est la moitié de la proposition et qu'elle me paraît sans objet.
+
+**Rien n'est construit.** Ce document dit ce qui existe, ce qui bloque, et ce que chaque
+voie coûte.
