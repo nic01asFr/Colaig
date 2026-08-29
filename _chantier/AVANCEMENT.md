@@ -3528,8 +3528,8 @@ identifiants de connexion — appliqué au stockage.
 
 ### Pourquoi un seau dédié, et pas un préfixe chez l'utilisateur
 
-Le seau `nic01asfr` contient les autres projets — `cerema-livrables`,
-`detection-stationnement`, avec bases, poids de modèles et un `jwt_secret.enc`. La
+Le seau personnel de l'utilisateur contient une dizaine d'autres projets, avec
+bases de données, poids de modèles et un secret chiffré. La
 boucle de découverte (`main.py:823`) **crée un `.colaig/` dans tout dossier racine qui
 n'en a pas**, puis l'indexe. Y pointer Colaig aurait écrit dans chacun de ces projets et
 indexé des `.zip`, des `.pth` et des `.db`.

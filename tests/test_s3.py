@@ -448,3 +448,64 @@ class TestRacineDuSeau:
                    return_value=(MagicMock(), _fake_botocore())):
             assert await s3.exists("/") is True
         client.head_bucket.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_lister_la_racine_interroge_le_prefixe_vide(self):
+        """LE defaut qui rendait le seau invisible.
+
+        `list_files` faisait `_full_key(path) + "/"`. A la racine sans prefixe,
+        `_full_key("/")` rend "" et l'on interrogeait donc le prefixe `"/"` — qui ne
+        correspond a AUCUNE cle, puisqu'une cle S3 ne commence pas par un slash.
+
+        Consequence observee le 29/08/2026 : un seau contenant 63 objets rendait
+        `entrees a la racine : 0`. `load_all_workspaces` et la boucle de decouverte
+        voyaient donc un stockage vide, et Colaig restait sans aucun espace — sans la
+        moindre erreur, ce qui est le pire des cas.
+        """
+        s3 = _make_s3()
+        client = MagicMock()
+        paginator = MagicMock()
+        paginator.paginate.return_value = [{
+            "CommonPrefixes": [{"Prefix": "mesure-sst/"}],
+        }]
+        client.get_paginator.return_value = paginator
+        with patch.object(s3, "_get_client", return_value=client), \
+             patch("colaig.integrations.storage.s3._require_boto3",
+                   return_value=(MagicMock(), _fake_botocore())):
+            entrees = await s3.list_files("/")
+
+        appel = paginator.paginate.call_args.kwargs
+        assert appel["Prefix"] == "", (
+            f'la racine doit interroger le prefixe vide, pas {appel["Prefix"]!r}'
+        )
+        assert [e.name for e in entrees] == ["mesure-sst"]
+
+    @pytest.mark.asyncio
+    async def test_lister_la_racine_avec_prefixe_interroge_le_prefixe(self):
+        """Avec un prefixe configure, la racine de l'instance EST ce prefixe."""
+        s3 = _make_s3(prefix="colaig")
+        client = MagicMock()
+        paginator = MagicMock()
+        paginator.paginate.return_value = [{}]
+        client.get_paginator.return_value = paginator
+        with patch.object(s3, "_get_client", return_value=client), \
+             patch("colaig.integrations.storage.s3._require_boto3",
+                   return_value=(MagicMock(), _fake_botocore())):
+            await s3.list_files("/")
+
+        assert paginator.paginate.call_args.kwargs["Prefix"] == "colaig/"
+
+    @pytest.mark.asyncio
+    async def test_creer_la_racine_ne_pose_pas_d_objet_slash(self):
+        """`mkdir("/")` ecrivait un objet dont la cle est un simple slash.
+
+        Meme cause. Un tel objet n'est pas un dossier : c'est un dechet a la racine du
+        seau, que les listings suivants rendent comme une entree sans nom.
+        """
+        s3 = _make_s3()
+        client = MagicMock()
+        with patch.object(s3, "_get_client", return_value=client), \
+             patch("colaig.integrations.storage.s3._require_boto3",
+                   return_value=(MagicMock(), _fake_botocore())):
+            await s3.mkdir("/")
+        client.put_object.assert_not_called()

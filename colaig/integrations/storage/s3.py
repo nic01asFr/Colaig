@@ -95,6 +95,24 @@ class S3Storage:
             return f"{self._prefix}/{p}"
         return p
 
+    def _prefixe_de_dossier(self, path: str) -> str:
+        """Le prefixe S3 qui designe le CONTENU d'un dossier.
+
+        Les appelants ecrivaient `_full_key(path) + "/"`, ce qui est faux aux deux
+        bouts quand `path` designe la racine :
+
+        - **sans prefixe configure**, `_full_key("/")` rend `""` — correct, la racine
+          n'a pas de cle — et l'on interrogeait donc `"/"`. Aucune cle S3 ne commence
+          par un slash : un seau de 63 objets rendait une racine VIDE, sans erreur.
+          `load_all_workspaces` et la boucle de decouverte concluaient donc qu'il n'y
+          avait aucun espace. Releve le 29/08/2026.
+        - **avec un prefixe**, `_full_key("/")` rend deja `"colaig/"`, et l'on
+          interrogeait `"colaig//"` — qui ne correspond a rien non plus.
+
+        Le prefixe du contenu de la racine est la chaine vide, ou le prefixe configure.
+        """
+        return (self._full_key(path).rstrip("/") + "/").lstrip("/")
+
     def _strip_prefix(self, key: str) -> str:
         """Retire le préfixe d'une clé S3 pour obtenir le chemin Colaig."""
         if self._prefix and key.startswith(f"{self._prefix}/"):
@@ -106,7 +124,7 @@ class S3Storage:
 
     async def list_files(self, path: str, recursive: bool = False) -> list[StorageFile]:
         """Liste les objets S3 à un préfixe donné."""
-        prefix = self._full_key(path) + "/"
+        prefix = self._prefixe_de_dossier(path)
 
         def _list():
             client = self._get_client()
@@ -206,7 +224,13 @@ class S3Storage:
 
     async def mkdir(self, path: str) -> None:
         """Crée un 'dossier' S3 (objet vide avec slash terminal)."""
-        key = self._full_key(path) + "/"
+        key = self._prefixe_de_dossier(path)
+
+        # La racine du seau n'est pas un dossier a creer : elle existe des que le seau
+        # existe. L'ancien calcul y posait un objet dont la cle etait un simple slash —
+        # un dechet que les listings suivants rendaient comme une entree sans nom.
+        if not key:
+            return
 
         def _mkdir():
             client = self._get_client()
