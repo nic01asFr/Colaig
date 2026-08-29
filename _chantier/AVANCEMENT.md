@@ -3514,3 +3514,64 @@ est désormais épinglé **une seule fois**, dans `test_capacites.py`.
 jointe (L3.7) demandent une session Tchap ouverte. Les réponses sur corpus et
 `!classer` demandent en plus un espace lié **avec des documents** — c'est la limite
 posée par la première campagne, et elle tient.
+
+---
+
+## BRANCHEMENT DU STOCKAGE S3 · 29-30/08/2026 · commits `3e08b72`, `4ee5b46`
+
+Colaig a désormais **sa propre identité de bout en bout** : compte SSPCloud `colaig`
+(`colaig.assistant@developpement-durable.gouv.fr`), seau MinIO `colaig`, en plus de son
+identité Tchap. C'est le principe 5 du `CLAUDE.md` — l'identité portée par les
+identifiants de connexion — appliqué au stockage.
+
+`/ready` répond `200 {"storage":"ok","llm":"ok"}` sur `tronc-4ee5b46`.
+
+### Pourquoi un seau dédié, et pas un préfixe chez l'utilisateur
+
+Le seau `nic01asfr` contient les autres projets — `cerema-livrables`,
+`detection-stationnement`, avec bases, poids de modèles et un `jwt_secret.enc`. La
+boucle de découverte (`main.py:823`) **crée un `.colaig/` dans tout dossier racine qui
+n'en a pas**, puis l'indexe. Y pointer Colaig aurait écrit dans chacun de ces projets et
+indexé des `.zip`, des `.pth` et des `.db`.
+
+Sur un seau dédié, ce comportement redevient ce qu'il prétend être : la racine est le
+territoire de Colaig. **Le préfixe devient inutile, et le scaffold légitime.**
+
+### Deux défauts que seul le branchement pouvait trouver
+
+**`boto3` absent de l'image.** `requirements.txt` listait `box-sdk-gen` avec la mention
+« optionnel — requis si `STORAGE_BACKEND=box` », mais **pas `boto3`**. S3 était le seul
+backend déclaré sans sa bibliothèque.
+
+Le défaut est silencieux là où il compte : la configuration valide, `create_storage`
+construit l'objet, et l'`ImportError` ne survient qu'au premier accès — donc dans la
+sonde, en pod qui ne devient jamais prêt.
+
+Le test porte sur `requirements.txt`, **pas sur un import** : un test qui ferait
+`import boto3` passerait sur un poste de développement et manquerait exactement le cas
+réel, l'image.
+
+**`exists("/")` échouait sur S3.** La sonde appelle cela ; `_full_key("/")` rend une
+chaîne vide — correct, la racine n'a pas de clé — mais `head_object(Key="")` est refusé
+par boto3 **avant tout appel réseau**, par une `ParamValidationError` et non une
+`ClientError`. Aucune des deux gardes ne l'attrapait.
+
+Le repli par préfixe n'aurait pas sauvé le cas : il interroge le préfixe `"/"`, qui ne
+désigne rien, et un seau **vide** aurait répondu que sa racine n'existe pas. Or la
+racine d'un seau joignable existe toujours — c'est le seau, et c'est `head_bucket` qui
+le demande. Le cas **avec** préfixe est différent et déjà juste ; un test le fige.
+
+### Ce qui reste ouvert
+
+**Les identifiants expirent le 5 septembre.** Ce sont des jetons STS d'Onyxia
+(`policy: stsonly`, 7 jours). Un compte de service MinIO, non expirant, reste à créer
+depuis le compte `colaig`.
+
+**Le namespace `user-colaig` n'est pas provisionné** — l'authentification OIDC passe
+(`oidc-colaig`) mais aucun droit n'est accordé. Colaig tourne donc encore dans
+`user-nic01asfr`. À faire en ouvrant le Datalab avec ce compte, si l'on veut l'isolement
+complet.
+
+**Le seau est vide.** Aucun corpus, donc les réponses documentaires, `!classer` et
+l'indexation restent non éprouvées — c'est la limite posée par la première campagne, et
+elle tient tant qu'aucun document n'est déposé.
