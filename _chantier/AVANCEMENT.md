@@ -3575,3 +3575,44 @@ complet.
 **Le seau est vide.** Aucun corpus, donc les réponses documentaires, `!classer` et
 l'indexation restent non éprouvées — c'est la limite posée par la première campagne, et
 elle tient tant qu'aucun document n'est déposé.
+
+---
+
+## PREMIER CORPUS INDEXÉ · 30/08/2026 · commits `52aab16`, `5c8727a`
+
+**51 documents indexés**, index sauvegardé sur S3. La moitié documentaire du produit
+tourne pour la première fois depuis la consolidation.
+
+    workspace /colaig-mesure-sst/ : 51 documents indexés
+    index sauvegardé sur le storage: /colaig-mesure-sst/.colaig/indexes/
+
+Sept documents écartés — des PDF scannés, sans texte natif. Le message est juste et le
+dit : *« le backend LLM ne fournit pas la capacité ocr »*. Le catalogue de SSPCloud
+contient pourtant `chandra-ocr-2` : le câbler est un lot en soi.
+
+### Trois défauts, chacun trouvé par l'étape suivante
+
+**Lister la racine rendait un seau vide.** Même cause que `exists("/")`, à deux endroits
+que je n'avais pas corrigés. `list_files` faisait `_full_key(path) + "/"` : sans préfixe
+cela interroge `"/"`, et aucune clé S3 ne commence par un slash ; avec préfixe cela
+donne `"colaig//"`. **Un seau de 63 objets rendait une racine vide, sans erreur** —
+`workspaces trouvés: 0` était faux. `mkdir` avait la même faute, avec pour effet de
+poser un objet dont la clé est un simple slash.
+
+**Le modèle d'embedding par défaut n'existe pas chez le fournisseur.**
+`ALBERT_MODEL_EMBED` valait `BAAI/bge-m3` ; SSPCloud ne propose que
+`qwen3-embedding-8b`. D'où un 500 à chaque appel, puis un repli local exigeant
+`sentence-transformers`, absent de l'image.
+
+**La dimension ne suivait pas le modèle.** Le modèle est configurable, sa dimension
+était **codée en dur à 1024 en huit endroits**. `qwen3-embedding-8b` rend 4096, et
+chaque document échouait sur une `AssertionError` **nue** levée par FAISS — sans
+message, sans nom de modèle, sans chiffre. `COLAIG_EMBEDDING_DIM` corrige cela, et une
+incohérence **se dit** désormais, sur le chemin batch autant que sur l'unitaire :
+l'indexeur n'emprunte que le premier.
+
+### Le salon d'essai
+
+`!idtsoJgSJshkYoXSJt` créé pour l'occasion, non lié — donc en mode CHATBOT, où
+`colaig lier <identifiant>` est réellement intercepté. Lier ce salon à
+`colaig-mesure-sst` est le prochain geste, et c'est lui-même un test du lot L3.7.
