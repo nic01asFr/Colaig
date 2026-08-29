@@ -79,15 +79,24 @@ spec:
             - name: {{ $k }}
               value: {{ $v | quote }}
             {{- end }}
+          # DISPONIBILITE — `/ready` teste le stockage ET le LLM, et rend 503 quand
+          # l'un manque. Les deux sondes interrogeaient `/health`, qui rend
+          # `{"status": "ok"}` INCONDITIONNELLEMENT : une sonde qui ne peut pas echouer
+          # laisse Kubernetes envoyer du trafic a un pod dont les dependances sont
+          # tombees, et l'utilisateur recoit des erreurs d'un pod cru sain.
           readinessProbe:
             httpGet:
-              path: /health
+              path: /ready
               port: http
             initialDelaySeconds: 10
             periodSeconds: 10
+          # VIE — `/live` dit seulement que le processus tourne, et c'est voulu.
+          # Redemarrer un pod parce que le LLM distant est tombe ne repare rien : cela
+          # le fait redemarrer en boucle. La vie et la disponibilite ne posent pas la
+          # meme question.
           livenessProbe:
             httpGet:
-              path: /health
+              path: /live
               port: http
             initialDelaySeconds: 30
             periodSeconds: 30

@@ -3257,3 +3257,33 @@ Declencher une indexation ou une classification a la demande. Il faudrait inject
 l `Indexer` et le `DocumentIndex` dans `MessageHandler` — un choix de cablage qui
 appartient a `main.py`, et une commande qui declenche N appels LLM devrait etre
 arbitree (§2.6).
+
+---
+
+## L3.6 (partiel) — LA SONDE QUI NE POUVAIT PAS ECHOUER · 29/08/2026 · **arret demande**
+
+Le chart existait deja et passe `helm lint`. Son defaut etait ailleurs : **les deux
+sondes interrogeaient `/health`**, qui rend `{"status": "ok"}` inconditionnellement.
+
+Une sonde de disponibilite qui ne peut pas echouer laisse Kubernetes envoyer du trafic
+a un pod dont le stockage ou le LLM est injoignable. `/ready` existait depuis l origine,
+teste les deux dependances et rend **503** — sa docstring dit meme qu il est fait pour
+les probes Onyxia. **Personne ne l avait branche**, alors que le critere du lot le
+nomme.
+
+`readinessProbe` -> `/ready`, `livenessProbe` -> `/live`. La distinction compte :
+redemarrer un pod parce que le LLM DISTANT est tombe ne repare rien.
+
+**6 tests**, dont un qui verifie que les routes existent dans le code et un qui verifie
+que `/ready` sait rendre 503. Le chart et le code vivaient dans deux mondes que rien ne
+reliait.
+
+### Ce qui reste, et pourquoi je m arrete (§4.8)
+
+`sspcloud.py` — « auto-decouverte cle, role edit ». **Le depot ne documente nulle part**
+comment un pod Onyxia decouvre la cle du LLM : le chart la recoit explicitement par
+`--set llm.apiKey`. Et « role edit » n y designe rien de connu.
+
+Inventer un nom de variable d environnement produirait un code qui ne trouve jamais
+rien et echoue en silence. **Deux questions a l humain** : par quel mecanisme le pod
+decouvre-t-il la cle, et faut-il deployer pour verifier le critere ?
