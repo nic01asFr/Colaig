@@ -143,3 +143,64 @@ def test_env_nest_pas_suivi():
         pytest.skip("dépôt git indisponible")
     fautifs = [f for f in suivis if Path(f).name == ".env" or f.endswith("/.env")]
     assert not fautifs, f".env suivi par git : {fautifs}"
+
+
+# Les trois endroits ou la mention SUBSISTE legitimement, chacun avec sa raison.
+#
+# D13 pose « Colaig n'est rattache a aucune organisation dans le depot », au motif qu'un
+# lecteur d'un autre ministere y lirait une appartenance qui decourage la reprise. Ce
+# motif ne vaut pas partout :
+_MENTIONS_ADMISES = {
+    # La decision D13 elle-meme : elle NOMME ce qu'elle a fait retirer. L'effacer
+    # effacerait la trace de la regle. Meme raison que l'archive `CLAUDE.v3-original.md`,
+    # que D13 exempte deja explicitement.
+    "_chantier/DECISIONS.md",
+    "docs/CLAUDE.v3-original.md",
+    # Ce fichier : il porte le mot pour pouvoir le chercher.
+    "tests/test_pas_de_secret_commite.py",
+    # ATTRIBUTION — en attente d'arbitrage, voir AVANCEMENT du 29/08. Une mention de
+    # copyright nomme le titulaire des droits par necessite ; la retirer est un acte
+    # juridique, pas un nettoyage. `LICENSE` n'est pas scanne (sans extension), mais
+    # porte la meme question.
+    "pyproject.toml",
+    "README.md",
+    "deploy/helm/colaig/Chart.yaml",
+}
+
+
+def test_aucune_organisation_nommee_dans_le_depot():
+    """Consigne du chantier : rien de nominatif, et pas de mention d'organisation.
+
+    Elle apparaissait dans trois fichiers suivis — deux fois comme registre d'image
+    par défaut, une fois comme adresse de contact. Un défaut de registre nommant une
+    organisation fait deux choses : il inscrit une appartenance que le dépôt ne doit pas
+    porter, et il produit un `ImagePullBackOff` chez quiconque déploie sans le changer.
+
+    Le défaut est désormais VIDE plutôt que deviné : un champ obligatoire non renseigné
+    se lit ; une organisation plausible ne se lit pas.
+    """
+    racine = Path(__file__).resolve().parent.parent
+    suivis = subprocess.run(["git", "ls-files"], cwd=racine, capture_output=True,
+                            text=True, check=True).stdout.split()
+
+    fautifs = []
+    for nom in suivis:
+        chemin = racine / nom
+        if chemin.suffix.lower() not in (".py", ".md", ".yaml", ".yml", ".json", ".toml"):
+            continue
+        if nom.replace("\\", "/") in _MENTIONS_ADMISES:
+            continue
+        if "_chantier/mesures" in nom.replace("\\", "/"):
+            continue
+        try:
+            texte = chemin.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        if "cerema" in texte.lower():
+            fautifs.append(nom)
+
+    assert fautifs == [], (
+        f"mention d'organisation dans : {fautifs} — voir D13. Si la mention est une "
+        "ATTRIBUTION (copyright, auteurs, mainteneurs), elle releve d'un arbitrage : "
+        "l'ajouter a `_MENTIONS_ADMISES` avec sa raison, pas la retirer en silence."
+    )

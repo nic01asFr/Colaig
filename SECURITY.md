@@ -4,7 +4,7 @@
 
 Merci de **ne pas** ouvrir d'issue publique pour une faille de sécurité.
 
-Contactez en privé : **colaig@cerema.fr** (objet : `[SECURITE] Colaig`).
+Contactez en privé l'adresse de sécurité du dépôt (objet : `[SECURITE] Colaig`).
 Décrivez la vulnérabilité, son impact et les étapes de reproduction.
 Nous accusons réception sous quelques jours ouvrés et vous tenons informé
 de la correction.

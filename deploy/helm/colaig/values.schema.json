@@ -8,7 +8,9 @@
       "properties": {
         "repository": {
           "type": "string",
-          "default": "ghcr.io/cerema/colaig"
+          "default": "",
+          "title": "Registre de l'image",
+          "description": "Ou l'image Colaig est publiee, par exemple ghcr.io/<organisation>/colaig. Obligatoire."
         },
         "tag": {
           "type": "string",

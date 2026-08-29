@@ -3305,3 +3305,37 @@ l issue 2 de D52. Dans les trois cas, la verification est venue apres l ecriture
 c est elle qui a tranche.
 
 **9 tests pour le chart, 2463 au total.**
+
+---
+
+## D13 (application) — neuf fichiers oublies, et une question qui n etait pas posee · 29/08/2026
+
+D13 n avait ete appliquee qu a deux fichiers. Neuf autres fichiers suivis portaient
+encore la mention ; un test la tient desormais.
+
+### Ce qui est retire
+
+Les references **incidentes** : registres d image, URL de depot, chaine d exemple,
+adresse de contact. Le registre devient **vide plutot que devine** — un defaut nommant
+une organisation inscrit une appartenance ET produit un `ImagePullBackOff` chez qui
+deploie sans le changer.
+
+### Ce qui n est PAS retire, et pourquoi c est un arbitrage
+
+`LICENSE`, `pyproject.toml` (auteurs), `README.md` (attribution de licence),
+`Chart.yaml` (mainteneurs).
+
+**Une mention de copyright nomme le titulaire des droits par necessite.** La modifier
+est un acte juridique, pas un nettoyage — et **D13 ne traitait pas cette question** :
+elle visait les mentions qui font croire a une appartenance du PROJET, pas celles qui
+declarent qui detient les droits.
+
+**Arbitrage demande** : voulez-vous que le depot porte une attribution, et laquelle ?
+
+### Deux exemptions de principe
+
+`DECISIONS.md` porte D13 elle-meme, qui nomme ce qu elle fait retirer — l effacer
+efface la trace de la regle. Meme raison que l archive `CLAUDE.v3-original.md` que D13
+exempte deja.
+
+**2464 tests.**

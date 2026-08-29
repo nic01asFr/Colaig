@@ -182,7 +182,7 @@ ctx = ChunkContextualizer(llm_client, model="mistralai/Ministral-3-8B-Instruct-2
 enriched = await ctx.enrich_batch(
     chunks,
     workspace_name="Marchés publics",
-    workspace_description="Procédures administratives CEREMA",
+    workspace_description="Procédures administratives de l'espace",
     workspace_system_prompt="Tu es un expert en marchés publics...",
 )
 # → list[DocumentChunk] avec contextual_prefix rempli

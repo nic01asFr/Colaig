@@ -2,7 +2,10 @@
 # Surchargez via le formulaire Onyxia (values.schema.json) ou -f values.yaml.
 
 image:
-  repository: ghcr.io/cerema/colaig
+  # A RENSEIGNER : le registre ou l'image est publiee.
+  # Aucune valeur par defaut n'est posee ici — une organisation devinee
+  # produirait un `ImagePullBackOff` que personne ne saurait lire.
+  repository: ""
   tag: latest
   pullPolicy: IfNotPresent
 

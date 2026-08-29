@@ -6,7 +6,7 @@ version: '3.8'
 
 services:
   colaig:
-    image: ghcr.io/cerema/colaig:${COLAIG_VERSION:-latest}
+    image: ${COLAIG_IMAGE:?renseigner le registre}:${COLAIG_VERSION:-latest}
     container_name: colaig
     ports:
       - "${COLAIG_WEB_PORT:-8000}:8000"
