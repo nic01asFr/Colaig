@@ -380,3 +380,71 @@ class TestDownloadIfChanged:
                 result = await s3.download_if_changed("/docs/guide.pdf", '"old-etag"')
 
         assert result == b"new content"
+
+
+# =============================================================================
+# La racine du seau — deploiement du 29/08/2026
+# =============================================================================
+
+class TestRacineDuSeau:
+    """`exists("/")` doit repondre, y compris sur un seau vide.
+
+    LE DEFAUT TROUVE EN PRODUCTION. La sonde de disponibilite appelle
+    `storage.exists("/")` ; sur S3 cela donnait :
+
+        Parameter validation failed: Invalid length for parameter Key,
+        value: 0, valid min length: 1
+
+    `_full_key("/")` rend une chaine vide — legitime, la racine n'a pas de cle — et
+    `head_object(Key="")` est refuse par boto3 AVANT tout appel reseau. L'erreur est une
+    `ParamValidationError`, pas une `ClientError` : aucune des deux branches de garde ne
+    l'attrapait, et elle remontait telle quelle jusqu'a la sonde. Le pod ne devenait
+    jamais pret.
+
+    Le second chemin aurait ete faux aussi : `"".rstrip("/") + "/"` interroge le prefixe
+    `"/"`, qui ne designe rien, et un seau vide aurait donc repondu « la racine n'existe
+    pas ». Or la racine d'un seau joignable existe toujours — c'est le seau.
+    """
+
+    @pytest.mark.asyncio
+    async def test_la_racine_existe_sur_un_seau_vide(self):
+        s3 = _make_s3()
+        client = MagicMock()
+        client.head_bucket.return_value = {}
+        with patch.object(s3, "_get_client", return_value=client), \
+             patch("colaig.integrations.storage.s3._require_boto3",
+                   return_value=(MagicMock(), _fake_botocore())):
+            assert await s3.exists("/") is True
+        client.head_bucket.assert_called_once_with(Bucket="my-bucket")
+        client.head_object.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_la_racine_n_existe_pas_si_le_seau_est_injoignable(self):
+        """Un seau absent ou refuse doit rendre False, pas lever.
+
+        C'est ce qui donne son sens a la sonde : elle doit pouvoir dire « non ».
+        """
+        s3 = _make_s3()
+        client = MagicMock()
+        client.head_bucket.side_effect = FakeClientError("404")
+        with patch.object(s3, "_get_client", return_value=client), \
+             patch("colaig.integrations.storage.s3._require_boto3",
+                   return_value=(MagicMock(), _fake_botocore())):
+            assert await s3.exists("/") is False
+
+    @pytest.mark.asyncio
+    async def test_la_racine_avec_prefixe_ne_teste_pas_le_seau(self):
+        """Avec un prefixe, la racine de l'instance est ce prefixe, pas le seau.
+
+        Repondre `head_bucket` ici dirait « la racine existe » alors que le prefixe
+        peut n'avoir jamais ete cree.
+        """
+        s3 = _make_s3(prefix="colaig")
+        client = MagicMock()
+        client.head_object.side_effect = FakeClientError("404")
+        client.list_objects_v2.return_value = {"Contents": [{"Key": "colaig/x"}]}
+        with patch.object(s3, "_get_client", return_value=client), \
+             patch("colaig.integrations.storage.s3._require_boto3",
+                   return_value=(MagicMock(), _fake_botocore())):
+            assert await s3.exists("/") is True
+        client.head_bucket.assert_not_called()
