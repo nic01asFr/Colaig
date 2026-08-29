@@ -3595,3 +3595,76 @@ secrets**. C'est ce que le chart déploie aujourd'hui, et c'est ce que le mode
 multi-client réplique proprement quand plusieurs équipes partagent une infrastructure.
 
 Rien à changer.
+
+---
+
+## D61 — Les droits SONT lisibles, et la correspondance s'apprend · 29/08/2026 · **actée**
+
+Amende D58 sur sa prémisse centrale, et pose l'invariant qui borne tout le reste.
+
+### L'invariant, posé par l'humain
+
+**Colaig est toujours circonscrit à son espace de travail.** Il ne lit que ce qui relève
+de l'espace auquel le salon est lié — jamais au-delà, quelle que soit l'étendue de ce que
+son compte pourrait techniquement atteindre.
+
+C'est la borne qui rend le reste discutable sans danger.
+
+### Ce que D58 affirmait, et qui était trop restrictif
+
+D58 posait que les droits ne sont pas observables et ne se découvrent qu'en essayant.
+**C'était vrai du Protocol, pas des fournisseurs.**
+
+| côté | ce qui est lisible | état |
+|---|---|---|
+| **Matrix** | salons joints et invitations, membres, **niveaux de pouvoir** | `MatrixRoom.users`, `power_levels`, `AsyncClient.joined_members` — et la génération déployée s'en servait (`tchap_utils.py:281`) |
+| **stockage, via le Protocol** | rien du partage — `PROPFIND` voit des fichiers | conforme à D43 |
+| **stockage, via le fournisseur** | **qui partage** et un **masque de permissions** | API OCS de Nextcloud ; équivalents Box/OneDrive — **non implémenté, à sonder** |
+
+Les droits de Colaig sont donc lisibles **précisément**, sans épreuve par essai — mais par
+une capacité **propre au fournisseur**, hors du contrat commun, comme `ReactionProtocol`
+l'a été pour les réactions.
+
+### Le mur de D41 ne tombe pas : on le contourne
+
+Relier `alice.dupont` (stockage) à `@alice:tchap` (Matrix) reste **indécidable par
+découpage** — D41 l'a démontré. Mais rien n'oblige à le **dériver** :
+
+1. Colaig lit les partages reçus, avec leur propriétaire ;
+2. il lit les membres du salon, avec leurs MXID ;
+3. il **propose** la correspondance ; un humain confirme ;
+4. **la correspondance confirmée s'écrit**, et vaut pour la suite.
+
+Automatique pour la lecture, **humain pour le lien**. On ne déduit jamais : on apprend
+une fois et l'on retient.
+
+### Deux limites que Colaig s'impose
+
+**Il ne lit que sa propre entrée de partage.** L'API du fournisseur peut exposer qui
+d'autre a accès à un dossier ; ce n'est pas nécessaire, et consulter les droits d'autrui
+ne se justifierait pas.
+
+**Il ne rattache jamais tout seul.** Mieux lire les droits ne change pas qui décide :
+D42/D43 posent que l'accès se décide par le lien. Colaig peut **proposer mieux**, jamais
+**décider davantage**.
+
+### La table de correspondance : arbitrage rendu
+
+La table apparie deux systèmes d'identité. J'avais soulevé qu'un membre d'un espace
+pourrait y apprendre l'identité de stockage d'un collègue.
+
+**Arbitrage : ce n'est pas un obstacle.** L'appartenance à un salon est déjà visible de
+ses membres.
+
+La distinction est notée pour que le dossier soit exact — l'appartenance à un salon et
+l'identité de stockage d'une personne sont **deux faits différents** — mais au sein d'une
+équipe, qui partage déjà un support documentaire, la seconde n'ajoute rien de sensible.
+
+### L'ordre de construction
+
+1. **Une sonde**, en lecture seule, contre le fournisseur réel : que rend l'OCS ?
+   Propriétaire, masque de permissions ? Une requête, aucun effet de bord — et trois
+   suppositions deviennent des faits.
+2. **`!space link` / `unlink` / `index`** en mode ASSISTANT. Sans l'acte de rattachement,
+   rien de ce qui précède n'aboutit.
+3. **La proposition**, une fois qu'on sait ce qu'on peut lire.
