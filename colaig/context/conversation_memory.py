@@ -86,6 +86,7 @@ class ConversationMemory:
         conversation_id: str,
         current_query: str,
         max_messages: int | None = None,
+        query_embedding: list[float] | None = None,
     ) -> list[dict]:
         """Charge l'historique contextuellement pertinent.
 
@@ -104,6 +105,14 @@ class ConversationMemory:
             conversation_id: Identifiant de la conversation.
             current_query: Requête courante (pour la recherche sémantique).
             max_messages: Nombre max de messages à retourner (défaut : max_retrieved).
+            query_embedding: Vecteur de `current_query`, s'il est DÉJÀ calculé.
+                `PreExecutionBuilder` vectorise le message pour choisir le behavior,
+                les skills et la mémoire utilisateur ; sans ce paramètre, cette méthode
+                vectorisait LE MÊME TEXTE une seconde fois. Deux allers-retours réseau
+                pour un texte, sur le chemin d'un message reçu — donc avant que
+                l'utilisateur voie quoi que ce soit.
+                Et un embedding n'est pas déterministe (2,6e-04 mesurés au 28/08) : le
+                même texte pouvait produire deux vecteurs différents dans un seul tour.
 
         Returns:
             Liste de messages triés chronologiquement.
@@ -129,7 +138,8 @@ class ConversationMemory:
 
         # Récupération sémantique si embedding disponible et requête non vide
         if self._embedding_service and current_query.strip():
-            selected = await self._semantic_select(older, current_query, remaining_slots)
+            selected = await self._semantic_select(older, current_query,
+                                                   remaining_slots, query_embedding)
         else:
             # Pas d'embedding : derniers N messages des anciens
             selected = older[-remaining_slots:]
@@ -247,7 +257,8 @@ class ConversationMemory:
             logger.exception("impossible de sauvegarder l'historique: %s", history_path)
 
     async def _semantic_select(
-        self, candidates: list[dict], query: str, k: int
+        self, candidates: list[dict], query: str, k: int,
+        query_embedding: list[float] | None = None,
     ) -> list[dict]:
         """Sélectionne les k messages les plus proches de la requête.
 
@@ -257,11 +268,14 @@ class ConversationMemory:
 
         Graceful degradation : si l'embedding échoue → last-k candidats.
         """
-        try:
-            query_vec = await self._embedding_service.embed_text(query)
-        except Exception:
-            logger.warning("embedding échoué pour requête, fallback last-k")
-            return candidates[-k:]
+        if query_embedding is not None:
+            query_vec = query_embedding
+        else:
+            try:
+                query_vec = await self._embedding_service.embed_text(query)
+            except Exception:
+                logger.warning("embedding échoué pour requête, fallback last-k")
+                return candidates[-k:]
 
         texts = [f"{msg.get('role', '')}: {msg.get('content', '')}" for msg in candidates]
         try:

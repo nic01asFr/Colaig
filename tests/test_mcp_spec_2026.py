@@ -90,22 +90,26 @@ def _connecteur(**kw) -> MCPConnectorConfig:
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_un_ttlMs_court_fait_expirer_l_entree():
+async def test_un_ttlMs_de_ZERO_ne_met_rien_en_cache():
     """Le serveur décide de la fraîcheur, pas nous.
 
-    Un serveur dont la liste bouge souvent peut annoncer un TTL bref ; l'ignorer
-    servirait des outils disparus pendant cinq minutes.
+    La spec : « If 0, the response SHOULD be considered immediately stale. The client
+    MAY re-fetch every time the result is needed. » Un serveur dont la liste bouge à
+    chaque appel peut donc l'annoncer, et l'ignorer servirait des outils disparus.
+
+    ZÉRO PLUTÔT QU'UNE MILLISECONDE. La première version posait `ttlMs=1` et dormait
+    10 ms — elle courait après l'horloge, et échouait par intermittence : la
+    granularité du compteur monotone sous Windows avoisine 15 ms. Un test qui dépend
+    du temps qui passe est exactement ce que `tests/CLAUDE.md` interdit, et il vaut
+    mieux que ce soit moi qui le trouve.
     """
     route = respx.post(URL).mock(
-        return_value=httpx.Response(200, json=_reponse(ttlMs=1)))
+        return_value=httpx.Response(200, json=_reponse(ttlMs=0)))
 
-    client = MCPConnectorClient(_connecteur())
-    await client.list_tools()
-    import asyncio
-    await asyncio.sleep(0.01)
+    await MCPConnectorClient(_connecteur()).list_tools()
     await MCPConnectorClient(_connecteur()).list_tools()
 
-    assert route.call_count == 2, "un ttlMs de 1 ms doit avoir expire"
+    assert route.call_count == 2, "un ttlMs de 0 doit rendre l'entree immediatement perimee"
 
 
 @pytest.mark.asyncio

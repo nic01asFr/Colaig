@@ -166,21 +166,58 @@ async def test_une_recherche_documentaire_coute_un_embedding(pipeline, indexe):
 
 
 @pytest.mark.asyncio
-async def test_deux_reformulations_coutent_deux_embeddings(pipeline, indexe):
-    """LE mécanisme que L3.5 vise.
+async def test_les_reformulations_coutent_UN_aller_retour(pipeline, indexe):
+    """Ce que L3.5 a gagné, et par quel chemin la production passe.
 
-    L'Analyseur produit plusieurs `chunk_queries` — des reformulations de la même
-    question. Chacune est vectorisée séparément : le coût d'un tour croît avec le
-    nombre de reformulations, alors qu'un seul appel groupé suffirait.
+    L'Analyseur produit deux à trois `chunk_queries` — des reformulations de la même
+    question. Chacune coûtait son propre aller-retour ; `retrieve_many` les groupe.
 
-    Ce test ne réclame pas la correction : il chiffre le mécanisme.
+    Le test appelle `retrieve_many` et non `retrieve` en boucle, parce que c'est ce que
+    `PreExecutionBuilder.execute_retrieval` fait désormais. Mesurer la boucle
+    mesurerait un chemin que la production n'emprunte plus.
     """
     c = pipeline["compteur"]
-    for reformulation in ("procédure de validation", "comment valider un dossier"):
-        await pipeline["retriever"].retrieve(reformulation, k=3)
-    assert c.total == 2
-    assert len(c.appels_groupes) == 0, (
-        "les reformulations ne sont PAS groupées — c'est là que L3.5 peut gagner"
+    await pipeline["retriever"].retrieve_many(
+        ["procédure de validation", "comment valider un dossier"], k=3)
+
+    assert c.appels_groupes == [2], (
+        f"attendu un seul appel groupe de 2 textes, obtenu {c.appels_groupes} "
+        f"et {c.appels_unitaires}"
+    )
+    assert c.total == 1
+
+
+def test_UN_SEUL_embed_par_tour_est_INATTEIGNABLE_et_voici_pourquoi():
+    """Le critère du lot, tel qu'il est écrit, ne peut pas être atteint.
+
+    L'ordre d'un tour est :
+
+        1. `PreExecutionBuilder.build`  vectorise le MESSAGE (behavior, skills, memoire)
+        2. Analyseur                    appel LLM -> produit les `search_directives`
+        3. `execute_retrieval`          vectorise les REFORMULATIONS
+
+    Les reformulations **n'existent pas** quand le message est vectorisé : elles sont
+    produites par l'appel LLM qui sépare les deux étapes. Aucun regroupement ne peut
+    donc les réunir en un seul aller-retour.
+
+    L'optimum atteignable est : **un appel pour le message, un appel groupé par famille
+    de requêtes** — soit deux à trois, dont AUCUN redondant. C'est ce que le lot livre.
+
+    Ce test épingle la cause, pour qu'on ne repose pas la question dans six mois en
+    croyant qu'un réglage a été oublié.
+    """
+    import inspect
+
+    from colaig.agents.pre_execution import PreExecutionBuilder
+
+    build = inspect.getsource(PreExecutionBuilder.build)
+    retrieval = inspect.getsource(PreExecutionBuilder.execute_retrieval)
+
+    assert "embed_text(message.body)" in build, (
+        "le message est vectorise dans `build`, avant l'Analyseur"
+    )
+    assert "search_directives" in retrieval, (
+        "les requetes de recherche viennent des directives de l'Analyseur, donc APRES"
     )
 
 
@@ -227,3 +264,109 @@ async def test_un_tour_complet_phase1(pipeline, fake_storage, fake_messaging, fa
         f"{c.appels_unitaires} · groupés {c.appels_groupes}. "
         "Si ce nombre a augmenté, une étape a été ajoutée sur le chemin du message."
     )
+
+
+# ── Le chemin agentique — ce que L3.5 vise vraiment ─────────────────────────
+
+
+@pytest.fixture
+async def memoire(pipeline, fake_storage):
+    """Une conversation assez longue pour que la mémoire sémantique s'active.
+
+    En deçà d'`ALWAYS_INCLUDE_RECENT + limit`, `load_relevant_history` rend les derniers
+    messages sans rien vectoriser — et le compteur dirait zéro pour une bonne raison.
+    """
+    from colaig.context.conversation_memory import ConversationMemory
+
+    memoire = ConversationMemory(fake_storage,
+                                 embedding_service=pipeline["compteur"])
+    # Construit par le VRAI chemin d'ecriture : `save_turn` ne persiste pas
+    # l'`existing_history` qu'on lui passe, il y ajoute le tour courant. Lui donner une
+    # liste de vingt messages n'en ecrivait que deux — et la selection semantique ne se
+    # declenchait pas, faute d'historique. Le compteur disait alors zero pour une bonne
+    # raison, et l'on aurait cru avoir mesure un tour.
+    historique: list = []
+    for i in range(10):
+        historique = await memoire.save_turn(
+            workspace_path="/espace/", conversation_id="!mesure:test.local",
+            user_message=f"question numero {i} sur la validation",
+            assistant_response=f"reponse numero {i}",
+            existing_history=historique)
+
+    assert len(historique) >= 20, (
+        f"historique de {len(historique)} messages : la selection semantique ne se "
+        "declenchera pas, et le compteur ne mesurera rien"
+    )
+    pipeline["compteur"].appels_unitaires.clear()
+    pipeline["compteur"].appels_groupes.clear()
+    return memoire
+
+
+@pytest.mark.asyncio
+def test_LE_DOUBLON_est_ferme_sur_le_CHEMIN_REEL():
+    """LE défaut que L3.5 corrige, épinglé là où il se produisait.
+
+    `PreExecutionBuilder` vectorise le message pour choisir le behavior, les skills et
+    la mémoire utilisateur. `ConversationMemory` vectorisait **le même texte** pour
+    classer l'historique. Deux allers-retours réseau pour un texte, sur le chemin d'un
+    message reçu — donc avant que l'utilisateur voie quoi que ce soit.
+
+    Le handler chargeait l'historique AVANT de construire la carte : le vecteur n'existait
+    pas encore quand la mémoire en avait besoin. L'ordre est inversé, et la carte porte
+    désormais le vecteur.
+
+    Ce test lit la source parce que le doublon est une propriété de l'ORDRE des étapes,
+    que seul un tour de phase 2 complet exercerait. Le mécanisme, lui, est éprouvé
+    fonctionnellement par les deux tests qui suivent.
+    """
+    import pathlib
+
+    from tests.conftest import code_seul
+
+    source = code_seul((pathlib.Path(__file__).resolve().parent.parent
+                        / "colaig" / "messaging" / "handlers.py").read_text(encoding="utf-8"))
+
+    assert "query_embedding=(pre_exec.message_embedding" in source, (
+        "le handler ne transmet pas le vecteur deja calcule a ConversationMemory"
+    )
+    assert source.index("_pre_exec_builder.build(") < source.index("load_relevant_history("), (
+        "l'historique est charge AVANT la carte : le vecteur n'existe pas encore, "
+        "et la memoire le recalculera"
+    )
+
+
+@pytest.mark.asyncio
+async def test_la_memoire_accepte_un_vecteur_deja_calcule(pipeline, memoire):
+    """Le mécanisme de la correction, épinglé séparément.
+
+    Même forme que pour `Retriever.retrieve` (lot précédent) : l'appelant qui a déjà le
+    vecteur le passe, et la couche basse ne le recalcule pas. Le pipeline n'est pas
+    dupliqué — c'est le même chemin, avec une entrée de plus.
+    """
+    c = pipeline["compteur"]
+    vecteur = await pipeline["compteur"].embed_text("Quelle est la procédure ?")
+    c.appels_unitaires.clear()
+    c.appels_groupes.clear()
+
+    await memoire.load_relevant_history(
+        "/espace/", "!mesure:test.local", "Quelle est la procédure ?",
+        max_messages=6, query_embedding=vecteur)
+
+    assert "Quelle est la procédure ?" not in c.appels_unitaires, (
+        "un vecteur fourni doit dispenser de le recalculer"
+    )
+
+
+@pytest.mark.asyncio
+async def test_sans_vecteur_fourni_le_comportement_est_INCHANGE(pipeline, memoire):
+    """La correction ne doit pas casser l'appelant qui ne passe rien.
+
+    `ConversationMemory` est utilisée ailleurs que dans le pipeline agentique.
+    """
+    c = pipeline["compteur"]
+    resultat = await memoire.load_relevant_history(
+        "/espace/", "!mesure:test.local", "Quelle est la procédure ?",
+        max_messages=6)
+
+    assert c.appels_unitaires, "sans vecteur fourni, la memoire doit en calculer un"
+    assert isinstance(resultat, list) and resultat

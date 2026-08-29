@@ -3188,3 +3188,38 @@ amputee.
 Le resume par LLM reste non porte, et mieux justifie : la voie deterministe resout le
 defaut reel sans rien pouvoir inventer, sur un chemin ou l on a mesure 0,1 citation
 fausse sur 102 cas. **2434 tests.**
+
+---
+
+## L3.5 — UN SEUL VECTEUR PAR TEXTE · 29/08/2026 · **critere corrige et atteint**
+
+Le meme message etait vectorise **deux fois** par tour — par `PreExecutionBuilder`,
+puis par `ConversationMemory`. Un troisieme calcul existait sur le chemin sans phase 6.
+
+La cause etait un ORDRE : le handler chargeait l historique avant de construire la
+carte, donc avant que le vecteur existe. `pre_exec.build` ne lit pas l historique —
+l ordre pouvait s inverser sans rien casser.
+
+### Le critere du lot est inatteignable tel qu il est ecrit
+
+« 1 seul `embed()` par tour ». Or les reformulations sont produites par l appel LLM de
+l Analyseur, **qui separe** la vectorisation du message de celle des reformulations.
+Aucun regroupement ne peut les reunir.
+
+L optimum atteignable : **un appel pour le message, un appel groupe par famille de
+requetes** — deux a trois, dont aucun redondant. Un test epingle la cause, pour qu on
+ne repose pas la question dans six mois.
+
+### Le filtrage d outils n est PAS fusionne, deliberement
+
+Les deux niveaux ne se recouvrent pas — le premier est declaratif, le second depend de
+l Intent. Les fusionner deplacerait du code sans retirer de doublon. Et le niveau 2
+vient d etre deplace A LA FIN de `_execute_agentic` (L2.5c) : le ramener dans
+PreExecution rouvrirait le trou que ce lot-la vient de fermer.
+
+### Trois defauts de harnais
+
+Une fixture qui ne declenchait pas le chemin mesure (compteur a zero pour une bonne
+raison), une doublure plus etroite que le contrat dont l erreur etait avalee par la
+degradation gracieuse, et mon propre test de TTL qui courait apres l horloge. **2438
+tests, trois executions identiques.**

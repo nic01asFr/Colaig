@@ -867,17 +867,19 @@ class MessageHandler:
             channel_format = resolve_channel(message.platform or "", message.conversation_type)
             reporter = ProgressReporter(self._messaging, message.conversation_id, channel_format)
 
-            # 2b. Charger l'historique via ConversationMemory si disponible (Phase 5)
-            if self._conversation_memory and context.workspace and context.workspace.storage_path:
-                try:
-                    history = await self._conversation_memory.load_relevant_history(
-                        workspace_path=context.workspace.storage_path,
-                        conversation_id=message.conversation_id,
-                        current_query=message.body,
-                    )
-                    context.conversation_history = history
-                except Exception:
-                    logger.warning("impossible de charger l'historique via ConversationMemory")
+            # L'HISTORIQUE EST CHARGÉ PLUS BAS, APRÈS LA CARTE DE PRÉ-EXÉCUTION (L3.5).
+            #
+            # Il l'était ici, donc AVANT que le message ne soit vectorisé — et
+            # `ConversationMemory` vectorisait alors le même texte une seconde fois pour
+            # classer l'historique par similarité.
+            #
+            # Deux allers-retours réseau pour un seul texte, sur le chemin d'un message
+            # reçu : ils s'ajoutent à la latence avant que l'utilisateur voie quoi que
+            # ce soit. Et un embedding n'est pas déterministe (2,6e-04 mesurés) : le
+            # même message pouvait donner deux vecteurs différents dans un seul tour.
+            #
+            # `pre_exec.build` ne lit pas l'historique — il n'a besoin que de l'espace
+            # et de la trame. L'ordre pouvait donc s'inverser sans rien casser.
 
             # 2c. Charger la trame vivante (Phase 6)
             trame = None
@@ -929,10 +931,32 @@ class MessageHandler:
                             workspace_id=context.workspace.workspace_id,
                             conversation_phase=None,
                             fixed_context={"user_memory": [f.content for f in facts]},
+                            # Le vecteur est porté par la carte pour que l'historique
+                            # le réutilise : ce chemin-là aussi le calculait une fois
+                            # pour lui, et laissait la mémoire le recalculer (L3.5).
+                            message_embedding=msg_emb,
                         )
                         logger.debug("user_memory: %d faits injectés (sans Phase 6)", len(facts))
                 except Exception:
                     logger.warning("user_memory: lecture sans Phase 6 échouée — dégradation gracieuse")
+
+            # 2f. Charger l'historique — APRÈS la carte, pour réutiliser son vecteur.
+            #
+            # Voir le commentaire en 2b : sans cela, le même message était vectorisé
+            # deux fois dans un tour. `query_embedding=None` laisse `ConversationMemory`
+            # calculer le sien, ce qui préserve tous les autres appelants.
+            if self._conversation_memory and context.workspace and context.workspace.storage_path:
+                try:
+                    history = await self._conversation_memory.load_relevant_history(
+                        workspace_path=context.workspace.storage_path,
+                        conversation_id=message.conversation_id,
+                        current_query=message.body,
+                        query_embedding=(pre_exec.message_embedding
+                                         if pre_exec is not None else None),
+                    )
+                    context.conversation_history = history
+                except Exception:
+                    logger.warning("impossible de charger l'historique via ConversationMemory")
 
             # 3. THINKING — Analyse
             await self._notify_phase(PipelinePhase.THINKING, message.conversation_id)

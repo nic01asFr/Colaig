@@ -639,8 +639,19 @@ class TestConversationMemoryFeature:
                 self.load_called = False
                 self.save_called = False
 
-            async def load_relevant_history(self, workspace_path, conversation_id, current_query):
+            async def load_relevant_history(self, workspace_path, conversation_id,
+                                            current_query, max_messages=None,
+                                            query_embedding=None):
+                # La signature suit CELLE DU CONTRAT, y compris ce qu'on n'utilise pas.
+                # Sans `query_embedding` (L3.5), l'appel du handler levait un TypeError
+                # que la degradation gracieuse avalait : `load_called` restait faux et
+                # le test echouait en accusant l'ordre des etapes.
+                #
+                # Une doublure plus ETROITE que le contrat fait echouer des appels que
+                # la production accepte — le miroir de ce que `tests/CLAUDE.md` reproche
+                # aux doublures trop permissives.
                 self.load_called = True
+                self.vecteur_recu = query_embedding
                 return mock_history
 
             async def save_turn(self, workspace_path, conversation_id, user_message,

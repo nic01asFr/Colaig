@@ -66,7 +66,7 @@ complète. Aucune modification de `protocols.py` sans arbitrage.
 | L3.2 | Fils Matrix + **mention native `m.mentions`** + registre des `thread_root` suivis | L1.2 | un fil ouvert sur une réponse du bot est suivi sans nouvelle mention |
 | L3.3 | Réactions 👍👎🔄➕ ; ➕ réécrit sur `StorageProtocol` ; feedback persisté ; pose auto de 👍👎 | L3.2 | ➕ écrit dans `.colaig/notes.md` ; feedback survit au redémarrage |
 | L3.4 | Client MCP (registre, transport, cache, compaction, timeout 20 s) ; `cacheScope` + `ttlMs` honorés — **⚠️ `cache_scope`→`cacheScope` N'EST PAS un renommage, voir D54** | L1.3, L2.2, L2.3 | ✅ 29/08/2026 |
-| L3.5 | Filtrage d'outils 2 niveaux **fusionné dans PreExecution** | L3.4 | **1 seul `embed()` par tour**, vérifié par compteur |
+| L3.5 | Aucun texte vectorisé deux fois par tour — **⚠️ « 1 seul `embed()` » est inatteignable : l'Analyseur sépare message et reformulations ; les 2 niveaux de filtrage ne se recouvrent pas et le niveau 2 doit rester tardif (L2.5c)** | L3.4 | ✅ 29/08/2026 |
 | L3.6 | Chart Helm Onyxia + `sspcloud.py` (auto-découverte clé, rôle `edit`) | L0.1 | `helm install` → pod qui répond `/ready` |
 | L3.7 | Pièces jointes + commandes réduites (`!aide !space !index !classer !skills`) | L1.2 | une PJ est classée dans le bon dossier |
 
