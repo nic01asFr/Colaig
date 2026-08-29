@@ -3847,3 +3847,141 @@ existence. Une proposition ne doit donc partir qu'en **DM** ou dans un **salon d
 
 **Rien n'est construit.** Ce document dit ce qui existe, ce qui bloque, et ce que chaque
 voie coûte.
+
+---
+
+## D63 — Amendement de D62 : le pont d'identité existe, et il est éprouvé · 30/08/2026 · **actée**
+
+D62 §4 affirmait « deux espaces d'identité sans pont » et en tirait que Colaig ne
+pourrait inviter personne dans un salon qu'il créerait. **C'est faux.** Quatre sondes
+contre le vrai homeserver Tchap l'établissent.
+
+---
+
+### 1. Le compte Tchap porte l'adresse mail
+
+    GET /_matrix/client/v3/account/3pid
+    {"threepids": [{"medium": "email",
+                    "address": "colaig.assistant@developpement-durable.gouv.fr", …}]}
+
+C'est **exactement** l'adresse du compte de stockage. L'identifiant commun n'est pas à
+construire : il est déjà là, des deux côtés. C'est le principe 5 du `CLAUDE.md` —
+*l'identité est portée par les identifiants de connexion, une adresse mail dédiée qui
+ancre Matrix, WebDAV, LLM* — et ce qui vaut pour Colaig vaut pour les utilisateurs.
+
+Tchap maintient d'ailleurs un fork de **Sydent** et un module Synapse qui enregistre
+l'association 3PID **automatiquement à l'inscription**. L'adresse n'est donc pas un
+attribut optionnel que certains comptes auraient : c'est la règle.
+
+### 2. LA CHAÎNE COMPLÈTE, ÉPROUVÉE
+
+Le serveur d'identité est **sur le homeserver lui-même** —
+`https://matrix.agent.dev-durable.tchap.gouv.fr/_matrix/identity/v2` répond 200 — et
+Colaig obtient son jeton **tout seul**, sans configuration ni secret supplémentaire :
+
+    1. POST /_matrix/client/v3/user/{mxid}/openid/request_token   200
+    2. POST /_matrix/identity/v2/account/register                 200  → id_access_token
+    3. GET  /_matrix/identity/v2/hash_details                     200  → ['sha256','none']
+    4. POST /_matrix/identity/v2/lookup                           200
+
+       nicolas.laval@developpement-durable.gouv.fr
+         → @nicolas.laval-developpement-durable.gouv.fr1:agent.dev-durable.tchap.gouv.fr
+
+Le hachage est `sha256("<adresse> email <pepper>")` en base64 url-safe, le pepper venant
+de `/hash_details` (MSC2134, avec l'authentification de MSC2140).
+
+**C'est une résolution faisant autorité, pas une correspondance de chaînes.** Noter le
+suffixe `1` : aucune règle de construction ne l'aurait produit. C'est précisément ce qui
+distingue une API d'une heuristique.
+
+### 3. J'avais appliqué D41 au-delà de ce qu'il démontre
+
+D41 établit que **dériver** le domaine depuis un identifiant Tchap est indécidable par
+découpage : `@nicolas.laval-developpement-durable.gouv.fr1:…` ne se scinde pas en local
++ domaine sans connaître déjà le domaine.
+
+Cela interdit de **déduire une adresse depuis un MXID**. Cela n'interdit **ni** de
+vérifier un MXID contre une adresse connue, **ni** — et c'est le point — de demander la
+réponse au serveur d'identité, dont c'est la fonction.
+
+L'impossibilité portait sur le **parsing**. Elle ne portait ni sur l'appariement ni sur
+la résolution. Je citais D41 dans le mauvais sens ; à corriger partout où l'on s'y
+appuie.
+
+---
+
+### 4. Le piège que la sonde a trouvé, et pourquoi le lookup l'évite
+
+La recherche par le **répertoire d'utilisateurs** sur `nicolas.laval` rend **deux
+comptes, sur deux administrations différentes** :
+
+    @nicolas.laval-developpement-durable.gouv.fr1:agent.dev-durable.tchap.gouv.fr
+    @nicolas.laval-gendarmerie.interieur.gouv.fr:agent.interieur.tchap.gouv.fr
+
+Des homonymes existent, et sur un réseau interministériel. Une recherche par la partie
+locale inviterait la mauvaise personne dans un salon contenant les documents d'une
+équipe.
+
+**Le lookup d'identité n'a pas ce défaut** : il porte sur l'adresse complète, hachée, et
+rend zéro ou une réponse. D'où la règle : **le répertoire ne sert pas à identifier.** Il
+peut assister une saisie humaine ; il ne décide jamais de qui l'on invite.
+
+Et si le lookup rend zéro, on n'invite personne et l'on demande. Une absence de réponse
+n'autorise pas un repli sur une devinette.
+
+### 5. L'invitation par adresse, quand la personne n'a pas de compte
+
+    POST /_matrix/client/v3/rooms/{salon}/invite  {"medium":"email","address":…}
+    400 M_MISSING_PARAM — « id_server and id_access_token are required »
+
+L'erreur est décisive : ce n'est pas `M_UNRECOGNIZED`. Le mécanisme existe, et le jeton
+manquant est celui que l'étape 2 ci-dessus fournit. Cette voie a un mérite propre : elle
+**n'exige aucune résolution de notre côté** et couvre le cas où l'adresse n'est encore
+liée à aucun compte — le serveur d'identité garde l'invitation en attente.
+
+Et la création de salon fonctionne : `!idtsoJgSJshkYoXSJt` a été créé par le compte de
+Colaig, avec invitation, le 30/08.
+
+---
+
+### 6. Ce qui reste vrai de D62
+
+**Sur S3/MinIO, il n'y a aucun événement déclencheur.** S3 n'a pas de partage. Sur le
+déploiement d'aujourd'hui, « quelqu'un partage un dossier avec Colaig » n'existe pas.
+La direction dossier → salon suppose Nextcloud ou Box.
+
+**Aucun backend ne lit qui a partagé un dossier.** `list_shared_with_me` rend un
+`StorageFile` : chemin, nom, etag, taille. L'API OCS de Nextcloud expose un `uid_owner`
+sur ses partages, et l'API de provisioning l'adresse mail d'un compte — mais **ce n'est
+ni câblé ni vérifié ici**, faute d'instance à sonder. C'est le maillon manquant, et le
+seul.
+
+**`MessagingProtocol` ne sait pas créer de salon.** Cinq méthodes. La création passe par
+`protocols.py`, donc par une **porte humaine** (§5). C'est le vrai coût du lot.
+
+**Le garde-fou de D62 §6 vaut plus que jamais.** Créer un salon et y inviter des gens est
+un acte sortant et irréversible sur un homeserver d'administration. Le piège des
+homonymes le confirme. Drapeau, plafond par cycle, et jamais sans qu'un humain ait
+répondu oui.
+
+---
+
+### 7. La chaîne, et ce qu'il reste à faire
+
+    un partage arrive            (Nextcloud/Box — pas S3)
+      → l'API du fournisseur donne l'adresse de qui partage       [À CÂBLER — le seul]
+      → resolution de l'adresse en MXID par le serveur d'identite [ÉPROUVÉ]
+      → creation d'un salon nomme comme le dossier                [porte humaine]
+      → invitation                                                [ÉPROUVÉ]
+      → l'invite repond, son message porte son MXID authentifie
+      → le lien s'ecrit dans .colaig/config.yaml
+
+L'inverse — salon → dossier — reste ce que `colaig créer` fait déjà, et n'a besoin de
+rien de tout cela.
+
+**La conclusion de D62 s'inverse donc.** La direction dossier → salon n'est pas bloquée
+par l'identité : ce verrou est ouvert et éprouvé. Il reste **un** câblage de lecture chez
+le fournisseur de stockage, et **une** porte humaine sur `protocols.py`.
+
+Le nom du salon devient alors garanti par construction, et non plus deviné — ce que D59
+§2 annonçait comme la condition pour que la convention de nommage redevienne fiable.
