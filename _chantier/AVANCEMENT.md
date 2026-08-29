@@ -3121,3 +3121,48 @@ Verifie et non suppose : l Analyseur repond `needs_tools=True` 3/3 sur une deman
 d action, `False` 3/3 sur une question documentaire. Le chemin d administration tient.
 
 **5 tests pour ce lot, 2406 au total.**
+
+---
+
+## L3.4 — LE CLIENT MCP · 29/08/2026 · **critere atteint**
+
+Critere : « `test_mcp_datagouv.py` passe + test `cacheScope` ». Les deux sont atteints —
+4 tests vivants verts contre `mcp.data.gouv.fr`, le contrat `cacheScope` epingle hors
+ligne. **2429 tests au total.**
+
+### Le defaut que seul le test vivant pouvait trouver
+
+Le client annoncait `Accept: application/json`. Le transport « Streamable HTTP » exige
+qu il annonce accepter AUSSI `text/event-stream` ; un serveur conforme repond **406 Not
+Acceptable**. Mesure : data.gouv rendait 406 sur chaque appel — **le client ne savait
+parler a aucun serveur MCP conforme**.
+
+Aucun test hors ligne ne pouvait le voir : une doublure HTTP ne verifie pas les en-tetes
+qu on lui envoie. C est le test vivant, ecrit pour le critere, qui l a trouve au premier
+lancement. Corrige, avec la lecture des reponses en flux d evenements.
+
+### La spec 2026-07-28, honoree
+
+`ttlMs` fait loi quand il est present et positif ; un negatif est ignore ; un absent
+laisse notre propre duree, ce que la spec prevoit. `cacheScope: private` INTERDIT le
+cache — un cache de processus ne sait pas a qui il sert. Une valeur inconnue vaut prive.
+
+**Correction de D54** : l absence ne vaut PAS prive. C etait trop strict et aurait
+desactive le cache contre tous les serveurs existants. Ce qui rend l absence sans danger
+est verifiable : `tools/list` ne porte aucune identite d utilisateur, et un test epingle
+cette condition.
+
+### Le reste
+
+Invalidation cablee sur « methode inconnue » (seule possible : `listChanged=false`
+partout). Delai 30 -> 20 s. Compaction en troncature structuree tete+queue, disant ce
+qui manque ; la strategie par resume LLM n est pas portee (option couteuse = drapeau
+mesure, §2.6). `test_mcp_datagouv.py` en test vivant skippe par defaut (D14).
+
+### Un defaut du harnais, trouve en chemin
+
+`config/mcp_pins.json` est **suivi par git**, et la suite y ecrivait. Six empreintes
+factices avaient ete commitees — deux au lot L2.3, quatre dans mon commit `d05a904`.
+L issue d un test dependait donc des executions precedentes, contre le contrat de
+`tests/CLAUDE.md`. Magasin isole en dossier temporaire, fichier du depot vide, et un
+test du harnais refuse que le chemin repointe dans le depot.

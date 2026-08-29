@@ -221,3 +221,29 @@ async def test_run_boucle_et_reste_annulable():
     tache.cancel()
     with pytest.raises(asyncio.CancelledError):
         await tache
+
+
+def test_le_magasin_de_pins_ne_pointe_PAS_dans_le_depot():
+    """Garde du contrat de déterminisme, côté épinglage MCP.
+
+    `mcp_pins.CHEMIN_PAR_DEFAUT` vaut `config/mcp_pins.json` en production — un fichier
+    suivi par git. Tant que la fixture `magasin_de_pins_isole` n'existait pas, chaque
+    exécution de la suite y écrivait, et l'issue d'un test dépendait de ce qu'une
+    exécution antérieure avait laissé.
+
+    Six empreintes d'outils factices ont ainsi été commitées avant qu'on s'en aperçoive.
+
+    Si ce test échoue, la fixture ne s'applique plus : la suite réécrit un fichier du
+    dépôt, et le déterminisme est perdu.
+    """
+    from pathlib import Path
+
+    import colaig.security.mcp_pins as mcp_pins
+
+    assert mcp_pins.CHEMIN_PAR_DEFAUT != Path("config/mcp_pins.json"), (
+        "le magasin d'epinglage pointe sur le fichier du depot — la suite ecrit dedans"
+    )
+    assert not mcp_pins.CHEMIN_PAR_DEFAUT.is_absolute() or "config" != \
+        mcp_pins.CHEMIN_PAR_DEFAUT.parent.name, (
+        f"chemin suspect : {mcp_pins.CHEMIN_PAR_DEFAUT}"
+    )

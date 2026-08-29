@@ -362,10 +362,20 @@ def test_extract_mixed_content():
 
 
 def test_extract_truncation():
+    """La borne porte sur le CONTENU conservé, pas sur la chaîne rendue.
+
+    Le marqueur s'est allongé au lot L3.4 : il annonce désormais le nombre de
+    caractères omis, et dit que ce qu'on lit est un extrait. C'est le point de la
+    troncature structurée — un modèle qui lit un texte s'arrêtant net ne voit pas
+    qu'il manque quelque chose, et répond comme s'il avait tout lu.
+
+    Le contenu retenu, lui, vaut toujours exactement `max_length`.
+    """
     content = [{"type": "text", "text": "x" * 20000}]
     result = _extract_mcp_content(content, max_length=100)
-    assert len(result) <= 150  # 100 + truncation message
-    assert "tronqué" in result
+    garde = result.split("[")[0] + result.rsplit("]", 1)[-1]
+    assert garde.count("x") == 100, "le contenu conservé doit valoir max_length"
+    assert "omis" in result and "extrait" in result
 
 
 def test_extract_resource_content():

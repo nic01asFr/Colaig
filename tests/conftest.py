@@ -305,3 +305,39 @@ def code_seul(source: str) -> str:
                 lignes[i] = "\n"
             lignes[l2 - 1] = " " * c2 + lignes[l2 - 1][c2:]
     return "".join(lignes)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def magasin_de_pins_isole(tmp_path_factory):
+    """Le magasin d'épinglage MCP vit dans un dossier temporaire, pas dans le dépôt.
+
+    LE DÉFAUT QUE CETTE FIXTURE FERME
+    -----------------------------------
+    `mcp_pins.CHEMIN_PAR_DEFAUT` vaut `config/mcp_pins.json` — un fichier **suivi par
+    git**. Chaque exécution de la suite y écrivait les empreintes des outils factices, et
+    ces écritures ont fini par être commitées : `test_connector::search` (lot L2.3),
+    puis `commun::search`, `espace-a::search`, `juridique::search`, `rh::search` (L3.4).
+
+    Deux conséquences, toutes deux mesurées :
+
+    1. **Le dépôt portait des données fabriquées** dans un fichier de configuration —
+       de quoi faire croire que ces épinglages étaient réels.
+    2. **L'issue d'un test dépendait des exécutions précédentes.** Un test qui déclare
+       un outil sous une description, puis la change, échouait ou non selon ce qu'une
+       exécution antérieure avait laissé sur le disque. C'est exactement le contraire du
+       contrat de `tests/CLAUDE.md` : « deux exécutions de la suite doivent produire
+       exactement le même résultat, dans le même processus comme dans un autre ».
+
+    Le magasin reste PARTAGÉ sur la session, et c'est voulu : l'épinglage protège d'un
+    contrat qui change entre deux découvertes, et un magasin vidé à chaque test ne
+    pourrait rien épingler du tout.
+    """
+    import colaig.security.mcp_pins as mcp_pins
+    from colaig.integrations import mcp_connector
+
+    ancien = mcp_pins.CHEMIN_PAR_DEFAUT
+    mcp_pins.CHEMIN_PAR_DEFAUT = tmp_path_factory.mktemp("pins") / "mcp_pins.json"
+    mcp_connector._MAGASIN_PINS = None
+    yield
+    mcp_pins.CHEMIN_PAR_DEFAUT = ancien
+    mcp_connector._MAGASIN_PINS = None
