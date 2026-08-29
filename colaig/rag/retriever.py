@@ -304,6 +304,30 @@ class Retriever:
         try:
             texts = [r.chunk.text for r in results]
             ranked_pairs = await self._albert_client.rerank(query, texts, top_n=len(texts))
+
+            # UN RERANKER ABSENT NE DOIT PAS EFFACER LA RECHERCHE.
+            #
+            # Le contrat est ecrit dans `colaig/integrations/CLAUDE.md` : « rerank
+            # retourne [] si le provider ne supporte pas (404/405) → l'appelant peut
+            # utiliser MMR comme fallback ». L'appelant ne retombait pas : la boucle
+            # ci-dessous ne tournait pas, et l'on rendait une liste VIDE.
+            #
+            # Le `except` n'attrapait rien, une liste vide n'etant pas une erreur.
+            #
+            # `OpenAIClient` — donc SSPCloud, la CIBLE DE PRODUCTION — n'expose pas
+            # d'endpoint de reranking. Sur cette pile, TOUTE recherche documentaire
+            # rendait zero resultat, sans erreur ni avertissement : Colaig repondait de
+            # memoire en paraissant fonctionner. Releve a la premiere question posee a
+            # un corpus reel, le 30/08/2026 :
+            #
+            #     FAISS top scores avant rerank: [0.7188, 0.7188, 0.7188]
+            #     reranker Albert scores: []
+            #     echange … sources=[] confiance=0.00
+            if not ranked_pairs:
+                logger.info("reranking non disponible — ordre MMR conserve (%d résultats)",
+                            len(results))
+                return results
+
             logger.info(
                 "reranker Albert scores: %s",
                 [(round(s, 4), results[i].chunk.source_name or results[i].chunk.source_path[:30]) for i, s in ranked_pairs],
