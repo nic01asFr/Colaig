@@ -3985,3 +3985,122 @@ le fournisseur de stockage, et **une** porte humaine sur `protocols.py`.
 
 Le nom du salon devient alors garanti par construction, et non plus deviné — ce que D59
 §2 annonçait comme la condition pour que la convention de nommage redevienne fiable.
+
+---
+
+## D64 — Le pont côté stockage : asymétrique, et Box est le seul complet · 30/08/2026 · **actée**
+
+D63 a établi que Colaig résout **seul** une adresse mail en MXID, sans privilège
+particulier. Reste la moitié amont : **le fournisseur de stockage donne-t-il l'adresse
+de qui partage ?**
+
+La réponse dépend du fournisseur, et l'écart est plus grand qu'attendu.
+
+---
+
+### 1. S3/MinIO — rien, et c'est sondé
+
+Sondé le 30/08 contre le seau `colaig`, avec ses propres identifiants :
+
+    GET /colaig?policy=    404  NoSuchBucketPolicy
+    GET /colaig?acl=       200  <Owner><ID></ID><DisplayName></DisplayName></Owner>
+    GET /colaig?tagging=   404  NoSuchTagSet
+
+**L'ACL rend un propriétaire sans identifiant ni nom.** MinIO répond une coquille. Il n'y
+a ni partage, ni propriétaire, ni adresse — rien à quoi raccrocher une identité.
+
+C'est le stockage sur lequel Colaig tourne aujourd'hui. **La direction dossier → salon y
+est donc impossible**, non par manque de code mais par absence d'objet.
+
+### 2. Box — la chaîne est complète en un seul appel
+
+`GET /2.0/folders/{id}/collaborations` rend, pour chaque collaboration :
+
+    accessible_by.login   « the primary email address of this user »
+    created_by.login      idem — QUI a cree la collaboration
+    role                  editor | viewer | previewer | uploader | co-owner | owner
+
+**`login` EST l'adresse mail.** Pas d'identifiant intermédiaire, pas de second appel, pas
+de privilège d'annuaire. Et `role` donne le niveau de droit.
+
+C'est le seul fournisseur où l'amont est aussi simple que l'aval.
+
+### 3. Nextcloud — un identifiant, puis un mur
+
+`GET /ocs/v2.php/apps/files_sharing/api/v1/shares?shared_with_me=true` rend `uid_owner`,
+`displayname_owner`, `uid_file_owner`, `displayname_file_owner`, `permissions`.
+
+**`uid_owner` est un identifiant de compte, pas une adresse.** L'adresse s'obtient par
+un second appel — l'API de provisioning, `GET /ocs/v1.php/cloud/users/{userid}`, qui
+rend bien un champ `email` — mais c'est une API d'**administration**. Un compte de
+service ordinaire ne la lit pas.
+
+Le champ `additional_info_owner` peut porter l'adresse, mais il dépend d'un réglage
+d'administrateur de l'instance. **On ne peut donc pas compter dessus.**
+
+### 4. MSGraph — deux appels, dont un privilégié
+
+`sharedWithMe` rend des `driveItem` dont la facette `shared.sharedBy` est un
+`identitySet`. Et le type `identity` a exactement quatre propriétés :
+
+    displayName · id · tenantId · thumbnails
+
+**Aucune adresse.** Il faut résoudre `id` par `GET /users/{id}`, ce qui exige
+`User.Read.All` — une permission d'application soumise au consentement d'un
+administrateur de tenant.
+
+---
+
+### 5. Ce que cela corrige dans D58
+
+D58 §2 posait : *« un partage reçu ne dit ni son propriétaire ni les droits »*, comme un
+fait général. **C'est faux pour Box** : `created_by.login` donne le propriétaire par son
+adresse, et `role` donne les droits.
+
+L'affirmation reste juste pour Nextcloud (identifiant seulement), pour MSGraph
+(identifiant opaque) et pour S3 (rien du tout). Mais elle n'est pas universelle, et
+c'est exactement l'exception qui rend un lot faisable.
+
+### 6. Ce que cela corrige dans notre code
+
+`list_shared_with_me` existe sur Box et MSGraph, et rend un `StorageFile` : chemin, nom,
+etag, taille. **L'information est déjà reçue, et jetée.**
+
+Le lot n'est donc pas « appeler une nouvelle API ». C'est **cesser de perdre ce que
+l'appel actuel rapporte déjà**. Cela demande un type de retour plus riche que
+`StorageFile` — donc une décision sur `protocols.py`, ou un objet propre au partage qui
+n'y touche pas.
+
+---
+
+### 7. Le tableau, et ce qu'il commande
+
+| fournisseur | partage entrant | qui partage | son adresse | droits | source |
+|---|---|---|---|---|---|
+| **S3/MinIO** | aucun | — | — | — | **sondé** |
+| **Box** | collaborations | `created_by` | **`login`, en un appel** | `role` | doc |
+| **Nextcloud** | `?shared_with_me` | `uid_owner` | 2ᵉ appel, **admin** | `permissions` | doc |
+| **MSGraph** | `sharedWithMe` | `sharedBy` | 2ᵉ appel, **`User.Read.All`** | — | doc |
+
+**Le pilote de la direction dossier → salon doit être Box**, et non Nextcloud — à
+rebours de ce que la filiation Bnum (D59) laissait attendre. C'est le seul fournisseur
+où la chaîne complète tient sans privilège d'administration :
+
+    un partage arrive sur Box
+      → created_by.login donne l'adresse          [un appel, sans privilege]
+      → le serveur d'identite rend le MXID        [ÉPROUVÉ, D63]
+      → creation du salon + invitation            [porte humaine sur protocols.py]
+
+Sur Nextcloud et MSGraph, la même chaîne existe mais **exige un compte privilégié** —
+ce qui change la nature du déploiement et doit être négocié avec l'administrateur de
+l'instance, pas décidé ici.
+
+### 8. L'asymétrie, qui est le résultat
+
+Côté messagerie, Colaig obtient l'identité **seul, sans privilège** — sonde du 30/08.
+Côté stockage, il l'obtient **sans privilège sur un fournisseur sur quatre**, et pas du
+tout sur celui où il tourne.
+
+Le pont existe donc, mais il n'est pas également praticable des deux rives. **C'est le
+fournisseur de stockage qui décide si la direction dossier → salon est possible**, et
+c'est un critère de choix de fournisseur, pas un détail d'implémentation.
