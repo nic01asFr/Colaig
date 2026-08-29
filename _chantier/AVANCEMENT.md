@@ -3287,3 +3287,21 @@ comment un pod Onyxia decouvre la cle du LLM : le chart la recoit explicitement 
 Inventer un nom de variable d environnement produirait un code qui ne trouve jamais
 rien et echoue en silence. **Deux questions a l humain** : par quel mecanisme le pod
 decouvre-t-il la cle, et faut-il deployer pour verifier le critere ?
+
+---
+
+## L3.6 (suite) — LA CLE VIENT D ONYXIA, DECLARATIVEMENT · 29/08/2026 · **corrige**
+
+Voir D57. Le mecanisme implemente la veille etait le mauvais : SSPCloud **pousse** les
+identifiants au lancement depuis la session OIDC, il n attend pas qu un pod fouille le
+namespace.
+
+`sspcloud.py` est retire — avec les deux gardes anti-exfiltration qu il avait fallu
+ecrire pour un risque que le bon mecanisme n introduit pas. La reponse tient en quatre
+lignes de `values.schema.json` et un ordre de priorite dans le secret.
+
+**Troisieme retrait de code ecrit le jour meme**, apres le scoring de binding (L3.1) et
+l issue 2 de D52. Dans les trois cas, la verification est venue apres l ecriture — et
+c est elle qui a tranche.
+
+**9 tests pour le chart, 2463 au total.**

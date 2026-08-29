@@ -6,8 +6,14 @@
       "type": "object",
       "description": "Image container",
       "properties": {
-        "repository": { "type": "string", "default": "ghcr.io/cerema/colaig" },
-        "tag": { "type": "string", "default": "latest" }
+        "repository": {
+          "type": "string",
+          "default": "ghcr.io/cerema/colaig"
+        },
+        "tag": {
+          "type": "string",
+          "default": "latest"
+        }
       }
     },
     "llm": {
@@ -17,7 +23,10 @@
         "backend": {
           "type": "string",
           "title": "Backend LLM",
-          "enum": ["openai", "albert"],
+          "enum": [
+            "openai",
+            "albert"
+          ],
           "default": "openai"
         },
         "apiUrl": {
@@ -60,19 +69,52 @@
         "backend": {
           "type": "string",
           "title": "Backend storage",
-          "enum": ["s3", "local"],
+          "enum": [
+            "s3",
+            "local"
+          ],
           "default": "s3"
         },
         "s3": {
           "type": "object",
           "properties": {
-            "endpointUrl": { "type": "string", "title": "Endpoint S3", "default": "" },
-            "accessKey": { "type": "string", "title": "Access key", "default": "" },
-            "secretKey": { "type": "string", "title": "Secret key", "default": "", "x-security": "password" },
-            "sessionToken": { "type": "string", "title": "Session token (STS)", "default": "", "x-security": "password" },
-            "bucket": { "type": "string", "title": "Bucket", "default": "" },
-            "prefix": { "type": "string", "title": "Prefixe", "default": "colaig" },
-            "region": { "type": "string", "title": "Region", "default": "us-east-1" }
+            "endpointUrl": {
+              "type": "string",
+              "title": "Endpoint S3",
+              "default": ""
+            },
+            "accessKey": {
+              "type": "string",
+              "title": "Access key",
+              "default": ""
+            },
+            "secretKey": {
+              "type": "string",
+              "title": "Secret key",
+              "default": "",
+              "x-security": "password"
+            },
+            "sessionToken": {
+              "type": "string",
+              "title": "Session token (STS)",
+              "default": "",
+              "x-security": "password"
+            },
+            "bucket": {
+              "type": "string",
+              "title": "Bucket",
+              "default": ""
+            },
+            "prefix": {
+              "type": "string",
+              "title": "Prefixe",
+              "default": "colaig"
+            },
+            "region": {
+              "type": "string",
+              "title": "Region",
+              "default": "us-east-1"
+            }
           }
         }
       }
@@ -83,7 +125,11 @@
         "backend": {
           "type": "string",
           "title": "Canal de messagerie",
-          "enum": ["webchat", "matrix", "telegram"],
+          "enum": [
+            "webchat",
+            "matrix",
+            "telegram"
+          ],
           "default": "webchat"
         }
       }
@@ -98,9 +144,66 @@
     "ingress": {
       "type": "object",
       "properties": {
-        "enabled": { "type": "boolean", "title": "Exposer via Ingress", "default": false },
-        "hostname": { "type": "string", "title": "Nom d'hote", "default": "" },
-        "className": { "type": "string", "title": "IngressClass", "default": "" }
+        "enabled": {
+          "type": "boolean",
+          "title": "Exposer via Ingress",
+          "default": false
+        },
+        "hostname": {
+          "type": "string",
+          "title": "Nom d'hote",
+          "default": ""
+        },
+        "className": {
+          "type": "string",
+          "title": "IngressClass",
+          "default": ""
+        }
+      }
+    },
+    "ai": {
+      "type": "object",
+      "title": "AI Assistant",
+      "description": "Identifiants de la passerelle IA, remplis par Onyxia au lancement depuis votre session OIDC et votre profil personnalisable. Laisser llm.apiKey vide pour les utiliser.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "title": "Utiliser la passerelle IA d'Onyxia",
+          "default": false,
+          "x-onyxia": {
+            "overwriteDefaultWith": "{{ai.enabled}}"
+          }
+        },
+        "activeProvider": {
+          "type": "object",
+          "default": {},
+          "properties": {
+            "apiBase": {
+              "type": "string",
+              "default": "",
+              "x-onyxia": {
+                "overwriteDefaultWith": "{{ai.activeProvider.apiBase}}"
+              }
+            },
+            "apiKey": {
+              "type": "string",
+              "default": "",
+              "x-security": "password",
+              "x-onyxia": {
+                "overwriteDefaultWith": "{{ai.activeProvider.apiKey}}"
+              }
+            },
+            "selectedModel": {
+              "type": "string",
+              "listEnum": [],
+              "default": "",
+              "x-onyxia": {
+                "overwriteDefaultWith": "{{ai.activeProvider.selectedModel}}",
+                "overwriteListEnumWith": "{{ai.activeProvider.models}}"
+              }
+            }
+          }
+        }
       }
     }
   }

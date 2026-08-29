@@ -49,46 +49,43 @@ helm lint deploy/helm/colaig
 helm template colaig deploy/helm/colaig | kubectl apply --dry-run=client -f -
 ```
 
-## Clé LLM — deux façons de la fournir
+## Clé LLM — deux sources, dans cet ordre
 
-### 1. Explicite (toujours prioritaire)
-
-```
---set llm.apiKey=<TOKEN_SSPCLOUD_LLM>
-```
-
-La clé part dans un `Secret`, monté en `LLM_API_KEY`. C'est un choix de l'opérateur, et
-rien ne le remplace.
-
-### 2. Auto-découverte dans l'espace Onyxia (L3.6)
-
-Si `llm.apiKey` est vide, Colaig cherche la clé **dans les secrets du namespace** au
-démarrage — celle que l'utilisateur a renseignée pour son espace.
-
-**Prérequis : le pod doit porter le rôle `edit`** sur le namespace. Sans lui, l'API
-Kubernetes rend `403`, et Colaig le dit dans ses journaux au lieu d'échouer sans un mot :
+### 1. Explicite (prioritaire)
 
 ```
-aucune clé LLM découverte — secrets is forbidden — le pod n'a pas le rôle `edit`
+--set llm.apiKey=<TOKEN>
 ```
 
-**La sélection est volontairement étroite.** Le rôle `edit` donne la lecture de *tous*
-les secrets du namespace — mots de passe de bases, jetons S3. Prendre « le premier
-secret ressemblant à une clé » enverrait un jour un identifiant de service voisin à un
-endpoint LLM tiers. Seuls les secrets **dont le nom désigne le LLM** sont lus :
+Un choix de l'opérateur. Rien ne le remplace — c'est ce qui permet de déployer hors
+d'Onyxia.
 
-```
-sspcloud-llm · llm-api-key · colaig-llm · openai-api-key
-```
+### 2. La passerelle IA d'Onyxia (repli automatique)
 
-Si votre espace la range sous un autre nom :
+Si `llm.apiKey` est vide, le chart prend `ai.activeProvider.apiKey`, **rempli par Onyxia
+au lancement**. La configuration publique de l'instance le dit :
 
-```
---set env.COLAIG_SSPCLOUD_SECRETS=mon-secret
-```
+> « Vos identifiants AI Gateway sont injectés de façon sécurisée dans votre
+> environnement à chaque démarrage du service. »
+> « Votre session OIDC vous donne un accès transparent à la passerelle IA. »
 
-Colaig journalise **ce qu'il a vu et où** — des noms de secrets, jamais des valeurs —
-pour qu'un premier déploiement soit diagnosticable.
+Le canal est `x-onyxia.overwriteDefaultWith` dans `values.schema.json` — Onyxia remplit
+les défauts du formulaire depuis le contexte de l'utilisateur :
 
-> Cette liste de noms n'a pas été vérifiée contre un espace Onyxia réel : c'est un point
-> de départ. Le journal du premier démarrage dit quels secrets existent réellement.
+| valeur du chart | rempli depuis |
+|---|---|
+| `ai.enabled` | `{{ai.enabled}}` |
+| `ai.activeProvider.apiBase` | `{{ai.activeProvider.apiBase}}` |
+| `ai.activeProvider.apiKey` | `{{ai.activeProvider.apiKey}}` |
+| `ai.activeProvider.selectedModel` | `{{ai.activeProvider.selectedModel}}` |
+
+Le modèle se choisit dans une liste, elle-même remplie par
+`overwriteListEnumWith: {{ai.activeProvider.models}}` — pas de nom à taper à la main.
+
+**Aucun droit particulier n'est requis.** Le pod ne lit rien dans le namespace : les
+valeurs lui sont poussées au démarrage. Le rôle `edit` n'est pas nécessaire pour cela.
+
+> Une première version de ce lot faisait explorer les secrets du namespace au pod. Ce
+> n'est pas le mécanisme de SSPCloud, cela demandait un droit inutile, et cela ouvrait
+> une exfiltration — un secret voisin pris pour une clé LLM et envoyé à un tiers. Le
+> code a été retiré au profit de ces quatre lignes de schéma.

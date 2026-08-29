@@ -3132,3 +3132,44 @@ résolus, absent de tous les cas génériques.
 Une forme d'ellipse, un sujet. Elle ne dit rien de la valeur de la trame sur les
 documents connus, le vocabulaire métier ou la phase de conversation. Élargir demanderait
 un jeu de scénarios.
+
+---
+
+## D57 — La cle LLM vient d Onyxia au lancement, pas d une fouille du namespace · 29/08/2026 · **actee**
+
+Correction de L3.6. La capture du profil Onyxia, puis la documentation, ont etabli que
+le mecanisme implemente etait le mauvais.
+
+### Ce que la source dit
+
+Configuration publique de l instance, bloc `regions[0].data.ai` :
+
+> « Vos identifiants AI Gateway sont injectes de facon securisee dans votre
+> environnement **a chaque demarrage du service**. »
+> « Votre session **OIDC** vous donne un acces transparent a la passerelle IA. »
+
+`oauthProvider: oidc`, `clientID: onyxia-token-exchange-bridge`. Les identifiants sont
+**pousses au lancement** — rien n est a decouvrir a l execution.
+
+Le canal est `x-onyxia.overwriteDefaultWith`, avec ces placeholders releves verbatim sur
+`InseeFrLab/helm-charts-interactive-services` :
+`{{ai.enabled}}`, `{{ai.activeProvider.apiBase}}`, `{{ai.activeProvider.apiKey}}`,
+`{{ai.activeProvider.selectedModel}}`.
+
+### Ce qui etait faux, et ce que cela coutait
+
+`sspcloud.py` explorait les **secrets du namespace** avec le role `edit`. Mauvais
+mecanisme, droit inutile — et une **exfiltration a concevoir contre** : deux gardes
+avaient du etre ecrites pour qu un mot de passe PostgreSQL ne parte pas vers un endpoint
+LLM tiers.
+
+Ces gardes etaient correctes. Elles protegeaient d un risque que le bon mecanisme
+**n introduit pas**. Le module est retire.
+
+### La bonne reponse
+
+Quatre lignes de schema, et un ordre : `llm.apiKey` explicite gagne toujours (pour un
+deploiement hors Onyxia), sinon la passerelle. Verifie par `helm template` dans les deux
+configurations.
+
+**Aucun droit particulier requis** — le role `edit` n est pas necessaire pour la cle.

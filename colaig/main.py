@@ -1116,26 +1116,6 @@ async def main() -> None:
     config = load_config()
     setup_logging(config.log_level)
 
-    # AUTO-DÉCOUVERTE DE LA CLÉ LLM SUR ONYXIA / SSP CLOUD (L3.6).
-    #
-    # Sur Onyxia, l'utilisateur renseigne sa clé dans son espace ; un pod portant le
-    # rôle `edit` peut l'y retrouver, plutôt que d'exiger qu'on la repasse par
-    # `--set llm.apiKey` à chaque lancement.
-    #
-    # N'intervient QUE si la clé est vide : une clé explicite est un choix de
-    # l'opérateur, et une découverte ne doit pas pouvoir le remplacer.
-    #
-    # Ne lève jamais — hors d'un pod, elle rend une raison lisible. C'est la validation
-    # de configuration qui décide ensuite si l'absence de clé est bloquante.
-    if not config.llm_api_key and not config.albert_api_key:
-        from colaig.integrations.sspcloud import decouvrir_cle
-
-        cle, source = await decouvrir_cle()
-        if cle:
-            config.llm_api_key = cle
-            logger.info("clé LLM découverte — source : %s", source)
-        else:
-            logger.info("aucune clé LLM découverte — %s", source)
 
     # Quotas journaliers par tenant (0 = illimité) — enforcement dans les clients LLM.
     _USAGE_TRACKER.set_limits(config.daily_request_limit, config.daily_token_limit)

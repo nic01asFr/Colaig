@@ -73,3 +73,13 @@ securityContext: {}
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# Passerelle IA d'Onyxia. Rempli AUTOMATIQUEMENT par le formulaire de
+# lancement depuis votre session OIDC et votre profil personnalisable.
+# Sert de repli quand `llm.apiKey` est vide.
+ai:
+  enabled: false
+  activeProvider:
+    apiBase: ""
+    apiKey: ""
+    selectedModel: ""
