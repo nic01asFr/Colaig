@@ -105,6 +105,24 @@ class OllamaClient:
             )
         return self._client
 
+    async def ping(self, timeout: float = 5.0) -> bool:
+        """Sonde de disponibilite : le serveur Ollama repond-il. Sans consommer de jetons.
+
+        Meme contrat que `AlbertClient.ping` et `OpenAIClient.ping` : TOUT STATUT < 500
+        VAUT DISPONIBLE — un 401 prouve qu'un serveur est la et repond, et c'est la
+        joignabilite qu'on mesure, pas l'autorisation.
+
+        NE LEVE JAMAIS. `/ready` conclut « indisponible » pour un client sans `ping`,
+        indistinctement d'une panne : mesure du 29/08/2026, un pod restait indefiniment
+        non pret alors que son endpoint rendait HTTP 200.
+        """
+        try:
+            client = await self._get_client()
+            resp = await client.get(f"{self._base_url}/v1/models", timeout=timeout)
+            return resp.status_code < 500
+        except Exception:  # noqa: BLE001 — une sonde ne doit jamais lever
+            return False
+
     async def close(self) -> None:
         if self._client and not self._client.is_closed:
             await self._client.aclose()

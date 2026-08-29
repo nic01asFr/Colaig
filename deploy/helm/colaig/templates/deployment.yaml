@@ -32,8 +32,11 @@ spec:
             - name: http
               containerPort: 8000
           envFrom:
+            # Le secret fourni par l'operateur s'il existe, sinon celui du chart.
+            # Voir l'en-tete de `secret.yaml` : passer une cle par `--set` la persiste
+            # dans le cluster, relisible par `helm get values`.
             - secretRef:
-                name: {{ include "colaig.fullname" . }}
+                name: {{ .Values.llm.existingSecret | default (include "colaig.fullname" .) }}
           env:
             - name: STORAGE_BACKEND
               value: {{ .Values.storage.backend | quote }}

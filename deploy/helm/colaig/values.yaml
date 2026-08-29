@@ -24,12 +24,19 @@ ingress:
 # --- LLM (OpenAI-compatible) ---
 # SSP Cloud : LLM Open WebUI, API OpenAI-compatible sous /openai
 #   backend: openai
-#   apiUrl:  https://llm.lab.sspcloud.fr/openai
+#   apiUrl:  https://llm.lab.sspcloud.fr/api
 #   apiKey:  <votre token SSP Cloud LLM>
 llm:
   backend: openai                                  # openai | albert
-  apiUrl: https://llm.lab.sspcloud.fr/openai
+  # Base SANS /v1 : le client ajoute /v1/chat/completions lui-meme.
+  # Verifie le 29/08/2026 — /openai ne correspondait ni au profil Onyxia
+  # ni aux mesures de la journee.
+  apiUrl: https://llm.lab.sspcloud.fr/api
   apiKey: ""                                        # -> Secret
+  # Nom d'un Secret Kubernetes EXISTANT portant LLM_API_KEY.
+  # Renseigne, le chart ne cree aucun secret : la cle ne transite pas
+  # par les valeurs Helm, qui sont conservees en clair dans le cluster.
+  existingSecret: ""
   modelChat: ""                                     # ex: mistral-small ; vide = defaut serveur
   modelEmbed: ""                                    # endpoint embeddings OpenAI-compatible si dispo
   # Si le LLM n'expose pas d'embeddings, activer le fallback local (bge-m3 dans le pod) :

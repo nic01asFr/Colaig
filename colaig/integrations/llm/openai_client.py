@@ -109,6 +109,44 @@ class OpenAIClient:
             )
         return self._client
 
+    async def ping(self, timeout: float = 5.0) -> bool:
+        """Sonde de disponibilité : l'endpoint répond-il ? Sans consommer de jetons.
+
+        POURQUOI CETTE MÉTHODE MANQUAIT, ET CE QUE CELA COÛTAIT
+        ---------------------------------------------------------
+        `/ready` interroge le client ainsi :
+
+            ping = getattr(llm_client, "ping", None)
+            checks["llm"] = "ok" if (ping and await ping()) else "unavailable"
+
+        Un client SANS `ping` tombe dans la branche `else` — indistinguable d'un
+        endpoint en panne. Or `ping()` n'existait que sur `AlbertClient`, alors que la
+        cible de production est un endpoint OpenAI-compatible (`CLAUDE.md` §3).
+
+        Mesuré le 29/08/2026 sur un déploiement réel : `/ready` rendait 503 avec
+        `llm: unavailable`, tandis que le même pod recevait **HTTP 200** en interrogeant
+        l'endpoint directement. Le pod ne devenait jamais prêt, et Kubernetes ne lui
+        envoyait aucun trafic — indéfiniment.
+
+        Le défaut était invisible tant que le chart sondait `/health`, qui rend 200 sans
+        rien vérifier. Une sonde qui ne peut pas échouer ne cache pas que les pannes :
+        elle cache aussi ses propres trous.
+
+        TOUT STATUT < 500 VAUT DISPONIBLE. Un 401 prouve qu'un serveur est là et répond
+        — c'est la joignabilité qu'on mesure, pas l'autorisation. Sortir le pod du
+        service pour une clé expirée traiterait par le redémarrage un problème que le
+        redémarrage ne répare pas.
+
+        NE LÈVE JAMAIS : une sonde qui lève transforme une dépendance lente en pod
+        redémarré en boucle.
+        """
+        try:
+            client = await self._get_client()
+            resp = await client.get(f"{self._base_url}/v1/models", timeout=timeout)
+            return resp.status_code < 500
+        except Exception:  # noqa: BLE001 — une sonde ne doit jamais lever
+            return False
+
     async def close(self) -> None:
         """Ferme le client HTTP."""
         if self._client and not self._client.is_closed:

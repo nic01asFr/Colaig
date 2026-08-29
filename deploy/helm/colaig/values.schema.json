@@ -34,8 +34,8 @@
         "apiUrl": {
           "type": "string",
           "title": "URL de l'API LLM",
-          "description": "SSP Cloud : https://llm.lab.sspcloud.fr/openai",
-          "default": "https://llm.lab.sspcloud.fr/openai"
+          "description": "Base SANS /v1 : le client ajoute lui-meme /v1/chat/completions. SSP Cloud : https://llm.lab.sspcloud.fr/api (verifie le 29/08/2026 — la valeur precedente, /openai, ne correspondait ni au profil Onyxia ni aux mesures).",
+          "default": "https://llm.lab.sspcloud.fr/api"
         },
         "apiKey": {
           "type": "string",
@@ -61,6 +61,12 @@
           "title": "Embeddings locaux (fallback)",
           "description": "Active si le LLM n'expose pas d'endpoint embeddings (charge bge-m3 dans le pod)",
           "default": true
+        },
+        "existingSecret": {
+          "type": "string",
+          "title": "Secret Kubernetes existant",
+          "description": "Nom d'un Secret portant LLM_API_KEY. Renseigne, la cle ne transite pas par les valeurs Helm — que le cluster conserve en clair.",
+          "default": ""
         }
       }
     },

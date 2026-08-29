@@ -283,3 +283,28 @@ class CapabilityChain:
             except Exception:
                 pass
         return ""
+
+    async def ping(self, timeout: float = 5.0) -> bool:
+        """La chaîne est disponible si AU MOINS UN de ses maillons répond.
+
+        C'est la définition même d'une chaîne de repli : elle sert tant qu'un fournisseur
+        tient. Exiger que tous répondent sortirait le pod du service pour la panne d'un
+        secours — l'inverse de ce que le repli existe pour faire.
+
+        Sans cette méthode, `/ready` concluait « indisponible » quel que soit l'état
+        réel : `getattr(client, "ping", None)` rendait `None`, et la branche `else` est
+        la même que pour un endpoint tombé. Un pod ne devenait alors jamais prêt.
+
+        Le circuit breaker n'est PAS consulté ici : un maillon en cooldown reste un
+        maillon joignable, et la sonde mesure la joignabilité.
+        """
+        for client, _modele in self._entries:
+            sonde = getattr(client, "ping", None)
+            if sonde is None:
+                continue
+            try:
+                if await sonde(timeout=timeout):
+                    return True
+            except Exception:  # noqa: BLE001 — une sonde ne doit jamais lever
+                continue
+        return False
