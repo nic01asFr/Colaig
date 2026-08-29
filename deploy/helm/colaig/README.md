@@ -48,3 +48,47 @@ Sur Onyxia, le formulaire de lancement est généré depuis `values.schema.json`
 helm lint deploy/helm/colaig
 helm template colaig deploy/helm/colaig | kubectl apply --dry-run=client -f -
 ```
+
+## Clé LLM — deux façons de la fournir
+
+### 1. Explicite (toujours prioritaire)
+
+```
+--set llm.apiKey=<TOKEN_SSPCLOUD_LLM>
+```
+
+La clé part dans un `Secret`, monté en `LLM_API_KEY`. C'est un choix de l'opérateur, et
+rien ne le remplace.
+
+### 2. Auto-découverte dans l'espace Onyxia (L3.6)
+
+Si `llm.apiKey` est vide, Colaig cherche la clé **dans les secrets du namespace** au
+démarrage — celle que l'utilisateur a renseignée pour son espace.
+
+**Prérequis : le pod doit porter le rôle `edit`** sur le namespace. Sans lui, l'API
+Kubernetes rend `403`, et Colaig le dit dans ses journaux au lieu d'échouer sans un mot :
+
+```
+aucune clé LLM découverte — secrets is forbidden — le pod n'a pas le rôle `edit`
+```
+
+**La sélection est volontairement étroite.** Le rôle `edit` donne la lecture de *tous*
+les secrets du namespace — mots de passe de bases, jetons S3. Prendre « le premier
+secret ressemblant à une clé » enverrait un jour un identifiant de service voisin à un
+endpoint LLM tiers. Seuls les secrets **dont le nom désigne le LLM** sont lus :
+
+```
+sspcloud-llm · llm-api-key · colaig-llm · openai-api-key
+```
+
+Si votre espace la range sous un autre nom :
+
+```
+--set env.COLAIG_SSPCLOUD_SECRETS=mon-secret
+```
+
+Colaig journalise **ce qu'il a vu et où** — des noms de secrets, jamais des valeurs —
+pour qu'un premier déploiement soit diagnosticable.
+
+> Cette liste de noms n'a pas été vérifiée contre un espace Onyxia réel : c'est un point
+> de départ. Le journal du premier démarrage dit quels secrets existent réellement.
