@@ -3173,3 +3173,206 @@ deploiement hors Onyxia), sinon la passerelle. Verifie par `helm template` dans 
 configurations.
 
 **Aucun droit particulier requis** — le role `edit` n est pas necessaire pour la cle.
+
+---
+
+## D58 — Le partage entrant, les droits, et le salon : mappage complet · 29/08/2026 · **arbitrage demandé**
+
+Question posée : un utilisateur partage un dossier avec le compte de Colaig depuis son
+propre espace de fichiers. Que peut faire Colaig, selon ses droits, selon le salon d'où
+on le sollicite, et selon qui initie ?
+
+Ce document **mappe** l'espace. Il ne construit rien.
+
+---
+
+### 1. Deux plans d'autorisation, dont un seul est observable
+
+Colaig vit sur **deux plans qui ne se parlent pas** :
+
+| plan | ce que Colaig voit | ce qu'il ne voit pas |
+|---|---|---|
+| **salon** (Matrix) | le type de salon, le MXID **authentifié** de l'expéditeur | les droits des membres, qui d'autre est là |
+| **stockage** | **son propre accès, et seulement en essayant** | les droits de l'utilisateur, le propriétaire du dossier |
+
+Ce n'est pas une lacune d'implémentation : **`StorageProtocol` n'a aucune notion d'ACL**
+(D43), et ses sept verbes ne comportent aucun partage (sonde du 24/08).
+
+**Conséquence directe, et elle taille la question :** tout raisonnement portant sur « les
+droits respectifs de Colaig et de l'utilisateur » est **à moitié indécidable**. Colaig ne
+connaît jamais les droits de l'utilisateur. La moitié de la matrice n'existe pas.
+
+Ce qui reste décidable est donc : **les droits de Colaig**, et **le salon**.
+
+---
+
+### 2. Cinq faits relevés dans le code, pas supposés
+
+**Le partage entrant n'est câblé nulle part.** `list_shared_with_me()` existe sur **Box
+et MSGraph** — deux backends sur sept — et **personne ne l'appelle**.
+`run_workspace_discovery_loop` scanne la **racine du stockage de Colaig**, pas les
+partages reçus.
+
+**Un partage reçu ne dit ni son propriétaire ni les droits.** Les deux implémentations
+rendent un `StorageFile` : chemin, nom, etag, taille. Rien sur qui partage, rien sur
+lecture contre écriture.
+
+**Le mode lecture seule est déclaré et non tenu.** `WorkspaceConfig.storage_readonly`
+existe. Le dépôt compte **55 sites d'écriture** sur le stockage — et **UNE SEULE** les
+garde (`trame_manager.py:165`). Les 54 autres écriront et échoueront.
+
+**`create_workspace` pose toujours `storage_readonly=False`.** Aucun chemin ne le met à
+vrai.
+
+**Rien ne relie un membre de salon à une identité de stockage** (sonde du 24/08). Et la
+dérivation du domaine depuis un identifiant Tchap est **indécidable par découpage** —
+démontré, pas affirmé (D41).
+
+---
+
+### 3. L'invariant fondateur casse en lecture seule
+
+> « Un espace de stockage + un dossier `.colaig` = une instance Colaig complète. »
+
+Un dossier en **lecture seule ne peut pas porter `.colaig/`**. Donc, en l'état, il ne peut
+être ni configuré, ni indexé, ni porter de conversation, ni de trame, ni de retour.
+
+**Ce n'est pas un cas dégradé : c'est un cas impossible.** L'identité d'une instance est
+aujourd'hui attachée au droit d'écrire là où sont les documents.
+
+---
+
+### 4. La réponse à la question posée : séparer la source de l'instance
+
+La proposition formulée — *« associer un espace de travail sur son provider à lui pour
+gérer le dossier en lecture »* — n'est pas une commodité. **C'est la seule façon dont la
+lecture seule peut exister.**
+
+Elle se formalise en scindant en deux ce qui n'est qu'un champ aujourd'hui :
+
+| champ | ce qu'il désigne | droit requis |
+|---|---|---|
+| `source_path` | **où sont les documents** — peut être un partage, peut être en lecture seule | lecture |
+| `instance_path` | **où vit `.colaig/`** — config, index, conversations, trame, retours | écriture |
+
+Aujourd'hui `storage_path` est les deux à la fois. Pour un dossier possédé et
+inscriptible, les deux restent confondus — **aucune régression**. Pour un partage en
+lecture, ils divergent.
+
+**Ce que cela déplace :**
+
+- `paths.py` prend l'**instance**, pas l'espace. C'est la source unique des chemins : le
+  changement est contenu mais il touche le module que tout le reste utilise.
+- L'indexeur **lit la source, écrit dans l'instance**.
+- `.colaig-ignore` reste sur la **source** — c'est le contrôle du propriétaire, et il
+  doit rester chez lui.
+- Un même `instance_path` pourrait porter **plusieurs sources** — une instance, plusieurs
+  dossiers partagés. Ce n'est pas demandé, mais la scission l'ouvre.
+
+**Et cela règle un problème que personne n'avait posé :** avec la scission, Colaig
+n'écrit **jamais** dans le dossier de quelqu'un d'autre. Aujourd'hui, lier un dossier
+partagé inscriptible ferait apparaître un `.colaig/` chez son propriétaire, sans qu'il
+l'ait demandé.
+
+---
+
+### 5. Les droits ne se lisent pas : ils s'éprouvent
+
+Aucun verbe ne rend « puis-je écrire ici ». Le seul moyen est **d'essayer**.
+
+D'où un protocole, qui doit être **un acte réel et non une sonde qui salit** :
+
+1. tenter la **première écriture utile** — créer `.colaig/config.yaml` dans la source ;
+2. succès → **source inscriptible**, `instance_path = source_path`, rien ne change ;
+3. échec en écriture, lecture possible → **source en lecture seule**, une instance est
+   créée sur le stockage de Colaig ;
+4. échec en lecture → **aucun accès** ; le partage est visible mais pas encore accepté,
+   ou il a été révoqué.
+
+Deux exigences qui découlent de la mesure :
+
+**Le verdict se retient** — le redécouvrir à chaque tour coûterait un aller-retour par
+message. **Et il se réévalue à l'échec** : un droit peut être retiré après coup, et
+l'entrée en cache dirait alors le contraire du réel.
+
+---
+
+### 6. Qui peut initier, et ce que chaque chemin donne
+
+| initiateur | ce que Colaig apprend | ce qu'il peut en faire |
+|---|---|---|
+| **l'utilisateur partage depuis son provider** | un dossier apparaît dans `shared_with_me` — **sans propriétaire, sans droits, sans lien vers un salon** | **rien seul** : il ne sait pas à quel salon le rattacher |
+| **l'utilisateur tape `colaig lier` en salon** | le salon, le MXID **authentifié**, le dossier nommé | **le seul chemin complet** — l'acte porte les trois informations |
+| **DM** | l'utilisateur | créer un espace personnel **sur le stockage de Colaig** |
+
+**Le partage seul ne peut pas se lier.** Il porte une intention mais pas de destination :
+rien dans un `StorageFile` ne dit à quel salon il se rapporte.
+
+**Mais il porte une intention réelle**, et c'est ce qui le distingue du scoring rejeté en
+L3.1. On avait écarté l'inférence par ressemblance de nom parce qu'elle était **non
+consentie** et **instable** — un salon se renomme. Un partage, lui, est **un acte
+délibéré d'un humain**, dirigé vers le compte de Colaig, et il ne se renomme pas tout
+seul.
+
+D'où le chemin qui devient défendable, et qui ne l'était pas en L3.1 :
+
+> Colaig annonce dans un salon lié — ou en DM — : « le dossier *Marchés 2026* m'a été
+> partagé. Voulez-vous le rattacher à ce salon ? » L'humain répond. La décision s'écrit.
+
+**L'inférence reste interdite ; la proposition devient légitime**, parce qu'elle repose
+sur un acte et non sur une ressemblance.
+
+---
+
+### 7. Le salon, et ce qu'il change vraiment
+
+D42/D43 ont posé que **l'accès se décide par le lien**, pas par la visibilité du salon.
+Cela reste vrai, et le partage n'y change rien. Le salon détermine seulement **à qui l'on
+peut proposer** :
+
+| salon | ce que Colaig sait | proposition d'un partage reçu |
+|---|---|---|
+| **DM** | l'expéditeur, authentifié | **oui** — la conversation est privée, la proposition ne fuite pas |
+| **salon lié** | le salon, l'expéditeur | **oui**, mais elle est **visible de tous les membres** |
+| **salon inconnu** | rien — mode CHATBOT, aucun stockage | **non** : nommer un dossier partagé révélerait son existence à un salon sans lien |
+
+Ce dernier point est une **fuite d'information**, pas un détail d'ergonomie : le nom d'un
+dossier dit quelque chose de qui travaille sur quoi.
+
+---
+
+### 8. Ce que chaque fournisseur permet réellement
+
+| backend | partage entrant | remarque |
+|---|---|---|
+| **MSGraph** | `sharedWithMe` | l'utilisateur partage son OneDrive avec le compte applicatif |
+| **Box** | collaboration | le dossier apparaît à la racine du compte de service |
+| WebDAV, S3, local, bigfolder, gdrive | **aucun** | pas de notion de partage vers un compte tiers |
+
+**Et une condition qui limite tout le modèle :** un partage n'existe que si l'utilisateur
+et Colaig sont **sur le même système**. Un utilisateur sur OneDrive et un Colaig sur S3
+n'ont aucun canal de partage — ce sont deux mondes.
+
+Sur cinq backends sur sept, le partage entrant **n'existe pas**, et la seule voie reste
+`colaig lier` sur un dossier que Colaig atteint déjà.
+
+---
+
+### 9. Ce qu'il faut arbitrer
+
+**La scission `source_path` / `instance_path`.** Elle touche `paths.py`, source unique
+des chemins. C'est la décision structurante, et rien de la lecture seule n'est possible
+sans elle.
+
+**Le protocole d'épreuve des droits**, et où le verdict se retient.
+
+**La proposition de rattachement d'un partage reçu** — légitime parce qu'un partage est
+un acte, mais elle exige de nommer un dossier dans un salon.
+
+**Faut-il tenir `storage_readonly` sur les 55 sites**, ou la scission le rend-elle sans
+objet ? Ma lecture : la scission **supprime le besoin** — l'instance est toujours
+inscriptible, donc plus rien n'écrit dans une source en lecture. `storage_readonly`
+deviendrait un vestige à retirer plutôt qu'une garde à généraliser.
+
+**Rien de tout cela n'est construit.** Ce document décrit ce qui est, ce qui manque, et
+ce que chaque voie coûte.
