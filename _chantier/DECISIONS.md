@@ -3037,3 +3037,27 @@ mesurable en latence par tour.
 6. Compaction des résultats d'outils, portée depuis la version déployée.
 7. **Ne pas remplacer `mcp_connector.py`** : L2.2 (liste blanche) et L2.3 (épinglage des
    schémas) y sont câblés. On greffe, on ne substitue pas.
+
+---
+
+## D55 — Correction de D54 : le cache MCP existait, et il fuyait · 29/08/2026 · **actee**
+
+D54 affirmait : « Deux allers-retours HTTP par tour, sans aucun cache ». **C est faux.**
+`_TOOLS_CACHE` (300 s) et `_INSTRUCTIONS_CACHE` (600 s) existent depuis l origine et sont
+bien utilises. Je ne les avais pas cherches avant de conclure.
+
+La valeur du lot L3.4 n est donc PAS « ajouter un cache ». Elle est ailleurs, et plus
+serieuse : **la cle de ce cache etait l URL seule**, alors que la valeur mise en cache
+contient les handlers — des fermetures sur le `MCPConnectorConfig` de l espace qui les a
+construits, jeton compris.
+
+Deux espaces declarant la meme URL partageaient l entree : le second appelait le serveur
+distant **avec le jeton du premier**, sous la politique SSRF du premier. Fuite
+d identifiant et de politique, dans un systeme multi-tenant.
+
+Corrige au lot L3.4a : la cle devient l empreinte de la declaration entiere. Voir
+`tests/test_cache_mcp_cloisonne.py`.
+
+**Ce qui reste vrai de D54** : la distinction `cache_scope` / `cacheScope` (deux
+mecanismes, pas un renommage), le defaut `private` en cas d absence, et le refus de
+migrer le client vers 2026-07-28 dans ce lot.

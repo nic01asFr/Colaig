@@ -24,6 +24,9 @@ Utilisation :
 
 from __future__ import annotations
 
+import dataclasses
+import hashlib
+import json
 import logging
 import time
 from collections.abc import Callable
@@ -38,13 +41,47 @@ logger = logging.getLogger(__name__)
 # Timeout pour les appels MCP externes
 _HTTP_TIMEOUT = 30.0
 
-# TTL caches par URL de connector
-# Clé : connector URL — Valeur : (résultat, timestamp)
+# TTL caches par DÉCLARATION de connecteur.
+#
+# Clé : empreinte de la configuration entière — Valeur : (résultat, timestamp)
+#
+# POURQUOI PAS L'URL SEULE (L3.4)
+# ---------------------------------
+# Ces caches étaient keyés sur `connector.url`. Or la valeur mise en cache n'est pas
+# une donnée inerte : c'est la liste des `(ToolDefinition, handler)`, et chaque handler
+# est une FERMETURE sur le `MCPConnectorConfig` de l'espace qui l'a construit — donc sur
+# son `auth_token`, sa liste blanche SSRF, sa limite d'appels, sa troncature.
+#
+# Deux espaces déclarant la même URL partageaient l'entrée : le second appelait le
+# serveur distant AVEC LE JETON DU PREMIER, sous la politique de sécurité du premier.
+# Une fuite d'identifiant et de politique, pas de contenu — et Colaig est multi-tenant.
+#
+# Le nom compte aussi : il préfixe les outils (`{name}__{raw_name}`) et sert de clé à
+# l'épinglage des schémas (L2.3).
 _TOOLS_CACHE: dict[str, tuple[list, float]] = {}
 _TOOLS_CACHE_TTL = 300.0  # 5 minutes
 
 _INSTRUCTIONS_CACHE: dict[str, tuple[str | None, float]] = {}
 _INSTRUCTIONS_CACHE_TTL = 600.0  # 10 minutes
+
+
+def _cle_cache(connector: MCPConnectorConfig) -> str:
+    """Empreinte d'une déclaration de connecteur, pour clé de cache.
+
+    ON HACHE LA CONFIGURATION ENTIÈRE, délibérément — pas une liste choisie de champs.
+    Deux entrées ne se partagent que si les déclarations sont identiques en tout point.
+
+    Le motif est celui d'un défaut par défaut : une liste de champs à inclure oblige à
+    penser à chaque ajout futur, et un champ oublié rouvre le partage en silence. Hacher
+    l'ensemble fait qu'un nouveau champ RESTREINT le partage par construction — le sens
+    sûr, celui que `security/actions.py` applique déjà aux annotations MCP absentes.
+
+    Le jeton entre dans le condensat, pas dans la clé en clair : une clé de dictionnaire
+    finit tôt ou tard dans un journal ou un traceback.
+    """
+    empreinte = json.dumps(dataclasses.asdict(connector), sort_keys=True, default=str)
+    return hashlib.sha256(empreinte.encode("utf-8")).hexdigest()
+
 
 # Rate limiting — clé : connector URL, valeur : list[timestamp]
 _RATE_LIMITER: dict[str, list[float]] = {}
@@ -375,6 +412,8 @@ class MCPConnectorClient:
     def __init__(self, connector: MCPConnectorConfig) -> None:
         self._connector = connector
         self._url = connector.url.rstrip("/")
+        # Empreinte de la DECLARATION, pas de l'URL : voir `_cle_cache`.
+        self._cle = _cle_cache(connector)
         self._headers: dict[str, str] = {
             "Content-Type": "application/json",
             "Accept": "application/json",
@@ -391,7 +430,7 @@ class MCPConnectorClient:
         Retourne une liste vide en cas d'erreur (graceful degradation).
         """
         # C3 — TTL cache
-        cached = _TOOLS_CACHE.get(self._url)
+        cached = _TOOLS_CACHE.get(self._cle)
         if cached is not None:
             result, ts = cached
             if time.monotonic() - ts < _TOOLS_CACHE_TTL:
@@ -461,7 +500,7 @@ class MCPConnectorClient:
             "mcp_connector: %d outil(s) exposé(s), %d filtré(s) sur %s (policy=%s)",
             len(result), filtered_count, self._connector.name, self._connector.tool_policy,
         )
-        _TOOLS_CACHE[self._url] = (result, time.monotonic())
+        _TOOLS_CACHE[self._cle] = (result, time.monotonic())
         return result
 
     async def get_server_instructions(self) -> str | None:
@@ -472,7 +511,7 @@ class MCPConnectorClient:
         Retourne None si le serveur ne fournit pas d'instructions ou en cas d'erreur.
         """
         # C4 — TTL cache
-        cached = _INSTRUCTIONS_CACHE.get(self._url)
+        cached = _INSTRUCTIONS_CACHE.get(self._cle)
         if cached is not None:
             instructions, ts = cached
             if time.monotonic() - ts < _INSTRUCTIONS_CACHE_TTL:
@@ -498,14 +537,14 @@ class MCPConnectorClient:
                 "mcp_connector: initialize échoué sur %s: %s",
                 self._connector.name, e,
             )
-            _INSTRUCTIONS_CACHE[self._url] = (None, time.monotonic())
+            _INSTRUCTIONS_CACHE[self._cle] = (None, time.monotonic())
             return None
 
         instructions: str | None = None
         if "result" in data:
             instructions = data["result"].get("instructions") or None
 
-        _INSTRUCTIONS_CACHE[self._url] = (instructions, time.monotonic())
+        _INSTRUCTIONS_CACHE[self._cle] = (instructions, time.monotonic())
         if instructions:
             logger.debug(
                 "mcp_connector: instructions récupérées depuis %s (%d chars)",
