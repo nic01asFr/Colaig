@@ -3433,3 +3433,84 @@ OPEN CIRCLE ARROWS`, qui est bien 🔁. Cosmétique, mais produit et documentati
 Stockage local sans persistance, aucun document, `rag_enabled=False` en mode PERSONAL.
 Les réponses sur corpus, le classement de pièces jointes et `!classer` demandent un
 espace lié avec des documents.
+
+---
+
+## LES QUATRE DÉFAUTS CORRIGÉS · 29/08/2026 · commit `ca5d268`, image `tronc-ca5d268`
+
+2511 tests au vert. Déployé et vérifié sur `colaig-test`.
+
+### A — Ma diagnose était à l'envers, et c'est le point important
+
+J'avais écrit : « Colaig contredit son propre texte d'aide ». **C'est l'inverse.**
+
+`_repondre_commande` répond dans **tous** les modes ; `_handle_onboarding_command` —
+qui intercepte `colaig lier` — est **sous la porte `mode == ContextMode.CHATBOT`**.
+L'aide, constante, annonçait donc `colaig lier` en conversation directe, où le pipeline
+la traite comme une phrase ordinaire. **C'est `!aide` qui mentait** ; le modèle, en
+répondant « il n'existe pas de commande native », était plus juste qu'elle.
+
+Le second défaut, lui, était réel : rien ne mettait les capacités de Colaig dans le
+prompt qui répond sur Colaig.
+
+**`colaig/capacites.py`** déclare désormais les commandes, **leur portée de mode**, et
+les quatre gestes. `!aide` les affiche, le prompt système les porte. La notice est
+ajoutée **en dernier et dans tous les modes** — y compris quand un espace fournit son
+propre `system_prompt`, qui remplaçait sinon tout ce qui précède. C'est le déploiement
+réel, pas un cas limite.
+
+**Mesuré** — `_chantier/scripts/mesure_notice_de_soi.py`, deux bras alternés, trois
+indicateurs mécaniques, les trois questions posées sur le fil mot pour mot :
+
+| bras | nomme une commande réelle | invente un produit | annonce une commande inopérante |
+|---|---|---|---|
+| sans notice | **0/8** | 1/8 | 0/8 |
+| avec notice | **8/8** | 0/8 | **0/8** |
+
+Le témoin dit littéralement : *« Tout repose sur l'intégration de mon outil
+`ask_workspace` »* — il récitait le seul outil que le prompt PERSONAL lui nommait, et
+devinait le reste. La troisième colonne est la garde contre la sur-correction : une
+notice qui ferait annoncer `colaig lier` en DM remplacerait un mensonge par un autre.
+
+### B — Le résultat dépasse le confort de journal
+
+La retenue par salon vit en mémoire de **processus** : chaque redémarrage la vide, et
+la relecture de l'historique chiffré reprévient. Les quatre autres rappels de
+`matrix.py` écartent déjà l'antérieur au démarrage ; celui-ci ne le faisait pas.
+
+**Vérifié sur le pod** : au démarrage, `13 salons` ont produit des messages illisibles.
+Avec l'ancien code, c'étaient **13 messages postés dans 13 salons** — dont des salons
+avec d'autres personnes. Le journal du nouveau pod ne montre **aucun envoi**.
+
+Ce n'était donc pas du bruit : c'était Colaig qui écrivait dans des salons où il n'a
+rien à dire.
+
+Un horodatage **absent** ne vaut pas « ancien » — le défaut par excès de silence est
+celui que ce traitement corrige.
+
+### C — Une réponse correcte était pénalisée de 30 %
+
+`audit_and_adjust` retranche 30 % de confiance par citation non sourcée. Les crochets
+que Colaig écrit lui-même — `[nom de l'espace]` — comptaient. Non cosmétique.
+
+Une citation compte désormais si **sa forme** désigne un document (extension, chemin)
+**ou** si elle **correspond** à une source transmise. Un nom de fichier inventé reste
+signalé, y compris sans aucune source — le cas où citer un document serait le plus
+trompeur.
+
+### D — Et le test confirmait la faute au lieu de la trouver
+
+Les gestes sont déclarés dans `capacites.py`, seulement réexportés par `retours.py`.
+
+`tests/test_retours.py` tenait sa **propre copie** des quatre constantes, épinglée sur
+U+1F501. Un test qui redéclare la valeur qu'il vérifie ne vérifie rien. Le codepoint
+est désormais épinglé **une seule fois**, dans `test_capacites.py`.
+
+---
+
+### Ce qui reste à éprouver sur le fil
+
+`!aide` corrigé, les gestes 🔄 et ➕, le fil (L3.2), la continuité (D56) et la pièce
+jointe (L3.7) demandent une session Tchap ouverte. Les réponses sur corpus et
+`!classer` demandent en plus un espace lié **avec des documents** — c'est la limite
+posée par la première campagne, et elle tient.
