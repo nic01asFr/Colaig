@@ -3339,3 +3339,97 @@ efface la trace de la regle. Meme raison que l archive `CLAUDE.v3-original.md` q
 exempte deja.
 
 **2464 tests.**
+
+---
+
+## PREMIÈRE CAMPAGNE D'USAGE RÉEL · 29/08/2026 · Tchap, message direct
+
+Colaig déployé (`colaig-test`, image `tronc-5b78009`), interrogé depuis Tchap web.
+Objet : voir ce que les tests ne montrent pas.
+
+### Ce qui marche, vérifié sur le fil
+
+**L3.3, de bout en bout.** Les quatre gestes sont posés sous chaque réponse. Un 👎 tapé
+par l'utilisateur produit le fichier attendu :
+
+    .colaig/feedback/efbf95e2….json
+    { emoji: 👎, message_id, conversation_id, user_id, reaction_id, horodatage,
+      question: "Quelle est la commande exacte, dans Tchap, pour lier ce salon…" }
+
+La **question est portée**, ce qui était le point du dessin : « 14 % de 👎 » ne dit rien,
+« 👎 sur les questions de configuration » se corrige.
+
+**L3.7.** `!aide` et `!space` répondent. Le DM crée bien un espace personnel à la volée.
+
+**La correction d'identité du jour.** Le journal montre `message reçu: sender=@colaig…`
+suivi d'**aucun** `échange` : Colaig voit ses propres messages et les ignore. Pas de
+boucle.
+
+---
+
+### A — MAJEUR : Colaig ne se connaît pas
+
+Question posée : « Quelle est la commande exacte, dans Tchap, pour lier ce salon à un
+espace documentaire ? »
+
+Réponse : « il n'existe pas de commande native […] pour lier automatiquement un salon ».
+
+**Trois messages plus haut, son propre `!aide` affichait** : « Pour lier ce salon à un
+espace : `colaig lier <identifiant>` ».
+
+**Il contredit son propre texte d'aide, affiché quelques minutes avant.** Et à « comment
+te configurer », il invente une procédure — `ask_workspace`, Notion, Confluence — en
+concluant qu'il n'a « pas de documentation interne ».
+
+**La cause.** `_AIDE` est une chaîne codée en dur dans le handler ; le modèle n'en sait
+rien. **Rien ne met la documentation de Colaig dans le prompt qui répond sur Colaig.**
+En DM, l'espace d'accueil n'est pas sollicité, et `rag_enabled=False` en mode PERSONAL.
+
+**Pourquoi c'est grave.** « Comment je te configure » est la **première question que tout
+le monde pose**, et la réponse contredit le produit. Un utilisateur suivrait des
+instructions qui n'existent pas.
+
+**La correction la plus petite qui soit juste :** ce que `_AIDE` déclare doit entrer dans
+le prompt système des agents. Une seule source, deux lecteurs — la commande et le modèle.
+
+---
+
+### B — Le salon est noyé sous les avertissements de déchiffrement
+
+**22 avertissements** « Je ne peux pas déchiffrer votre message » pour 46 messages —
+près d'un sur deux.
+
+La garde `_salons_prevenus_indechiffrable` limite bien à **un par salon**, mais elle est
+**en mémoire de processus** : chaque redémarrage re-prévient. Six redéploiements
+aujourd'hui.
+
+**En CrashLoopBackOff, ce serait un déluge** dans le salon d'un utilisateur — et c'est
+arrivé brièvement pendant les essais de connexion. La garde devrait survivre au
+redémarrage, ou se borner autrement.
+
+---
+
+### C — Le vérificateur de citations lit les espaces réservés comme des citations
+
+    citation_checker: 1 citation(s) sans source correspondante: ['lien']
+    citation_checker: 4 citation(s) sans source: ['espace', "nom de l'espace", …]
+
+Ce sont des **crochets que Colaig a écrits lui-même** dans ses propres consignes,
+relus comme des citations sans source. Sans gravité, mais cela pollue le journal et
+fausserait toute mesure comptant les citations non sourcées.
+
+---
+
+### D — L'emoji de reprise n'est pas celui de la documentation
+
+Le code émet **🔁** (U+1F501, REPEAT BUTTON) ; le PLAN, l'aide et les décisions disent
+**🔄** (U+1F504). La constante porte le nom Unicode `CLOCKWISE RIGHTWARDS AND LEFTWARDS
+OPEN CIRCLE ARROWS`, qui est bien 🔁. Cosmétique, mais produit et documentation divergent.
+
+---
+
+### Ce qui n'a pas pu être éprouvé
+
+Stockage local sans persistance, aucun document, `rag_enabled=False` en mode PERSONAL.
+Les réponses sur corpus, le classement de pièces jointes et `!classer` demandent un
+espace lié avec des documents.
