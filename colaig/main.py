@@ -486,8 +486,8 @@ async def run_client_stack(cc, config: ColaigConfig, shutdown_event: asyncio.Eve
 
     chunker = Chunker(chunk_size=config.chunk_size, chunk_overlap=config.chunk_overlap)
     _embed_ns = _embedding_namespace(cc.llm_api_key or config.albert_api_key, cc.llm_model_embed or config.albert_model_embed)
-    embedding_service = EmbeddingService(albert, dimension=1024, cache_namespace=_embed_ns, local_fallback=config.local_embeddings)
-    faiss_store = FaissStore(dimension=1024)
+    embedding_service = EmbeddingService(albert, dimension=config.embedding_dimension, cache_namespace=_embed_ns, local_fallback=config.local_embeddings)
+    faiss_store = FaissStore(dimension=config.embedding_dimension)
 
     retriever = Retriever(
         embedding_service=embedding_service,
@@ -518,7 +518,7 @@ async def run_client_stack(cc, config: ColaigConfig, shutdown_event: asyncio.Eve
         registry=index_registry,
         albert_client=albert,
         light_model=getattr(config, "albert_model_light", None),
-        dimension=1024,
+        dimension=config.embedding_dimension,
     )
 
     from colaig.rag.federation_service import FederationService
@@ -713,7 +713,7 @@ async def run_indexation_loop(
                 ws_indexer = workspace_indexers.get(ws.workspace_id)
                 if ws_indexer is None:
                     from colaig.rag.bm25_store import BM25Store
-                    ws_store = FaissStore(dimension=1024)
+                    ws_store = FaissStore(dimension=embedding_service.dimension)
                     ws_bm25 = BM25Store() if workspace_bm25_stores is not None else None
                     # Charger le vocabulaire métier depuis identity.yaml (graceful)
                     _ws_vocabulary: list[str] = []
@@ -1016,7 +1016,7 @@ async def initial_indexation(
             continue
         try:
             from colaig.rag.bm25_store import BM25Store
-            ws_store = FaissStore(dimension=1024)
+            ws_store = FaissStore(dimension=embedding_service.dimension)
             ws_bm25 = BM25Store() if workspace_bm25_stores is not None else None
 
             # Charger le vocabulaire métier depuis identity.yaml (graceful)
@@ -1206,10 +1206,10 @@ async def main() -> None:
     )
 
     _embed_ns = _embedding_namespace(config.albert_api_key, config.albert_model_embed)
-    embedding_service = EmbeddingService(albert, dimension=1024, cache_namespace=_embed_ns, local_fallback=config.local_embeddings)
+    embedding_service = EmbeddingService(albert, dimension=config.embedding_dimension, cache_namespace=_embed_ns, local_fallback=config.local_embeddings)
 
     # Store partagé — utilisé uniquement par le web admin / MCP pour reindex manuel
-    faiss_store = FaissStore(dimension=1024)
+    faiss_store = FaissStore(dimension=config.embedding_dimension)
 
     retriever = Retriever(
         embedding_service=embedding_service,
@@ -1255,7 +1255,7 @@ async def main() -> None:
         registry=index_registry,
         albert_client=albert,
         light_model=getattr(config, "albert_model_light", None),
-        dimension=1024,
+        dimension=config.embedding_dimension,
     )
 
     from colaig.rag.federation_service import FederationService

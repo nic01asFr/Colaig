@@ -109,10 +109,32 @@ class EmbeddingService:
             raw = (await self._embed_local([text]))[0]
             normalized = _normalize_l2(raw)
 
+        self._verifier_dimension(normalized)
+
         if self._cache_max_size == 0 or len(self._cache) < self._cache_max_size:
             self._cache[cache_key] = normalized
 
         return normalized
+
+    def _verifier_dimension(self, vecteur: list[float]) -> None:
+        """Refuse un vecteur qui ne fera pas ce qu'on attend de lui.
+
+        Sans ce contrôle, l'incohérence n'apparaît qu'au moment de l'ajout à l'index,
+        sous la forme d'une `AssertionError` **NUE** levée par FAISS : aucun message,
+        aucun nom de modèle, aucun chiffre.
+
+        Observé le 29/08/2026 : les 63 documents d'un corpus ont échoué un par un, le
+        journal ne disant que « erreur ré-indexation ». Le modèle rendait 4096, l'index
+        attendait 1024, et rien ne le disait.
+        """
+        if len(vecteur) == self._dimension:
+            return
+        modele = getattr(self._albert, "model_embed", None) or "inconnu"
+        raise EmbeddingError(
+            f"dimension inattendue : le modele « {modele} » rend des vecteurs de "
+            f"{len(vecteur)}, l'index en attend {self._dimension}. Ajustez "
+            f"COLAIG_EMBEDDING_DIM, ou changez de modele d'embedding."
+        )
 
     async def embed_texts(self, texts: list[str]) -> list[list[float]]:
         """Embedding batch. Retourne vecteurs normalisés L2."""
@@ -144,6 +166,10 @@ class EmbeddingService:
 
             for idx, raw in zip(uncached_indices, raw_embeddings):
                 normalized = _normalize_l2(raw)
+                # Le chemin batch est celui que l'indexeur emprunte : sans ce controle
+                # ici, le message n'apparaitrait que sur le chemin unitaire, c'est-a-dire
+                # jamais pendant l'indexation d'un corpus.
+                self._verifier_dimension(normalized)
                 results[idx] = normalized
                 cache_key = self._cache_key(texts[idx])
                 if self._cache_max_size == 0 or len(self._cache) < self._cache_max_size:

@@ -1418,6 +1418,10 @@ class ColaigConfig:
     hyde_query_weight: float = 0.5           # Poids embedding HyDE dans la combinaison (0→1)
     rrf_k_constant: int = 60                 # Constante k du Reciprocal Rank Fusion
     local_embeddings: bool = False           # Fallback embeddings local (SentenceTransformer)
+    # Dimension des vecteurs. DOIT correspondre au modele d'embedding : elle etait
+    # codee en dur a 1024 dans main.py, et tout modele d'une autre taille faisait
+    # echouer l'indexation sur une AssertionError NUE, levee par FAISS.
+    embedding_dimension: int = 1024
     auto_specialize_enabled: bool = False    # Dériver persona/vocabulaire depuis le corpus (opt-in)
     auto_specialize_apply: bool = False      # Écrire la config dérivée (sinon dry-run = knowledge.json seul)
     daily_request_limit: int = 0             # Quota journalier requêtes LLM par tenant (0 = illimité)

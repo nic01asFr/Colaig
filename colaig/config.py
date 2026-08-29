@@ -415,6 +415,7 @@ def load_config(yaml_path: Path | None = None) -> ColaigConfig:
         hyde_query_weight=_env_float("COLAIG_HYDE_QUERY_WEIGHT", 0.5),
         rrf_k_constant=_env_int("COLAIG_RRF_K_CONSTANT", 60),
         local_embeddings=_env("COLAIG_LOCAL_EMBEDDINGS", "").lower() in ("1", "true", "yes"),
+        embedding_dimension=_env_int("COLAIG_EMBEDDING_DIM", 1024),
         auto_specialize_enabled=_env("COLAIG_AUTO_SPECIALIZE_ENABLED", "").lower() in ("1", "true", "yes"),
         auto_specialize_apply=_env("COLAIG_AUTO_SPECIALIZE_APPLY", "").lower() in ("1", "true", "yes"),
         daily_request_limit=_env_int("COLAIG_DAILY_REQUEST_LIMIT", 0),
