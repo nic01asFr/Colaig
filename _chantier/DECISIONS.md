@@ -3523,3 +3523,75 @@ Par ordre de dépendance :
 Et **ce qui n'est pas à faire** : généraliser `storage_readonly` sur les 55 sites
 d'écriture. Le marqueur suffit dans le cas inscriptible, et la scission rend la garde
 sans objet dans le cas lecture.
+
+---
+
+## D60 — Une équipe, un Colaig, un fournisseur · 29/08/2026 · **actée**
+
+Question posée : Colaig peut-il travailler sur des dossiers partagés par différents
+utilisateurs depuis différents fournisseurs ?
+
+**Réponse retenue : la question ne se pose pas.** Une équipe dispose d'un Colaig, comme
+elle dispose d'un support documentaire et d'un support de messagerie. L'unité n'est pas
+l'utilisateur, c'est **l'équipe** — et une équipe travaille sur un support.
+
+---
+
+### Ce que la décision valide, sans rien construire
+
+Le code fait déjà exactement cela. `create_storage(config)` est appelé **une fois**, et
+`WorkspaceConfig` ne porte qu'un `storage_path` — un chemin dans le stockage de
+l'instance, pas une adresse complète.
+
+Ce n'était pas une limite à corriger : **c'était le dessin**, et il est cohérent.
+
+**Ce qui marche donc en l'état :**
+
+- **plusieurs utilisateurs, plusieurs dossiers** — trois personnes partagent chacune un
+  dossier depuis le support de l'équipe ; les trois apparaissent à la racine du compte de
+  Colaig, la boucle de découverte les voit, chacun devient un espace ;
+- **plusieurs espaces, une question transverse** — `ask_workspace` délègue d'un espace à
+  l'autre, sous ACL ;
+- **plusieurs équipes sur un même pod** — le mode multi-client (`clients.yml`) lance N
+  piles étanches, chacune avec son fournisseur, son canal, son index.
+
+---
+
+### Ce que la décision écarte, et c'est délibéré
+
+**La résolution du stockage par espace.** Elle aurait demandé d'ajouter un backend à
+`WorkspaceConfig`, de transformer un singleton en résolution contextuelle dans une
+quinzaine de points d'injection, et de tenir un registre d'identifiants par fournisseur —
+sachant que le `config.yaml` d'un espace vit *dans* le stockage qu'il décrit, et ne peut
+donc pas porter ses propres identifiants d'accès.
+
+Ce lot n'est pas fait, et **il n'est plus à faire**.
+
+**Ce qu'on renonce à offrir :** une personne appartenant à deux équipes a deux Colaig, et
+ne peut pas interroger l'un sur les documents de l'autre. C'est une frontière — et c'en
+est une **bonne** : elle suit celle de l'équipe, qui est celle des droits.
+
+---
+
+### Ce que cela clarifie pour la lecture seule (D58, D59)
+
+La scission `source_path` / `instance_path` cesse d'être une question générale de
+fournisseur pour devenir un **cas précis et rare** : un tiers, hors de l'équipe, partage
+un dossier de référence en lecture.
+
+Colaig ne peut alors pas y créer son marqueur `.colaig/` — c'est justement ce que le
+partage en lecture empêche. L'instance vit sur le support de **l'équipe**, la source
+reste chez son propriétaire, et rien n'est écrit chez lui.
+
+Le cas nominal — un dossier de l'équipe, inscriptible — reste inchangé : **l'instance
+dans l'espace, chez son propriétaire**, comme D59 l'a rappelé.
+
+---
+
+### La conséquence d'identité, qui devient simple
+
+Une équipe, un Colaig : **un compte de messagerie, un compte de stockage, un jeu de
+secrets**. C'est ce que le chart déploie aujourd'hui, et c'est ce que le mode
+multi-client réplique proprement quand plusieurs équipes partagent une infrastructure.
+
+Rien à changer.
