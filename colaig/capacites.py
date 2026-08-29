@@ -97,6 +97,41 @@ _LIAISON_PAR_MODE = {
 }
 
 
+# Les préfixes réellement reconnus par `_handle_onboarding_command`. Ils vivent ici
+# parce qu'ils servent à DEUX endroits qui ne doivent pas diverger : le handler qui les
+# intercepte, et la règle d'interpellation de `matrix.py` qui décide si le message
+# parvient jusqu'à lui.
+PREFIXES_CREATION = ("colaig créer", "colaig create", "colaig init", "/colaig init")
+PREFIXES_LIAISON = ("colaig lier", "colaig link", "/colaig link")
+
+
+def est_une_commande(corps: str) -> bool:
+    """Ce message est-il une commande adressée à Colaig ?
+
+    Sert de règle d'interpellation en salon. Une mention est une déclaration
+    d'intention ; **une commande explicite en est une aussi, et plus nette encore** :
+    `!aide` en tête, ou `colaig lier <id>`, ne sont pas des façons de *parler de*
+    l'assistant, ce sont des impératifs qui lui sont adressés.
+
+    Sans cela, aucune des cinq commandes de L3.7 n'était atteignable dans un salon sans
+    mentionner le bot à chaque fois — et `colaig lier`, qui sert précisément à
+    configurer le salon, ne l'était pas non plus. Relevé sur le fil le 30/08/2026.
+
+    **La règle est étroite à dessein : la commande doit être EN TÊTE.** « je me demande
+    si !aide existe » ne déclenche rien. Sans cette borne, on remplacerait un excès de
+    zèle par un autre — celui-là même que `m.mentions` avait corrigé.
+    """
+    texte = (corps or "").strip().lower()
+    if not texte:
+        return False
+
+    if texte.startswith("!"):
+        nom = texte.split()[0]
+        return any(nom == c.lower() for c, _ in COMMANDES)
+
+    return texte.startswith(PREFIXES_CREATION + PREFIXES_LIAISON)
+
+
 def _liste(entrees: tuple[tuple[str, str], ...], puce: str = "- ") -> str:
     return "\n".join(f"{puce}`{nom}` — {quoi}" for nom, quoi in entrees)
 

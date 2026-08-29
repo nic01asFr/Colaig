@@ -793,6 +793,20 @@ class MatrixMessaging:
         if thread_root and thread_root in self._fils_suivis:
             return True
 
+        # UNE COMMANDE EXPLICITE EST UNE INTERPELLATION.
+        #
+        # AVANT `m.mentions`, car les clients recents le posent systematiquement et,
+        # vide, il opposait un refus definitif. Consequence relevee le 30/08/2026 :
+        # « colaig lier colaig-mesure-sst » a ete recu et ignore — la commande qui sert
+        # a CONFIGURER le salon y etait inatteignable. Les cinq commandes de L3.7
+        # passaient par la meme porte et subissaient le meme sort.
+        #
+        # La regle reste etroite : la commande doit etre EN TETE. Sans cette borne on
+        # remplacerait un exces de zele par un autre — celui que `m.mentions` corrige.
+        from colaig.capacites import est_une_commande
+        if est_une_commande(getattr(event, "body", "") or ""):
+            return True
+
         mentions = contenu.get("m.mentions")
         if isinstance(mentions, dict):
             return self.identite in (mentions.get("user_ids") or [])

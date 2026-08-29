@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from colaig.integrations.albert import AlbertClient
 
+from colaig.capacites import PREFIXES_CREATION, PREFIXES_LIAISON
 from colaig.context.layers import save_conversation_history
 from colaig.messaging.progress import ProgressReporter, resolve_channel
 from colaig.messaging.retours import GestionnaireRetours, proposer_gestes
@@ -113,9 +114,15 @@ Une fois configuré, je pourrai : rechercher dans vos documents, \
 mémoriser le contexte de vos échanges, et lancer des tâches autonomes.\
 """
 
-# Commandes d'auto-configuration détectées dans les messages
-_CMD_CREATE = ("colaig créer", "colaig create", "colaig init", "/colaig init")
-_CMD_LINK = ("colaig lier", "colaig link", "/colaig link")
+# Commandes d'auto-configuration détectées dans les messages.
+#
+# Les préfixes sont déclarés dans `colaig/capacites.py`, avec les commandes `!`.
+# Ils servent à DEUX endroits qui ne doivent pas diverger : ce handler qui les
+# intercepte, et la règle d'interpellation de `matrix.py` qui décide si le message
+# parvient jusqu'ici. Deux listes écrites à la main auraient divergé au premier
+# ajout — c'est l'histoire de `_AIDE`, corrigée le 29/08.
+_CMD_CREATE = PREFIXES_CREATION
+_CMD_LINK = PREFIXES_LIAISON
 
 # Les cinq commandes réduites (L3.7). Toutes des LECTURES : aucune ne déclenche de
 # travail coûteux. Un nom hors de cet ensemble n'est PAS intercepté — il descend au
