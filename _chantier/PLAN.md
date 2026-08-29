@@ -65,7 +65,7 @@ complète. Aucune modification de `protocols.py` sans arbitrage.
 | L3.1 | Scoring de binding 6 niveaux + auto-bind à l'invitation ; vérité dans `config.yaml` | L0.2 | `test_workspace_binding.py` de PROD passe sur le tronc |
 | L3.2 | Fils Matrix + **mention native `m.mentions`** + registre des `thread_root` suivis | L1.2 | un fil ouvert sur une réponse du bot est suivi sans nouvelle mention |
 | L3.3 | Réactions 👍👎🔄➕ ; ➕ réécrit sur `StorageProtocol` ; feedback persisté ; pose auto de 👍👎 | L3.2 | ➕ écrit dans `.colaig/notes.md` ; feedback survit au redémarrage |
-| L3.4 | Client MCP (registre, transport, cache, compaction, timeout 20 s) ; `cache_scope`→`cacheScope`, honorer `ttlMs` | L1.3, L2.2, L2.3 | `test_mcp_datagouv.py` passe + test `cacheScope` |
+| L3.4 | Client MCP (registre, transport, cache, compaction, timeout 20 s) ; `cacheScope` + `ttlMs` honorés — **⚠️ `cache_scope`→`cacheScope` N'EST PAS un renommage, voir D54** | L1.3, L2.2, L2.3 | ✅ 29/08/2026 |
 | L3.5 | Filtrage d'outils 2 niveaux **fusionné dans PreExecution** | L3.4 | **1 seul `embed()` par tour**, vérifié par compteur |
 | L3.6 | Chart Helm Onyxia + `sspcloud.py` (auto-découverte clé, rôle `edit`) | L0.1 | `helm install` → pod qui répond `/ready` |
 | L3.7 | Pièces jointes + commandes réduites (`!aide !space !index !classer !skills`) | L1.2 | une PJ est classée dans le bon dossier |
