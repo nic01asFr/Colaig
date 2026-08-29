@@ -1063,6 +1063,29 @@ class MatrixMessaging:
         if self._client is None:
             return ConversationType.UNKNOWN
 
+        room = self._client.rooms.get(room_id)
+
+        # UN SALON NOMME N'EST PAS UNE CONVERSATION DIRECTE.
+        #
+        # La regle d'origine tenait en un decompte : deux membres, donc un DM. Or TOUT
+        # SALON D'EQUIPE COMMENCE A DEUX — l'assistant et la premiere personne. Elle
+        # declarait donc prives tous les salons neufs, au moment precis ou l'on essaie
+        # de les configurer.
+        #
+        # Releve sur le fil le 30/08/2026 : un salon nomme « Colaig - Mesure SST », avec
+        # sujet et invitation, a ete resolu en PERSONAL. `colaig lier` n'a pas ete
+        # intercepte — la commande est derriere la porte `mode == CHATBOT` — un espace
+        # personnel parasite a ete cree, et le corpus de 51 documents est reste hors
+        # d'atteinte, `rag_enabled` etant faux en mode personnel.
+        #
+        # Un nom est un ACTE : quelqu'un l'a ecrit. Une conversation directe n'en a pas.
+        # C'est un discriminant plus sur qu'un decompte, et `matrix-nio` l'expose.
+        if room is not None and getattr(room, "is_named", False):
+            if getattr(room, "join_rule", "") == "public":
+                return ConversationType.PUBLIC
+            return ConversationType.PRIVATE
+
+        # Salon SANS nom : le compte de membres reste le meilleur indice disponible.
         try:
             response = await self._client.joined_members(room_id)
             if hasattr(response, "members"):
@@ -1072,7 +1095,6 @@ class MatrixMessaging:
             pass
 
         # Vérifier si le salon est public
-        room = self._client.rooms.get(room_id)
         if room:
             if hasattr(room, "join_rule") and room.join_rule == "public":
                 return ConversationType.PUBLIC
