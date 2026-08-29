@@ -271,6 +271,14 @@ class MatrixMessaging:
         self._client: AsyncClient | None = None
         self._message_callbacks: list[Callable] = []
         self._start_time: float = 0.0
+        # L'IDENTITE QUE LE HOMESERVER NOUS DONNE, et qui fait foi pour tout ce qui
+        # decide. `_username` est ce qu'on a TAPE dans la configuration : il sert a se
+        # connecter, plus a se reconnaitre.
+        #
+        # Matrix ne delivre que des MXID complets (`@smoke:agent.tchap.gouv.fr`). Une
+        # configuration portant l'identifiant nu faisait echouer trois controles EN
+        # SILENCE — dont celui qui empeche le bot de se repondre a lui-meme.
+        self._identite: str = ""
         # Un salon n'est prévenu qu'une fois d'un message illisible (L2.6) : un appareil
         # mal apparié en produit des dizaines, et un message répété cesse d'être lu.
         self._salons_prevenus_indechiffrable: set[str] = set()
@@ -286,6 +294,24 @@ class MatrixMessaging:
         self._token_store = token_store or paths.local_file("matrix_token.json")
         # Répertoire du crypto store E2E (clés Olm/Megolm — nécessite matrix-nio[e2e])
         self._store_path = self._token_store.parent / "e2e_store"
+
+    @property
+    def identite(self) -> str:
+        """Le MXID qui fait foi : celui du homeserver, sinon la configuration.
+
+        Le repli permet au pipeline de tourner sans connexion — sans lui, tout test de
+        reception exigerait un homeserver.
+        """
+        return self._identite or self._username
+
+    def _retenir_identite(self, mxid: str) -> None:
+        """Retient l'identite rendue par le serveur. Une valeur VIDE est ignoree.
+
+        Un `whoami` degrade ne doit pas effacer ce qu'on savait : comparer `event.sender`
+        a la chaine vide reviendrait a ne jamais reconnaitre ses propres messages.
+        """
+        if mxid:
+            self._identite = mxid
 
     async def connect(self) -> None:
         """Connexion au homeserver Matrix (login ou réutilisation du token existant)."""
@@ -338,6 +364,7 @@ class MatrixMessaging:
                 if not hasattr(resp, "user_id"):
                     raise ValueError(f"token rejeté par le serveur: {resp}")
                 logger.info("token validé (user_id=%s)", resp.user_id)
+                self._retenir_identite(resp.user_id)
             except Exception as e:
                 logger.warning("token Matrix invalide (%s), re-login...", e)
                 self._token_store.unlink(missing_ok=True)
@@ -422,6 +449,7 @@ class MatrixMessaging:
             "device_id": response.device_id,
             "user_id": response.user_id,
         }))
+        self._retenir_identite(response.user_id)
         logger.info("matrix token sauvegardé (device_id=%s)", response.device_id)
 
     async def _handle_sync_failure(self) -> None:
@@ -578,7 +606,7 @@ class MatrixMessaging:
         """Auto-join quand invité dans un salon."""
         if self._client is None:
             return
-        if event.state_key != self._username:
+        if event.state_key != self.identite:
             return
 
         result = await self._client.join(room.room_id)
@@ -693,7 +721,7 @@ class MatrixMessaging:
         **3. Pas l'historique rejoué.** Au démarrage, le serveur redélivre le passé ;
         sans ce garde, chaque relance réenregistrerait tous les retours déjà comptés.
         """
-        if event.sender == self._username:
+        if event.sender == self.identite:
             return
 
         reagit_a = getattr(event, "reacts_to", "") or ""
@@ -749,11 +777,11 @@ class MatrixMessaging:
 
         mentions = contenu.get("m.mentions")
         if isinstance(mentions, dict):
-            return self._username in (mentions.get("user_ids") or [])
+            return self.identite in (mentions.get("user_ids") or [])
 
         corps = getattr(event, "body", "") or ""
-        localpart = self._username.split(":")[0].lstrip("@")
-        return localpart in corps or self._username in corps
+        localpart = self.identite.split(":")[0].lstrip("@")
+        return localpart in corps or self.identite in corps
 
     async def _on_room_message(self, room, event: RoomMessageText) -> None:
         """Traite un message reçu dans un salon."""
@@ -763,7 +791,7 @@ class MatrixMessaging:
         logger.info("message reçu: sender=%s room=%s body_chars=%d", event.sender, room.room_id, len(event.body))
 
         # Ignorer ses propres messages
-        if event.sender == self._username:
+        if event.sender == self.identite:
             logger.debug("ignoré: propre message")
             return
 
@@ -824,7 +852,7 @@ class MatrixMessaging:
             return
 
         # Ignorer ses propres messages
-        if event.sender == self._username:
+        if event.sender == self.identite:
             return
 
         # Ignorer les messages trop vieux (replay au démarrage)
@@ -891,7 +919,7 @@ class MatrixMessaging:
         """
         if self._client is None:
             return
-        if event.sender == self._username:
+        if event.sender == self.identite:
             # Colaig produit des documents ; les réingérer ferait une boucle.
             return
 
