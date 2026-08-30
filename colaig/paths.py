@@ -314,12 +314,40 @@ def instance_subdir(workspace_path: str, nom: str) -> str:
 
 
 def local_home_dir():
-    """Dossier local de Colaig sur la machine hôte — `~/.colaig/`.
+    """Dossier local de Colaig sur la machine hote — `~/.colaig/` par defaut.
 
     Retourne un `pathlib.Path`, contrairement au reste du module qui manipule des
-    chemins de storage sous forme de chaînes.
+    chemins de storage sous forme de chaines.
+
+    POURQUOI CE DOSSIER EST DEPLACABLE (releve le 30/08/2026)
+    -----------------------------------------------------------
+    Il contient le jeton de session Matrix et le magasin de chiffrement `e2e_store`.
+    Les journaux de production montraient environ 450 avertissements :
+
+        message non dechiffre dans !HSwg...:agent.dev-durable.tchap.gouv.fr
+          (expediteur @colaig.assistant-...)
+
+    L'expediteur etant Colaig lui-meme : il ne savait pas relire ses propres messages.
+
+    La cause tenait a une JOINTURE, pas a un module. Le code ecrivait sous
+    `~/.colaig/`, soit `/root/.colaig/` dans l'image ; le deploiement montait son
+    volume sur `/app/data`. Chacun etait coherent avec lui-meme, et rien ne les
+    confrontait. Le magasin vivait donc sur la couche ephemere du conteneur : chaque
+    redemarrage donnait a Colaig une nouvelle identite d'appareil et perdait toutes
+    ses cles Megolm.
+
+    `COLAIG_LOCAL_HOME` permet a l'exploitant de placer ce dossier dans le volume
+    qu'il persiste. Sans la variable, le comportement d'avant est conserve a
+    l'identique : aucun deploiement existant n'a a migrer.
     """
+    import os
     from pathlib import Path
+
+    # Une variable posee mais VIDE est une erreur de deploiement courante ; la traiter
+    # comme un chemin ferait ecrire le magasin de cles a la racine du conteneur.
+    choisi = os.environ.get("COLAIG_LOCAL_HOME", "").strip()
+    if choisi:
+        return Path(choisi)
 
     return Path.home() / COLAIG_DIR
 

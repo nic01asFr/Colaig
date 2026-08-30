@@ -78,6 +78,14 @@ spec:
               value: "8000"
             - name: COLAIG_DATA_DIR
               value: /app/data
+            # Le dossier local de Colaig — jeton de session Matrix et magasin de cles
+            # E2E — DANS le volume monte. Sans cette variable il retombe sur
+            # `~/.colaig/`, soit `/root/.colaig/`, que rien ne persiste : chaque
+            # redemarrage donnait alors a Colaig une nouvelle identite d'appareil et
+            # lui faisait perdre toutes ses cles Megolm. Releve le 30/08/2026 dans les
+            # journaux : ~450 « message non dechiffre », dont Colaig etait l'expediteur.
+            - name: COLAIG_LOCAL_HOME
+              value: /app/data/.colaig
             {{- range $k, $v := .Values.extraEnv }}
             - name: {{ $k }}
               value: {{ $v | quote }}

@@ -72,7 +72,17 @@ resources:
     cpu: "2"
     memory: 4Gi
 
-# Volume de cache local ephemere (FAISS reconstruit au restart)
+# Volume local. Il ne contient PAS que du cache.
+#
+# L'index FAISS s'y reconstruit au demarrage — c'est ce que decrivait le
+# commentaire d'origine, et c'etait exact pour lui. Mais le jeton de session
+# Matrix et le magasin de cles E2E y vivent aussi (COLAIG_LOCAL_HOME), et ceux-la
+# ne se reconstruisent pas : les perdre donne a Colaig une nouvelle identite
+# d'appareil a chaque redemarrage, et rend illisible tout l'historique chiffre,
+# y compris ses propres reponses.
+#
+# `enabled: false` reste le defaut — un deploiement d'essai n'a pas a reclamer un
+# volume. Mais toute instance qui parle dans des salons chiffres doit l'activer.
 persistence:
   enabled: false
   size: 5Gi
