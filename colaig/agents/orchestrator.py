@@ -607,9 +607,19 @@ class Orchestrator:
                 if n not in ALWAYS_KEEP and est_destructif(n)
             )
 
-        # Pas de RAG nécessaire → retirer tous les outils de recherche
-        if not intent.needs_rag:
-            remove.update(SEARCH_TOOLS)
+        # LES OUTILS DE RECHERCHE RESTENT TOUJOURS DISPONIBLES (D68).
+        #
+        # On retirait ici SEARCH_TOOLS quand `needs_rag` valait faux. L'Analyseur
+        # decidait donc si le corpus valait d'etre consulte SANS L'AVOIR CONSULTE —
+        # une prediction la ou un fait est disponible.
+        #
+        # La porte ne protegeait rien : mesure du 30/08/2026 sur la pile de
+        # production, 1,6 ms de recherche mediane et 0 ms d'embedding en cache,
+        # contre ~1000 ms de generation. Elle coutait en revanche des refus — 4,9 %
+        # des cas refusent alors que le passage etait disponible.
+        #
+        # `needs_rag` reste produit et journalise : il devient une OBSERVATION de
+        # l'Analyseur, plus une decision.
 
         # Résumé → fetch + summarize suffisent, pas besoin d'exploration indexée
         if intent.intent_type == IntentType.SUMMARY:
@@ -873,15 +883,17 @@ class Orchestrator:
         if intent.intent_type == IntentType.GREETING and not intent.needs_rag:
             return steps
 
-        if intent.needs_rag:
-            strategy = ""
-            if intent.orchestrator_directives:
-                strategy = intent.orchestrator_directives.search_strategy
-            steps.append(ExecutionStep(
-                step_type="rag_search",
-                description="Recherche documentaire RAG",
-                params={"query": intent.query_reformulated or "", "strategy": strategy},
-            ))
+        # CHERCHER TOUJOURS (D68) — la salutation pure est deja sortie ci-dessus.
+        # Le resultat de la recherche est un meilleur guide que la prediction qui
+        # la precedait : c'est un fait observe, pas un pari.
+        strategy = ""
+        if intent.orchestrator_directives:
+            strategy = intent.orchestrator_directives.search_strategy
+        steps.append(ExecutionStep(
+            step_type="rag_search",
+            description="Recherche documentaire RAG",
+            params={"query": intent.query_reformulated or "", "strategy": strategy},
+        ))
 
         if intent.orchestrator_directives:
             resources = intent.orchestrator_directives.resources_to_target
