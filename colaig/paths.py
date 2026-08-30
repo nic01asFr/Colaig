@@ -131,6 +131,26 @@ def notes_file(workspace_path: str) -> str:
     return f"{colaig_dir(workspace_path)}notes.md"
 
 
+def echanges_dir(workspace_path: str) -> str:
+    """Journal des echanges — `{ws}/.colaig/echanges/`.
+
+    A cote des retours, et pour la meme raison : ce qui permet de juger la qualite d'une
+    reponse ne doit pas mourir avec le pod. Le journal du conteneur disparait a chaque
+    redeploiement — seize se sont succede le 30/08/2026.
+    """
+    return f"{colaig_dir(workspace_path)}echanges/"
+
+
+def echange_file(workspace_path: str, empreinte: str) -> str:
+    """Un echange — `{ws}/.colaig/echanges/{empreinte}.json`.
+
+    `empreinte` derive de l'identifiant du message, comme pour les retours : un
+    `event_id` Matrix contient `$` et `:`, pieges comme nom de fichier. Il dedoublonne
+    aussi un evenement redelivre.
+    """
+    return f"{echanges_dir(workspace_path)}{empreinte}.json"
+
+
 def feedback_dir(workspace_path: str) -> str:
     """Dossier des retours utilisateur — `{ws}/.colaig/feedback/`."""
     return f"{colaig_dir(workspace_path)}feedback/"

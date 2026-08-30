@@ -1,5 +1,5 @@
 """
-Relevé des retours d'un espace — l'instrument de la porte 1.
+Relevé de ce que Colaig a fait — l'instrument de la porte 1.
 
 POURQUOI CE SCRIPT EXISTE
 ---------------------------
@@ -7,7 +7,19 @@ Le franchissement de la porte 1 demande *« une semaine de dogfooding sur un pod
 test, relevé des 👍👎 et incidents »*. Sans instrument de lecture, cette semaine produit
 un dossier de fichiers JSON qu'il faut ouvrir un par un.
 
-Ce script rend trois choses, et rien d'autre :
+CE QUI A CHANGÉ LE 30/08/2026 AU SOIR
+---------------------------------------
+La première version ne lisait que les 👍👎. Le taux de retour mesuré est de **17 %** —
+un geste sur six réponses — et l'utilisateur a dit qu'il ne tiendrait pas le protocole.
+
+Les pouces n'étaient qu'un **proxy** pour « la réponse était-elle bonne ». Colaig
+consigne désormais chaque échange sur le stockage : question, réponse, sources,
+confiance, temps. C'est plus riche qu'un pouce et cela ne demande rien à personne.
+
+Le relevé lit donc les **deux** sources. Un 👍 garde sa valeur — il dit ce qu'un humain
+a pensé, et rien ne le déduit — mais il n'a plus le monopole de l'observation.
+
+Ce script rend :
 
 1. **le taux de retour** — combien de réponses ont reçu un geste. C'est la première
    chose que la semaine doit mesurer : un dogfooding sans gestes ne mesure rien ;
@@ -118,6 +130,45 @@ async def relever(storage, espace: str) -> None:
             print(f"     confiance : {c if c is not None else '(non enregistrée)'}")
 
 
+async def relever_echanges(storage, espace: str) -> None:
+    """Ce que Colaig a fait, sans qu'on lui ait rien demandé."""
+    from colaig.journal_echanges import lire_echanges
+
+    echanges = await lire_echanges(storage, espace)
+    if not echanges:
+        print("  aucun échange consigné — le journal date du 30/08/2026 au soir ;")
+        print("  les échanges antérieurs ne vivaient que dans le pod.")
+        return
+
+    confiances = [e["confiance"] for e in echanges
+                  if isinstance(e.get("confiance"), (int, float))]
+    sans_source = [e for e in echanges if not e.get("sources")]
+    temps = sorted(e.get("temps_ms", 0) for e in echanges)
+
+    print(f"  {len(echanges)} échange(s) consigné(s)")
+    if confiances:
+        confiances_triees = sorted(confiances)
+        med = confiances_triees[len(confiances_triees) // 2]
+        basses = [c for c in confiances if c < 0.6]
+        print(f"    confiance médiane      : {med:.2f}")
+        print(f"    sous 0,60              : {len(basses)} "
+              f"({len(basses) * 100 // len(confiances)} %)")
+    print(f"    sans aucune source     : {len(sans_source)} "
+          f"({len(sans_source) * 100 // len(echanges)} %)")
+    if temps:
+        print(f"    temps médian           : {temps[len(temps) // 2]} ms")
+
+    faibles = sorted((e for e in echanges
+                      if isinstance(e.get("confiance"), (int, float))
+                      and e["confiance"] < 0.6),
+                     key=lambda e: e["confiance"])
+    if faibles:
+        print(f"\n  les {min(len(faibles), 5)} échanges les moins assurés :")
+        for e in faibles[:5]:
+            print(f"    {e['confiance']:.2f}  {_abrege(e.get('question', ''), 90)}")
+            print(f"          → {_abrege(e.get('reponse', ''), 90)}")
+
+
 async def main() -> None:
     from colaig.config import load_config
     from colaig.main import create_storage
@@ -131,6 +182,9 @@ async def main() -> None:
         return
     for espace in espaces:
         await relever(storage, espace)
+        print()
+        print("  ── ce que Colaig a fait ─────────────────────────────────")
+        await relever_echanges(storage, espace)
 
 
 if __name__ == "__main__":

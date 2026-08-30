@@ -25,6 +25,7 @@ from colaig.capacites import (
     PREFIXES_LIAISON,
     retirer_gestes_en_fin,
 )
+from colaig.journal_echanges import consigner_echange
 from colaig.context.layers import save_conversation_history
 from colaig.messaging.progress import ProgressReporter, resolve_channel
 from colaig.messaging.retours import GestionnaireRetours, proposer_gestes
@@ -996,6 +997,21 @@ class MessageHandler:
                 response.confidence,
                 response.generation_time_ms,
             )
+            # Le journal du POD meurt au redeploiement — seize se sont succede le
+            # 30/08/2026. Ce qui permet de juger une reponse est donc aussi consigne
+            # SUR LE STOCKAGE, a cote des retours : c'est ce qui rend une observation
+            # sur plusieurs jours possible sans qu'un humain ait a lever le doigt.
+            await consigner_echange(
+                self._storage,
+                context.workspace.storage_path if context.workspace else "",
+                question=message.body,
+                reponse=response.text,
+                sources=list(response.sources or []),
+                confiance=response.confidence,
+                temps_ms=response.generation_time_ms,
+                message_id=message.message_id,
+            )
+
 
             # 6. Sauvegarder l'historique
             await self._save_history(message, response.text, context)
@@ -1197,6 +1213,21 @@ class MessageHandler:
                 response.confidence,
                 response.generation_time_ms,
             )
+            # Le journal du POD meurt au redeploiement — seize se sont succede le
+            # 30/08/2026. Ce qui permet de juger une reponse est donc aussi consigne
+            # SUR LE STOCKAGE, a cote des retours : c'est ce qui rend une observation
+            # sur plusieurs jours possible sans qu'un humain ait a lever le doigt.
+            await consigner_echange(
+                self._storage,
+                context.workspace.storage_path if context.workspace else "",
+                question=message.body,
+                reponse=response.text,
+                sources=list(response.sources or []),
+                confiance=response.confidence,
+                temps_ms=response.generation_time_ms,
+                message_id=message.message_id,
+            )
+
 
             # Mettre à jour et persister la trame vivante (Phase 6)
             if trame and self._trame_manager and context.workspace and context.workspace.storage_path:
