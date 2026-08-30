@@ -186,9 +186,22 @@ def notice_de_soi(mode: ContextMode) -> str:
 
     blocs += [
         "",
-        "Tu poses toi-même quatre réactions sous chacune de tes réponses : "
+        # NE PAS decrire ce geste comme une action du modele.
+        #
+        # La formulation d'origine — « Tu poses toi-même quatre réactions sous chacune
+        # de tes réponses : 👍 (…), 👎 (…) » — etait executee litteralement : le modele
+        # ECRIVAIT les emojis en fin de reponse, en plus des reactions reellement
+        # posees. Deux fois la meme information, dont une inutile, a la fin de chaque
+        # message. Releve sur le fil le 30/08/2026.
+        #
+        # Decrire une capacite sans dire qui l'exerce, c'est la confier au modele. Les
+        # gestes sont poses par `proposer_gestes()`, via l'API de reaction ; le modele
+        # n'a rien a en faire, et il faut le lui dire.
+        "Quatre réactions sont ajoutées automatiquement sous chacune de tes réponses, "
+        "par le système et non par toi : "
         + ", ".join(f"{emoji} ({quoi})" for emoji, quoi in GESTES)
-        + ".",
+        + ". N'écris jamais ces caractères dans ta réponse et n'en parle pas, sauf si "
+          "l'on t'interroge dessus.",
         "",
         "Si l'on t'interroge sur ta configuration ou tes commandes, réponds à partir "
         "de cette liste. N'invente jamais une commande, un outil ou une procédure qui "

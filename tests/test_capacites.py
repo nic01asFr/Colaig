@@ -178,3 +178,43 @@ def test_un_prompt_d_espace_personnalise_n_efface_pas_la_notice():
 
     assert "marchés publics" in prompt, "le prompt de l'espace doit rester en tête"
     assert "!space" in prompt, "la notice est effacée par le prompt de l'espace"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Les gestes sont posés PAR LE SYSTÈME, pas écrits par le modèle
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_la_notice_interdit_de_recopier_les_gestes():
+    """Défaut relevé sur le fil le 30/08/2026, dans une réponse réelle.
+
+    Chaque réponse se terminait par « 👍 👎 🔄 ➕ » — parfois avec la légende
+    complète — **en plus** des réactions réellement posées dessous. Deux fois la même
+    information, dont une inutile, à la fin de chaque message.
+
+    La cause est ma propre notice : « Tu poses toi-même quatre réactions sous chacune
+    de tes réponses : 👍 (la réponse convient), 👎 … ». Le modèle l'exécutait
+    littéralement — on lui décrivait une action en lui donnant les caractères à écrire.
+
+    C'est `proposer_gestes()` qui les pose, par l'API de réaction. Le modèle n'a rien
+    à en faire, et doit l'apprendre explicitement : décrire une capacité sans dire qui
+    l'exerce, c'est la lui confier.
+    """
+    for mode in TOUS_LES_MODES:
+        notice = capacites.notice_de_soi(mode)
+        bas = notice.lower()
+        assert "n'écris" in bas and "jamais" in bas, (
+            f"la notice n'interdit pas explicitement d'écrire les gestes, mode {mode}"
+        )
+        assert "par le système et non par toi" in bas, (
+            f"la notice ne dit pas QUI pose les gestes, mode {mode}"
+        )
+
+
+@pytest.mark.parametrize("mode", TOUS_LES_MODES)
+def test_la_notice_dit_qui_pose_les_gestes(mode):
+    """« Tu poses » invitait à faire ; il faut dire que c'est déjà fait."""
+    notice = capacites.notice_de_soi(mode)
+    assert "tu poses toi-même" not in notice.lower(), (
+        "formulation qui fait écrire les gestes au modèle au lieu de l'informer"
+    )
