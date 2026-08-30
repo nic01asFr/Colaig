@@ -4000,3 +4000,69 @@ cœur RAG, pas l'assistant.
 
 C'est une limite de la porte P2 : elle jugera d'un système dont une moitié n'est pas
 instrumentée. Un jeu doré conversationnel serait un lot en soi.
+
+---
+
+## LE PIPELINE AGENT N'EST PAS DÉPLOYÉ — ET IL NE REFUSE JAMAIS · 30/08/2026
+
+### D'abord une correction : la référence n'était pas aveugle
+
+J'ai écrit que `reference_generation.py` était « structurellement aveugle » au pipeline
+agent, et que la porte P2 jugerait d'un système à moitié instrumenté. **C'est faux dans
+le sens qui compte.**
+
+`COLAIG_AGENTS_ENABLED` **n'est pas posé** sur le déploiement. `agents_enabled` vaut
+donc faux, l'Analyseur, l'Orchestrateur et le Synthétiseur ne sont **pas injectés**, et
+`MessageHandler` exécute la **phase 1** — `generator.py`.
+
+**La référence mesure donc exactement ce qui tourne.** Elle n'a jamais été aveugle : elle
+regarde le bon endroit, et le pipeline agent est du code qui ne s'exécute pas en
+production.
+
+C'est aussi ce qui explique que la notice de capacités ait fonctionné hier soir :
+`generator.py:178` lit `context.system_prompt`, et c'est là que `layers.py` la dépose.
+
+### Ce que le harnais a trouvé, et qui vaut mieux que ce que je cherchais
+
+La mesure du **pipeline complet**, mêmes cas, mêmes passages figés, même notation :
+
+| | cœur RAG (déployé) | **pipeline agent** |
+|---|---|---|
+| citation fantôme | 9/135 | **2/135** |
+| citation hors contexte | 17/135 | **6/135** |
+| montant inventé | 0/135 | 2/135 |
+| article attendu cité | 96/113 | **98/113** |
+| **refus sur cas négatif** | **22/22** | **0/22** |
+
+Le pipeline **cite mieux** — trois fois moins de fantômes, trois fois moins de hors
+contexte. Et il **ne refuse jamais** : sur 22 questions dont la réponse n'est dans aucun
+passage, il répond 22 fois.
+
+### La cause, et ce n'est pas un artefact du harnais
+
+`build_agent_context` construit le prompt système depuis `DEFAULT_PROMPTS[role]`, ou
+depuis un fichier d'espace `.colaig/prompts/{role}.md`. **Il ne lit jamais
+`WorkspaceContext.system_prompt`.**
+
+Vérifié : le seul consommateur de `context.system_prompt` dans tout `colaig/` est
+`generator.py:178`.
+
+**Il y a donc deux mécanismes de configuration qui ne se rencontrent pas :**
+
+| | ce qui configure le comportement |
+|---|---|
+| **phase 1** (déployée) | `config.yaml` → `system_prompt` |
+| **phase 2** (agents) | `.colaig/prompts/synthesiser.md` |
+
+Rien ne le dit, et rien ne relie les deux. Activer les agents aujourd'hui ferait donc
+**silencieusement tomber** le prompt de l'espace — et avec lui le protocole de refus
+(22/22 → 0/22), la personnalisation, et la notice de capacités posée le 29/08.
+
+### Pourquoi cela compte pour la feuille de route
+
+Les phases 4 et 5 portent **entièrement** sur le pipeline agent. Ce harnais mesure
+l'écart avant de l'activer, et le premier chiffre qu'il rend est un défaut bloquant :
+**un assistant juridique qui ne refuse jamais.**
+
+Le pipeline cite mieux ; il ne sait pas se taire. Les deux tiennent au même endroit — le
+prompt système, présent d'un côté, absent de l'autre.
