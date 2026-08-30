@@ -4066,3 +4066,59 @@ l'écart avant de l'activer, et le premier chiffre qu'il rend est un défaut blo
 
 Le pipeline cite mieux ; il ne sait pas se taire. Les deux tiennent au même endroit — le
 prompt système, présent d'un côté, absent de l'autre.
+
+---
+
+## LE CORRECTIF RÉTABLIT LE REFUS, ET DÉGRADE LA CITATION · 30/08/2026
+
+Le prompt de l'espace atteint désormais les trois agents. Mesure refaite, mêmes cas,
+mêmes passages figés, même notation :
+
+| | cœur RAG (déployé) | pipeline **avant** | pipeline **après** |
+|---|---|---|---|
+| citation fantôme | 9/135 | **2/135** | **14/135** |
+| citation hors contexte | 17/135 | **6/135** | **23/135** |
+| montant inventé | 0/135 | 2/135 | 1/135 |
+| article attendu cité | 96/113 | **98/113** | 96/113 |
+| refus **toujours** | **22/22** | **0/22** | 18/22 |
+| refus *parfois* | 0/22 | 0/22 | **4/22** |
+| ne refuse **jamais** | 0/22 | **22/22** | 0/22 |
+
+### Le correctif était nécessaire
+
+Sans lui, **le pipeline ne refusait jamais** : 22 questions sans réponse dans le corpus,
+22 réponses. Inutilisable pour un assistant juridique, et c'est réglé — plus aucun cas
+où il ne refuse jamais.
+
+### Il n'est pas suffisant, et c'est le résultat
+
+**Le refus n'est pas rétabli entièrement** : 18/22 toujours, et **4 cas intermittents**.
+Le rapport le dit lui-même : *« le refus intermittent est presque aussi problématique que
+l'absence de refus : on ne peut pas s'y fier »*.
+
+**Et la citation se dégrade nettement** — fantômes 2 → 14, hors contexte 6 → 23. Le
+pipeline devient **pire que le cœur déployé** sur les deux indicateurs d'invention (14
+contre 9, 23 contre 17), sans gagner sur la couverture (96/113 des deux côtés).
+
+### Ce que cela dit, et ce que cela ne dit pas
+
+Un fait, brut : **dans son meilleur état actuel, le pipeline agent perd contre le cœur
+RAG déployé** sur ce qui compte le plus — inventer moins et savoir se taire.
+
+Une observation qui demande à être creusée : le pipeline **sans** prompt d'espace
+inventait le moins de tout (2 fantômes). Le prompt qui rétablit le refus est aussi celui
+qui fait remonter l'invention. Deux lectures possibles — la longueur du prompt composé,
+ou le protocole de refus qui pousse à citer pour prouver — et **rien ne permet de
+trancher pour l'instant**.
+
+*Réserve : un tirage de chaque. Les écarts de refus et de fantômes sont larges, mais la
+dispersion n'est pas mesurée.*
+
+### La conséquence pour la feuille de route
+
+**Ne pas activer les agents.** Les phases 4 et 5 portent entièrement sur ce pipeline ;
+il n'est pas prêt, et on le sait maintenant par la mesure au lieu de le découvrir en
+production.
+
+Le harnais a fait son travail : il a trouvé un défaut bloquant, permis de le corriger, et
+montré que la correction ne suffit pas. C'est exactement ce qu'on lui demandait.
