@@ -4122,3 +4122,50 @@ production.
 
 Le harnais a fait son travail : il a trouvé un défaut bloquant, permis de le corriger, et
 montré que la correction ne suffit pas. C'est exactement ce qu'on lui demandait.
+
+---
+
+## L'OCR EST CÂBLÉ, ET LES SEPT DOCUMENTS RÉPONDENT · 30/08/2026 · image `tronc-9aceeaf`
+
+Sept documents sur cinquante-neuf étaient **invisibles** — des PDF scannés, sans texte
+natif. `AlbertClient` savait faire l'OCR ; `OpenAIClient`, qui tourne en production, non.
+Et le catalogue de SSPCloud contient `chandra-ocr-2`. La capacité existait des deux
+côtés ; rien ne les reliait.
+
+### Vérifié de bout en bout
+
+    OCR réussi pour /colaig-mesure-sst/6C_pompiers.pdf (6929 caractères)
+    …huit OCR réussis…
+    index sauvegardé sur le storage
+
+**60 documents indexés contre 52.** Et la question posée dans Tchap le prouve :
+
+    question : « que faut-il faire après un événement grave, lors du debriefing ? »
+    sources  : ['AccEvtGrave Support participants septembre 2024.pdf', 'debriefing.pdf']
+
+**`debriefing.pdf` était l'un des sept.** Il est OCRisé, indexé, retrouvé et cité dans
+une réponse réelle.
+
+### Le piège évité, et il valait la peine d'y penser
+
+`supporte(client, "ocr")` teste `callable(getattr(client, "ocr", None))`. Ajouter la
+méthode sans condition aurait annoncé la capacité **même sans modèle configuré** — et
+l'indexeur, qui interroge `supporte()` **avant** d'appeler, aurait cessé de sauter
+proprement le document pour échouer à chaud.
+
+Ç'aurait été la **treizième** « capacité déclarée qui ne fait rien » de ce dépôt, et la
+première introduite en croyant en corriger une. Sans modèle, `self.ocr = None` : la
+capacité est honnêtement absente.
+
+### Deux choix qui se lisent dans le code
+
+**Une requête par page**, comme Albert — un PDF entier en un appel expire, c'est ce
+qu'Albert avait déjà constaté. Le convertisseur PDF→PNG est **réutilisé, pas recopié**.
+
+**Un PDF illisible lève** au lieu de rendre une chaîne vide : un document indexé sans
+contenu occuperait une place et répondrait du vide à une question.
+
+### Reste
+
+Un document résiste encore — le PDF au nom contenant une apostrophe échappée, déjà
+signalé à la copie. À vérifier au prochain cycle.
