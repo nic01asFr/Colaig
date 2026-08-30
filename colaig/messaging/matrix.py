@@ -176,7 +176,31 @@ def _markdown_to_html(text: str) -> str:
             continue
 
         # ── Texte normal ───────────────────────────────────────────────────────
+        #
+        # UN RETOUR A LA LIGNE ECRIT EST UN RETOUR A LA LIGNE VOULU.
+        #
+        # En CommonMark, un simple `\n` est un espace : il faut deux espaces terminaux
+        # ou une ligne vide pour couper. Le convertisseur suivait donc la norme — et
+        # fusionnait toute suite de lignes de texte. Vu dans Tchap le 30/08/2026, sur le
+        # bloc de sources numerotees :
+        #
+        #     ¹ AccEvtGrave Support participants septembre 2024.pdf ² Fiche metier...
+        #
+        # sur une seule ligne. Les titres et les listes s'en tiraient — ils produisent
+        # leurs propres balises — ce qui explique que le defaut ait survecu : le modele
+        # redige surtout en listes.
+        #
+        # Colaig ecrit dans une MESSAGERIE, pas dans un document. Element, dont Tchap
+        # derive, rend les retours a la ligne tels quels, parce qu'un utilisateur qui
+        # appuie sur Entree attend une nouvelle ligne. On aligne le rendu sur l'attente
+        # du lecteur, pas sur la norme du document.
+        #
+        # La condition porte sur la ligne PRECEDENTE : on ne coupe qu'entre deux lignes
+        # de texte. Une balise fermante (`</ul>`, `</h2>`, `</pre>`) ou une ligne vide
+        # separent deja, et y ajouter un saut creerait un blanc de trop.
         _close_lists()
+        if result and result[-1] and not result[-1].endswith(">"):
+            result[-1] += "<br />"
         result.append(_inline_markdown(line))
 
     _close_lists()
