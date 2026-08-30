@@ -3616,3 +3616,80 @@ l'indexeur n'emprunte que le premier.
 `!idtsoJgSJshkYoXSJt` créé pour l'occasion, non lié — donc en mode CHATBOT, où
 `colaig lier <identifiant>` est réellement intercepté. Lier ce salon à
 `colaig-mesure-sst` est le prochain geste, et c'est lui-même un test du lot L3.7.
+
+---
+
+## PREMIÈRE QUESTION À UN VRAI CORPUS · 30/08/2026 · commits `682322c` → `a6b0e28`
+
+Le salon **Colaig - Mesure SST** est **lié** à l'espace `colaig-mesure-sst` (51 documents).
+Quatre défauts ont dû être corrigés pour y arriver, chacun découvert par l'étape que le
+précédent débloquait. **Aucun n'était visible autrement qu'en usage réel.**
+
+### 1. Un salon nommé était pris pour une conversation directe
+
+`_resolve_conversation_type` décidait sur un décompte : `len(members) == 2 → DM`. Or
+**tout salon d'équipe commence à deux** — l'assistant et la première personne. La règle
+déclarait donc privés tous les salons neufs, au moment précis où l'on essaie de les
+configurer.
+
+Conséquences observées : `colaig lier` jamais intercepté (la commande est sous
+`mode == CHATBOT`), un espace personnel parasite créé, et `rag_enabled=False` mettant le
+corpus hors d'atteinte.
+
+Le discriminant juste est le **nom** : une conversation directe n'en a pas, un salon
+nommé l'a reçu de quelqu'un. Un acte, pas un décompte.
+
+### 2. Une commande explicite n'était pas une interpellation
+
+Salon reconnu, `colaig lier` **reçu et ignoré** : en salon, `m.mentions` fait foi, et
+les clients récents le posent toujours — vide, il oppose un refus définitif. Les cinq
+commandes de L3.7 subissaient le même sort.
+
+`!aide` en tête, ou `colaig lier <id>`, ne sont pas des façons de *parler de*
+l'assistant : ce sont des impératifs qui lui sont adressés. La règle reste **étroite** —
+la commande doit être en tête.
+
+### 3. Un reranker absent effaçait toute la recherche — LE PLUS GRAVE
+
+    FAISS top scores avant rerank: [0.7188, 0.7188, 0.7188]
+    reranker Albert scores: []
+    échange … sources=[] confiance=0.00
+
+Le `except` attrapait les erreurs, mais **une liste vide n'est pas une erreur**. Le
+contrat était pourtant écrit dans `integrations/CLAUDE.md` : *« retourne [] si le
+provider ne supporte pas → l'appelant peut utiliser MMR comme fallback »*. L'appelant
+ne retombait pas.
+
+`OpenAIClient` — donc **SSPCloud, la cible de production** — n'a pas d'endpoint de
+reranking. Sur cette pile, **toute recherche documentaire rendait zéro résultat**, sans
+erreur ni avertissement. Colaig répondait de mémoire *en paraissant fonctionner*.
+
+Aucun test ne pouvait l'attraper : ils simulent tous un reranker qui répond.
+
+### 4. Les jetons de raisonnement mangeaient la réponse
+
+    réponse vide, budget de tokens épuisé (max_tokens=2048)
+
+Cinq passages de contexte suffisaient à épuiser le budget de `qwen3-6-35b-moe`.
+
+**Et le dépôt le savait déjà — seulement dans son harnais de mesure.** Tous les scripts
+de `_chantier/scripts/` passent `enable_thinking: false`, l'un avec le commentaire
+« SANS CECI, LA MESURE EST VIDE ». Le paramètre n'apparaissait **nulle part** dans
+`colaig/`. **Les mesures portaient donc sur une configuration que le produit n'avait
+pas.** C'est l'écart qui rend une référence silencieusement fausse.
+
+### Ce que la campagne a aussi confirmé
+
+La **notice de capacités** posée la veille tient sur le fil : Colaig ne nomme que ses
+vraies commandes, n'invente ni Notion ni Confluence, et pose bien 🔄 — le bon emoji. Sa
+réponse était *honnête pour le mode dans lequel il se croyait* ; c'est le mode qui était
+faux.
+
+Un espace posé à la main a `owners: []` et n'est **rattachable par personne** — le refus
+par défaut de l'ACL est correct, mais rien n'indique à celui qui dépose un dossier qu'il
+doit se déclarer dans `.colaig/config.yaml`.
+
+### Reste à éprouver
+
+La réponse sourcée elle-même — la session Tchap s'est interrompue avant. Puis le fil
+(L3.2), la continuité (D56), les gestes 🔄 et ➕, et la pièce jointe (L3.7).
