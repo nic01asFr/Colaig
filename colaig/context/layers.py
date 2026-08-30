@@ -267,27 +267,73 @@ async def load_relevant_conversation_history(
     return await load_conversation_history(storage, workspace_path, conversation_id, max_messages)
 
 
+# Borne de la TRACE sur le disque — a ne pas confondre avec `DEFAULT_HISTORY_LENGTH`,
+# qui borne la FENETRE donnee au modele. Le rapport de dix entre les deux est ce qui
+# fait la difference entre une memoire et un tampon.
+#
+# Miroir de `ColaigConfig.conversation_memory_max_stored`. Un appelant qui dispose de
+# la configuration passe sa valeur ; les autres heritent de celle-ci.
+MAX_MESSAGES_CONSERVES = 100
+
+
+def _fusionner(stocke: list[dict], apportes: list[dict]) -> list[dict]:
+    """Recolle une fenetre de conversation a la trace deja ecrite.
+
+    L'appelant passe soit l'historique complet, soit — c'etait le defaut — une FENETRE
+    de fin suivie des messages du tour. Dans les deux cas, le debut de `apportes`
+    recouvre la fin de `stocke`. On cherche le plus grand recouvrement et on n'ajoute
+    que ce qui depasse.
+
+    Sans cela, ecraser avec une fenetre de dix messages rabotait la conversation a
+    chaque tour : la sauvegarde detruisait ce qu'elle croyait conserver.
+    """
+    if not stocke:
+        return list(apportes)
+    for k in range(min(len(stocke), len(apportes)), -1, -1):
+        if stocke[len(stocke) - k:] == apportes[:k]:
+            return stocke + apportes[k:]
+    return stocke + list(apportes)
+
+
 async def save_conversation_history(
     storage, workspace_path: str, conversation_id: str, messages: list[dict],
+    max_stored: int | None = None,
 ) -> None:
-    """Sauvegarde l'historique de conversation sur le storage.
+    """Ajoute ces messages a l'historique de la conversation, sans le raboter.
+
+    RELEVE LE 30/08/2026. Cette fonction ECRASAIT le fichier avec ce qu'on lui donnait,
+    et l'appelant lui donnait `context.conversation_history` — que `build_context` avait
+    deja tronque a dix messages. Le fichier ne depassait donc jamais une douzaine de
+    messages, et `COLAIG_CONVERSATION_MEMORY_MAX_STORED`, qui vaut 100, n'avait aucun
+    effet sur ce chemin.
+
+    Les trois pieces etaient correctes isolement ; c'est leur enchainement qui detruisait
+    la memoire. Le defaut s'est vu en verifiant un DENOMINATEUR : le releve des retours
+    calculait un taux sur 6 reponses pour un salon qui en comptait bien plus.
 
     Args:
-        storage: Backend de stockage (StorageProtocol).
-        workspace_path: Chemin du workspace.
-        conversation_id: Identifiant de la conversation.
-        messages: Liste de messages à sauvegarder.
+        messages: l'historique a conserver, complet ou en fenetre de fin. Le
+            recouvrement avec ce qui est deja ecrit est detecte, pas suppose.
+        max_stored: borne de la trace. `MAX_MESSAGES_CONSERVES` par defaut.
     """
     if not workspace_path:
         return
 
     safe_id = _sanitize_id(conversation_id)
-    conv_dir = paths.conversations_dir(workspace_path)
-    history_path = f"{conv_dir}{safe_id}.json"
+    history_path = paths.conversation_file(workspace_path, safe_id)
+    borne = max_stored or MAX_MESSAGES_CONSERVES
 
     try:
-        await storage.mkdir(conv_dir)
-        content = json.dumps(messages, ensure_ascii=False, indent=2).encode("utf-8")
+        stocke = await load_conversation_history(
+            storage, workspace_path, conversation_id, max_messages=borne)
+    except Exception:
+        stocke = []
+
+    complet = _fusionner(stocke, list(messages or []))[-borne:]
+
+    try:
+        await storage.mkdir(paths.conversations_dir(workspace_path))
+        content = json.dumps(complet, ensure_ascii=False, indent=2).encode("utf-8")
         await storage.upload(history_path, content)
     except Exception:
         logger.exception("impossible de sauvegarder l'historique: %s", history_path)

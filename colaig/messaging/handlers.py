@@ -660,7 +660,7 @@ class MessageHandler:
     # ── Retours par réaction (L3.3) ──────────────────────────────────
 
     async def _proposer_retour(self, message: IncomingMessage, context,
-                               reponse: str) -> None:
+                               reponse: str, response=None) -> None:
         """Pose les gestes sous la réponse et retient de quoi agir dessus.
 
         NE LÈVE JAMAIS. La réponse est le produit ; les gestes sont un confort. Un
@@ -682,6 +682,12 @@ class MessageHandler:
                 espace=espace,
                 question=message.body,
                 reponse=reponse,
+                # Ce qui permet de JUGER le geste a froid, sans revenir dans un
+                # salon chiffre. Sans ces deux champs, un 👎 enregistre ne dit
+                # rien d'actionnable — releve le 30/08/2026 sur le seul retour
+                # existant de l'instance.
+                sources=list(getattr(response, "sources", ()) or ()),
+                confiance=getattr(response, "confidence", None),
             )
             await proposer_gestes(self._messaging, message.conversation_id)
         except Exception:
@@ -961,7 +967,7 @@ class MessageHandler:
             await self._messaging.send(message.conversation_id, texte_envoye)
 
             # Proposer les gestes de retour SOUS la réponse (L3.3)
-            await self._proposer_retour(message, context, response.text)
+            await self._proposer_retour(message, context, response.text, response)
 
             # Log échange complet pour suivi et amélioration de la pertinence
             logger.info(
@@ -1188,7 +1194,7 @@ class MessageHandler:
                     logger.warning("trame non sauvegardée conv=%s", message.conversation_id)
 
             # Proposer les gestes de retour SOUS la réponse (L3.3)
-            await self._proposer_retour(message, context, response.text)
+            await self._proposer_retour(message, context, response.text, response)
 
             # Sauvegarder l'historique (via ConversationMemory si disponible)
             if self._conversation_memory and context.workspace and context.workspace.storage_path:

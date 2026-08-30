@@ -96,10 +96,18 @@ _MAX_GESTES_RETENUS = 2048
 
 @dataclass
 class Tour:
-    """Ce qu'il faut savoir d'une réponse pour agir sur un geste qui la vise."""
+    """Ce qu'il faut savoir d'une réponse pour agir sur un geste qui la vise.
+
+    `sources` et `confiance` ne servent pas a rejouer le tour : ils servent a le
+    JUGER. Sans eux, un 👎 enregistre dit qu'une question a ete mal traitee sans
+    dire ce que Colaig avait repondu — et le salon d'origine est chiffre, donc
+    irrelisible autrement. Releve le 30/08/2026 sur le seul retour existant.
+    """
     espace: str
     question: str
     reponse: str
+    sources: tuple[str, ...] = ()
+    confiance: float | None = None
 
 
 async def proposer_gestes(messaging: Any, conversation_id: str) -> None:
@@ -146,13 +154,17 @@ class GestionnaireRetours:
         espace: str = "",
         question: str = "",
         reponse: str = "",
+        sources: list[str] | tuple[str, ...] = (),
+        confiance: float | None = None,
     ) -> None:
-        """Retient de quoi agir sur un geste visant cette réponse."""
+        """Retient de quoi agir sur un geste visant cette réponse — et de quoi le juger."""
         if not message_id:
             return
         self._messages.pop(message_id, None)          # remettre en tête
         self._messages[message_id] = Tour(espace=espace, question=question,
-                                          reponse=reponse)
+                                          reponse=reponse,
+                                          sources=tuple(sources or ()),
+                                          confiance=confiance)
         while len(self._messages) > _MAX_MESSAGES_RETENUS:
             self._messages.pop(next(iter(self._messages)))
 
@@ -232,7 +244,19 @@ class GestionnaireRetours:
             "user_id": reaction.user_id,
             "reaction_id": reaction.reaction_id,
             "horodatage": reaction.horodatage,
+            # CE QUI PERMET DE JUGER LE GESTE A FROID.
+            #
+            # Sans la reponse, un 👎 dit qu'une question a ete mal traitee et rien
+            # de plus : le salon est chiffre, on ne peut pas y retourner voir. La
+            # donnee etait pourtant la — `_garder` s'en servait deja pour verser
+            # la note. Un tour OUBLIE (purge du cache, redemarrage) rend des
+            # champs vides et une confiance `None` : mieux vaut un retour
+            # incomplet, marque comme tel, que des absences qui ressembleraient a
+            # des valeurs mesurees.
             "question": tour.question if tour else "",
+            "reponse": tour.reponse if tour else "",
+            "sources": list(tour.sources) if tour else [],
+            "confiance": tour.confiance if tour else None,
         }
         chemin = paths.feedback_file(espace, _empreinte(reaction.reaction_id))
         await self._storage.upload(
