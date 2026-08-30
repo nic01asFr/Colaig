@@ -117,3 +117,48 @@ def numeroter_les_sources(texte: str, sources: list[str]) -> str:
 
     notes = "\n".join(f"{_exposant(numeros[s])} {s.rsplit('/', 1)[-1]}" for s in ordre)
     return f"{corps.rstrip()}\n\n{notes}"
+
+
+# Une citation, avec l'espace qui la precede : « organise [X]. » doit rendre
+# « organise. », pas « organise . ».
+_CITATION_A_RETIRER = re.compile(r"[ \t]?\[([^\]\n]{2,120})\]")
+
+
+def retirer_les_citations(texte: str) -> str:
+    """Retire les citations d'un texte que l'on va REDONNER au modele.
+
+    MESURE DU 30/08/2026. Le verificateur signalait deux citations sans source :
+
+        ['fiche_reflexe_accident___annexe_1.pdf', 'fiche_reflexe_accident___annexe_4.pdf']
+
+    Ces documents n'etaient pas dans les passages recuperes. Ils etaient dans
+    l'historique de la conversation — huit noms y sont visibles, comptes dans le
+    fichier de l'espace, et ces deux-la en font partie.
+
+    LE MODELE N'HALLUCINE PAS : IL IMITE. `generator.py` reinjecte les tours passes
+    verbatim, citations comprises. Le modele voit donc dans son propre contexte huit
+    noms presentes exactement dans la forme `[nom.pdf]` qu'on lui demande d'employer
+    pour citer. Rien ne les distingue d'une liste de sources disponibles.
+
+    C'est la TROISIEME occurrence du meme motif dans la journee — apres les emojis de
+    gestes recopies depuis ses reponses, et les crochets de ses consignes relus comme
+    des citations. A chaque fois la cause est la meme : on rend au modele une sortie
+    que le systeme avait fabriquee, et il la traite comme une entree legitime.
+
+    POURQUOI RETIRER, ET NON REMPLACER PAR UN MARQUEUR. Mettre `[source]` a la place
+    garderait la trace qu'une affirmation etait sourcee — mais le modele imiterait
+    `[source]`, que le verificateur compterait a son tour comme une citation sans
+    source. On echangerait un fantome contre un autre.
+
+    Ce qui n'est PAS retire : un espace reserve comme `[nom de l'espace]`, qui n'est
+    pas une reference — meme critere que `citation_checker._looks_like_ref`, pour la
+    meme raison. Et rien des tours de l'UTILISATEUR : ce qu'il ecrit n'est pas
+    fabrique par Colaig.
+    """
+    if not texte:
+        return texte
+
+    def _remplacer(m: re.Match) -> str:
+        return "" if _REF_RE.search(m.group(1).strip()) else m.group(0)
+
+    return _CITATION_A_RETIRER.sub(_remplacer, texte)

@@ -311,7 +311,15 @@ class Analyser:
         messages = [{"role": "system", "content": systeme}]
         for hist_msg in context.conversation_history[-8:]:
             if hist_msg.get("role") in ("user", "assistant") and hist_msg.get("content"):
-                messages.append({"role": hist_msg["role"], "content": hist_msg["content"]})
+                # Ses propres reponses ne sont pas un catalogue de sources : les
+                # noms de documents qu'elles portent sont reinjectes sous la forme
+                # meme qu'on demande pour citer, et le modele les imite. Voir
+                # `retirer_les_citations` — mesure du 30/08/2026.
+                from colaig.messaging.sources_numerotees import retirer_les_citations
+                _contenu = hist_msg["content"]
+                if hist_msg["role"] == "assistant":
+                    _contenu = retirer_les_citations(_contenu)
+                messages.append({"role": hist_msg["role"], "content": _contenu})
         messages.append({"role": "user", "content": prompt})
 
         # Appliquer les overrides behavior (temperature, max_tokens) si présents
@@ -376,7 +384,15 @@ class Analyser:
         messages = [{"role": "system", "content": systeme}]
         for hist_msg in context.conversation_history[-8:]:
             if hist_msg.get("role") in ("user", "assistant") and hist_msg.get("content"):
-                messages.append({"role": hist_msg["role"], "content": hist_msg["content"]})
+                # Ses propres reponses ne sont pas un catalogue de sources : les
+                # noms de documents qu'elles portent sont reinjectes sous la forme
+                # meme qu'on demande pour citer, et le modele les imite. Voir
+                # `retirer_les_citations` — mesure du 30/08/2026.
+                from colaig.messaging.sources_numerotees import retirer_les_citations
+                _contenu = hist_msg["content"]
+                if hist_msg["role"] == "assistant":
+                    _contenu = retirer_les_citations(_contenu)
+                messages.append({"role": hist_msg["role"], "content": _contenu})
         messages.append({"role": "user", "content": user_content})
 
         temperature = self._temperature

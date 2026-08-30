@@ -214,10 +214,30 @@ class Generator:
         messages.append({"role": "system", "content": system_prompt})
 
         # 2. Historique de conversation
+        #
+        # SES PROPRES REPONSES NE SONT PAS UN CATALOGUE DE SOURCES.
+        #
+        # Les tours passes etaient reinjectes verbatim, citations comprises. Le
+        # modele voyait donc dans son contexte des noms de documents presentes
+        # exactement dans la forme `[nom.pdf]` qu'on lui demande d'employer pour
+        # citer — rien ne les distinguait de sources disponibles. Mesure du
+        # 30/08/2026 : huit noms visibles dans l'historique de l'espace, et les
+        # deux citations signalees sans source en faisaient partie.
+        #
+        # Le modele n'hallucinait pas : il imitait. Troisieme occurrence du motif
+        # dans la journee, apres les emojis de gestes et les crochets des consignes.
+        #
+        # Seuls les tours de l'ASSISTANT sont nettoyes : ce que l'utilisateur ecrit
+        # n'est pas fabrique par Colaig, et peut nommer un document a bon droit.
+        from colaig.messaging.sources_numerotees import retirer_les_citations
+
         history = conversation_history if conversation_history is not None else context.conversation_history
         for msg in history:
             if "role" in msg and "content" in msg and msg["content"]:
-                messages.append({"role": msg["role"], "content": msg["content"]})
+                contenu = msg["content"]
+                if msg["role"] == "assistant":
+                    contenu = retirer_les_citations(contenu)
+                messages.append({"role": msg["role"], "content": contenu})
 
         # 3. Message utilisateur
         messages.append({"role": "user", "content": query})

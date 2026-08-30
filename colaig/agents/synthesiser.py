@@ -346,7 +346,13 @@ class Synthesiser:
         ref_ts_for_history = message.timestamp if message else datetime.utcnow()
         for msg in history:
             if "role" in msg and "content" in msg and msg["content"]:
-                content = msg["content"]
+                from colaig.messaging.sources_numerotees import retirer_les_citations
+                # Ses propres reponses ne sont pas un catalogue de sources : les
+                # noms de documents qu'elles portent sont reinjectes sous la forme
+                # meme qu'on demande pour citer, et le modele les imite. Voir
+                # `retirer_les_citations` — mesure du 30/08/2026.
+                content = (retirer_les_citations(msg["content"])
+                           if msg["role"] == "assistant" else msg["content"])
                 ts_str = msg.get("ts")
                 if ts_str:
                     try:
