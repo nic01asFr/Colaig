@@ -285,7 +285,9 @@ class Analyser:
 
         # Construire le contexte agent
         agent_ctx = await build_agent_context(
-            self._storage, context.workspace, "analyser"
+            self._storage, context.workspace, "analyser",
+            # Le prompt de l espace accompagne celui du role (30/08/2026).
+            prompt_espace=context.system_prompt,
         )
 
         workspace_info = self._build_workspace_info(context, pre_exec)
@@ -348,7 +350,9 @@ class Analyser:
         start = time.monotonic()
 
         agent_ctx = await build_agent_context(
-            self._storage, context.workspace, "analyser"
+            self._storage, context.workspace, "analyser",
+            # Le prompt de l espace accompagne celui du role (30/08/2026).
+            prompt_espace=context.system_prompt,
         )
 
         workspace_info = self._build_workspace_info(context, pre_exec)

@@ -197,6 +197,9 @@ class Orchestrator:
             self._storage,
             context.workspace,
             "orchestrator",
+            # Le prompt de l espace accompagne celui du role : ses regles — dont
+            # le protocole de refus — vivent la, et se perdaient (30/08/2026).
+            prompt_espace=context.system_prompt,
             directives=intent.orchestrator_directives,
             selected_skills=pre_exec.selected_skills if pre_exec else None,
         )
@@ -850,6 +853,9 @@ class Orchestrator:
             self._storage,
             context.workspace,
             "orchestrator",
+            # Le prompt de l espace accompagne celui du role : ses regles — dont
+            # le protocole de refus — vivent la, et se perdaient (30/08/2026).
+            prompt_espace=context.system_prompt,
             directives=intent.orchestrator_directives,
         )
 

@@ -105,6 +105,9 @@ class Synthesiser:
             self._storage,
             context.workspace,
             "synthesiser",
+            # Le prompt de l espace accompagne celui du role : ses regles — dont
+            # le protocole de refus — vivent la, et se perdaient (30/08/2026).
+            prompt_espace=context.system_prompt,
             directives=plan.intent.synthesiser_directives,
             selected_skills=pre_exec.selected_skills if pre_exec else None,
         )
@@ -441,6 +444,9 @@ class Synthesiser:
                 self._storage,
                 context.workspace,
                 "synthesiser",
+                # Le prompt de l espace accompagne celui du role : ses regles — dont
+                # le protocole de refus — vivent la, et se perdaient (30/08/2026).
+                prompt_espace=context.system_prompt,
                 directives=plan.intent.synthesiser_directives,
             )
             messages = self._build_messages(plan, context, agent_ctx, conversation_history)

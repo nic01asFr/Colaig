@@ -120,6 +120,7 @@ async def build_agent_context(
     agent_role: str,
     directives: AgentDirectives | None = None,
     selected_skills: list | None = None,
+    prompt_espace: str = "",
 ) -> AgentContext:
     """Construit le contexte spécifique à un agent.
 
@@ -151,6 +152,26 @@ async def build_agent_context(
         )
 
     system_prompt = override_prompt if override_prompt else default_prompt
+
+    # LE PROMPT DE L ESPACE, COMPOSE AVEC CELUI DU ROLE.
+    #
+    # Il n arrivait pas jusqu ici : le seul consommateur de
+    # `WorkspaceContext.system_prompt` dans tout `colaig/` etait `generator.py`,
+    # c est-a-dire la PHASE 1. Deux mecanismes de configuration coexistaient sans se
+    # rencontrer — `config.yaml: system_prompt` d un cote, `.colaig/prompts/{role}.md`
+    # de l autre — et rien ne le disait.
+    #
+    # Mesure du 30/08/2026 : le pipeline agent citait TROIS FOIS MIEUX que le coeur
+    # RAG et ne refusait JAMAIS — 0/22 contre 22/22 sur les cas dont la reponse n est
+    # dans aucun passage. Le protocole de refus vit dans le prompt de l espace, et ce
+    # prompt n arrivait pas.
+    #
+    # ON COMPOSE, ON NE SUBSTITUE PAS : le prompt de role dit COMMENT repondre, celui
+    # de l espace dit CE QU EST cet espace et quelles sont ses regles. L espace vient
+    # en dernier — ses regles doivent l emporter sur la description generique du
+    # metier d agent.
+    if prompt_espace and prompt_espace.strip():
+        system_prompt = f"{system_prompt}\n\n{prompt_espace.strip()}"
 
     # 3. Skills (pour orchestrateur et synthétiseur)
     # Priorité : selected_skills (top-k sémantique, Phase 6) > chargement en bloc (Phase 5)
