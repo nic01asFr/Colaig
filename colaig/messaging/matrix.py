@@ -169,10 +169,22 @@ def _markdown_to_html(text: str) -> str:
             result.append(f"<li>{_inline_markdown(ol.group(1))}</li>")
             continue
 
-        # ── Ligne vide → séparateur ────────────────────────────────────────────
+        # ── Ligne vide → séparateur de paragraphes ─────────────────────────────
+        #
+        # Elle n'ajoutait qu'une entree vide, que le HTML repliait comme le reste.
+        # Vu dans Tchap le 30/08/2026 sur la reponse de `!index` : les deux
+        # paragraphes arrivaient colles, « …1272 passages. 18 documents sont des
+        # copies… ». Le correctif precedent ne traitait que deux lignes de texte
+        # CONSECUTIVES ; celle-ci est l'autre moitie du meme defaut.
+        #
+        # Un saut est pose ICI, le second viendra de la ligne de texte suivante :
+        # deux ensemble font un blanc de paragraphe. La condition sur `endswith(">")`
+        # evite d'en ajouter apres une balise fermante — `</ul>`, `</h2>` separent
+        # deja, et un saut de plus y creerait un trou.
         if not line.strip():
             _close_lists()
-            result.append("")
+            if result and result[-1] and not result[-1].endswith(">"):
+                result.append("<br /><br />")
             continue
 
         # ── Texte normal ───────────────────────────────────────────────────────

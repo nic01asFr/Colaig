@@ -91,9 +91,37 @@ def test_un_bloc_de_code_garde_ses_retours():
     assert "<br" not in html, f"<br> injecte dans du code : {html!r}"
 
 
-def test_une_ligne_vide_reste_un_separateur():
-    """Deux blocs separes par une ligne vide ne doivent pas gagner un <br> en plus."""
+def test_une_ligne_vide_separe_deux_paragraphes():
+    """Vu dans Tchap le 30/08/2026, sur la reponse de `!index` :
+
+        J'ai lu 60 documents, decoupes en 1272 passages. 18 documents sont des
+        copies exactes de 12 autres — je ne les cite qu'une fois :
+
+    Les deux paragraphes, separes par une ligne vide dans le texte source, arrivaient
+    colles. Le correctif precedent ne traitait que deux lignes de texte CONSECUTIVES ;
+    la ligne vide, elle, produisait une entree vide que le HTML repliait aussi.
+
+    Ce test acceptait la fusion — il exigeait `count("<br") <= 1`. Il figeait donc la
+    moitie du defaut qu'il etait cense corriger.
+    """
     html = _markdown_to_html("Premier bloc.\n\nSecond bloc.")
 
     assert "Premier bloc." in html and "Second bloc." in html
-    assert html.count("<br") <= 1, f"sauts de ligne surnumeraires : {html!r}"
+    assert html.count("<br") >= 2, (
+        f"la ligne vide ne separe pas les deux paragraphes : {html!r}")
+
+
+def test_une_ligne_vide_en_tete_ne_pousse_rien():
+    """LA borne : pas de blanc avant le premier mot."""
+    html = _markdown_to_html("\n\nPremier mot.")
+
+    assert not html.lstrip().startswith("<br"), f"blanc en tete : {html!r}"
+
+
+def test_une_ligne_vide_apres_une_liste_ne_double_pas_le_blanc():
+    """`</ul>` separe deja ; y ajouter des sauts creerait un trou."""
+    html = _markdown_to_html("- un\n- deux\n\nUn paragraphe.")
+
+    assert "</ul>" in html
+    assert "<br /><br />" not in html.split("</ul>")[1], (
+        f"blanc surnumeraire apres la liste : {html!r}")
