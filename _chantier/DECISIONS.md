@@ -4104,3 +4104,62 @@ tout sur celui où il tourne.
 Le pont existe donc, mais il n'est pas également praticable des deux rives. **C'est le
 fournisseur de stockage qui décide si la direction dossier → salon est possible**, et
 c'est un critère de choix de fournisseur, pas un détail d'implémentation.
+
+---
+
+## D65 — La recherche hybride casse la confiance · 30/08/2026 · **arbitrage demandé**
+
+Constat de la campagne du 30/08, en trois temps.
+
+**1. Le rappel vectoriel seul ne suffit pas.** Un document déposé dans le salon —
+748 octets, un seul chunk — est correctement stocké et indexé (52 documents, 1056
+vecteurs, chunk n° 1055), et **ne remonte jamais**, même à une question qui le nomme.
+Recherche directe dans FAISS : il n'entre pas dans les dix premiers. Sur SSPCloud, où
+le **reranker est indisponible**, le rappel repose entièrement sur FAISS + MMR.
+
+**2. Activer BM25 n'avait aucun effet.** `bm25.pkl` n'existait pas — le corpus avait été
+indexé avant le drapeau — et les etags n'ayant pas changé, rien ne l'aurait jamais
+reconstruit. **Corrigé** (commit `cdf55ce`) : BM25 se reconstruit depuis
+`metadata.pkl`, sans appel réseau ni ré-embedding.
+
+**3. Et alors la confiance s'effondre.** BM25 actif, les scores deviennent des scores
+**RRF** — `[0.0164, 0.0164, 0.0161]` au lieu de `[0.5584, …]` — et la confiance
+rapportée tombe à **0,02**.
+
+### Pourquoi
+
+`synthesiser.py` dérive la confiance de la moyenne des scores, avec une seule
+normalisation prévue :
+
+    if max(scores) < 0.01:   # scores du reranker
+        confidence = raw / 0.01
+
+Un score RRF vaut ~`1/(k+rang)` avec k=60, soit **0,0164** — juste **au-dessus** du
+seuil. Il échappe donc à la normalisation et produit une confiance dénuée de sens.
+
+### Ce que cela coûte, et ce que cela ne coûte pas
+
+Aucune décision ne s'appuie aujourd'hui sur la confiance : elle est journalisée et
+affichée dans la ContextCard, elle ne supprime aucune réponse. **Mais tout ce chantier
+repose sur des mesures**, et une grandeur rapportée fausse est exactement ce qui rend
+une référence silencieusement inutilisable.
+
+C'est le **troisième défaut de la même famille en une journée** — après le reranker qui
+effaçait la recherche et BM25 qui ne se reconstruisait pas : *un composant dont l'échelle
+de sortie change sans que son consommateur le sache*.
+
+### Ce qu'il faut arbitrer
+
+**Que signifie une confiance sous RRF ?** Un score RRF n'est pas une similarité : c'est
+un accord de rangs entre deux listes. Son maximum théorique est `2/(k+1)` = 0,0328 pour
+un document premier des deux. Normaliser par cette borne donnerait un 0–1 exploitable,
+mais mesurerait **l'accord entre les deux moteurs**, pas la proximité au corpus. Ce
+n'est pas la même chose, et le choix ne se devine pas.
+
+**Le drapeau est remis à l'état mesuré (éteint)**, conformément au principe 6 : le gain
+de rappel n'a pas été démontré — les sources retenues étaient identiques — et le coût
+sur la confiance l'est.
+
+Un lot propre serait : mesurer le rappel avec et sans BM25 sur des questions dont on
+connaît le document attendu, puis, si le gain existe, décider de la sémantique de la
+confiance avant d'activer.
