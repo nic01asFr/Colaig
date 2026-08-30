@@ -82,8 +82,10 @@ class OpenAIClient:
         bg_chat_max_concurrent: int = 3,
         usage_tracker=None,   # UsageTracker | None — quota et comptage par tenant (L2.6)
         client_id: str = "",  # tenant, pour le quota
+        enable_thinking: bool = False,  # jetons de raisonnement — voir _kwargs_modele
     ) -> None:
         self._api_key = api_key
+        self._enable_thinking = enable_thinking
         self._base_url = base_url.rstrip("/")
         self._model_chat = model_chat
         self._model_embed = model_embed
@@ -200,6 +202,32 @@ class OpenAIClient:
 
         raise LLMUnavailableError(f"{self._backend} indisponible après {self._max_retries} retries: {last_error}")
 
+    def _kwargs_modele(self) -> dict:
+        """Le paramètre qui décide si le modèle réfléchit à voix haute.
+
+        UN MODELE A RAISONNEMENT PEUT CONSOMMER TOUT LE BUDGET AVANT DE REPONDRE. Le
+        serveur rend alors `content` vide, et l'appel echoue :
+
+            réponse vide, budget de tokens épuisé (max_tokens=2048)
+
+        Releve le 30/08/2026, a la premiere question posee a un vrai corpus : cinq
+        passages de contexte ont suffi a epuiser le budget de `qwen3-6-35b-moe`.
+
+        LE DEPOT CONNAISSAIT DEJA CE PIEGE — mais seulement dans son harnais de mesure.
+        Tous les scripts de `_chantier/scripts/` passent ce parametre, l'un d'eux avec
+        ce commentaire : « SANS CECI, LA MESURE EST VIDE ». Il n'apparaissait nulle part
+        dans `colaig/` : les mesures portaient donc sur une configuration que le produit
+        n'avait pas.
+
+        Le defaut est DESACTIVE : un modele qui reflechit mieux mais ne repond pas vaut
+        moins qu'un modele qui repond. `COLAIG_LLM_THINKING=true` rouvre le reglage pour
+        une instance dont le budget le permet — et l'on n'envoie alors RIEN, laissant le
+        defaut du fournisseur decider.
+        """
+        if self._enable_thinking:
+            return {}
+        return {"chat_template_kwargs": {"enable_thinking": False}}
+
     # ── Chat ──────────────────────────────────────────────────────────
 
     async def chat(
@@ -221,6 +249,7 @@ class OpenAIClient:
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
+            **self._kwargs_modele(),
         }
         async with sem:
             response = await self._request_with_retry(url, payload, self._chat_timeout)
@@ -248,6 +277,7 @@ class OpenAIClient:
             "temperature": temperature,
             "max_tokens": max_tokens,
             "stream": True,
+            **self._kwargs_modele(),
         }
         client = await self._get_client()
         async with sem:
@@ -294,6 +324,7 @@ class OpenAIClient:
             "tool_choice": tool_choice,
             "temperature": temperature,
             "max_tokens": max_tokens,
+            **self._kwargs_modele(),
         }
         async with sem:
             response = await self._request_with_retry(url, payload, self._chat_timeout)

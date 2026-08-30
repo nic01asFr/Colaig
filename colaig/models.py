@@ -1422,6 +1422,10 @@ class ColaigConfig:
     # codee en dur a 1024 dans main.py, et tout modele d'une autre taille faisait
     # echouer l'indexation sur une AssertionError NUE, levee par FAISS.
     embedding_dimension: int = 1024
+    # Jetons de raisonnement. DESACTIVES par defaut : un modele qui reflechit mieux
+    # mais ne repond pas vaut moins qu'un modele qui repond (releve le 30/08/2026,
+    # « reponse vide, budget de tokens epuise »).
+    llm_enable_thinking: bool = False
     auto_specialize_enabled: bool = False    # Dériver persona/vocabulaire depuis le corpus (opt-in)
     auto_specialize_apply: bool = False      # Écrire la config dérivée (sinon dry-run = knowledge.json seul)
     daily_request_limit: int = 0             # Quota journalier requêtes LLM par tenant (0 = illimité)
