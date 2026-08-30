@@ -3939,3 +3939,64 @@ L'indicateur compte les réponses contenant **au moins une** citation d'un autre
 pas les réponses dont la substance est fausse. **4 réponses sur 10 mêlent deux régimes de
 droit** — pas « 4 sur 10 sont fausses ». Distinguer demanderait de juger le fond, et ce
 chantier s'interdit les juges non mécaniques.
+
+---
+
+## D68 — LA PORTE `needs_rag` EST RETIRÉE, ET LA MESURE NE MONTRE AUCUN GAIN · 30/08/2026
+
+Le lot est fait : la recherche a désormais lieu pour toute intention **sauf une
+salutation pure**. `needs_rag` reste produit et journalisé, mais ne décide plus.
+
+### Ce qui le justifiait
+
+**La porte était une prédiction là où un fait est disponible** : l'Analyseur jugeait si
+le corpus valait d'être consulté *sans l'avoir consulté*.
+
+**Et elle ne protégeait rien**, mesuré sur la pile de production : 1,6 ms de recherche
+médiane, 0 ms d'embedding en cache, contre ~1 000 ms de génération.
+
+### Ce que la mesure dit — et il faut le dire tel quel
+
+Un harnais a été écrit pour quantifier ce que la porte fermait :
+`mesure_porte_needs_rag.py`. Les 113 cas positifs du jeu doré attendent tous un article
+du corpus : **ils en ont donc tous besoin par construction**, et chaque `needs_rag=False`
+y est un faux négatif, sans jugement à porter.
+
+    135 cas · 1 tirage
+      corpus fermé à tort  : 0,0/113  (0,0 %)
+      corpus fermé, négatifs : 0,0/22  (0,0 %)
+
+**La porte n'a jamais fermé le corpus. Le lot ne corrige donc rien de mesurable ici.**
+
+### Pourquoi ce résultat n'invalide pas le lot, et ce qu'il révèle du jeu doré
+
+Les 135 questions sont **toutes des questions documentaires bien formées** — « Quel est
+le seuil en dessous duquel je peux passer un marché de travaux sans publicité ? ». Trois
+seulement font moins de six mots.
+
+**Le jeu doré ne contient aucun cas où la porte pouvait se tromper** : ni salutation, ni
+tour conversationnel, ni question elliptique, ni demande ambiguë. Or c'est exactement là
+que l'Analyseur doit trancher, et exactement là que le risque vivait.
+
+La mesure établit donc : **sur des questions documentaires nettes, la porte était
+inoffensive.** Elle n'établit pas qu'elle l'était en général — le harnais ne peut pas le
+voir.
+
+### Ce qui est conservé, et pourquoi
+
+Le lot reste, pour trois raisons qui ne dépendent pas de cette mesure : il coûte
+1,6 ms, il supprime un mode de défaillance que l'instrument ne sait pas observer, et il
+est le préalable du routage par le résultat (D68 §4-6). **Mais on ne lui attribue aucun
+gain**, et le journal doit le dire.
+
+### La vraie leçon : la référence est aveugle au pipeline agent
+
+`reference_generation.py` appelle `generator.py` **directement**. Elle ne passe ni par
+l'Analyseur ni par l'Orchestrateur, et retrouve donc toujours ses passages.
+
+**Tout ce qui vit dans le pipeline agent — `needs_rag`, le filtrage d'outils,
+l'orchestration, le routage — est hors de la surface mesurée.** La référence mesure le
+cœur RAG, pas l'assistant.
+
+C'est une limite de la porte P2 : elle jugera d'un système dont une moitié n'est pas
+instrumentée. Un jeu doré conversationnel serait un lot en soi.
