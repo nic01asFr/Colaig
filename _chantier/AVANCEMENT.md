@@ -4424,3 +4424,58 @@ La release `colaig-test` porte des valeurs Helm qui **ne décrivent pas** ce qui
 ni `COLAIG_EMBEDDING_DIM`, ni `COLAIG_AUTO_DISCOVER_*` dans le rendu. Un
 `helm upgrade --reuse-values` rebasculerait le stockage sur `local` et éteindrait
 l'OCR. La configuration de l'instance n'existe **nulle part hors du cluster**.
+
+---
+
+## 30/08/2026 (soir) — Le chart décrit enfin l'instance
+
+**Commit** : voir `git log`
+**Critère de fin** : `helm upgrade -f values-colaig-test.yaml` est un no-op prouvé, et
+la release enregistre ce qui tourne réellement. **Atteint** — révision 7 appliquée.
+
+### Le point de départ
+
+La configuration de `colaig-test` n'existait **nulle part hors du cluster** : posée par
+`kubectl set env`, jamais reportée dans la release. `helm get values` disait
+`storage.backend: local` quand l'instance tournait sur S3, et ne mentionnait ni le
+modèle d'OCR, ni la dimension des embeddings, ni l'auto-découverte.
+
+### Trois pièges, dont deux que seule la comparaison a trouvés
+
+**1. Une valeur vide écrasait le secret.** `S3_ACCESS_KEY` était rendu dès que le
+backend valait `s3`, même sans valeur. Or les identifiants arrivent par
+`envFrom: secretRef`, et **dans Kubernetes une entrée `env` prime sur `envFrom`** :
+passer le backend à `s3` sans renseigner la clé aurait posé `S3_ACCESS_KEY: ""` et
+**effacé celle du secret**. L'accès au stockage tombait, sans que rien dans les valeurs
+ne paraisse fautif. Le chart n'écrit désormais que ce qu'on lui a donné.
+
+**2. `S3_PREFIX` aurait vidé la vue du corpus.** Le chart le pose à `colaig` par
+défaut ; le déploiement en service ne le pose pas. Or `_full_key()` préfixe **tous** les
+chemins : `/colaig-mesure-sst/…` serait devenu `colaig/colaig-mesure-sst/…`. Colaig
+aurait vu un espace vide, **sans erreur**, et réindexé le néant par-dessus soixante
+documents.
+
+> Je croyais le fichier de valeurs complet. C'est la comparaison rendu ↔ service qui l'a
+> attrapé, pas le raisonnement. D'où le second test : vérifier que rien ne **manque** ne
+> suffit pas, ce qui s'**ajoute** casse autant.
+
+**3. Le PVC créé à la main n'était pas adoptable.** Helm refusait l'upgrade —
+métadonnées de propriété absentes. Adopté par les labels et annotations standard.
+
+### La preuve
+
+Comparaison du rendu au déploiement en service, avant d'appliquer :
+
+    env en service : 22  |  env de l'upgrade : 23
+    MANQUANTS  : aucun
+    AJOUTES    : ['ALBERT_MODEL_OCR']      (alias, même valeur que LLM_MODEL_OCR)
+    DIVERGENTS : aucun
+
+### Après application
+
+Révision 7. Un seul pod, `device_id=7rJiJy9aGc` conservé **à travers un helm upgrade**,
+`S3_PREFIX` absent, 0 message non déchiffré, 0 erreur. La release enregistre maintenant
+`storage.backend: s3`, `modelOcr`, `embeddingDim: 4096`, `persistence`, `autoDiscover`.
+
+`values-colaig-test.yaml` est au dépôt, sans aucun secret — un test le vérifie, le dépôt
+étant public.

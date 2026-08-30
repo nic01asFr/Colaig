@@ -79,14 +79,46 @@ spec:
             {{- if eq .Values.storage.backend "s3" }}
             - name: S3_ENDPOINT_URL
               value: {{ .Values.storage.s3.endpointUrl | quote }}
+            # UNE VALEUR VIDE ECRASERAIT LE SECRET.
+            #
+            # Les identifiants arrivent normalement par `envFrom: secretRef`. Or dans
+            # Kubernetes une entree `env` PRIME sur `envFrom` : rendre
+            # `S3_ACCESS_KEY: ""` parce que la valeur n'a pas ete renseignee effacait
+            # la cle du secret, et l'acces au stockage tombait — sans que rien dans les
+            # valeurs ne paraisse fautif.
+            #
+            # On n'ecrit donc que ce qu'on nous a effectivement donne.
+            {{- if .Values.storage.s3.accessKey }}
             - name: S3_ACCESS_KEY
               value: {{ .Values.storage.s3.accessKey | quote }}
+            {{- end }}
             - name: S3_BUCKET_NAME
               value: {{ .Values.storage.s3.bucket | quote }}
+            {{- if .Values.storage.s3.prefix }}
             - name: S3_PREFIX
               value: {{ .Values.storage.s3.prefix | quote }}
+            {{- end }}
             - name: S3_REGION
               value: {{ .Values.storage.s3.region | quote }}
+            {{- end }}
+            {{- if .Values.llm.modelOcr }}
+            - name: LLM_MODEL_OCR
+              value: {{ .Values.llm.modelOcr | quote }}
+            - name: ALBERT_MODEL_OCR
+              value: {{ .Values.llm.modelOcr | quote }}
+            {{- end }}
+            {{- if .Values.llm.embeddingDim }}
+            # La dimension des vecteurs. Elle etait codee en dur en huit endroits avant
+            # le 30/08 ; un endpoint qui sert du 4096 la ou l'on attendait du 1024
+            # produisait un index inutilisable sans le moindre message.
+            - name: COLAIG_EMBEDDING_DIM
+              value: {{ .Values.llm.embeddingDim | quote }}
+            {{- end }}
+            {{- if .Values.autoDiscover.enabled }}
+            - name: COLAIG_AUTO_DISCOVER_ENABLED
+              value: "true"
+            - name: COLAIG_AUTO_DISCOVER_INTERVAL
+              value: {{ .Values.autoDiscover.intervalSeconds | quote }}
             {{- end }}
             - name: COLAIG_WEB_PORT
               value: "8000"

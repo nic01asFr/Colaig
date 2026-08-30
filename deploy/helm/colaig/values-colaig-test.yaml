@@ -1,0 +1,86 @@
+# Colaig — instance d'essai `colaig-test`, namespace `user-nic01asfr` (SSP Cloud).
+#
+# POURQUOI CE FICHIER EXISTE
+# ----------------------------
+# Le 30/08/2026, la configuration de cette instance n'existait NULLE PART hors du
+# cluster : elle avait ete posee par `kubectl set env` / `set image`, jamais reportee
+# dans la release. Les valeurs enregistrees disaient `storage.backend: local` quand
+# l'instance tournait sur S3, et ne mentionnaient ni le modele d'OCR, ni la dimension
+# des embeddings, ni l'auto-decouverte.
+#
+# Consequence directe : `helm upgrade --reuse-values` aurait rebascule le stockage sur
+# `local` — la ou vivent le corpus et l'index — et eteint l'OCR au passage. Une
+# instance dont la configuration n'est ecrite nulle part ne peut etre ni remontee, ni
+# comparee, ni auditee.
+#
+# `tests/test_chart_decrit_l_instance.py` verifie que le rendu de ce fichier reproduit
+# ce que le deploiement porte reellement. Tant que ce test passe,
+# `helm upgrade -f values-colaig-test.yaml` est inoffensif : il reecrit ce qui est deja
+# la.
+#
+# CE QUI N'EST PAS ICI, ET NE DOIT JAMAIS Y ETRE
+# ------------------------------------------------
+# Aucune cle. Les identifiants S3 et la cle LLM viennent du Secret `colaig-test`, monte
+# par `envFrom`. Le depot est public ; un secret commite ne se rattrape pas par une
+# suppression.
+#
+#     helm upgrade colaig-test deploy/helm/colaig -n user-nic01asfr \
+#       -f deploy/helm/colaig/values-colaig-test.yaml
+
+image:
+  repository: ghcr.io/nic01asfr/colaig
+  tag: tronc-eed4abf
+
+# `Recreate` + volume persistant : les deux sont lies. Voir le commentaire de
+# `strategy` dans le template — deux pods ne peuvent pas se partager le magasin de
+# cles Matrix.
+persistence:
+  enabled: true
+  size: 5Gi
+  storageClass: rook-ceph-block
+
+llm:
+  backend: openai
+  apiUrl: https://llm.lab.sspcloud.fr/api
+  # Le Secret `colaig-test` porte LLM_API_KEY et les identifiants S3.
+  existingSecret: colaig-test
+  modelChat: qwen3-6-35b-moe
+  modelEmbed: qwen3-embedding-8b
+  modelOcr: chandra-ocr-2
+  # 4096 : dimension servie par `qwen3-embedding-8b`, relevee sur l'endpoint le
+  # 30/08/2026. Le catalogue de SSPCloud ne propose pas `bge-m3`.
+  embeddingDim: 4096
+  # Les embeddings viennent de l'endpoint, pas d'un modele local dans le pod.
+  localEmbeddings: false
+
+storage:
+  backend: s3
+  s3:
+    endpointUrl: https://minio.lab.sspcloud.fr
+    bucket: colaig
+    region: us-east-1
+    # VIDE, ET CE N'EST PAS UN OUBLI. `_full_key()` prefixe TOUS les chemins :
+    # avec `prefix: colaig` — le defaut du chart — `/colaig-mesure-sst/...`
+    # deviendrait `colaig/colaig-mesure-sst/...`, et le corpus comme l'index
+    # disparaitraient de la vue de Colaig, qui verrait un espace vide sans la
+    # moindre erreur. Le deploiement en service ne pose pas S3_PREFIX ; ce fichier
+    # doit dire la meme chose.
+    prefix: ""
+    # accessKey / secretKey / sessionToken : dans le Secret, jamais ici.
+    # Le chart n'ecrit S3_ACCESS_KEY que s'il est renseigne — le rendre vide
+    # ECRASERAIT la valeur du Secret, `env` primant sur `envFrom`.
+
+autoDiscover:
+  enabled: true
+  intervalSeconds: 120
+
+messaging:
+  backend: matrix
+
+extraEnv:
+  MATRIX_HOMESERVER: https://matrix.agent.dev-durable.tchap.gouv.fr
+  MATRIX_USERNAME: "@colaig.assistant-developpement-durable.gouv.fr:agent.dev-durable.tchap.gouv.fr"
+
+ingress:
+  enabled: true
+  hostname: user-nic01asfr-colaig-test.user.lab.sspcloud.fr

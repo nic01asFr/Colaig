@@ -41,6 +41,14 @@ llm:
   modelEmbed: ""                                    # endpoint embeddings OpenAI-compatible si dispo
   # Si le LLM n'expose pas d'embeddings, activer le fallback local (bge-m3 dans le pod) :
   localEmbeddings: true
+  # Modele d'OCR. Sans lui la capacite est honnetement ABSENTE : `supporte()`
+  # teste la presence de la methode, donc l'annoncer sans modele ferait echouer
+  # l'indexation a chaud au lieu de sauter proprement le document.
+  modelOcr: ""          # ex: chandra-ocr-2
+  # Dimension des vecteurs servis par le modele d'embeddings. Un endpoint qui
+  # sert du 4096 la ou l'on attend du 1024 produit un index inutilisable, sans
+  # message. Laisser vide pour le defaut du code.
+  embeddingDim: ""      # ex: 4096 pour qwen3-embedding-8b
 
 # --- Storage S3 / MinIO (SSP Cloud injecte des credentials STS temporaires) ---
 storage:
@@ -53,6 +61,11 @@ storage:
     bucket: ""             # ex: <votre-bucket>
     prefix: colaig
     region: us-east-1
+
+# --- Decouverte automatique des espaces ---
+autoDiscover:
+  enabled: false
+  intervalSeconds: 120
 
 # --- Messaging ---
 messaging:
