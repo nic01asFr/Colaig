@@ -3821,3 +3821,70 @@ défaillance.
 `refus_justifies.py` figeait son motif d'archive sur `dispersion-durci-*` : la mesure que
 la réserve demandait était donc **impossible à faire avec l'outil qui l'avait produite**.
 Le motif est désormais un argument.
+
+---
+
+## L1.5 — LA RÉFÉRENCE SOUS-ESTIME CE QUE COLAIG FAIT EN PRODUCTION · 30/08/2026
+
+Le harnais codait en dur `BAAI/bge-m3` en 1024 dimensions sur l'endpoint Albert. La
+cible de production, elle, est SSPCloud — dont le catalogue **ne contient aucun
+`bge-m3`** : son unique modèle d'embedding, `qwen3-embedding-8b`, rend **4096**
+dimensions.
+
+La référence mesurait donc une pile de recherche **qui ne peut pas exister sur la
+cible**. Elle est maintenant réglable, et la mesure a été refaite sur la vraie pile —
+mêmes cas, même `k`, même modèle de génération, même variante `durci`. Une seule
+variable change : la recherche.
+
+### Le résultat
+
+| | Albert `bge-m3` 1024 | **production `qwen3-embedding-8b` 4096** |
+|---|---|---|
+| | *12 tirages* | *1 tirage* |
+| succès | 88,5 (86,8 %) | **94,0 (92,2 %)** |
+| refus **justifié** — défaut de recherche | 5,8 (5,7 %) | **3,0 (2,9 %)** |
+| refus **injustifié** — défaut de génération | 7,6 (7,4 %) | **5,0 (4,9 %)** |
+| mauvaise citation | 0,1 | 0,0 |
+| article attendu cité | 92/113 (0,814) | **96/113 (0,850)** |
+
+**Le défaut de recherche est presque divisé par deux**, et le sur-refus passe de 7,4 % à
+4,9 %. C'est cohérent : mieux la recherche sert le bon passage, moins le modèle a de
+raisons de dire qu'il ne sait pas.
+
+Sur l'invention, l'écart est dans le bruit et se compense :
+
+| | Albert | production |
+|---|---|---|
+| citation fantôme | 8/135 | 9/135 |
+| citation hors contexte | 19/135 | 17/135 |
+| montant inventé | 1/135 | 0/135 |
+| refus sur cas négatif | 22/22 | 22/22 |
+
+*Réserve de lecture : un tirage contre douze. Mais l'écart de succès — plus de 5 points
+— est très au-delà du bruit observé entre `temoin` et `durci` le même jour (1,5 point).*
+
+### Ce que cela change pour le lot
+
+La ligne « **l'assistant n'est pas déployable en l'état : refus non fiable** » reposait
+sur une mesure faite avec une pile que le déploiement n'utilise pas. **Sur la pile
+réelle, il refuse à tort deux fois moins souvent.**
+
+Le défaut ne disparaît pas — 4,9 % de sur-refus reste un défaut de génération, et
+l'effort reste dans le prompt. Mais son ampleur était surévaluée d'un facteur proche de
+deux, et la porte P2 se jugera désormais sur la bonne configuration.
+
+### Trois gardes posées pour rendre cette mesure possible
+
+**Le nom du rapport ne portait pas la pile.** La mesure de production aurait écrasé
+celle sur Albert — exactement le piège que le script signalait déjà pour le `k`, et qui
+avait coûté une passe entière le 23/08.
+
+**La dimension était écrite en dur** dans `reference_generation.py` (`1024`) et prise
+par défaut dans `refus_justifies.py`. Toute mesure sur une autre pile échouait sur un
+`AssertionError` **nu** de FAISS. **Troisième occurrence du même défaut dans la
+journée** — après le produit et le harnais de recherche.
+
+**Le rapport annonçait une pile qu'il n'avait pas mesurée.** La ligne « Montage »
+écrivait `bge-m3 1024 dim` en dur : la première exécution sur la production a produit un
+rapport **faux sur sa propre configuration**. Corrigé, et le rapport déjà produit
+rectifié. Un rapport faux sur ce point est pire qu'aucun rapport : il se compare.

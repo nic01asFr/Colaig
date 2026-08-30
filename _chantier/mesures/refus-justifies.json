@@ -3,10 +3,10 @@
   "tirages": 1,
   "lignes": [
     {
-      "archive": "reponses-temoin-k10-sansraisonnement-20260830.json",
-      "succes": 87,
-      "refus_justifie": 6,
-      "refus_injustifie": 9,
+      "archive": "reponses-durci-k10-sansraisonnement-qwen3-embedding-8b-20260830.json",
+      "succes": 94,
+      "refus_justifie": 3,
+      "refus_injustifie": 5,
       "autre": 0
     }
   ]

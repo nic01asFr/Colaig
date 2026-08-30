@@ -419,7 +419,13 @@ def rapport(resultats, latences) -> int:
         "",
         f"Variante de consigne : **{VARIANTE}**. Profondeur de recherche : **k={K}**.",
         "",
-        f"Montage : découpage par article (D12), `bge-m3` 1024 dim, k={K}, génération par",
+        # LA PILE EST LUE, PAS ECRITE. Cette ligne annoncait `bge-m3` 1024 dim en dur :
+        # la premiere mesure sur la pile de production a donc produit un rapport qui
+        # DECLARAIT UNE CONFIGURATION QU'IL N'AVAIT PAS MESUREE. Un rapport faux sur
+        # ce point est pire qu'aucun rapport — il se compare, et l'on compare alors
+        # deux choses differentes en croyant l'inverse.
+        f"Montage : découpage par article (D12), `{_ns['MODELE_EMBED']}` "
+        f"{_ns['DIMENSION']} dim, k={K}, génération par",
         f"**`{MODELE}` sur SSPCloud** — la cible de production (D3). Prompt système : celui",
         "de l'espace, mot pour mot.",
         "",
