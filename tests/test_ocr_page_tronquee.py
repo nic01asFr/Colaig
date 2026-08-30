@@ -153,3 +153,100 @@ async def test_chaque_page_d_un_pdf_est_reprise_pour_son_compte(monkeypatch):
 
     for attendu in ("p1 debut", "p1 fin", "p2 entiere"):
         assert attendu in texte, f"« {attendu} » manque : {texte!r}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CE QUE LA PREMIERE VERSION DE CE CORRECTIF FAISAIT DE FAUX
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Mesure contre l'API reelle (chandra-ocr-2, SSPCloud), budget abaisse a 700 tokens
+# pour forcer la troncature sur une page de 3646 caracteres :
+#
+#     appel 1 msg ->  1772 car., tronquee=True
+#     appel 3 msg ->  2453 car., tronquee=True
+#     appel 3 msg ->  2453 car., tronquee=True     <- identique au precedent
+#     appel 3 msg ->  1772 car., tronquee=True     <- identique au premier
+#     appel 3 msg ->  2453 car., tronquee=True
+#     total : 10907
+#
+# Le modele NE CONTINUE PAS : il recommence la page. C'est comprehensible — il
+# regarde l'image entiere a chaque appel, et « poursuis ou tu t'arretes » n'est pas
+# un ordre qu'un modele de vision honore de facon fiable.
+#
+# La concatenation produisait donc 10907 caracteres pour une page qui en compte
+# 3646 : du contenu TRIPLE dans l'index. C'est pire que la troncature d'origine, qui
+# perdait du texte sans en inventer. Un chunk duplique remonte plusieurs fois dans
+# une recherche et evince des passages pertinents.
+#
+# D'ou la regle ajoutee : une reprise qui REPETE est refusee, et on s'arrete la. La
+# reprise reste utile pour un modele qui continue vraiment ; elle ne peut plus nuire
+# quand le modele n'en fait rien.
+
+
+@pytest.mark.asyncio
+async def test_une_reprise_qui_repete_est_refusee(caplog):
+    """LE defaut de ma premiere version, mesure contre l'API reelle."""
+    import logging
+
+    c = _client()
+    _scripter(c, [_Reponse("le debut de la page", "length"),
+                  _Reponse("le debut de la page", "length"),
+                  _Reponse("le debut de la page", "length")])
+
+    with caplog.at_level(logging.WARNING):
+        texte = await c.ocr(b"\x89PNG image", "page-dense.png")
+
+    assert texte.count("le debut de la page") == 1, (
+        f"le texte est duplique dans l'index : {texte!r}"
+    )
+    assert any("page-dense.png" in r.getMessage() for r in caplog.records), (
+        "une page restee incomplete doit nommer son document"
+    )
+
+
+@pytest.mark.asyncio
+async def test_une_reprise_contenue_dans_le_deja_transcrit_est_refusee():
+    """Variante : le modele rend un sous-ensemble de ce qu'on a deja."""
+    c = _client()
+    _scripter(c, [_Reponse("alpha beta gamma delta", "length"),
+                  _Reponse("beta gamma", "length"),
+                  _Reponse("encore autre chose", "stop")])
+
+    texte = await c.ocr(b"\x89PNG image", "page.png")
+
+    assert texte.count("beta gamma") == 1, f"fragment duplique : {texte!r}"
+
+
+@pytest.mark.asyncio
+async def test_une_vraie_continuation_est_toujours_acceptee():
+    """Le garde-fou ne doit pas tuer le cas qu'on cherchait a traiter."""
+    c = _client()
+    _scripter(c, [_Reponse("premiere moitie du texte", "length"),
+                  _Reponse("seconde moitie du texte", "stop")])
+
+    texte = await c.ocr(b"\x89PNG image", "page.png")
+
+    assert "premiere moitie du texte" in texte
+    assert "seconde moitie du texte" in texte
+
+
+@pytest.mark.asyncio
+async def test_une_reprise_reussie_est_visible(caplog):
+    """L'angle mort de ma premiere version : elle ne journalisait RIEN.
+
+    L'ancien code loggait « reponse tronquee » via `extraire_contenu`. Le mien ne
+    passe plus par la : j'avais donc supprime le signal sans le remplacer, et la
+    campagne de validation ne pouvait pas conclure — c'est ce qui m'a fait sonder
+    l'API a la main.
+    """
+    import logging
+
+    c = _client()
+    _scripter(c, [_Reponse("debut", "length"), _Reponse("suite", "stop")])
+
+    with caplog.at_level(logging.INFO):
+        await c.ocr(b"\x89PNG image", "rapport.png")
+
+    assert any("rapport.png" in r.getMessage() for r in caplog.records), (
+        "une reprise doit laisser une trace nommant le document"
+    )

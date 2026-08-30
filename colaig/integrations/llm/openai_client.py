@@ -372,15 +372,49 @@ class OpenAIClient:
         morceaux: list[str] = []
         messages = [page_utilisateur]
 
-        for _ in range(_OCR_MAX_REPRISES + 1):
+        for tour in range(_OCR_MAX_REPRISES + 1):
             morceau, tronquee = await self._transcrire(messages, modele)
-            if morceau.strip():
-                morceaux.append(morceau.strip())
-            if not tronquee:
+            morceau = morceau.strip()
+
+            if tour and morceau and self._repete_le_deja_transcrit(morceau, morceaux):
+                # LE MODELE RECOMMENCE LA PAGE AU LIEU DE LA CONTINUER.
+                #
+                # Mesure contre chandra-ocr-2 le 30/08/2026, budget abaisse pour
+                # forcer la troncature sur une page de 3646 caracteres :
+                #
+                #     1772 -> 2453 -> 2453 -> 1772 -> 2453   total 10907
+                #
+                # Concatener cela mettait la page TRIPLEE dans l'index. C'est pire
+                # que la troncature d'origine : celle-la perdait du texte, celle-ci
+                # en invente, et un chunk duplique remonte plusieurs fois dans une
+                # recherche en evincant des passages pertinents.
+                #
+                # C'est comprehensible : un modele de vision regarde l'image
+                # ENTIERE a chaque appel, et « poursuis ou tu t'arretes » n'est pas
+                # un ordre qu'il honore de facon fiable.
+                logger.warning(
+                    "OCR incomplet : %s page %d — la reprise repete le texte deja "
+                    "transcrit au lieu de le poursuivre ; le document est indexe "
+                    "ampute de sa fin plutot que duplique",
+                    filename, numero,
+                )
                 return "\n".join(morceaux)
 
+            if morceau:
+                morceaux.append(morceau)
+            if not tronquee:
+                if tour:
+                    logger.info("OCR : %s page %d reprise et achevee en %d tour(s)",
+                                filename, numero, tour + 1)
+                return "\n".join(morceaux)
+
+            logger.info(
+                "OCR : %s page %d depasse le budget de tokens, reprise %d/%d",
+                filename, numero, tour + 1, _OCR_MAX_REPRISES,
+            )
+
             # On remontre l'image ET le deja-transcrit : sans lui, le modele
-            # recommencerait la page au lieu de la finir.
+            # recommencerait la page a coup sur.
             messages = [
                 page_utilisateur,
                 {"role": "assistant", "content": "\n".join(morceaux)},
@@ -394,6 +428,26 @@ class OpenAIClient:
             filename, numero, _OCR_MAX_REPRISES,
         )
         return "\n".join(morceaux)
+
+    @staticmethod
+    def _repete_le_deja_transcrit(morceau: str, morceaux: list[str]) -> bool:
+        """Une reprise qui n'apporte rien de neuf.
+
+        Deux formes observees : le morceau est identique a l'un des precedents, ou il
+        est entierement CONTENU dans ce qui a deja ete transcrit. Les deux signifient
+        la meme chose — le modele relit la page au lieu de la poursuivre — et les deux
+        dupliqueraient du texte dans l'index.
+
+        La comparaison ignore les espaces : un modele qui « recommence » ne recompose
+        pas sa mise en forme au caractere pres.
+        """
+        if not morceaux:
+            return False
+        norme = " ".join(morceau.split())
+        if not norme:
+            return False
+        deja = " ".join("\n".join(morceaux).split())
+        return norme in deja
 
     async def _transcrire(self, messages: list[dict], modele: str) -> tuple[str, bool]:
         """Un appel de transcription. Rend le texte ET s'il a ete coupe.
