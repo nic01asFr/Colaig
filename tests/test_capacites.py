@@ -202,12 +202,13 @@ def test_la_notice_interdit_de_recopier_les_gestes():
     """
     for mode in TOUS_LES_MODES:
         notice = capacites.notice_de_soi(mode)
-        bas = notice.lower()
-        assert "n'écris" in bas and "jamais" in bas, (
-            f"la notice n'interdit pas explicitement d'écrire les gestes, mode {mode}"
-        )
-        assert "par le système et non par toi" in bas, (
-            f"la notice ne dit pas QUI pose les gestes, mode {mode}"
+        for emoji, _ in capacites.GESTES:
+            assert emoji not in notice, (
+                f"le caractère {emoji} est dans le prompt système (mode {mode}) : "
+                f"une interdiction ne suffit pas, le modèle recopie ce qu'on lui donne"
+            )
+        assert "réaction" in notice.lower(), (
+            f"la notice doit tout de même dire que des réactions existent, mode {mode}"
         )
 
 

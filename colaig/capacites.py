@@ -186,22 +186,25 @@ def notice_de_soi(mode: ContextMode) -> str:
 
     blocs += [
         "",
-        # NE PAS decrire ce geste comme une action du modele.
+        # AUCUN CARACTERE DE GESTE DANS LE PROMPT.
         #
         # La formulation d'origine — « Tu poses toi-même quatre réactions sous chacune
-        # de tes réponses : 👍 (…), 👎 (…) » — etait executee litteralement : le modele
-        # ECRIVAIT les emojis en fin de reponse, en plus des reactions reellement
-        # posees. Deux fois la meme information, dont une inutile, a la fin de chaque
-        # message. Releve sur le fil le 30/08/2026.
+        # de tes réponses : … » suivie des quatre emojis — etait executee
+        # litteralement : le modele les ECRIVAIT en fin de reponse, en plus des
+        # reactions reellement posees. Deux fois la meme information a la fin de
+        # chaque message.
         #
-        # Decrire une capacite sans dire qui l'exerce, c'est la confier au modele. Les
-        # gestes sont poses par `proposer_gestes()`, via l'API de reaction ; le modele
-        # n'a rien a en faire, et il faut le lui dire.
-        "Quatre réactions sont ajoutées automatiquement sous chacune de tes réponses, "
-        "par le système et non par toi : "
-        + ", ".join(f"{emoji} ({quoi})" for emoji, quoi in GESTES)
-        + ". N'écris jamais ces caractères dans ta réponse et n'en parle pas, sauf si "
-          "l'on t'interroge dessus.",
+        # Premiere correction : dire QUI les pose, et interdire de les ecrire.
+        # INSUFFISANT — verifie sur le fil le 30/08/2026, l'interdiction posee, le
+        # modele les recopiait encore. Les caracteres etaient dans le prompt, et un
+        # modele recopie ce qu'on lui donne.
+        #
+        # La regle est donc materielle, pas normative : ON NE LUI DONNE PAS LES
+        # CARACTERES. Il ne peut pas repeter ce qu'il n'a pas. `texte_aide()` les
+        # montre a l'humain, qui en a besoin ; le modele, non.
+        "Des réactions de retour sont ajoutées automatiquement sous chacune de tes "
+        "réponses, par le système et non par toi. Tu n'as rien à en faire ; si l'on "
+        "t'interroge dessus, renvoie vers `!aide`.",
         "",
         "Si l'on t'interroge sur ta configuration ou tes commandes, réponds à partir "
         "de cette liste. N'invente jamais une commande, un outil ou une procédure qui "
