@@ -4248,3 +4248,93 @@ appartient au seul backend qui fabrique ses URL à la main.**
 Non vérifié en production : le storage actuel est S3/MinIO, pas WebDAV. Le correctif est
 établi par la propriété et par le test, pas par une campagne. Il le sera au premier espace
 Bnum.
+
+---
+
+## 30/08/2026 — Trois défauts lus dans les journaux, aucun trouvable par un test
+
+**Commits** : `c1d8be7`, `7b8e9d5`
+**Critère de fin** : les trois sont corrigés, testés, et le lien code↔déploiement qui
+a cédé pour le troisième est désormais tenu par un test.
+
+Tous viennent de la **même indexation** — celle qui a fait passer le corpus de 52 à 60
+documents. Ils étaient dans les journaux depuis le matin ; je ne les ai vus qu'en les
+relisant à froid, en cherchant les avertissements plutôt que les erreurs.
+
+### 1. Deux noms qu'un lecteur ne distingue pas étaient comptés différents
+
+    citation_checker: 1 citation(s) sans source: ['... participants septembre 2024.pdf']
+    (sources fournies: ['... participants  septembre  2024.pdf'])
+
+Le même document — espaces doubles côté source, simples sous la plume du modèle.
+`audit_and_adjust` a retranché 30 % de confiance à une réponse qui citait juste :
+**0,51 mesuré**. Un seuil d'affichage placé au-dessus l'aurait fait taire.
+
+`_norm` compare désormais ce qu'un **lecteur** verrait : suites d'espaces réduites,
+Unicode normalisé en NFC — un corpus alimenté depuis macOS (NFD) et Windows (NFC)
+contient les deux formes du même nom.
+
+`test_deux_documents_distincts_le_restent` borne le lot. Aller plus loin échangerait ce
+faux positif contre un faux **négatif**, qui laisserait passer une citation inventée.
+
+### 2. L'OCR déclarait réussi ce qu'il avait coupé
+
+    OpenAI : réponse tronquée (max_tokens=4096 atteint, 4130 caractères rendus)
+    OCR réussi pour /colaig-mesure-sst/debriefing.pdf (38916 caractères)
+
+Les deux lignes se suivent. Trois pages ont été coupées ; les documents sont entrés
+dans l'index **amputés**, indistinguables de documents complets.
+
+**On n'a pas augmenté `max_tokens`.** Le catalogue de SSPCloud, interrogé ce jour, ne
+publie pour `chandra-ocr-2` ni fenêtre de contexte ni limite de sortie : en choisir une
+serait inventer une donnée plausible (§4.8) — et une page plus dense franchirait la
+nouvelle limite comme elle a franchi l'ancienne.
+
+Une page coupée est **reprise** là où elle s'arrête, ce qui ne demande de connaître
+aucune limite. C'est la méthode que le découpage appliquait déjà au document, appliquée
+à la page. `chat()` ne pouvait pas servir : il rend une chaîne, donc perd
+`finish_reason` — exactement l'information qui manquait.
+
+Quand la borne de reprises est atteinte, **le document est nommé** dans le journal.
+C'est ce qui manquait à l'avertissement d'origine, noyé dans soixante indexations.
+
+### 3. Colaig ne savait pas relire ses propres messages
+
+**~450 avertissements**, sur une douzaine de salons, l'expéditeur étant Colaig lui-même.
+
+Le magasin de clés E2E et le jeton de session vivent sous `~/.colaig/`, soit
+`/root/.colaig/` dans l'image. Le déploiement monte son volume sur `/app/data`.
+**Chacun était cohérent avec lui-même ; rien ne les confrontait.** Le magasin vivait
+donc sur la couche éphémère : chaque redémarrage = nouvelle identité d'appareil,
+toutes les clés Megolm perdues, historique chiffré illisible.
+
+> **Ce que j'ai d'abord cru, et qui était faux.** J'ai accusé
+> `persistence: enabled: false` et son commentaire « cache local éphémère (FAISS
+> reconstruit au restart) ». L'activer n'aurait **rien** changé : le magasin n'est pas
+> dans `/app/data`, il n'est nulle part. Et le commentaire était exact pour ce qu'il
+> décrivait — il décrivait simplement un dossier qui n'était plus le seul en jeu.
+
+Correctif des deux côtés : `local_home_dir()` honore `COLAIG_LOCAL_HOME` (absent →
+comportement d'avant, aucune migration imposée ; posé mais vide → traité comme absent,
+sinon le magasin s'écrirait à la racine du conteneur), et le chart la pose dans le
+volume monté.
+
+`test_le_chart_place_le_dossier_local_dans_le_volume_monte` lit le `mountPath` du
+déploiement et exige que la variable pointe dedans. **C'est le test qui manquait** :
+aucun des deux fichiers n'était fautif isolément.
+
+### Ce qui reste à faire, et qui n'est pas de mon ressort
+
+- **`docker push ghcr.io/nic01asfr/colaig:tronc-c1d8be7`** — l'image est construite
+  localement, la publication vers le registre externe est refusée en l'état. Sans elle,
+  aucun de ces trois correctifs n'est vérifiable en réel.
+- **`persistence.enabled=true`** sur l'instance d'essai. Sans volume, le défaut 3
+  persiste quel que soit le code.
+
+### Le motif, encore
+
+Deux des trois sont des **capacités qui déclaraient avoir fait le travail** : l'OCR
+annonçant « réussi » sur une page coupée, le vérificateur de citations annonçant un
+fantôme sur un document réel. C'est la quatorzième et la quinzième occurrence relevées
+dans ce dépôt. Aucune n'était trouvable par un test — toutes par la lecture des
+journaux d'une instance qui tourne.
