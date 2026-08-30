@@ -3888,3 +3888,54 @@ journée** — après le produit et le harnais de recherche.
 écrivait `bge-m3 1024 dim` en dur : la première exécution sur la production a produit un
 rapport **faux sur sa propre configuration**. Corrigé, et le rapport déjà produit
 rectifié. Un rapport faux sur ce point est pire qu'aucun rapport : il se compare.
+
+---
+
+## L1.5 — LA CONFUSION DE RÉGIME NE VIENT PAS DE LA RECHERCHE · 30/08/2026
+
+Après avoir constaté que la pile de production faisait nettement mieux sur le rappel, la
+question se posait pour le dernier indicateur : **la confusion de régime suit-elle ?**
+
+Trois tirages sur le corpus **complet** — 2128 articles dont 1058 d'un autre régime —
+avec `qwen3-embedding-8b` en 4096 dimensions, tout le reste identique.
+
+| | Albert `bge-m3` 1024 | production `qwen3-embedding-8b` 4096 |
+|---|---|---|
+| réponses citant un autre régime | **39,5 %** | **37,5 %** — *min 36,3 · max 39,8* |
+
+45, 41 et 41 réponses sur 113. **La valeur d'Albert tombe à l'intérieur de la plage de
+la production.** L'écart de 2 points n'est pas un écart : c'est du bruit.
+
+### Ce que ce résultat négatif établit
+
+**Améliorer la recherche ne corrige pas la confusion de régime.** C'est le contraire du
+sur-refus, que la même bascule a divisé par deux (7,4 % → 4,9 %).
+
+Et c'est cohérent : le sur-refus vient de ce que le bon passage n'était pas servi — un
+meilleur modèle le sert. La confusion de régime vient de ce que **le corpus contient
+1058 articles d'un autre régime et que rien ne les distingue**. Un meilleur modèle les
+sert tout aussi bien, parfois mieux.
+
+**Le défaut n'est pas dans la recherche. Il est dans l'absence de notion de régime.**
+
+### Ce que cela fait à l'arbitrage
+
+Les trois options restent, mais leur coût se lit mieux :
+
+1. **Filtrer à la recherche** — ne servir que les passages du régime de la question.
+   C'est la seule qui touche la recherche, et le résultat ci-dessus montre qu'elle ne
+   peut pas être obtenue par un meilleur modèle : il faut **déterminer le régime de la
+   question**, ce qui n'est pas acquis.
+2. **Annoter les passages** de leur régime, et laisser le modèle trancher — il ne connaît
+   pas la notion.
+3. **Documenter et le dire** — Colaig ne distingue pas les régimes.
+
+Aucune n'est écartée par la mesure. Ce qui l'est, c'est l'espoir qu'un meilleur rappel
+suffise.
+
+### La portée, inchangée
+
+L'indicateur compte les réponses contenant **au moins une** citation d'un autre régime,
+pas les réponses dont la substance est fausse. **4 réponses sur 10 mêlent deux régimes de
+droit** — pas « 4 sur 10 sont fausses ». Distinguer demanderait de juger le fond, et ce
+chantier s'interdit les juges non mécaniques.
