@@ -126,6 +126,15 @@ RAISONNEMENT = os.environ.get("COLAIG_REF_RAISONNEMENT", "1") != "0"
 # Ce drapeau sert a mesurer si restreindre le perimetre supprime le defaut, avant de
 # decider de refiger le corpus — ce qui invaliderait la reference une fois de plus.
 PERIMETRE = os.environ.get("COLAIG_REF_PERIMETRE", "article")
+
+# Marque libre, ajoutee au nom du rapport et des reponses. Sert a distinguer deux
+# mesures qui ne different par aucun des autres champs — par exemple le coeur RAG
+# et le pipeline agent, qui partagent variante, k, raisonnement et pile.
+#
+# Sans elle, la premiere mesure du pipeline a ECRASE celle du coeur (30/08/2026) :
+# troisieme occurrence du meme piege dans la journee, apres le k et le modele
+# d embedding.
+MARQUE = os.environ.get("COLAIG_REF_MARQUE", "")
 REPETITIONS_NEGATIFS = 3
 
 # Variante de consigne, choisie par argument.
@@ -495,11 +504,12 @@ def rapport(resultats, latences) -> int:
     suffixe = (("" if VARIANTE == "temoin" else f"-{VARIANTE}") + f"-k{K}"
                + ("" if RAISONNEMENT else "-sansraisonnement")
                + ("" if PERIMETRE == "article" else "-livre1")
-               + marque_pile)
+               + marque_pile
+               + (f"-{MARQUE}" if MARQUE else ""))
     sortie = RACINE / "docs" / f"baseline-generation-{time.strftime('%Y%m%d')}{suffixe}.md"
     # Les réponses sont conservées : auditer un chiffre ne doit pas exiger de tout
     # relancer. C'est ce qui a manqué pour vérifier la liste de marqueurs de refus.
-    brut = RACINE / "_chantier" / "mesures" / f"reponses-{VARIANTE}-k{K}{'' if RAISONNEMENT else '-sansraisonnement'}{'' if PERIMETRE == 'article' else '-livre1'}{marque_pile}-{time.strftime('%Y%m%d')}.json"
+    brut = RACINE / "_chantier" / "mesures" / f"reponses-{VARIANTE}-k{K}{'' if RAISONNEMENT else '-sansraisonnement'}{'' if PERIMETRE == 'article' else '-livre1'}{marque_pile}{'-' + MARQUE if MARQUE else ''}-{time.strftime('%Y%m%d')}.json"
     brut.parent.mkdir(exist_ok=True)
     import json as _json
     brut.write_text(_json.dumps(

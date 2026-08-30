@@ -199,6 +199,16 @@ def repondre(systeme, question, trouves, cle_s):  # noqa: ARG001
 
 
 if __name__ == "__main__":
+    # LE NOM DU RAPPORT DOIT PORTER LE PIPELINE.
+    #
+    # Sans cette marque, ce harnais ecrit sous le meme nom que la mesure du coeur —
+    # et l'ecrase. C'est arrive a la premiere execution, le 30/08/2026 : TROISIEME
+    # occurrence du meme piege dans la journee, apres le k et le modele d embedding,
+    # et la premiere que je commets moi-meme apres l'avoir corrigee deux fois.
+    #
+    # `MARQUE` existe pour cela : un champ libre, ajoute au nom, qui dit ce que la
+    # mesure a d unique quand tous les autres champs coincident.
+    _GEN["MARQUE"] = "pipeline"
     _GEN["repondre"] = repondre
     code = _GEN["main"]()
 
