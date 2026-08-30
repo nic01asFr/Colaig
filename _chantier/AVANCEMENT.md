@@ -4165,7 +4165,86 @@ qu'Albert avait déjà constaté. Le convertisseur PDF→PNG est **réutilisé, 
 **Un PDF illisible lève** au lieu de rendre une chaîne vide : un document indexé sans
 contenu occuperait une place et répondrait du vide à une question.
 
-### Reste
+### Correction : aucun document ne résistait
 
-Un document résiste encore — le PDF au nom contenant une apostrophe échappée, déjà
-signalé à la copie. À vérifier au prochain cycle.
+J'avais écrit ici qu'« un document résiste encore — le PDF au nom contenant une
+apostrophe ». **C'est faux, et le comptage le dit** : 60 fichiers sur le storage,
+60 indexés, zéro manquant. Les apostrophes passaient déjà.
+
+Cette phrase désignait une inquiétude, pas une mesure. Elle aurait envoyé le cycle
+suivant chercher un défaut inexistant — et détourné du vrai, qui était ailleurs
+(voir le lot suivant).
+
+---
+
+## 30/08/2026 — Un nom de fichier n'est pas une URL
+
+**Commit** : voir `git log` (branche `lot/L1.5b-decoupage-par-article`)
+**Critère de fin** : l'aller-retour listing → requête est l'identité pour tout nom de
+fichier, y compris ceux qui contiennent `#`, `?` ou `%`.
+
+### Le point de départ, et ce qu'il a fallu abandonner
+
+La demande était de régler « le problème des caractères spéciaux ». J'ai d'abord vérifié
+l'hypothèse qui traînait depuis la veille — un document manquant à cause d'une apostrophe.
+**Elle était fausse** : 60 fichiers déposés, 60 indexés. Les accents et apostrophes
+n'avaient jamais rien cassé.
+
+Ce qui a permis de trouver le vrai défaut, c'est d'avoir cherché la **propriété** plutôt
+que le symptôme : *pour tout nom de fichier, le chemin rendu par un listing doit désigner
+le même objet quand on le redemande.*
+
+### Le défaut : un aller-retour asymétrique
+
+`colaig/integrations/storage/webdav.py` faisait la moitié du trajet.
+
+- **À la lecture**, `_parse_propfind` applique `unquote()` sur le `href` (l. 320) — le
+  chemin logique est correct : `note%232.pdf` devient `note #2.pdf`.
+- **À l'écriture**, `_url()` recollait ce chemin **tel quel** dans l'URL.
+
+Le `#` rouvre alors un **fragment d'URL** : le serveur ne reçoit que ce qui le précède.
+Le fichier est listé, puis introuvable. Idem pour `?`, qui ouvre une chaîne de requête,
+et `%`, qui amorce une séquence d'échappement.
+
+### Pourquoi les accents passaient et pas le dièse
+
+C'est toute la distinction, et elle explique pourquoi le défaut a survécu à la campagne :
+
+| | ce qui change | conséquence |
+|---|---|---|
+| accents, espaces, apostrophes | les **octets** | httpx les encode lui-même, rien ne casse |
+| `#`, `?`, `%` | la **grammaire de l'URL** | le serveur croit qu'on lui demande autre chose |
+
+Un corpus de test n'en contient jamais. Un dossier écrit par un humain, si.
+
+### Le correctif
+
+    return f"{self._base_url}/{quote(path.lstrip('/'), safe='/')}"
+
+`safe="/"` : les séparateurs restent des séparateurs — les encoder transformerait une
+arborescence en un seul nom de fichier. La branche `path.startswith("http")` reste
+intacte : un `href` absolu est déjà encodé par le serveur, le ré-encoder produirait un
+`%25` par `%`.
+
+### Ce que le test fige — et une assertion que j'ai dû corriger
+
+`tests/test_chemins_caracteres_speciaux.py`, 15 tests. Le test central est l'aller-retour
+lui-même : on encode, on décode comme le ferait le serveur, on doit retrouver l'original.
+
+Le test des caractères de structure, lui, était **d'abord mal écrit** : il exigeait que le
+caractère soit *absent* de l'URL. C'est faux pour `%`, dont l'encodage correct — `%25` —
+en contient un. La formulation juste, celle qui est commitée : aucun `#` ni `?` ne
+subsiste, et aucun `%` ne subsiste **hors d'une séquence d'échappement valide**.
+
+Un test trop strict n'est pas plus sûr : il aurait fait rejeter un code correct.
+
+`test_s3_laisse_la_cle_a_boto3` borne le lot par un contre-exemple : `s3.py` ne construit
+pas d'URL, il passe la clé à boto3. Y ajouter un encodage produirait un objet dont le nom
+contient littéralement « %23 ». `local.py` ouvre un fichier, sans URL. **Le défaut
+appartient au seul backend qui fabrique ses URL à la main.**
+
+### Portée
+
+Non vérifié en production : le storage actuel est S3/MinIO, pas WebDAV. Le correctif est
+établi par la propriété et par le test, pas par une campagne. Il le sera au premier espace
+Bnum.
