@@ -137,7 +137,15 @@ def test_la_matrice_des_capacites_est_celle_attendue(implementation):
     """
     attendu = {
         "albert": {"ocr", "rerank", "transcribe"},
-        "openai": {"rerank", "transcribe"},
+        # `ocr` ajoute le 30/08/2026 : sept documents scannes du corpus deploye
+        # restaient invisibles faute de cette capacite sur le fournisseur de
+        # production, alors que SSPCloud expose `chandra-ocr-2`.
+        #
+        # ATTENTION A LA LECTURE : ce test interroge la CLASSE. Sur une INSTANCE
+        # sans modele d OCR configure, la capacite est absente — voir
+        # `test_ocr_openai.py`. La classe dit ce que le backend SAIT faire ;
+        # l instance dit ce qu il PEUT faire ici et maintenant.
+        "openai": {"ocr", "rerank", "transcribe"},
         "azure": set(),
         "ollama": set(),
         "fake": set(),

@@ -243,6 +243,7 @@ def create_llm_client(config: ColaigConfig, client_id: str = ""):
             model_embed=config.llm_model_embed or "text-embedding-3-small",
             backend_name="OpenAI",
             enable_thinking=config.llm_enable_thinking,
+            model_ocr=config.llm_model_ocr,
             usage_tracker=_USAGE_TRACKER, client_id="",
         )
 

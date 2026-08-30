@@ -18,6 +18,7 @@ Dépendance : httpx (déjà dans le projet)
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 import random
 import time
@@ -26,6 +27,10 @@ from collections.abc import AsyncIterator
 import httpx
 
 from colaig.exceptions import LLMError, LLMRateLimitError, LLMUnavailableError
+# Le convertisseur PDF vers PNG est deja ecrit et eprouve dans `albert.py`. Une
+# seconde copie divergerait au premier correctif — ce depot a paye cinq fois la
+# copie d'un motif.
+from colaig.integrations.albert import _pdf_pages_to_png
 from colaig.integrations.llm.utils import normalize_tool_call_id as _normalize_id
 from colaig.metrics.quota import enregistrer_usage, verifier_quota
 from colaig.models import ChatCompletionResult, ToolCall
@@ -83,9 +88,24 @@ class OpenAIClient:
         usage_tracker=None,   # UsageTracker | None — quota et comptage par tenant (L2.6)
         client_id: str = "",  # tenant, pour le quota
         enable_thinking: bool = False,  # jetons de raisonnement — voir _kwargs_modele
+        model_ocr: str = "",            # vide = capacité `ocr` honnêtement absente
     ) -> None:
         self._api_key = api_key
         self._enable_thinking = enable_thinking
+        self._model_ocr = model_ocr
+
+        # SANS MODELE, LA CAPACITE EST HONNETEMENT ABSENTE.
+        #
+        # `supporte(client, "ocr")` teste `callable(getattr(client, "ocr", None))`.
+        # Laisser la methode en place sans modele annoncerait donc une capacite qui
+        # echouerait au premier appel — et l'indexeur, qui interroge `supporte()` AVANT
+        # d'appeler, cesserait de sauter proprement le document.
+        #
+        # Ce serait la treizieme « capacite declaree qui ne fait rien » de ce depot, et
+        # la premiere introduite en croyant en corriger une. `self.ocr = None` le dit a
+        # `supporte()` dans son propre langage.
+        if not model_ocr:
+            self.ocr = None
         self._base_url = base_url.rstrip("/")
         self._model_chat = model_chat
         self._model_embed = model_embed
@@ -227,6 +247,86 @@ class OpenAIClient:
         if self._enable_thinking:
             return {}
         return {"chat_template_kwargs": {"enable_thinking": False}}
+
+    # ── OCR ───────────────────────────────────────────────────────────
+
+    async def ocr(
+        self,
+        content: bytes,
+        filename: str,
+        model: str | None = None,
+        dpi: int = 150,
+        prompt: str = "",
+    ) -> str:
+        """Extrait le texte d'un PDF scanné ou d'une image, par vision multimodale.
+
+        POURQUOI CETTE METHODE EXISTE. `AlbertClient` savait faire l'OCR ; ce client,
+        non — et c'est lui qui tourne en production. Sur les 59 documents du corpus
+        depose le 30/08/2026, **sept restaient invisibles**, avec ce message a chaque
+        indexation :
+
+            document non indexe (document sans texte natif —
+            le backend LLM (OpenAIClient) ne fournit pas la capacite « ocr »)
+
+        Le message etait juste, et le catalogue de SSPCloud contient `chandra-ocr-2`.
+        La capacite existait des deux cotes ; rien ne les reliait.
+
+        UNE REQUETE PAR PAGE. Un PDF entier en un seul appel expire : c'est ce qu'Albert
+        avait deja constate (504 sur `/v1/ocr-beta`), et la page-par-page est ce qui l'a
+        resolu. On reprend sa methode plutot que d'en inventer une seconde.
+
+        Args:
+            content: contenu binaire du document.
+            filename: nom du fichier — decide du traitement (PDF ou image).
+            model: modele de vision ; par defaut celui de la configuration.
+            dpi: resolution de rendu des pages PDF.
+            prompt: consigne d'extraction ; une consigne par defaut sinon.
+
+        Returns:
+            Le texte extrait, en Markdown, pages concatenees.
+
+        Raises:
+            LLMUnavailableError: si un PDF ne peut pas etre converti en images.
+        """
+        modele = model or self._model_ocr
+        consigne = prompt or (
+            "Extrais tout le texte de cette page de document en Markdown. "
+            "Préserve la structure (titres, listes, tableaux). "
+            "Ne génère rien d'autre que le texte extrait."
+        )
+
+        if filename.lower().endswith(".pdf"):
+            pages = _pdf_pages_to_png(content, dpi=dpi)
+            if not pages:
+                # RENDRE UNE CHAINE VIDE SERAIT PIRE QUE D'ECHOUER : le document serait
+                # indexe sans contenu, occuperait une place, et repondrait du vide a une
+                # question. L'indexeur sait traiter une erreur ; il ne sait pas deviner
+                # qu'un texte vide n'est pas un texte.
+                raise LLMUnavailableError(
+                    f"OCR impossible pour {filename} : conversion PDF→image en échec "
+                    f"(pymupdf absent ?)"
+                )
+        else:
+            pages = [content]
+
+        textes: list[str] = []
+        for page in pages:
+            b64 = base64.b64encode(page).decode("ascii")
+            texte = await self.chat(
+                [{"role": "user", "content": [
+                    {"type": "text", "text": consigne},
+                    {"type": "image_url",
+                     "image_url": {"url": f"data:image/png;base64,{b64}"}},
+                ]}],
+                model=modele,
+                temperature=0.0,
+                max_tokens=4096,
+                priority="background",
+            )
+            if texte and texte.strip():
+                textes.append(texte.strip())
+
+        return "\n\n".join(textes)
 
     # ── Chat ──────────────────────────────────────────────────────────
 

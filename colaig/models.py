@@ -1426,6 +1426,9 @@ class ColaigConfig:
     # mais ne repond pas vaut moins qu'un modele qui repond (releve le 30/08/2026,
     # « reponse vide, budget de tokens epuise »).
     llm_enable_thinking: bool = False
+    # Modele d'OCR du fournisseur generique. VIDE PAR DEFAUT : sans lui, la capacite
+    # « ocr » doit rester absente plutot qu'annoncee et defaillante.
+    llm_model_ocr: str = ""
     auto_specialize_enabled: bool = False    # Dériver persona/vocabulaire depuis le corpus (opt-in)
     auto_specialize_apply: bool = False      # Écrire la config dérivée (sinon dry-run = knowledge.json seul)
     daily_request_limit: int = 0             # Quota journalier requêtes LLM par tenant (0 = illimité)
