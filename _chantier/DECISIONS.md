@@ -4245,3 +4245,95 @@ retour. Rouvrir cela suppose de savoir quelles commandes existeront, donc d'atte
 
 **Rien n'est construit.** Ce document dit ce qui existait, ce qui manque, et ce que
 chaque voie coûte.
+
+---
+
+## D67 — Trier par le RAG : ce qui manque, et ce qui ne peut pas marcher · 30/08/2026 · **arbitrage demandé**
+
+Question posée : *l'intérêt de Colaig est de faire le tri grâce au RAG — doit-il analyser
+et prioriser les documents selon le contenu du salon, les consignes de personnalisation,
+la requête ?*
+
+### 1. Un seul des trois canaux atteint la recherche aujourd'hui
+
+`Retriever.retrieve()` reçoit : `query`, `k`, `score_threshold`, `store`, `bm25_store`,
+`query_embedding`. **Rien de l'espace.**
+
+| canal | atteint la recherche ? |
+|---|---|
+| **contenu du salon** | **oui, indirectement** — la trame nourrit la reformulation de l'Analyseur, et c'est la requête reformulée qui part en recherche. Mesuré à +100 % de continuité (D56). |
+| **consignes de personnalisation** | **non** — `system_prompt` et `description` atteignent le modèle, jamais la recherche. |
+| **`priority_documents`** | **non** — le champ existe dans `WorkspaceConfig`, `context_builder.py:177` s'en sert pour remplir une liste **montrée au modèle**. La recherche l'ignore entièrement. |
+
+`priority_documents` est donc une capacité déclarée qui ne priorise rien. Onzième
+occurrence du motif dans ce dépôt.
+
+### 2. Mais pour le régime, mieux trier ne peut pas suffire — et c'est mesuré
+
+Deux articles de régimes différents disent **la même chose avec un montant différent** :
+le livre défense pose 100 000 € là où l'ordinaire pose 60 000. Ils sont donc
+**sémantiquement quasi identiques**. Aucun embedding ne les sépare, parce qu'il n'y a
+rien à séparer dans le sens.
+
+C'est mesuré, pas supposé : passer de `bge-m3` 1024 à `qwen3-embedding-8b` 4096 — un
+modèle nettement meilleur, qui a fait tomber le sur-refus de 7,4 % à 4,9 % — n'a **rien
+changé** à la confusion de régime : 39,5 % → 37,5 %, dans le bruit.
+
+**Ce qui distingue les régimes n'est pas du sens, c'est de la structure** — quel livre du
+code. C'est une **métadonnée**, et une métadonnée ne se classe pas : elle se filtre.
+
+### 3. L'information existe déjà, et n'est qu'à moitié gardée
+
+Les fichiers du corpus portent leur position en tête :
+
+    > **Position dans le Code de la commande publique**
+    > CCAG Fournitures et services › Chapitre 4 : EXÉCUTION
+
+Le découpeur du **produit** garde la section et la préfixe même au texte embarqué
+(`chunker.py:73`). Celui du **harnais de référence** écrit `section="Article R2122-8"` et
+**jette la position structurelle**. Une divergence de plus entre les deux — dans le bon
+sens cette fois.
+
+Donc : filtrer par livre est buildable, mais suppose que le chunk porte le chemin
+structurel complet, pas seulement le titre le plus proche.
+
+### 4. Le point le plus fort de la proposition : ne pas déduire le régime, le déclarer
+
+Filtrer suppose de connaître le régime **de la question** — et c'est le mur : rien ne
+permet de le déterminer d'une phrase.
+
+Sauf que la question n'est pas le bon endroit où le chercher. **Un salon d'un service
+achat parle de marchés ordinaires ; un salon de la défense, non.** Le régime est une
+propriété de **l'équipe**, pas de la phrase — donc une propriété de l'**espace**.
+
+C'est exactement le modèle fondateur : *un dossier + `.colaig/config.yaml` = une
+instance*. Une **facette déclarée une fois** remplace un problème insoluble par un acte
+humain, fait au bon moment par qui sait.
+
+Et cela ne concerne pas que les marchés publics : partout où un corpus contient des
+régimes parallèles — versions d'une norme, périmètres géographiques, millésimes — la
+même facette borne la recherche.
+
+### 5. Trois gardes, sans lesquelles le remède est pire
+
+**Un périmètre mal déclaré tronque le corpus en silence.** C'est le défaut le plus
+coûteux de la journée, rencontré trois fois. Colaig doit **dire ce qu'il a écarté**, pas
+seulement écarter.
+
+**Le filtre n'est pas « ce livre seulement ».** La 1ʳᵉ partie du code est **transverse** :
+elle définit ce qu'est un marché et vaut pour tous les régimes. L'exclure gonflerait
+l'erreur au lieu de la réduire. Les CCAG sont contractuels, donc hors régime eux aussi.
+
+**Cela borne le RAG, cela ne le remplace pas.** Le tri sémantique reste le moteur ; la
+facette ne fait qu'interdire un rayon de la bibliothèque.
+
+### 6. Ce qu'il faut arbitrer
+
+1. **Câbler l'espace à la recherche** — passer `WorkspaceConfig` à `retrieve()`, et
+   faire enfin servir `priority_documents`. Petit, et indépendant du reste.
+2. **Une facette déclarative par espace**, appliquée en filtre de métadonnée, avec
+   annonce de ce qui a été écarté.
+3. **Le chemin structurel dans le chunk**, sans quoi la facette n'a rien sur quoi porter.
+
+Le point 1 est faisable aujourd'hui et se mesure contre la référence. Les points 2 et 3
+touchent l'indexation : ils demandent une ré-indexation et donc une décision.
