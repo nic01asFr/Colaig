@@ -55,6 +55,14 @@ RACINE = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(RACINE))
 MESURES = RACINE / "_chantier" / "mesures"
 
+# Les archives a lire. Le motif etait fige sur `dispersion-durci-*` : la meme mesure
+# ne pouvait donc pas etre faite sur la variante TEMOIN, alors que c'est exactement
+# la comparaison que la reserve de la reference demandait — « ce sur-refus pourrait
+# etre fabrique par notre propre instrument ».
+#
+# Capture AVANT que sys.argv soit ecrase pour le module importe ci-dessous.
+_MOTIF = sys.argv[1] if len(sys.argv) > 1 else "dispersion-durci-*.json"
+
 # On réutilise le chargement des harnais : même découpage, même recherche, même k.
 SRC = (RACINE / "_chantier" / "scripts" / "reference_l15.py").read_text(encoding="utf-8")
 _ns: dict = {"__name__": "gen",
@@ -107,7 +115,10 @@ def main() -> int:
         fournis[c["id"]] = refs
 
     lignes, exemples = [], []
-    for arch in sorted(MESURES.glob("dispersion-durci-*.json")):
+    archives = sorted(MESURES.glob(_MOTIF))
+    if not archives:
+        raise SystemExit(f"aucune archive pour le motif {_MOTIF!r} dans {MESURES}")
+    for arch in archives:
         rep = {r["id"]: r for r in json.loads(arch.read_text(encoding="utf-8"))}
         justifie = injustifie = succes = autre = 0
         for c in positifs:

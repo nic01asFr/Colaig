@@ -3756,3 +3756,68 @@ phrase qui commence par le nom sans séparateur parle du bot ; elle ne lui parle
 La pièce jointe (L3.7) et `!classer`. Et un constat de bootstrap : un espace posé à la
 main a `owners: []`, donc **rattachable par personne** — le refus par défaut de l'ACL est
 correct, mais rien n'indique à qui dépose un dossier qu'il doit s'y déclarer.
+
+---
+
+## L1.5 — LE SUR-REFUS N'EST PAS FABRIQUÉ PAR LE HARNAIS · 30/08/2026
+
+La référence portait cette réserve, et elle bloquait l'un des quatre arbitrages :
+
+> La référence est mesurée en `variante: durci`, une addition du harnais qui impose une
+> formule de refus. Ce sur-refus pourrait être fabriqué par notre propre instrument.
+> À comparer avec la variante `temoin` avant d'agir.
+
+Le témoin comparable **n'existait pas** : les seuls datent du 23/08, avant l'introduction
+du suffixe `k`, donc à une autre profondeur de recherche. Il a été exécuté aux paramètres
+exacts de la référence — `k=10`, sans raisonnement, même corpus, même modèle.
+
+### Le résultat lève la réserve
+
+| | témoin (1 tirage) | référence durcie (12 tirages) |
+|---|---|---|
+| succès | 87,0 (85,3 %) | 88,5 (86,8 %) |
+| refus **justifié** — défaut de recherche | 6,0 (5,9 %) | 5,8 (5,7 %) |
+| refus **INJUSTIFIÉ** — défaut de génération | **9,0 (8,8 %)** | **7,6 (7,4 %)** |
+| mauvaise citation | 0,0 | 0,1 |
+
+**Le sur-refus n'est pas fabriqué par le durcissement — sans lui il est plus haut.**
+8,8 % contre 7,4 %. Le durcissement le *réduit* légèrement, il ne le crée pas.
+
+*Réserve de lecture : un tirage contre douze. L'écart de 1,4 point est dans le bruit ;
+ce qui ne l'est pas, c'est le signe — le défaut existe des deux côtés.*
+
+### Ce que le témoin apprend en plus, et qui n'était pas demandé
+
+**Le refus sur cas négatif est parfait dans les deux variantes : 22/22, toujours.** Le
+durcissement impose une formule de refus ; **elle n'est pas nécessaire pour que le refus
+ait lieu.** Le modèle refuse correctement sans elle.
+
+**Et le durcissement a un coût mesuré :**
+
+| | témoin | durci |
+|---|---|---|
+| citation fantôme | **6/135** | 8/135 |
+| citation hors contexte | 19/135 | 19/135 |
+| montant inventé | **0/135** | 1/135 |
+| article attendu cité | 90/113 | 92/113 |
+
+Il achète **2 citations attendues** et coûte **2 fantômes et 1 montant inventé**. Sur un
+corpus juridique, une citation fantôme est le pire résultat possible — elle est
+indétectable pour qui ne vérifie pas.
+
+### L'arbitrage n° 4 se referme, et se déplace
+
+Il n'y a plus à décider *s'il faut mesurer avant d'agir* : c'est fait. Le sur-refus est
+**réel et appartient à la génération**. L'effort porte donc sur le prompt, comme la
+référence le disait déjà — et non sur l'index.
+
+**Ce qui devient arbitrable, en revanche :** faut-il garder le durcissement ? Il n'est
+pas nécessaire au refus, il améliore marginalement la couverture, et il augmente les
+inventions. Ce n'est plus une question de méthode mais de préférence entre deux modes de
+défaillance.
+
+### Outillage
+
+`refus_justifies.py` figeait son motif d'archive sur `dispersion-durci-*` : la mesure que
+la réserve demandait était donc **impossible à faire avec l'outil qui l'avait produite**.
+Le motif est désormais un argument.
