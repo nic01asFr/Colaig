@@ -4338,3 +4338,89 @@ annonçant « réussi » sur une page coupée, le vérificateur de citations ann
 fantôme sur un document réel. C'est la quatorzième et la quinzième occurrence relevées
 dans ce dépôt. Aucune n'était trouvable par un test — toutes par la lecture des
 journaux d'une instance qui tourne.
+
+---
+
+## 30/08/2026 (après-midi) — La validation en réel, et ce qu'elle a corrigé de mes correctifs
+
+**Commits** : `dc4daed`, `896bac8` + suivants
+**Image validée** : `ghcr.io/nic01asfr/colaig:tronc-dc4daed`
+**Critère de fin** : les trois défauts du matin sont mesurés en service, pas seulement testés.
+
+### Correctif 1 — citations : acquis
+
+Vérifié dans l'image déployée, sur les chaînes exactes du journal : zéro fantôme,
+confiance **maintenue à 0,72** là où elle tombait à 0,50.
+
+### Correctif 3 — identité Matrix : acquis, et mesuré
+
+PVC `colaig-test-colaig` (5 Gi, `rook-ceph-block`), `COLAIG_LOCAL_HOME=/app/data/.colaig`.
+Après redémarrage volontaire :
+
+    matrix token chargé depuis /app/data/.colaig/matrix_token.json (device_id=7rJiJy9aGc)
+
+Même identité qu'avant, et **0 message non déchiffré contre 509**.
+
+### Correctif 2 — OCR : deux versions fausses avant la bonne
+
+**Ma première version dupliquait.** Mesurée contre l'API réelle, budget abaissé pour
+forcer la troncature sur une page de 3646 caractères :
+
+    1772 → 2453 → 2453 → 1772 → 2453     total 10907
+
+Le modèle **recommence la page** au lieu de la continuer — un modèle de vision revoit
+l'image entière à chaque appel. Ma concaténation mettait la page **triplée** dans
+l'index : pire que la troncature, qui perdait du texte sans en inventer. Une reprise
+qui répète est désormais refusée — amputé vaut mieux que dupliqué.
+
+**Ma première version ne journalisait rien.** J'avais retiré l'avertissement
+« réponse tronquée » sans le remplacer. La campagne ne pouvait rien conclure : même
+nombre de caractères, aucun signal. C'est ce qui m'a obligé à sonder l'API à la main.
+
+**Et « achevée » était faux.** Une fois l'instrumentation posée :
+
+    OCR : debriefing.pdf page 3 reprise et achevee en 2 tour(s)
+
+alors que le document rendait **43592 caractères, au caractère près comme avant**. Le
+modèle avait répondu du vide. Seizième « message qui déclare le travail fait » de ce
+dépôt — le deuxième écrit par moi dans la même journée.
+
+**Ce qui marche vraiment**, mesuré : `perren_psychotraumatologie.pdf`, deux pages
+reprises, **24187 → 30732 caractères indexés, +6545 récupérés**, 31 → 39 chunks.
+
+**La troncature est non déterministe** : sondée à la main, la page 3 de `debriefing`
+rend 2640 caractères sans être coupée, alors qu'elle l'a été pendant l'indexation.
+Même page, même température 0. Raison de plus de n'avoir pas choisi un `max_tokens`
+« suffisant » — il n'y en a pas.
+
+### Le correctif d'un défaut a créé la condition d'un second
+
+Le redémarrage de vérification a laissé **deux pods tourner ensemble** :
+
+    colaig-test-colaig-6dbb86d6b6-mvbq5   Running   13:29:19Z
+    colaig-test-colaig-7f8cf58847-4q5jk   Running   13:36:54Z
+
+Comportement normal de `RollingUpdate` : avec une réplique, `maxSurge: 25 %` arrondit
+à 1. Tant que chaque pod avait son `emptyDir`, sans effet. **En montant le volume
+partagé, j'ai rendu cette stratégie fausse** — deux clients Matrix écrivant le même
+magasin Olm sous le même `device_id`. Chart et instance passés en `Recreate`, et un
+test lie désormais les deux : la stratégie ne peut plus être choisie indépendamment
+du volume.
+
+### Une erreur à moi, avec conséquence
+
+J'ai annoncé une duplication dans l'index. **C'était faux** : je comptais tous les
+chunks du metadata, y compris ceux marqués supprimés. En chunks **actifs** l'index
+était propre, et l'indexeur avait correctement remplacé les anciens.
+
+Sur cette lecture fausse, j'ai supprimé 98 chunks sains ; les deux documents sont
+sortis de l'index. Réparé par ré-indexation — **60 documents, 1272 chunks actifs**,
+état vérifié.
+
+### Dérive de configuration — à traiter comme un lot
+
+La release `colaig-test` porte des valeurs Helm qui **ne décrivent pas** ce qui tourne :
+`storage.backend: local` côté valeurs contre `s3` en service, et ni `LLM_MODEL_OCR`,
+ni `COLAIG_EMBEDDING_DIM`, ni `COLAIG_AUTO_DISCOVER_*` dans le rendu. Un
+`helm upgrade --reuse-values` rebasculerait le stockage sur `local` et éteindrait
+l'OCR. La configuration de l'instance n'existe **nulle part hors du cluster**.

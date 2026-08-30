@@ -111,3 +111,39 @@ def test_le_chart_place_le_dossier_local_dans_le_volume_monte():
         f"COLAIG_LOCAL_HOME vaut « {valeur.group(1)} », hors du volume monte "
         f"« {chemin_monte} » — le magasin de cles ne survivrait pas au redemarrage"
     )
+
+
+def test_deux_instances_ne_se_partagent_pas_le_magasin_de_cles():
+    """Ce que la validation du 30/08/2026 a fait apparaitre — en la reussissant.
+
+    Le redemarrage de verification a laisse **deux pods tourner en meme temps** :
+
+        colaig-test-colaig-6dbb86d6b6-mvbq5   Running   13:29:19Z
+        colaig-test-colaig-7f8cf58847-4q5jk   Running   13:36:54Z
+
+    C'est le comportement normal d'une strategie `RollingUpdate` : avec une seule
+    replique, `maxSurge: 25%` arrondit a 1, donc le nouveau pod demarre avant que
+    l'ancien s'arrete.
+
+    **Tant que chaque pod avait son propre `emptyDir`, cela n'avait aucun effet.**
+    En montant un volume partage pour le magasin de cles, on a rendu cette strategie
+    fausse : deux clients Matrix ecrivent alors le meme magasin Olm avec le meme
+    `device_id`, ce qui expose a une corruption du magasin et a des reponses
+    dupliquees le temps du recouvrement.
+
+    Le correctif d'un defaut a donc cree la condition d'un second. C'est la raison
+    d'etre de ce test : il lie la strategie de deploiement a la presence du volume,
+    les deux ne pouvant plus etre choisies independamment.
+    """
+    from pathlib import Path
+
+    deploiement = Path("deploy/helm/colaig/templates/deployment.yaml").read_text(
+        encoding="utf-8")
+
+    assert "COLAIG_LOCAL_HOME" in deploiement, (
+        "prerequis de ce test : le chart place bien l'etat de session dans le volume"
+    )
+    assert "Recreate" in deploiement, (
+        "le deploiement peut faire tourner deux pods a la fois sur le meme magasin "
+        "de cles Matrix ; avec un volume partage, la strategie doit etre « Recreate »"
+    )

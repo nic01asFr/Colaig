@@ -6,6 +6,20 @@ metadata:
     {{- include "colaig.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  # DEUX INSTANCES NE PEUVENT PAS SE PARTAGER LE MAGASIN DE CLES MATRIX.
+  #
+  # `RollingUpdate` — le defaut — demarre le nouveau pod AVANT d'arreter l'ancien.
+  # Tant que chaque pod avait son propre `emptyDir`, cela n'avait aucun effet ; le
+  # 30/08/2026, en montant un volume partage pour l'etat de session, on a rendu cette
+  # strategie fausse. Deux clients Matrix ecrivaient alors le meme magasin Olm avec le
+  # meme `device_id` — corruption possible du magasin, reponses dupliquees pendant le
+  # recouvrement. Le correctif d'un defaut avait cree la condition d'un second.
+  #
+  # `Recreate` arrete l'ancien pod avant de demarrer le nouveau. Le prix est une
+  # coupure de quelques secondes a chaque deploiement ; le volume est en RWO, donc de
+  # toute facon un seul pod peut le monter en ecriture.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "colaig.selectorLabels" . | nindent 6 }}
