@@ -3,8 +3,8 @@ name: "Rédaction de marchés publics"
 storage_path: /colaig-reference-marches-publics/
 description: >-
   Assistance à la rédaction de marchés publics. Corpus : Code de la commande publique,
-  version consolidée, articles en vigueur uniquement — 1762 articles répartis en
-  184 documents suivant la structure du code. Source LEGI (DILA) via AgentPublic/legi,
+  version consolidée, articles en vigueur uniquement — 1021 articles répartis en
+  108 documents suivant la structure du code. Source LEGI (DILA) via AgentPublic/legi,
   Licence Ouverte 2.0.
 
 language: fr
