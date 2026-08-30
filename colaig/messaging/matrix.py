@@ -318,6 +318,10 @@ class MatrixMessaging:
         self._token_store = token_store or paths.local_file("matrix_token.json")
         # Répertoire du crypto store E2E (clés Olm/Megolm — nécessite matrix-nio[e2e])
         self._store_path = self._token_store.parent / "e2e_store"
+        # Notre propre nom d'affichage, obtenu du profil a la connexion. Initialise
+        # ici pour que `_corps_sans_mention` ne leve pas avant que connect() ait eu
+        # lieu — chemin emprunte par les tests a doublure.
+        self._nom_affiche: str = ""
 
     @property
     def identite(self) -> str:
@@ -400,6 +404,28 @@ class MatrixMessaging:
             "matrix connecté à %s en tant que %s",
             self._homeserver, self._username,
         )
+
+        # NOTRE PROPRE NOM D'AFFICHAGE, OBTENU DU PROFIL.
+        #
+        # `_corps_sans_mention` doit retirer « <nom>: » en tete d'une question. Il le
+        # tirait de `room.user_name()`, c'est-a-dire de l'etat des membres du SALON,
+        # charge de facon asynchrone. Mesure du 30/08/2026, meme salon, meme pod :
+        # a deux minutes de vie la question arrivait prefixee, a huit elle etait
+        # propre. La mention polluait donc l'embedding, l'historique persiste et la
+        # reformulation de l'Analyseur — sur les premiers messages apres chaque
+        # redemarrage, et sans que rien ne le signale.
+        #
+        # Le profil ne depend d'aucun salon. Un echec ici n'est pas bloquant : les
+        # deux replis d'origine (etat du salon, localpart) restent en place.
+        try:
+            profil = await self._client.get_displayname()
+            nom = getattr(profil, "displayname", "") or ""
+            if nom:
+                self._nom_affiche = nom
+                logger.info("nom d'affichage du profil: %s", nom)
+        except Exception as e:
+            logger.warning("nom d'affichage indisponible (%s) — repli sur l'etat "
+                           "du salon puis le localpart", e)
 
         # Upload des clés E2E — obligatoire pour que Synapse accepte ce device dans le sync
         # (sans clés, le sync worker peut bloquer sur la distribution des clés de session)
@@ -813,7 +839,22 @@ class MatrixMessaging:
             return corps
 
         localpart = self.identite.split(":")[0].lstrip("@")
-        for nom in (nom_affiche, localpart):
+        # `nom_affiche` vient de l'etat du salon ; il AFFINE, il ne conditionne pas.
+        # Mesure du 30/08/2026, meme salon, meme utilisateur, meme pod :
+        #
+        #   a ~2 min  question='Colaig Assistant [Developpement-Durable]: que faut-il...'
+        #   a ~8 min  question='quel est le delai pour faire etablir le certificat ?'
+        #
+        # Sur les premiers messages apres un redemarrage, l'etat des membres n'est pas
+        # charge et `room.user_name()` rend None : la mention restait collee a la
+        # question, donc dans l'embedding de recherche, l'historique persiste et la
+        # reformulation de l'Analyseur. Le correctif d'origine etait juste, mais il
+        # dependait d'un etat charge de facon ASYNCHRONE — ce n'etait pas un correctif,
+        # c'etait une course.
+        #
+        # `self._nom_affiche` vient du PROFIL, obtenu une fois a la connexion : Colaig
+        # connait son propre nom sans avoir besoin d'un salon.
+        for nom in (nom_affiche, getattr(self, "_nom_affiche", ""), localpart):
             if not nom or not texte.startswith(nom):
                 continue
             reste = texte[len(nom):].lstrip()
