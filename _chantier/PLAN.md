@@ -72,14 +72,23 @@ complète. Aucune modification de `protocols.py` sans arbitrage.
 
 ## Phase 4 — Qualité perçue · 3 agents · **mesurée contre L1.5**
 
-| ID | Lot | Dépend | Critère de fin |
-|---|---|---|---|
-| L4.1 | Retriever réglé : **HyDE off par défaut**, pool ~20→rerank→3-5 mesuré, seuil adaptatif μ−2σ en option | L1.5, H2 | rapport comparatif vs référence, config justifiée par les chiffres |
-| L4.2 | PreExecution bout en bout (1 embed, multi-source) | L3.5 | trace : 1 embed, 1 aller-retour storage par source |
-| L4.3 | ProgressReporter câblé Matrix | L3.2 | 5 messages d'étape sur une requête à 3 outils |
-| L4.4 | Synthèse conditionnelle (seulement si ≥ 1 outil exécuté) | L4.3 | 1 appel LLM sur « bonjour », N+1 sur requête outillée |
-| L4.5 | TaskExecutor câblé — **supprime le timeout global de 75 s** | L0.4 | 2 conversations simultanées ne se bloquent pas ; ordre respecté dans une conversation |
-| L4.6 | Mémoire conversationnelle + utilisateur activées | L1.5 | gain mesuré sur les cas multi-tours |
+> **RELU CONTRE LE CODE LE 30/08/2026, ET LARGEMENT PÉRIMÉ.** Les énoncés ci-dessous
+> décrivent un état du dépôt antérieur aux phases 0 à 3. Quatre des six lots vivent
+> derrière `COLAIG_AGENTS_ENABLED`, qui **n'est pas posé** — et la mesure du 30/08 dit
+> de ne pas le poser : le pipeline agent cite mieux (2 fantômes contre 9) mais **refuse
+> moins bien** (18/22 contre 22/22).
+>
+> **Seuls L4.1 et L4.6 portent sur ce qui tourne.** Le reste est bloqué sur un
+> arbitrage — réparer le pipeline agent, ou l'abandonner — pas sur du travail.
+
+| ID | Lot | Dépend | Critère de fin | État vérifié le 30/08 |
+|---|---|---|---|---|
+| L4.1 | Retriever réglé : **HyDE off par défaut**, pool ~20→rerank→3-5 mesuré, seuil adaptatif μ−2σ en option | L1.5, H2 | rapport comparatif vs référence, config justifiée par les chiffres | **partiellement fait.** HyDE est déjà `False` par défaut. Le vivier vaut `k*2`, soit **10** pour k=5 — pas ~20. Le seuil adaptatif μ−2σ **n'existe pas**. C'est le seul lot pleinement actionnable. |
+| L4.2 | PreExecution bout en bout (1 embed, multi-source) | L3.5 | trace : 1 embed, 1 aller-retour storage par source | **codé et câblé, dormant.** `PreExecutionBuilder` existe et est monté — sous `agents_enabled ET agents_phase6_enabled`, aucun des deux posé. |
+| L4.3 | ProgressReporter câblé Matrix | L3.2 | 5 messages d'étape sur une requête à 3 outils | **câblé, mais inatteignable.** Instancié dans `_handle_phase2` — la branche agent. En production, aucun message d'étape. |
+| L4.4 | Synthèse conditionnelle (seulement si ≥ 1 outil exécuté) | L4.3 | 1 appel LLM sur « bonjour », N+1 sur requête outillée | **partiel, branche agent.** Le Synthétiseur teste `other_tool_results`, mais rien ne s'exécute sans les agents. |
+| L4.5 | TaskExecutor câblé — **supprime le timeout global de 75 s** | L0.4 | 2 conversations simultanées ne se bloquent pas ; ordre respecté dans une conversation | **prémisse expirée.** Le timeout de 75 s **n'existe plus**. Le `TaskExecutor` n'est câblé nulle part. Le lot garde un objet — la concurrence entre conversations — mais plus sa justification. |
+| L4.6 | Mémoire conversationnelle + utilisateur activées | L1.5 | gain mesuré sur les cas multi-tours | **à moitié fait.** `UserMemory` est monté **sans condition**. La mémoire de conversation est active — et était **rabotée à six échanges** jusqu'au correctif du 30/08 au soir. Ce qui manque n'est pas l'activation : c'est le gain mesuré, et aucune mesure antérieure ne vaut. |
 
 ## Phase 5 — Capacités · 3 agents
 

@@ -4615,3 +4615,62 @@ de plainte ?'`, propre.
   `fiche_reflexe_accident___annexe_4.pdf` cité alors qu'il n'était pas dans les sources.
   Le vérificateur le repère et abaisse la confiance, donc le garde-fou tient. Mais c'est
   le même motif que les emojis : le modèle se recopie lui-même. **Cela mérite un lot.**
+
+---
+
+## 30/08/2026 (nuit) — La phase 4 relue contre le code, et L4.1 tranché par la mesure
+
+### Le plan décrivait un dépôt qui n'existe plus
+
+Vérifié lot par lot dans le code, pas repris du document :
+
+| lot | ce que le plan dit | ce que le code dit |
+|---|---|---|
+| **L4.1** | « HyDE off, pool ~20, seuil μ−2σ » | HyDE déjà `False`. Vivier `k*2` = 10, **codé en dur**. Seuil μ−2σ absent. |
+| **L4.2** | « PreExecution bout en bout » | **Codé et câblé**, sous `agents_enabled ET agents_phase6_enabled` — dormant. |
+| **L4.3** | « ProgressReporter câblé Matrix » | **Câblé**, mais dans `_handle_phase2` : la branche agent, inatteignable en production. |
+| **L4.4** | « Synthèse conditionnelle » | Partiel, branche agent. |
+| **L4.5** | « supprime le timeout global de 75 s » | **Ce timeout n'existe plus.** Prémisse expirée ; `TaskExecutor` non câblé. |
+| **L4.6** | « mémoire conversationnelle + utilisateur activées » | `UserMemory` montée **sans condition**. Mémoire de conversation active — et **rabotée à six échanges** jusqu'au correctif de ce soir. |
+
+**Quatre des six lots vivent derrière `COLAIG_AGENTS_ENABLED`**, qui n'est pas posé et que
+la mesure dit de ne pas poser. Seuls L4.1 et L4.6 portent sur ce qui tourne. Le reste est
+bloqué sur un arbitrage — réparer le pipeline agent ou l'abandonner — pas sur du travail.
+
+`PLAN.md` porte désormais cette relecture, lot par lot.
+
+### L4.1 — le vivier de candidats : un négatif franc
+
+Le vivier était codé en dur, donc la mesure que le lot exige n'était **pas exécutable**.
+Rendu réglable (`COLAIG_RETRIEVER_POOL_FACTOR`, défaut 2, comportement inchangé), puis
+mesuré sur le jeu doré, 113 cas, sans aucun appel de génération :
+
+| facteur | vivier | article attendu servi | rang médian |
+|---|---|---|---|
+| ×2 | 10 | 90/113 (79,6 %) | 1 |
+| ×3 | 15 | 90/113 (79,6 %) | 1 |
+| ×4 | 20 | 90/113 (79,6 %) | 1 |
+| ×6 | 30 | 90/113 (79,6 %) | 1 |
+
+**Aucune différence.** Le « pool ~20 » du plan n'aurait rien changé. On garde ×2.
+
+### Où se perd vraiment l'article — et c'est ailleurs
+
+Sur les 22 cas dont l'article attendu n'est pas dans le top-5 de FAISS :
+
+    retrouvé plus bas (≤200) :  7    rangs 6, 6, 7, 10, 11, 36, 40
+    jamais trouvé (>200)     : 15
+
+**Deux tiers des échecs sont un problème de représentation, pas de sélection.** Pour
+15 cas sur 113 — 13 % — l'embedding n'associe jamais la question à l'article, à aucune
+profondeur parmi 2388 chunks. Aucun réglage du retriever n'y changera quoi que ce soit.
+
+C'est le même verdict que pour la confusion de régime, et par le même chemin : **la
+mesure écarte une piste avant qu'on y passe du temps.**
+
+> **Une observation à ne pas sur-interpréter.** Le pipeline complet rend 90/113 là où le
+> top-5 brut de FAISS en rend 91 : les étages RRF / déduplication / MMR / seuil coûtent
+> un cas. Un seul tirage, un seul cas — c'est une direction, pas un résultat. Mais cinq
+> des sept articles retrouvés plus bas siègent aux rangs 6 à 11, donc dans un vivier de
+> 15 que le pipeline reçoit déjà sans les faire remonter. Le MMR échange de la pertinence
+> contre de la diversité, et cela se mesurerait.

@@ -39,6 +39,40 @@ Réponds directement, sans introduction."""
 
 
 
+
+# Le vivier de candidats, en multiple de `k`. Lu a chaque appel pour qu'une campagne de
+# mesure puisse le faire varier sans redemarrer.
+#
+# L4.1 demande « pool ~20 → rerank → 3-5 MESURE ». Le vivier valait `k * 2`, soit 10
+# pour k=5, et il etait CODE EN DUR : la mesure que le lot exige n'etait donc pas
+# executable — on ne compare pas deux valeurs d'un nombre qu'on ne peut pas changer.
+#
+# Ce reglage ne CHOISIT pas la valeur. Le defaut reste 2, comportement inchange. Poser
+# 20 « parce que le plan le dit » serait exactement ce que ce chantier evite : le choix
+# appartient a la mesure contre la reference L1.5.
+#
+# Un vivier plus large ne coute presque rien a FAISS, mais il change ce que voient le
+# RRF, la deduplication, le MMR et le reranker — quatre etages dont aucun n'est
+# lineaire. Trop large, il peut DEGRADER le resultat en noyant les bons candidats sous
+# des voisins mediocres.
+_FACTEUR_DE_VIVIER_DEFAUT = 2
+
+
+def _facteur_de_vivier() -> int:
+    """Multiple de `k` a demander au magasin. Une valeur invalide retombe sur le defaut.
+
+    Un reglage mal saisi ne doit pas priver l'espace de sa recherche : mieux vaut le
+    comportement d'origine qu'un echec au demarrage.
+    """
+    import os
+
+    try:
+        valeur = int(os.environ.get("COLAIG_RETRIEVER_POOL_FACTOR", ""))
+    except ValueError:
+        return _FACTEUR_DE_VIVIER_DEFAUT
+    return valeur if valeur >= 1 else _FACTEUR_DE_VIVIER_DEFAUT
+
+
 def _deduplique_les_passages(candidats: list) -> list:
     """Retire les passages dont le TEXTE est deja servi, en gardant le mieux classe.
 
@@ -216,14 +250,15 @@ class Retriever:
                 query_embedding = await self._hyde_expand_query(query, query_embedding)
 
         # 2. FAISS search — 2x plus de candidats pour le reranking
-        candidates = effective_store.search(query_embedding, k=k * 2)
+        vivier = k * _facteur_de_vivier()
+        candidates = effective_store.search(query_embedding, k=vivier)
         if not candidates:
             return []
 
         # 3. BM25 + RRF (hybrid search)
         if bm25_store is not None and bm25_store.count > 0:
-            bm25_results = bm25_store.search(query, k=k * 2)
-            candidates = _rrf_combine(candidates, bm25_results, k=k * 2, k_constant=self._rrf_k)
+            bm25_results = bm25_store.search(query, k=vivier)
+            candidates = _rrf_combine(candidates, bm25_results, k=vivier, k_constant=self._rrf_k)
 
         # 3b. Le meme passage ne prend pas deux places.
         # AVANT le MMR : celui-ci reduit le vivier a , donc dedupliquer apres
