@@ -310,6 +310,22 @@ class FaissStore:
         meta_bytes = pickle.dumps({"metadata": self._metadata, "deleted": self._deleted})
         return index_bytes, meta_bytes
 
+    @staticmethod
+    def lire_metadonnees(meta_bytes: bytes) -> list:
+        """Les chunks actifs, sans charger l'index vectoriel.
+
+        `metadata.pkl` pese ~1 Mo la ou `index.faiss` en pese 20. Une commande
+        conversationnelle comme `!index` n'a pas besoin des vecteurs : elle decrit ce
+        qui est indexe, elle ne cherche pas.
+
+        La connaissance du format reste ICI, avec `serialize`/`deserialize` — la
+        dupliquer ailleurs la ferait diverger au premier changement.
+        """
+        donnees = pickle.loads(meta_bytes)
+        metadonnees = donnees.get("metadata", {})
+        supprimes = donnees.get("deleted", set())
+        return [c for i, c in metadonnees.items() if i not in supprimes]
+
     def deserialize(self, index_bytes: bytes, meta_bytes: bytes) -> None:
         """Désérialise depuis bytes."""
         self._index = faiss.deserialize_index(np.frombuffer(index_bytes, dtype=np.uint8))

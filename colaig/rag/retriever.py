@@ -38,6 +38,47 @@ Rédige une réponse documentaire hypothétique (2-3 phrases) comme si tu avais 
 Réponds directement, sans introduction."""
 
 
+
+def _deduplique_les_passages(candidats: list) -> list:
+    """Retire les passages dont le TEXTE est deja servi, en gardant le mieux classe.
+
+    POURQUOI, MESURE SUR LE CORPUS REEL LE 30/08/2026. L'espace SST contient 60
+    documents dont 18 sont des copies exactes de 12 autres — deux arborescences se
+    recouvrent, et l'un des fichiers s'appelle « … - Copie.odt ». Sur 120 requetes :
+
+        k= 3   requetes touchees 20 %   places evincees 7 %
+        k= 5   requetes touchees 22 %   places evincees 8 %
+        k=10   requetes touchees 32 %   places evincees 9 %
+
+    Une requete sur cinq rendait le meme passage deux fois, au detriment d'un passage
+    qui aurait pu etre pertinent.
+
+    CE QUI EST UN DOUBLON, ET CE QUI N'EN EST PAS. Le meme TEXTE a deux chemins en est
+    un. Deux passages differents du meme document n'en sont pas — un document long et
+    pertinent doit pouvoir repondre deux fois. Une premiere mesure confondait les deux
+    et annoncait 68 % ; elle groupait par document au lieu de comparer les textes.
+
+    La comparaison ignore les blancs : deux copies d'un fichier peuvent differer d'un
+    espace ou d'un retour a la ligne apres conversion, sans que rien ne les distingue
+    a la lecture.
+
+    POURQUOI ICI ET NON A L'INDEXATION. Refuser d'indexer un doublon obligerait
+    l'espace a etre propre. Un espace reel ne l'est pas, et le traverser quand meme est
+    precisement ce que Colaig doit savoir faire : l'utilisateur depose ce qu'il a. On
+    compose avec le desordre plutot que de l'interdire — local, reversible, sans
+    reindexation.
+    """
+    vus: set[str] = set()
+    gardes = []
+    for r in candidats:
+        empreinte = " ".join((getattr(r.chunk, "text", "") or "").split())
+        if empreinte in vus:
+            continue
+        vus.add(empreinte)
+        gardes.append(r)
+    return gardes
+
+
 class Retriever:
     """Service de recherche documentaire hybride.
 
@@ -183,6 +224,11 @@ class Retriever:
         if bm25_store is not None and bm25_store.count > 0:
             bm25_results = bm25_store.search(query, k=k * 2)
             candidates = _rrf_combine(candidates, bm25_results, k=k * 2, k_constant=self._rrf_k)
+
+        # 3b. Le meme passage ne prend pas deux places.
+        # AVANT le MMR : celui-ci reduit le vivier a , donc dedupliquer apres
+        # laisserait un trou la ou l'on veut un passage de plus.
+        candidates = _deduplique_les_passages(candidates)
 
         # 4. MMR reranking
         reranked = _mmr_rerank(candidates, query_embedding, k=k, lambda_param=MMR_LAMBDA)

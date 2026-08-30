@@ -629,13 +629,30 @@ class MessageHandler:
             return "Procédures disponibles :\n" + "\n".join(f"- {n}" for n in noms)
 
         if nom == "index":
-            fichiers = await self._storage.list_files(paths.indexes_dir(chemin))
-            if not fichiers:
+            # CE QUE COLAIG A COMPRIS DES DOCUMENTS, PAS LA LISTE DE SES FICHIERS.
+            #
+            # Cette commande rendait « index.faiss — 20223 Ko » : trois fichiers
+            # internes et leur taille. L'utilisateur demande ce qui a ete lu de SES
+            # documents ; on lui rendait un listage de repertoire.
+            #
+            # On ne charge que `metadata.pkl` (~1 Mo) et non l'index vectoriel (~20 Mo) :
+            # decrire ne demande pas de chercher.
+            from colaig.rag.compte_rendu_espace import rediger_compte_rendu
+            from colaig.rag.faiss_store import FaissStore
+
+            try:
+                meta = await self._storage.download(
+                    paths.index_file(chemin, "metadata.pkl"))
+            except Exception:
                 return ("Aucun index pour cet espace — les documents n'ont pas encore "
                         "été analysés.")
-            lignes = [f"- `{f.name}` — {f.size // 1024} Ko" for f in sorted(
-                fichiers, key=lambda f: f.name)]
-            return "État de l'index :\n" + "\n".join(lignes)
+
+            chunks = FaissStore.lire_metadonnees(meta)
+            fichiers = [
+                f.path for f in await self._storage.list_files(chemin, recursive=True)
+                if not f.is_directory and not paths.is_reserved_path(f.path)
+            ]
+            return rediger_compte_rendu(chunks, fichiers)
 
         # !classer — où les documents ont été rangés.
         #

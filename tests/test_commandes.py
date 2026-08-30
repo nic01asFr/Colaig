@@ -59,6 +59,23 @@ def espace(fake_storage):
     fake_storage.add_file(paths.skills_dir("/test/") + "glossaire.md", b"# Glossaire")
     fake_storage.add_file(paths.index_file("/test/", "index.faiss"), b"\x00" * 2048)
     fake_storage.add_file(paths.index_file("/test/", "bm25.pkl"), b"\x00" * 512)
+    # `!index` decrit ce qui est INDEXE : c'est `metadata.pkl` qu'il lit, pas l'index
+    # vectoriel. Deux documents, dont l'un en double.
+    import pickle
+
+    from colaig.models import DocumentChunk
+
+    def _c(texte, chemin):
+        return DocumentChunk(text=texte, source_path=chemin,
+                             source_name=chemin.rsplit("/", 1)[-1])
+
+    fake_storage.add_file("/test/guide.pdf", b"pdf")
+    fake_storage.add_file("/test/copies/guide.pdf", b"pdf")
+    fake_storage.add_file(
+        paths.index_file("/test/", "metadata.pkl"),
+        pickle.dumps({"metadata": {0: _c("le meme texte", "/test/guide.pdf"),
+                                   1: _c("le meme texte", "/test/copies/guide.pdf")},
+                      "deleted": set()}))
     return fake_storage
 
 
@@ -98,9 +115,19 @@ async def test_skills_liste_les_procedures_deposees(espace):
 
 
 @pytest.mark.asyncio
-async def test_index_rend_compte_de_l_index(espace):
+async def test_index_decrit_les_documents_pas_les_fichiers_internes(espace):
+    """La commande rendait « index.faiss — 20223 Ko » : un listage de repertoire.
+
+    Ce test figeait ce comportement en verifiant la presence de « index.faiss ».
+    L'utilisateur demande ce que Colaig a compris de SES documents ; c'est cela qui
+    doit etre verifie.
+    """
     rendu = await _dire("!index", espace)
-    assert "index.faiss" in rendu
+
+    assert "index.faiss" not in rendu, "les fichiers internes n'interessent personne"
+    assert "2 documents" in rendu, rendu
+    assert "copie" in rendu.lower(), (
+        "l'espace contient un doublon ; le compte rendu doit le dire")
 
 
 @pytest.mark.asyncio
