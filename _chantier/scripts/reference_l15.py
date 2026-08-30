@@ -64,9 +64,26 @@ CORPUS = Path(os.environ.get(
     "COLAIG_REF_CORPUS", str(RACINE / "tests" / "golden" / "corpus-marches-publics")))
 JEU = RACINE / "tests" / "golden" / "v1.jsonl"
 
-MODELE_EMBED = "BAAI/bge-m3"
-DIMENSION = 1024
-BASE_ALBERT = "https://albert.api.etalab.gouv.fr/v1"
+# LA PILE DE RECHERCHE MESUREE, REGLABLE PAR L ENVIRONNEMENT.
+#
+# Ces trois valeurs etaient codees en dur, et la reference ne pouvait donc mesurer
+# QUE Albert. Or `CLAUDE.md` §3 pose que la cible de production est SSPCloud, dont
+# le catalogue — releve le 30/08/2026 — ne contient AUCUN bge-m3 : son unique
+# modele d embedding, `qwen3-embedding-8b`, rend 4096 dimensions.
+#
+# La configuration mesuree ne pouvait donc pas exister sur la cible. Le rapport le
+# declarait honnetement en tete, mais une reference qui ne decrit pas le systeme
+# deployable ne peut pas servir de porte (P2).
+#
+# LES DEFAUTS SONT INCHANGES : aucune mesure anterieure n est invalidee, et le nom
+# du fichier de cache porte le modele — un changement ne peut pas etre servi depuis
+# des vecteurs d une autre dimension.
+MODELE_EMBED = os.environ.get("COLAIG_REF_EMBED_MODELE", "BAAI/bge-m3")
+DIMENSION = int(os.environ.get("COLAIG_REF_EMBED_DIM", "1024"))
+BASE_EMBED = os.environ.get("COLAIG_REF_EMBED_BASE",
+                            "https://albert.api.etalab.gouv.fr/v1")
+# Ancien nom, conserve pour les lecteurs du journal.
+BASE_ALBERT = BASE_EMBED
 # Profondeur de recherche, alignee sur la generation (D33).
 #
 # Elle valait 6 en dur, alors que la generation est passee a 10 : mesurer la
