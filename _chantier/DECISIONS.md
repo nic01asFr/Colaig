@@ -4163,3 +4163,85 @@ sur la confiance l'est.
 Un lot propre serait : mesurer le rappel avec et sans BM25 sur des questions dont on
 connaît le document attendu, puis, si le gain existe, décider de la sémantique de la
 confiance avant d'activer.
+
+---
+
+## D66 — La présentation appartient au système, pas au modèle · 30/08/2026 · **arbitrage demandé**
+
+La génération déployée jusqu'ici avait une **couche de présentation** que le tronc n'a
+pas. Rappelée par l'utilisateur, et visible dans une conversation d'essai :
+
+    Sources consultées :
+    20 12 2024 CGV V60 OUIGO (pages 13, 39, 42, 44-46, 48, 52-54,
+                              sections: 3.3 Responsabilité…, 5.1 Réservation…)
+    💡 Cliquez sur les noms des documents pour les télécharger directement.
+
+    Cette réponse a été générée automatiquement à partir des documents indexés.
+
+Un pied de message : sources nommées, **pages**, **sections**, **liens de
+téléchargement**, mention de génération automatique. Plus une légende d'emojis, et des
+emojis **configurables par commande** — le ➕ y servait à ajouter une source web, pas à
+verser une note.
+
+### Ce que le tronc fait aujourd'hui
+
+Rien de tout cela. Les citations sont **écrites par le modèle, dans sa prose** :
+`[fiche_reflexe_agression.pdf]`. Il n'existe aucun pied de message.
+
+### Trois défauts observés le 30/08, tous du même côté
+
+**Le rendu les abîme.** Tchap lit `[fiche_reflexe_agression_-_annexe_4.pdf]` en markdown
+et mange les underscores : le même fichier s'affiche `_-_annexe_4`, `_-annexe_4`, puis
+`-_annexe_4` dans un seul message. Le nom sur le fil n'est plus celui du document.
+
+**Le modèle peut se tromper**, et le vérificateur de citations doit alors décider si
+`[nom_approchant.pdf]` correspond à une source — ce qui n'est décidable qu'approximativement.
+
+**L'information est perdue.** `plan.search_results` porte `page`, `section`,
+`source_name` et `source_path` pour chaque chunk retenu. **Rien de tout cela n'atteint
+l'utilisateur.** Une citation en prose ne peut pas dire « page 42, section 5.1 ».
+
+### La leçon de la journée, arrivée trois fois
+
+Il a fallu **trois corrections** pour que le modèle cesse d'écrire les emojis de retour
+en fin de réponse : lui dire qui les pose, le lui interdire, puis retirer les caractères
+du prompt. Aucune n'a suffi, parce qu'ils étaient dans **son propre historique**. Seul
+le retrait mécanique, en code, a tenu.
+
+Le reranker, BM25, la dimension d'embedding : à chaque fois, **ce que le système sait,
+le système doit l'écrire.** Demander au modèle de produire une donnée que le code
+possède, c'est accepter qu'elle soit parfois fausse — et n'avoir aucun moyen de le
+savoir.
+
+**Les sources sont exactement cette donnée.** Le code les connaît exactement : chemin,
+nom, page, section, score. Le modèle, lui, les recopie.
+
+### Ce qu'il faudrait construire
+
+Un **pied de message déterministe**, bâti depuis `plan.search_results` et ajouté après
+la réponse — comme les gestes sont ajoutés après elle, et pour la même raison. Le modèle
+écrit le fond ; le système écrit ce qu'il sait.
+
+Cela rendrait exact ce qui est aujourd'hui approximatif, et récupérerait pages et
+sections sans rien demander au modèle.
+
+### Ce qu'il faut arbitrer
+
+**Faut-il garder les citations en ligne ?** Elles disent *quelle affirmation* vient de
+*quel document* — un pied de message ne le dit pas. Les deux sont complémentaires, mais
+seule la seconde peut être exacte. Les garder, c'est accepter qu'elles restent
+approximatives.
+
+**Le lien de téléchargement est spécifique au fournisseur.** Une URL présignée sur S3,
+un lien de partage sur WebDAV, rien du tout sur local. `StorageProtocol` n'a pas de
+verbe pour cela, et lui en ajouter un est une **porte humaine** (§5).
+
+**La mention « générée automatiquement »** relève d'une décision de produit, pas
+technique : elle engage la façon dont l'administration présente une réponse d'IA.
+
+**Les emojis par commande.** Le dessin d'origine les voulait configurables — ➕ pour
+ajouter une source web dans le mode web prévu. Le tronc les fixe à quatre gestes de
+retour. Rouvrir cela suppose de savoir quelles commandes existeront, donc d'attendre.
+
+**Rien n'est construit.** Ce document dit ce qui existait, ce qui manque, et ce que
+chaque voie coûte.
