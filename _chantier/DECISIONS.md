@@ -4337,3 +4337,98 @@ facette ne fait qu'interdire un rayon de la bibliothèque.
 
 Le point 1 est faisable aujourd'hui et se mesure contre la référence. Les points 2 et 3
 touchent l'indexation : ils demandent une ré-indexation et donc une décision.
+
+---
+
+## D68 — Chercher d'abord, et laisser le résultat router · 30/08/2026 · **arbitrage demandé**
+
+Proposition posée : Colaig fait **par défaut** une recherche documentaire, et si elle
+n'est pas fructueuse, **c'est cela qui guide le chemin**.
+
+### 1. Ce que fait le tronc aujourd'hui : l'inverse
+
+L'Analyseur produit `needs_rag` **avant toute recherche**. S'il vaut faux,
+`_filter_registry_for_intent` retire les outils de recherche documentaire
+(`orchestrator.py:611`) : **la recherche n'a jamais lieu.**
+
+Autrement dit, **un modèle juge à l'avance si le corpus vaut d'être consulté — sans
+l'avoir consulté.** C'est une prédiction là où un fait est disponible.
+
+### 2. Chercher toujours ne coûte rien, et c'est mesuré
+
+Relevé sur la pile de production, corpus de 1021 articles :
+
+    Latence de recherche : médiane 1,6 ms  (min 1,5 · max 2,4)
+    Embedding d'une question : 0 ms en moyenne (cache)
+
+Contre un appel de génération à ~1 000 ms. **La porte ne fait économiser que du bruit.**
+L'argument « ne pas chercher inutilement » ne tient pas devant ces chiffres.
+
+### 3. Mais « fructueuse » ne peut pas se définir par un score — c'est déjà mesuré
+
+Le dépôt a écarté cette piste, avec les chiffres :
+
+> Sur la référence, **cinq des huit cas négatifs scorent au-dessus du plus faible cas
+> positif** (médianes 0,623 contre 0,681). Un seuil écarterait de vrais résultats sans
+> écarter les pièges.
+
+Et D65 vient de montrer que l'échelle des scores **change de nature** selon le montage :
+0,55 en cosinus, 0,016 en RRF. Un seuil écrit sur une échelle devient faux quand
+l'échelle change, sans que rien ne le signale.
+
+**Un routage fondé sur un score est donc à écarter.**
+
+### 4. La forme forte de la proposition : le refus est le signal, pas le score
+
+Colaig **ne cite jamais le mauvais article** — mesuré : 0 % de mauvaise citation. Quand
+il échoue, il dit « cette information ne figure pas dans les passages fournis ».
+
+**Ce refus est un fait observable, produit par le modèle après avoir vu les passages.**
+Il vaut infiniment mieux qu'une prédiction faite avant.
+
+Or aujourd'hui **le refus est un cul-de-sac** : Colaig le dit, et s'arrête. La
+proposition revient à en faire **une bifurcation**, ce qui est juste.
+
+### 5. Ce que la mesure dit du budget, et de la borne
+
+| | part | ce qu'il faut en faire |
+|---|---|---|
+| succès | 92,2 % | rien |
+| **refus, passage absent** | **2,9 %** | **escalader** — la recherche a vraiment échoué |
+| **refus, passage présent** | **4,9 %** | **surtout pas escalader** — la réponse était là |
+
+Le second est le plus fréquent, et l'escalade y serait **une fuite** : on irait chercher
+ailleurs ce qu'on avait déjà. Le remède y est le prompt, pas un nouveau chemin.
+
+**Et à l'exécution, on ne sait pas distinguer les deux** — savoir que l'article attendu
+était dans les passages est une propriété du jeu doré, pas une information disponible en
+production. C'est la vraie difficulté de la proposition.
+
+Une voie qui ne demande pas de les distinguer : **avant d'escalader, réessayer** — même
+passages, consigne plus saillante. Ce qui échoue deux fois sur les mêmes passages est
+plus probablement un vrai manque.
+
+### 6. Ce que le chemin ouvre, et qui existe ou non
+
+| branche après un refus | état |
+|---|---|
+| élargir `k` ou lever une facette | rien à écrire côté produit |
+| poser une question à l'utilisateur | **L5.2 `ask_user` — planifié, non construit** |
+| interroger un autre espace | **`ask_workspace` — existe** |
+| chercher sur le web | **L5.6 — planifié, non construit** |
+| dire que ce n'est pas dans le corpus | c'est ce qu'il fait |
+
+La proposition est donc **le chaînon qui manque entre des briques dont deux existent
+déjà** — et elle rejoint l'objectif énoncé : *« implémenter l'absence de commande pour
+l'utilisateur »*. Un utilisateur qui pose sa question sans savoir où chercher est
+exactement celui que ce routage sert.
+
+### 7. Ce qu'il faut arbitrer
+
+1. **Retirer la porte `needs_rag`** — chercher toujours, puisque cela ne coûte rien. Se
+   mesure contre la référence, et devrait faire baisser le refus injustifié.
+2. **Le signal de routage : le refus, jamais un score.** Décision de méthode.
+3. **Réessayer avant d'escalader**, pour ne pas fuir un passage qu'on avait déjà.
+4. **Quelles branches ouvrir**, sachant que deux des cinq demandent des lots non faits.
+
+Le point 1 est immédiat, borné, et mesurable. Les autres en dépendent.
