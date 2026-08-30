@@ -250,3 +250,58 @@ async def test_une_reprise_reussie_est_visible(caplog):
     assert any("rapport.png" in r.getMessage() for r in caplog.records), (
         "une reprise doit laisser une trace nommant le document"
     )
+
+
+@pytest.mark.asyncio
+async def test_une_reprise_qui_n_apporte_rien_ne_se_declare_pas_achevee(caplog):
+    """Le dernier angle mort, releve en production le 30/08/2026.
+
+    Le journal disait :
+
+        OCR : debriefing.pdf page 3 depasse le budget, reprise 1/4
+        OCR : debriefing.pdf page 3 reprise et achevee en 2 tour(s)
+
+    et le document rendait **exactement** le meme nombre de caracteres qu'avant le
+    correctif : 43592, au caractere pres, mesure dans l'index. La reprise n'avait
+    rien rendu — le modele, invite a poursuivre, avait repondu du vide — et la page
+    restait amputee. « Achevee » etait donc faux.
+
+    C'est le meme motif que les quinze precedents de ce depot : un message qui
+    declare le travail fait. Ici il etait de moi, et il masquait le cas ou la reprise
+    echoue silencieusement.
+
+    (A comparer avec `perren_psychotraumatologie.pdf`, ou la reprise a bien joue :
+    24187 -> 30732 caracteres indexes, +6545 recuperes sur deux pages.)
+    """
+    import logging
+
+    c = _client()
+    _scripter(c, [_Reponse("le debut de la page", "length"),
+                  _Reponse("", "stop")])
+
+    with caplog.at_level(logging.INFO):
+        texte = await c.ocr(b"\x89PNG image", "page-muette.png")
+
+    assert texte == "le debut de la page"
+    messages = [r.getMessage() for r in caplog.records]
+    assert not any("achev" in m for m in messages), (
+        f"une reprise sans apport se declare achevee : {messages}"
+    )
+    assert any("page-muette.png" in m and "amput" in m for m in messages), (
+        f"la page reste amputee sans que le journal le dise : {messages}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_une_reprise_qui_apporte_dit_combien(caplog):
+    """Le pendant : quand elle joue, on doit pouvoir le mesurer dans le journal."""
+    import logging
+
+    c = _client()
+    _scripter(c, [_Reponse("premiere moitie", "length"),
+                  _Reponse("seconde moitie du texte", "stop")])
+
+    with caplog.at_level(logging.INFO):
+        await c.ocr(b"\x89PNG image", "page.png")
+
+    assert any("achev" in r.getMessage() for r in caplog.records)

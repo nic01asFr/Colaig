@@ -404,9 +404,29 @@ class OpenAIClient:
                 morceaux.append(morceau)
             if not tronquee:
                 if tour:
-                    logger.info("OCR : %s page %d reprise et achevee en %d tour(s)",
-                                filename, numero, tour + 1)
+                    # « ACHEVEE » N'EST VRAI QUE SI LA REPRISE A RENDU QUELQUE CHOSE.
+                    #
+                    # Releve en production le 30/08/2026 : le journal annoncait
+                    # « reprise et achevee en 2 tours » pour debriefing.pdf, et le
+                    # document rendait exactement le meme nombre de caracteres
+                    # qu'avant le correctif — 43592, au caractere pres. Le modele,
+                    # invite a poursuivre, avait repondu du VIDE, et la page restait
+                    # amputee. Le message declarait un travail non fait ; c'est le
+                    # motif meme que ce lot corrigeait ailleurs.
+                    if morceau:
+                        logger.info(
+                            "OCR : %s page %d reprise et achevee en %d tour(s), "
+                            "%d caracteres recuperes",
+                            filename, numero, tour + 1, len(morceau),
+                        )
+                    else:
+                        logger.warning(
+                            "OCR : %s page %d — la reprise n'a rien rendu ; la page "
+                            "reste amputee de sa fin",
+                            filename, numero,
+                        )
                 return "\n".join(morceaux)
+
 
             logger.info(
                 "OCR : %s page %d depasse le budget de tokens, reprise %d/%d",
