@@ -28,6 +28,7 @@ from colaig.capacites import (
 from colaig.context.layers import save_conversation_history
 from colaig.messaging.progress import ProgressReporter, resolve_channel
 from colaig.messaging.retours import GestionnaireRetours, proposer_gestes
+from colaig.messaging.sources_numerotees import numeroter_les_sources
 from colaig.models import ContextMode, IncomingMessage, IntentType, PipelinePhase
 from colaig.protocols import ReactionProtocol
 
@@ -951,7 +952,13 @@ class MessageHandler:
             # precedentes. On les retire AVANT l'envoi, donc avant l'historique :
             # sinon le motif se reinstalle tout seul au tour suivant.
             response.text = retirer_gestes_en_fin(response.text)
-            await self._messaging.send(message.conversation_id, response.text)
+            # Les sources passent en exposant, listees une seule fois a la fin.
+            # `response.text` n'est PAS ecrase : l'historique doit garder la forme
+            # `[nom.pdf]`, sinon le modele recopierait des exposants au tour suivant
+            # et `citation_checker` perdrait son ancrage — exactement le defaut des
+            # emojis ci-dessus, deux lignes plus haut.
+            texte_envoye = numeroter_les_sources(response.text, response.sources)
+            await self._messaging.send(message.conversation_id, texte_envoye)
 
             # Proposer les gestes de retour SOUS la réponse (L3.3)
             await self._proposer_retour(message, context, response.text)
@@ -1143,7 +1150,13 @@ class MessageHandler:
             # precedentes. On les retire AVANT l'envoi, donc avant l'historique :
             # sinon le motif se reinstalle tout seul au tour suivant.
             response.text = retirer_gestes_en_fin(response.text)
-            await self._messaging.send(message.conversation_id, response.text)
+            # Les sources passent en exposant, listees une seule fois a la fin.
+            # `response.text` n'est PAS ecrase : l'historique doit garder la forme
+            # `[nom.pdf]`, sinon le modele recopierait des exposants au tour suivant
+            # et `citation_checker` perdrait son ancrage — exactement le defaut des
+            # emojis ci-dessus, deux lignes plus haut.
+            texte_envoye = numeroter_les_sources(response.text, response.sources)
+            await self._messaging.send(message.conversation_id, texte_envoye)
             if not response.sources and intent.needs_rag:
                 await self._messaging.send(
                     message.conversation_id,

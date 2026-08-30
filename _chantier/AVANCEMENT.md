@@ -4530,7 +4530,9 @@ pas — ce qui s'ajoute casse autant.** C'est ce qui a attrapé `S3_PREFIX`.
 3. **Le durcissement** : garde 2 citations attendues, coûte 2 fantômes. Arbitrage.
 4. **D62 / D63 / D64 / D66 / D67 / D68** — arbitrage humain demandé, aucun tranché.
 5. **Attribution** : `LICENSE`, `pyproject.toml`, `README.md`, `Chart.yaml`
-   (maintainers) — délibérément intouchés. Rappel : *pas de mention CEREMA pour Colaig*.
+   (maintainers) — délibérément intouchés. Rappel : Colaig ne doit porter la mention
+   d'aucune organisation ; `tests/test_pas_de_secret_commite.py` le verifie, et il
+   s'est declenche sur cette ligne meme quand elle nommait celle a eviter.
 6. **Jeu doré conversationnel** — demande une vérité écrite par un humain (§4.8).
 
 ## Deux échéances datées
