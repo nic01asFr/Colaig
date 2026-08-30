@@ -3693,3 +3693,66 @@ doit se déclarer dans `.colaig/config.yaml`.
 
 La réponse sourcée elle-même — la session Tchap s'est interrompue avant. Puis le fil
 (L3.2), la continuité (D56), les gestes 🔄 et ➕, et la pièce jointe (L3.7).
+
+---
+
+## CE QUI EST ÉPROUVÉ SUR LE FIL · 30/08/2026 · image `tronc-a6b0e28`
+
+Le salon **Colaig - Mesure SST** est lié à `colaig-mesure-sst`, 51 documents indexés sur
+S3. Tout ce qui suit est **vérifié en usage réel**, pas en test.
+
+### La réponse sourcée
+
+    sources=['fiche_reflexe_agression.pdf', 'NoteDirecteur_Instruction03fev23_v1.pdf']
+    confiance=0.72  temps_ms=2504
+
+La réponse cite ses sources **en ligne**, et son contenu vient bien des documents : elle
+nomme les acteurs réels du corpus — SG, MdT, CTSS-ASS, AP-CP, ISST — et la conduite à
+tenir. Pas de pénalité de confiance : le correctif du vérificateur de citations (29/08)
+tient, les noms de fichiers sont reconnus comme sourcés.
+
+### La continuité — D56, jamais éprouvée jusqu'ici
+
+Question elliptique : *« et si c'est un usager, pas un collègue ? »*
+
+Colaig a **résolu le sujet** — il répond explicitement sur « une agression par un
+usager », mot que la question ne contient pas. Le sujet vient du tour précédent.
+
+**Et il refuse d'inventer** : *« Je n'ai pas de document de référence spécifique […] je
+ne sais donc pas vous donner la procédure officielle. »* C'est exactement ce que la
+notice de capacités lui prescrit, et c'est le comportement qui compte le plus.
+
+### Le fil — L3.2, critère du lot
+
+Message envoyé **dans un fil, sans aucune mention** → Colaig répond, avec quatre
+sources. Le critère est atteint.
+
+### Les quatre gestes, persistés sur S3
+
+| geste | effet vérifié |
+|---|---|
+| 👎 | `.colaig/feedback/*.json` — emoji, MXID, salon, **et la question** |
+| 🔄 | le tour est rejoué : même question, nouvelle réponse |
+| ➕ | `.colaig/notes.md` — la question en titre, la réponse dessous |
+| 👍 | même chemin que 👎 |
+
+### Un dernier défaut, trouvé par comparaison
+
+En salon, la question arrivait préfixée du nom du bot —
+`'Colaig Assistant [Developpement-Durable]: quelle est la procedure…'` — parce que c'est
+ainsi qu'un client Matrix rend une mention en texte brut. **Dans un fil, où la mention
+est inutile, la même question arrivait propre.** C'est la comparaison des deux qui a
+rendu l'écart visible.
+
+Ce n'est pas cosmétique : le préfixe se propageait dans le retour persisté — donc dans
+**la seule mesure de qualité issue des usages réels** —, dans le titre des notes, et
+dans la reformulation de l'Analyseur.
+
+Corrigé, avec une borne : le nom doit être **en tête et suivi d'un séparateur**. Une
+phrase qui commence par le nom sans séparateur parle du bot ; elle ne lui parle pas.
+
+### Reste
+
+La pièce jointe (L3.7) et `!classer`. Et un constat de bootstrap : un espace posé à la
+main a `owners: []`, donc **rattachable par personne** — le refus par défaut de l'ACL est
+correct, mais rien n'indique à qui dépose un dossier qu'il doit s'y déclarer.

@@ -765,6 +765,42 @@ class MatrixMessaging:
         except Exception:
             logger.exception("traitement de réaction en échec: %s", event.event_id)
 
+    def _corps_sans_mention(self, corps: str, nom_affiche: str = "") -> str:
+        """Retire la mention en tete, qui n'appartient pas a la question.
+
+        Les clients Matrix rendent une mention en texte brut sous la forme
+        « <nom affiche>: <texte> ». Le nom du destinataire se retrouvait donc DANS la
+        question — et se propageait : dans le retour persiste, donc dans la seule mesure
+        de qualite issue des usages reels ; dans le titre des notes versees par le geste
+        « garder » ; et dans la reformulation de l'Analyseur, a qui l'on donnait a
+        interpreter un nom propre etranger a la demande.
+
+        Releve le 30/08/2026 : dans un salon la question arrivait prefixee, dans un fil
+        — ou la mention est inutile — elle arrivait propre. La comparaison des deux a
+        rendu l'ecart visible.
+
+        LA BORNE. Le nom doit etre EN TETE et suivi d'un separateur. Une phrase qui
+        commence par le nom sans separateur parle du bot ; elle ne lui parle pas. Et un
+        message reduit a la seule mention reste intact : le vider ferait descendre au
+        pipeline une question sans texte.
+        """
+        texte = (corps or "").strip()
+        if not texte:
+            return corps
+
+        localpart = self.identite.split(":")[0].lstrip("@")
+        for nom in (nom_affiche, localpart):
+            if not nom or not texte.startswith(nom):
+                continue
+            reste = texte[len(nom):].lstrip()
+            if reste[:1] in (":", ","):
+                reste = reste[1:].lstrip()
+            elif not reste.startswith(":"):
+                continue
+            if reste:
+                return reste
+        return corps
+
     def _nous_concerne(self, event, contenu: dict, thread_root: str) -> bool:
         """En salon, ce message appelle-t-il l'assistant ?
 
@@ -858,10 +894,15 @@ class MatrixMessaging:
                 return
 
         # Construire l'IncomingMessage (noms provider-agnostic)
+        #
+        # Le corps est nettoye de la mention en tete : le nom du destinataire n'est pas
+        # une partie de ce qu'on lui demande, et il se propageait jusque dans les
+        # retours persistes et les notes.
         message = IncomingMessage(
             user_id=event.sender,
             conversation_id=room.room_id,
-            body=event.body,
+            body=self._corps_sans_mention(
+                event.body, room.user_name(self.identite) or ""),
             conversation_type=conversation_type,
             message_id=event.event_id,
             display_name=room.user_name(event.sender) or event.sender,
