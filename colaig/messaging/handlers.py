@@ -20,7 +20,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from colaig.integrations.albert import AlbertClient
 
-from colaig.capacites import PREFIXES_CREATION, PREFIXES_LIAISON
+from colaig.capacites import (
+    PREFIXES_CREATION,
+    PREFIXES_LIAISON,
+    retirer_gestes_en_fin,
+)
 from colaig.context.layers import save_conversation_history
 from colaig.messaging.progress import ProgressReporter, resolve_channel
 from colaig.messaging.retours import GestionnaireRetours, proposer_gestes
@@ -943,6 +947,10 @@ class MessageHandler:
             )
 
             # 5. Envoyer la réponse
+            # Le modele recopie les emojis de retour depuis ses propres reponses
+            # precedentes. On les retire AVANT l'envoi, donc avant l'historique :
+            # sinon le motif se reinstalle tout seul au tour suivant.
+            response.text = retirer_gestes_en_fin(response.text)
             await self._messaging.send(message.conversation_id, response.text)
 
             # Proposer les gestes de retour SOUS la réponse (L3.3)
@@ -1131,6 +1139,10 @@ class MessageHandler:
 
             # 6. COMPLETE — Envoi
             await self._notify_phase(PipelinePhase.COMPLETE, message.conversation_id)
+            # Le modele recopie les emojis de retour depuis ses propres reponses
+            # precedentes. On les retire AVANT l'envoi, donc avant l'historique :
+            # sinon le motif se reinstalle tout seul au tour suivant.
+            response.text = retirer_gestes_en_fin(response.text)
             await self._messaging.send(message.conversation_id, response.text)
             if not response.sources and intent.needs_rag:
                 await self._messaging.send(

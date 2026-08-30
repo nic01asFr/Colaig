@@ -219,3 +219,61 @@ def test_la_notice_dit_qui_pose_les_gestes(mode):
     assert "tu poses toi-même" not in notice.lower(), (
         "formulation qui fait écrire les gestes au modèle au lieu de l'informer"
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Les gestes recopiés par le modèle sont retirés de la réponse
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def test_les_gestes_en_fin_de_reponse_sont_retires():
+    """Le modèle imitait ses propres réponses précédentes.
+
+    Retirer les emojis du prompt système n'a pas suffi : ils étaient déjà dans
+    l'**historique de conversation**, et le modèle recopiait son propre style. Vérifié
+    sur le fil le 30/08/2026, deux corrections de prompt plus tard, et lu dans
+    `notes.md` — donc dans le corps réel du message, pas dans le rendu :
+
+        ...Les actions mises en œuvre [fiche_reflexe_accident___annexe_1.pdf].
+
+        👍 👎 🔄 ➕
+
+    Un défaut auto-entretenu : chaque réponse renforce le motif dans l'historique. Une
+    consigne ne le défera pas, parce qu'elle ne défait pas le passé. Le retrait doit
+    être mécanique.
+    """
+    for suffixe in (
+        "👍 👎 🔄 ➕",
+        "\n\n👍 👎 🔄 ➕",
+        "👍 (la réponse convient) 👎 (la réponse ne convient pas)",
+        "  👍   👎  ",
+    ):
+        texte = f"Le délai est de 15 jours [fiche.pdf].\n\n{suffixe}"
+        assert capacites.retirer_gestes_en_fin(texte) == (
+            "Le délai est de 15 jours [fiche.pdf]."
+        ), f"suffixe non retiré : {suffixe!r}"
+
+
+def test_un_geste_au_milieu_du_texte_est_conserve():
+    """La borne : on ne retire qu'une queue faite UNIQUEMENT de gestes.
+
+    Un texte qui parle des réactions — parce qu'on l'a interrogé dessus — doit rester
+    intact.
+    """
+    texte = "Tapotez 👍 si la réponse convient, puis dites-moi ce qui manque."
+    assert capacites.retirer_gestes_en_fin(texte) == texte
+
+
+def test_une_reponse_sans_geste_est_intacte():
+    texte = "Le délai est de 15 jours [fiche.pdf]."
+    assert capacites.retirer_gestes_en_fin(texte) == texte
+
+
+def test_une_reponse_vide_ne_casse_pas():
+    assert capacites.retirer_gestes_en_fin("") == ""
+    assert capacites.retirer_gestes_en_fin(None) == ""
+
+
+def test_une_reponse_reduite_aux_gestes_reste_intacte():
+    """Tout retirer laisserait un message vide, pire que le défaut."""
+    assert capacites.retirer_gestes_en_fin("👍 👎 🔄 ➕") == "👍 👎 🔄 ➕"

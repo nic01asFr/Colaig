@@ -38,6 +38,8 @@ les annonce. Un module de capacités qui anticipe est un module qui ment.
 
 from __future__ import annotations
 
+import re
+
 from colaig.models import ContextMode
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -130,6 +132,41 @@ def est_une_commande(corps: str) -> bool:
         return any(nom == c.lower() for c, _ in COMMANDES)
 
     return texte.startswith(PREFIXES_CREATION + PREFIXES_LIAISON)
+
+
+_EMOJIS_DE_GESTE = tuple(emoji for emoji, _ in GESTES)
+
+# Une queue de gestes : les emojis, leurs légendes entre parenthèses, et rien d'autre.
+_QUEUE_DE_GESTES = re.compile(
+    r"(?:\s*(?:" + "|".join(re.escape(e) for e in _EMOJIS_DE_GESTE) + r")"
+    r"(?:\s*\([^)\n]{0,60}\))?)+\s*$"
+)
+
+
+def retirer_gestes_en_fin(texte: str) -> str:
+    """Retire les emojis de retour que le modèle recopie en fin de réponse.
+
+    POURQUOI UNE CONSIGNE NE SUFFIT PAS. Les gestes ont d'abord été décrits au modèle
+    comme une action à lui (« tu poses toi-même… »), et il les écrivait. On a dit qui
+    les posait et interdit de les écrire : il les écrivait encore. On a retiré les
+    caractères du prompt : **il les écrivait toujours**.
+
+    Parce qu'ils étaient déjà dans l'HISTORIQUE de la conversation, et qu'un modèle
+    imite son propre style. Le défaut s'auto-entretient : chaque réponse renforce le
+    motif pour la suivante. Une consigne ne défait pas le passé.
+
+    Vérifié dans `notes.md` le 30/08/2026 — donc dans le corps réel du message, pas
+    dans le rendu du client.
+
+    LA BORNE. On ne retire qu'une **queue faite uniquement de gestes** (et de leurs
+    légendes). Un texte qui parle des réactions parce qu'on l'a interrogé dessus reste
+    intact, et une réponse réduite aux seuls gestes aussi : la vider serait pire que le
+    défaut.
+    """
+    if not texte:
+        return ""
+    nettoye = _QUEUE_DE_GESTES.sub("", texte).rstrip()
+    return nettoye if nettoye else texte
 
 
 def _liste(entrees: tuple[tuple[str, str], ...], puce: str = "- ") -> str:
