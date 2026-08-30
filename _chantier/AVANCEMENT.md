@@ -4479,3 +4479,68 @@ Révision 7. Un seul pod, `device_id=7rJiJy9aGc` conservé **à travers un helm 
 
 `values-colaig-test.yaml` est au dépôt, sans aucun secret — un test le vérifie, le dépôt
 étant public.
+
+---
+
+# ÉTAT AU SOIR DU 30/08/2026 — POINT DE REPRISE
+
+> Une session qui démarre lit cette section et sait où repartir sans relire le dépôt.
+
+## L'instance tourne et elle est saine
+
+| | |
+|---|---|
+| Release | `colaig-test`, révision **7**, namespace `user-nic01asfr` |
+| Image | `ghcr.io/nic01asfr/colaig:tronc-eed4abf` |
+| Décrite par | `deploy/helm/colaig/values-colaig-test.yaml` (au dépôt, sans secret) |
+| Stockage | S3/MinIO SSPCloud, bucket `colaig`, **sans préfixe** |
+| Corpus | 60 documents, **1272 chunks actifs**, zéro manquant |
+| Identité Matrix | `device_id=7rJiJy9aGc`, sur volume persistant |
+| Journal | **0 erreur, 0 message non déchiffré** |
+| Tests | **2643 verts**, 114 `skip` |
+
+Mise à jour de l'instance :
+
+    helm upgrade colaig-test deploy/helm/colaig -n user-nic01asfr \
+      -f deploy/helm/colaig/values-colaig-test.yaml
+
+## Ce que la journée a établi comme méthode
+
+**Aucun des défauts corrigés aujourd'hui n'a été trouvé par un test.** Tous l'ont été
+en lisant les journaux d'une instance qui tourne, ou en comparant un rendu à un état
+réel. Les tests sont venus **après**, pour les figer.
+
+Le motif dominant, relevé seize fois dans ce dépôt : **une capacité qui déclare avoir
+fait le travail**. Le reranker qui effaçait tout, BM25 annonçant un index vide, l'OCR
+disant « réussi » sur une page coupée, mon propre « reprise et achevée » sur une
+continuation vide. Deux de ces seize sont de moi, écrites dans la journée en croyant
+en corriger d'autres.
+
+Corollaire pratique, qui a servi deux fois : **vérifier que rien ne manque ne suffit
+pas — ce qui s'ajoute casse autant.** C'est ce qui a attrapé `S3_PREFIX`.
+
+## Ce qui reste ouvert, par ordre de blocage
+
+1. **Porte 1 — sécurité : 0/21 structurel**, bras témoin 2/21. *Bloque toute ouverture
+   multi-utilisateurs.* C'est le seul verrou structurel restant. Lourd : ne pas le
+   lancer sans avoir présenté son périmètre.
+2. **Confusion de régime — 37,5 %.** Le seul indicateur qui mesure une erreur de fond.
+   La mesure a écarté « un meilleur rappel corrigera » : 107/113 de rappel, rang médian
+   1, et l'indicateur ne bouge pas. Trois voies : filtrer, annoter, documenter.
+3. **Le durcissement** : garde 2 citations attendues, coûte 2 fantômes. Arbitrage.
+4. **D62 / D63 / D64 / D66 / D67 / D68** — arbitrage humain demandé, aucun tranché.
+5. **Attribution** : `LICENSE`, `pyproject.toml`, `README.md`, `Chart.yaml`
+   (maintainers) — délibérément intouchés. Rappel : *pas de mention CEREMA pour Colaig*.
+6. **Jeu doré conversationnel** — demande une vérité écrite par un humain (§4.8).
+
+## Deux échéances datées
+
+- **Identifiants S3 : expiration le 05/09/2026.** Ce sont des credentials STS. Il faut
+  un compte de service MinIO non expirant, créé depuis le compte `colaig`.
+- **Trois jetons passés en clair dans la conversation du 29-30/08** (Vault, kubectl,
+  Tchap) **doivent être révoqués.**
+
+## Ce à quoi on ne touche pas
+
+La release `colaig` (chart `colaig-1.0.0`, appVersion `0.2.1`) est la production
+`colaig-0`. Elle ne vient pas de ce dépôt. Le chart du dépôt est `colaig-0.1.0`.
