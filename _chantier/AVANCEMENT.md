@@ -4546,3 +4546,72 @@ pas — ce qui s'ajoute casse autant.** C'est ce qui a attrapé `S3_PREFIX`.
 
 La release `colaig` (chart `colaig-1.0.0`, appVersion `0.2.1`) est la production
 `colaig-0`. Elle ne vient pas de ce dépôt. Le chart du dépôt est `colaig-0.1.0`.
+
+---
+
+## 30/08/2026 (soir) — Les sources en exposant, éprouvées dans Tchap
+
+**Image validée** : `tronc-17483ab`, révision Helm 12
+**Critère de fin** : une question réelle, dans Tchap, rend des appels de note attachés
+aux mots et une liste de sources en fin de message. **Atteint.**
+
+### Ce que l'utilisateur voit maintenant
+
+    L'agent peut se faire accompagner par un supérieur hiérarchique¹. Cependant, les
+    règles varient selon le contexte :
+      • Dans le cadre général de la plainte, le supérieur doit garder le silence¹.
+      • En cas d'agression, sa hiérarchie a l'obligation de l'accompagner².
+
+    ¹ Fiche_Depot_Plainte_v1.pdf
+    ² fiche_reflexe_agression_-_annexe_4.pdf
+
+Contre, la veille, douze `[AccEvtGrave Support participants septembre 2024.pdf]` en
+clair dans une seule réponse.
+
+### Trois contraintes ont décidé de la conception
+
+1. **Le modèle continue d'écrire `[nom.pdf]`** — `citation_checker` s'ancre dessus. La
+   numérotation est faite par le système, **après** le contrôle (D66).
+2. **L'historique garde la forme brute** — y mettre des exposants les ferait recopier
+   au tour suivant. C'est le défaut des emojis de gestes, corrigé le matin même.
+3. **Une citation sans source ne reçoit pas de numéro** — elle reste visible en clair
+   plutôt que maquillée en référence vérifiée. Observé en conditions réelles :
+   `[fiche_reflexe_accident___annexe_4.pdf]` est resté nu, confiance abaissée à 0,51.
+
+### Deux défauts trouvés **par le test dans Tchap**, pas par un test unitaire
+
+**Le bloc de notes arrivait sur une seule ligne.** `_markdown_to_html` suivait
+CommonMark, où un simple retour à la ligne est un espace — correct pour un document,
+faux pour une messagerie. Défaut **général** : toute réponse avec deux lignes de texte
+consécutives les fusionnait. Il avait survécu parce que le modèle rédige surtout en
+listes, qui produisent leurs propres balises.
+
+**Un correctif qui était en réalité une course.** Mesure décisive — même utilisateur,
+même salon, **même pod**, seul le temps écoulé change :
+
+| | pod à ~2 min | pod à ~8 min |
+|---|---|---|
+| question | `Colaig Assistant […]: que faut-il…` | `quel est le delai…` |
+
+`_corps_sans_mention` tirait le nom à retirer de `room.user_name()`, donc de l'état des
+membres du salon, chargé de façon **asynchrone**. Sur les premiers messages après
+chaque redémarrage, la mention restait collée — donc dans l'embedding de recherche,
+l'historique persisté et la reformulation de l'Analyseur.
+
+> Le correctif d'origine (« La mention ne fait pas partie de la question ») était juste,
+> mais il dépendait d'un état asynchrone. **Ce n'était pas un correctif, c'était une
+> course** — et il la perdait à chaque démarrage, sans que rien ne le signale.
+
+Colaig tient désormais son nom de **son propre profil**, obtenu une fois à la connexion.
+Vérifié sur un pod de deux minutes : `question='qui accompagne un agent lors du depot
+de plainte ?'`, propre.
+
+### Ce qui reste, et que je n'ai pas traité
+
+- **Le nom affiché de l'expéditeur** dépend encore de `room.user_name(event.sender)` :
+  au démarrage le journal porte le MXID au lieu du nom. Sans effet sur la recherche —
+  c'est une étiquette, pas la question — mais le même mécanisme.
+- **Le modèle rejoue des noms de documents vus dans l'historique** de la conversation :
+  `fiche_reflexe_accident___annexe_4.pdf` cité alors qu'il n'était pas dans les sources.
+  Le vérificateur le repère et abaisse la confiance, donc le garde-fou tient. Mais c'est
+  le même motif que les emojis : le modèle se recopie lui-même. **Cela mérite un lot.**
