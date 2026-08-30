@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +23,36 @@ _CITATION_RE = re.compile(r"\[([^\]\n]{2,120})\]")
 _UNGROUNDED_PENALTY = 0.7
 
 
+# Toute suite d'espaces blancs vaut un espace.
+_ESPACES = re.compile(r"\s+")
+
+
 def _norm(value: str) -> str:
-    """Normalise un nom (basename, minuscules) pour comparaison souple."""
-    return value.strip().lower().rsplit("/", 1)[-1]
+    """Normalise un nom pour le comparer a ce qu'un LECTEUR verrait.
+
+    Releve en production le 30/08/2026, sur une question reelle :
+
+        1 citation(s) sans source: ['... participants septembre 2024.pdf']
+        (sources: ['... participants  septembre  2024.pdf'])
+
+    Le meme document. La source porte des espaces doubles, le modele les a
+    ecrits simples en redigeant. La citation a ete comptee fantome, et
+    `audit_and_adjust` a retranche 30 % de confiance a une reponse juste.
+
+    Deux differences sont invisibles a l'oeil, donc doivent l'etre ici :
+
+    - **les suites d'espaces**, qu'un modele qui redige normalise seul ;
+    - **la composition Unicode** : « e » precompose (NFC) et « e » suivi d'un
+      accent combinant (NFD) s'affichent a l'identique. Un depot alimente
+      depuis macOS produit du NFD, depuis Windows du NFC — le meme corpus
+      contient les deux formes du meme nom.
+
+    On ne va pas plus loin. Effacer la ponctuation ou les chiffres echangerait
+    ce faux positif contre un faux NEGATIF, qui laisserait passer une citation
+    inventee — le signal meme pour lequel ce module existe.
+    """
+    base = unicodedata.normalize("NFC", value).strip().lower().rsplit("/", 1)[-1]
+    return _ESPACES.sub(" ", base)
 
 
 # Ce qui, entre crochets, désigne plausiblement un document : une extension de fichier,

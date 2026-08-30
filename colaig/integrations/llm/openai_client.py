@@ -38,6 +38,16 @@ from colaig.utils.reponses_llm import extraire_contenu
 
 logger = logging.getLogger(__name__)
 
+# Budget de tokens d'une requete de transcription OCR, et nombre de reprises admises
+# quand une page le depasse.
+#
+# Ni l'un ni l'autre n'est une limite du modele : le catalogue de SSPCloud, interroge
+# le 30/08/2026, n'en publie aucune pour `chandra-ocr-2`. Ce sont un budget de requete
+# et un garde-fou de boucle — c'est la REPRISE qui rend la valeur exacte non critique,
+# et c'est pour cela qu'on n'a pas eu a en inventer une (CLAUDE.md racine §4.8).
+_OCR_MAX_TOKENS = 4096
+_OCR_MAX_REPRISES = 4
+
 
 def _backoff_delay(attempt: int) -> float:
     """Backoff exponentiel avec jitter : base 1s, max 60s."""
@@ -310,23 +320,109 @@ class OpenAIClient:
             pages = [content]
 
         textes: list[str] = []
-        for page in pages:
-            b64 = base64.b64encode(page).decode("ascii")
-            texte = await self.chat(
-                [{"role": "user", "content": [
-                    {"type": "text", "text": consigne},
-                    {"type": "image_url",
-                     "image_url": {"url": f"data:image/png;base64,{b64}"}},
-                ]}],
-                model=modele,
-                temperature=0.0,
-                max_tokens=4096,
-                priority="background",
-            )
+        for numero, page in enumerate(pages, start=1):
+            texte = await self._ocr_une_page(page, consigne, modele, filename, numero)
             if texte and texte.strip():
                 textes.append(texte.strip())
 
         return "\n\n".join(textes)
+
+    async def _ocr_une_page(
+        self,
+        page: bytes,
+        consigne: str,
+        modele: str,
+        filename: str,
+        numero: int,
+    ) -> str:
+        """Transcrit une page, en la REPRENANT si le budget de tokens l'a coupee.
+
+        LE DEFAUT RELEVE LE 30/08/2026, dans les journaux d'une indexation reelle :
+
+            OpenAI : reponse tronquee (max_tokens=4096 atteint, 4130 caracteres)
+            OCR reussi pour /colaig-mesure-sst/debriefing.pdf (38916 caracteres)
+
+        « OCR reussi » suivait immediatement la troncature. Le document entrait dans
+        l'index **ampute de ce qui depassait le budget**, sans que rien ne le distingue
+        d'un document complet. Une question portant sur la fin d'une page recevait un
+        refus — ou, plus trompeur, une reponse partielle donnee pour entiere.
+
+        POURQUOI ON N'AUGMENTE PAS SIMPLEMENT max_tokens. Le catalogue de SSPCloud,
+        interroge le 30/08/2026, ne publie pour `chandra-ocr-2` ni fenetre de contexte
+        ni limite de sortie. Choisir 16384 serait inventer une donnee plausible, ce que
+        le CLAUDE.md racine interdit (§4.8) — et une page plus dense franchirait la
+        nouvelle limite comme elle a franchi l'ancienne.
+
+        La reprise, elle, n'a besoin de connaitre aucune limite : on redonne au modele
+        l'image et ce qu'il a deja transcrit, et on lui demande la suite. C'est la
+        methode que le decoupage page-par-page appliquait deja au document ; on
+        l'applique maintenant a la page.
+
+        `_OCR_MAX_REPRISES` n'est pas une limite du modele : c'est un garde-fou de
+        boucle. Quand il est atteint, le document est **nomme** dans le journal — ce
+        qui manquait a l'avertissement d'origine, noye dans le flot de soixante
+        fichiers indexes d'affilee.
+        """
+        b64 = base64.b64encode(page).decode("ascii")
+        page_utilisateur = {"role": "user", "content": [
+            {"type": "text", "text": consigne},
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
+        ]}
+
+        morceaux: list[str] = []
+        messages = [page_utilisateur]
+
+        for _ in range(_OCR_MAX_REPRISES + 1):
+            morceau, tronquee = await self._transcrire(messages, modele)
+            if morceau.strip():
+                morceaux.append(morceau.strip())
+            if not tronquee:
+                return "\n".join(morceaux)
+
+            # On remontre l'image ET le deja-transcrit : sans lui, le modele
+            # recommencerait la page au lieu de la finir.
+            messages = [
+                page_utilisateur,
+                {"role": "assistant", "content": "\n".join(morceaux)},
+                {"role": "user", "content": "Poursuis la transcription exactement la "
+                                            "ou elle s'arrete, sans rien repeter."},
+            ]
+
+        logger.warning(
+            "OCR incomplet : %s page %d — la transcription depasse encore le budget "
+            "apres %d reprises ; le document est indexe ampute de sa fin",
+            filename, numero, _OCR_MAX_REPRISES,
+        )
+        return "\n".join(morceaux)
+
+    async def _transcrire(self, messages: list[dict], modele: str) -> tuple[str, bool]:
+        """Un appel de transcription. Rend le texte ET s'il a ete coupe.
+
+        `chat()` ne peut pas servir ici : il rend une chaine, donc l'appelant ne peut
+        pas savoir que `finish_reason` valait « length ». C'est exactement cette
+        information qui manquait au moment ou l'OCR declarait la page reussie.
+        """
+        verifier_quota(self._usage_tracker, self._client_id)
+        url = f"{self._base_url}/v1/chat/completions"
+        payload = {
+            "model": modele,
+            "messages": messages,
+            "temperature": 0.0,
+            "max_tokens": _OCR_MAX_TOKENS,
+            **self._kwargs_modele(),
+        }
+        async with self._bg_chat_semaphore:
+            reponse = await self._request_with_retry(url, payload, self._chat_timeout)
+        donnees = reponse.json()
+        enregistrer_usage(self._usage_tracker, self._client_id, donnees)
+
+        try:
+            choix = donnees["choices"][0]
+            contenu = choix["message"].get("content") or ""
+        except (KeyError, IndexError, TypeError) as e:
+            raise LLMError(f"Reponse {self._backend} inattendue : {e}") from e
+
+        return contenu, choix.get("finish_reason") == "length"
 
     # ── Chat ──────────────────────────────────────────────────────────
 

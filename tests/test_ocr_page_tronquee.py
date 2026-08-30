@@ -1,0 +1,155 @@
+"""
+Colaig — une page d'OCR coupee ne doit pas entrer entiere dans l'index.
+
+RELEVE EN PRODUCTION, LE 30/08/2026
+------------------------------------
+Pendant l'indexation qui a fait passer le corpus de 52 a 60 documents :
+
+    OpenAI : reponse tronquee (max_tokens=4096 atteint, 4130 caracteres rendus)
+    OCR reussi pour /colaig-mesure-sst/debriefing.pdf (38916 caracteres)
+    OpenAI : reponse tronquee (max_tokens=4096 atteint, 7717 caracteres rendus)
+    OCR reussi pour /colaig-mesure-sst/perren_psychotraumatologie.pdf (21380 car.)
+
+« OCR reussi » suit immediatement l'avertissement de troncature. **Le document est
+indexe comme s'il etait complet**, amoute de ce qui depassait le budget. Une
+question portant sur la fin d'une page recevra un refus, ou pire, une reponse
+partielle presentee comme complete.
+
+C'est le meme motif que les douze precedents de ce depot — une capacite qui
+s'annonce accomplie alors qu'elle a fait la moitie du travail — a ceci pres qu'ici
+l'avertissement EXISTAIT. Il ne nommait simplement pas le document, et se perdait
+dans le flot d'une indexation de soixante fichiers.
+
+CE QUI N'EST PAS FAIT ICI, ET POURQUOI
+----------------------------------------
+On n'augmente PAS `max_tokens` a une valeur choisie. Le catalogue de SSPCloud,
+interroge le 30/08/2026, ne publie ni fenetre de contexte ni limite de sortie pour
+`chandra-ocr-2` : y mettre 16384 serait inventer une donnee plausible, ce que le
+CLAUDE.md racine interdit (§4.8). Et cela ne reglerait rien au fond — une page plus
+dense franchirait la nouvelle limite comme elle a franchi l'ancienne.
+
+LA PROPRIETE FIGEE ICI
+------------------------
+Une page coupee est **reprise** la ou elle s'est arretee, et concatenee. Aucune
+limite du modele n'a besoin d'etre connue pour cela. Si la reprise n'aboutit pas
+dans un nombre borne de tours, le document est nomme dans le journal — un exploitant
+doit pouvoir savoir QUEL document est incomplet, pas seulement qu'un l'est.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+
+def _client(**kwargs):
+    from colaig.integrations.llm.openai_client import OpenAIClient
+
+    return OpenAIClient(api_key="k", base_url="https://exemple.invalid",
+                        model_ocr="chandra-ocr-2", **kwargs)
+
+
+class _Reponse:
+    """Une reponse de l'API, avec son `finish_reason`."""
+
+    def __init__(self, contenu: str, raison: str = "stop"):
+        self._c, self._r = contenu, raison
+
+    def json(self):
+        return {"choices": [{"message": {"content": self._c}, "finish_reason": self._r}]}
+
+
+def _scripter(client, reponses):
+    """Sert `reponses` dans l'ordre et journalise les charges utiles emises."""
+    emises, restant = [], list(reponses)
+
+    async def _appel(url, payload, timeout):
+        emises.append(payload)
+        return restant.pop(0) if restant else _Reponse("")
+
+    client._request_with_retry = _appel
+    return emises
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# La reprise
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_une_page_coupee_est_reprise():
+    """LE defaut du 30/08. La fin de la page etait perdue en silence."""
+    c = _client()
+    _scripter(c, [_Reponse("debut de page", "length"),
+                  _Reponse("et sa fin", "stop")])
+
+    texte = await c.ocr(b"\x89PNG image", "page.png")
+
+    assert "debut de page" in texte
+    assert "et sa fin" in texte, "la suite de la page est perdue"
+
+
+@pytest.mark.asyncio
+async def test_la_reprise_montre_au_modele_ou_il_s_est_arrete():
+    """Sans le deja-transcrit, le modele recommence la page au lieu de la finir."""
+    c = _client()
+    emises = _scripter(c, [_Reponse("premiere moitie", "length"),
+                           _Reponse("seconde moitie", "stop")])
+
+    await c.ocr(b"\x89PNG image", "page.png")
+
+    assert len(emises) == 2, f"{len(emises)} requete(s), la reprise n'a pas eu lieu"
+    suite = emises[1]["messages"]
+    assert any(m.get("role") == "assistant" and "premiere moitie" in str(m.get("content"))
+               for m in suite), "la reprise n'indique pas ce qui est deja transcrit"
+
+
+@pytest.mark.asyncio
+async def test_une_page_complete_n_est_pas_reprise():
+    """Le cas courant ne doit rien couter de plus."""
+    c = _client()
+    emises = _scripter(c, [_Reponse("page entiere", "stop")])
+
+    texte = await c.ocr(b"\x89PNG image", "page.png")
+
+    assert texte == "page entiere"
+    assert len(emises) == 1, "une requete de reprise inutile a ete emise"
+
+
+@pytest.mark.asyncio
+async def test_la_reprise_est_bornee(caplog):
+    """Une page qui ne finit jamais ne doit pas boucler sans fin.
+
+    La borne n'est pas une limite du modele — c'est un garde-fou de boucle. Ce qui
+    compte est qu'au bout, **le document soit nomme** : c'est ce qui manquait a
+    l'avertissement d'origine, invisible dans le flot de soixante fichiers.
+    """
+    import logging
+
+    c = _client()
+    emises = _scripter(c, [_Reponse(f"morceau {i}", "length") for i in range(20)])
+
+    with caplog.at_level(logging.WARNING):
+        texte = await c.ocr(b"\x89PNG image", "rapport-dense.png")
+
+    assert len(emises) < 20, "la reprise n'est pas bornee"
+    assert "morceau 0" in texte, "le transcrit partiel doit etre conserve"
+    assert any("rapport-dense.png" in r.getMessage() for r in caplog.records), (
+        "le document incomplet n'est pas nomme dans le journal"
+    )
+
+
+@pytest.mark.asyncio
+async def test_chaque_page_d_un_pdf_est_reprise_pour_son_compte(monkeypatch):
+    """Une page coupee ne doit pas decaler les suivantes."""
+    from colaig.integrations.llm import openai_client as mod
+
+    monkeypatch.setattr(mod, "_pdf_pages_to_png", lambda content, dpi=150: [b"p1", b"p2"])
+    c = _client()
+    _scripter(c, [_Reponse("p1 debut", "length"),
+                  _Reponse("p1 fin", "stop"),
+                  _Reponse("p2 entiere", "stop")])
+
+    texte = await c.ocr(b"%PDF faux", "doc.pdf")
+
+    for attendu in ("p1 debut", "p1 fin", "p2 entiere"):
+        assert attendu in texte, f"« {attendu} » manque : {texte!r}"
