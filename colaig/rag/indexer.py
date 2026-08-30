@@ -364,6 +364,35 @@ class Indexer:
             except Exception:
                 logger.debug("pas de bm25.pkl sur le storage (première indexation)")
 
+            # RECONSTRUIRE BM25 SI L'INDEX VECTORIEL EST PEUPLE ET LUI NON.
+            #
+            # C'est l'etat exact d'un espace indexe AVANT l'activation du drapeau
+            # hybride : `bm25.pkl` n'a jamais ete ecrit, parce que `bm25_store` valait
+            # None a l'indexation. Et comme les etags des documents n'ont pas change,
+            # `check_updates` ne reindexe rien : BM25 resterait vide POUR TOUJOURS, et
+            # la recherche hybride retomberait en silence sur FAISS seul.
+            #
+            # Releve le 30/08/2026 : le drapeau pose, le demarrage annonce « recherche
+            # hybride activee (BM25 + RRF k=60) », et le resultat est rigoureusement
+            # identique — memes sources, meme confiance. Activer l'option n'avait aucun
+            # effet, et rien ne le disait.
+            #
+            # Meme famille que le reranker absent, corrige le meme jour : une capacite
+            # DECLAREE ACTIVE QUI NE FAIT RIEN. C'est la forme de defaut la plus
+            # couteuse, parce qu'on croit mesurer une option qu'on n'a pas.
+            #
+            # La reconstruction ne coute aucun appel reseau ni ré-embedding : les textes
+            # des chunks sont deja dans `metadata.pkl`, qui vient d'etre charge.
+            if self._bm25_store.count == 0 and self._store.count > 0:
+                chunks = self._store.get_all_active_chunks()
+                if chunks:
+                    self._bm25_store.add(chunks)
+                    logger.info(
+                        "bm25 reconstruit depuis les métadonnées : %d chunks "
+                        "(index vectoriel présent, bm25.pkl absent)",
+                        self._bm25_store.count,
+                    )
+
         logger.info("index chargé depuis le storage: %s (%d vecteurs)", remote_path, self._store.count)
         return True
 
