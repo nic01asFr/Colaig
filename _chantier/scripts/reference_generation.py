@@ -327,7 +327,11 @@ def main() -> int:
     articles_existants = set(_IDENTIFIANTS)
     print(f"{len(chunks)} chunks, {len(articles_existants)} articles, {len(cas)} cas", file=sys.stderr)
 
-    store = FaissStore(dimension=1024)
+    # La dimension suit le modele d embedding, elle ne le precede pas. Ecrite en dur,
+    # elle faisait echouer toute mesure sur une autre pile — par un AssertionError NU
+    # de FAISS, sans message ni chiffre. Troisieme occurrence du meme defaut le
+    # 30/08/2026, apres le produit et le harnais de recherche.
+    store = FaissStore(dimension=_ns["DIMENSION"])
     store.add(embed([c.text for c in chunks], cle_a), chunks)
     vq = embed([c["question"] for c in cas], cle_a)
 
@@ -476,13 +480,20 @@ def rapport(resultats, latences) -> int:
     # Le nom du rapport porte la profondeur, sinon deux executions de la meme
     # variante a des k differents s ecrasent en silence — ce qui est arrive le
     # 23/08/2026 : la passe k=15 a efface celle de k=6, rapport et reponses.
+    # ET LA PILE DE RECHERCHE, pour la meme raison. Le modele d embedding est
+    # desormais reglable (30/08/2026) : sans lui dans le nom, une mesure sur la pile
+    # de production ecraserait celle sur Albert, et l'on comparerait deux rapports
+    # qui n'ont pas mesure la meme chose sans qu'aucun ne le dise.
+    _embed = _ns.get("MODELE_EMBED", "")
+    marque_pile = "" if _embed == "BAAI/bge-m3" else "-" + _embed.replace("/", "_")
     suffixe = (("" if VARIANTE == "temoin" else f"-{VARIANTE}") + f"-k{K}"
                + ("" if RAISONNEMENT else "-sansraisonnement")
-               + ("" if PERIMETRE == "article" else "-livre1"))
+               + ("" if PERIMETRE == "article" else "-livre1")
+               + marque_pile)
     sortie = RACINE / "docs" / f"baseline-generation-{time.strftime('%Y%m%d')}{suffixe}.md"
     # Les réponses sont conservées : auditer un chiffre ne doit pas exiger de tout
     # relancer. C'est ce qui a manqué pour vérifier la liste de marqueurs de refus.
-    brut = RACINE / "_chantier" / "mesures" / f"reponses-{VARIANTE}-k{K}{'' if RAISONNEMENT else '-sansraisonnement'}{'' if PERIMETRE == 'article' else '-livre1'}-{time.strftime('%Y%m%d')}.json"
+    brut = RACINE / "_chantier" / "mesures" / f"reponses-{VARIANTE}-k{K}{'' if RAISONNEMENT else '-sansraisonnement'}{'' if PERIMETRE == 'article' else '-livre1'}{marque_pile}-{time.strftime('%Y%m%d')}.json"
     brut.parent.mkdir(exist_ok=True)
     import json as _json
     brut.write_text(_json.dumps(

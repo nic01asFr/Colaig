@@ -101,7 +101,8 @@ def main() -> int:
 
     cle = cle_albert()
     chunks = decouper("article")
-    store = FaissStore()
+    # Meme raison : le defaut de FaissStore est 1024, ce qui ne vaut que pour bge-m3.
+    store = FaissStore(dimension=_ns["DIMENSION"])
     store.add(embed([c.text for c in chunks], cle), chunks)
     vq = embed([c["question"] for c in positifs], cle)
 
