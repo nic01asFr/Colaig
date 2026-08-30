@@ -32,9 +32,14 @@ Les retours antérieurs au 30/08/2026 ne portent ni réponse ni sources : le cha
 n'existait pas. Ils sont comptés, et signalés comme incomplets plutôt que rendus comme
 des réponses vides.
 
-USAGE
------
-    kubectl exec -n <ns> <pod> -- python /app/_chantier/scripts/relever_retours.py [espace]
+OÙ CE MODULE VIT, ET POURQUOI
+-------------------------------
+Dans `colaig/`, pas dans `_chantier/scripts/`. C'est un outil d'EXPLOITATION : il doit
+être disponible là où Colaig tourne, avec les identifiants de l'instance. L'image ne
+copie que `colaig/`, `config/` et `tests/` — un script de chantier n'y est pas, et un
+instrument qu'on doit copier à la main avant chaque usage n'est pas un instrument.
+
+    kubectl exec -n <ns> <pod> -- python -m colaig.releve [espace]
 
 Sans argument, relève tous les espaces déclarés.
 """
