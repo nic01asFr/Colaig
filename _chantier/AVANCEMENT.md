@@ -4674,3 +4674,81 @@ mesure écarte une piste avant qu'on y passe du temps.**
 > des sept articles retrouvés plus bas siègent aux rangs 6 à 11, donc dans un vivier de
 > 15 que le pipeline reçoit déjà sans les faire remonter. Le MMR échange de la pertinence
 > contre de la diversité, et cela se mesurerait.
+
+---
+
+## 31/08/2026 — Le pipeline agent, tranché sur quatre campagnes
+
+### La question
+
+Le pipeline agent est codé, câblé, et éteint. Quatre lots de la phase 4 et une bonne
+part des phases 5 et 6 en dépendent. Fallait-il le réparer ou l'abandonner ?
+
+### Ce qui a été fait
+
+Le prompt donné aux agents accolait **deux consignes de citation contradictoires** :
+le prompt de rôle prescrivait `[nom_fichier.ext]`, le prompt d'espace des numéros
+d'article. Sommé des deux, le modèle en inventait une troisième — douze citations
+« Doc 1, 1.1 » dans une seule campagne.
+
+`context_builder` énonçait pourtant la bonne règle : *« l'espace vient en dernier, ses
+règles doivent l'emporter »*. **Venir en dernier ne suffit pas à l'emporter : il faut
+que l'autre se taise.** La convention de citation a donc été séparée du prompt de rôle,
+et n'est servie que si l'espace n'en fournit pas.
+
+### Les quatre campagnes
+
+| | cœur RAG déployé | pipeline avant | **pipeline, grammaire unique** |
+|---|---|---|---|
+| | | 30/08 · 31/08 | **tirage 1 · tirage 2** |
+| citation fantôme | **9** | 14 · 11 | 12 · 10 |
+| hors contexte | **17** | 23 · 21 | 28 · 23 |
+| montants inventés | **0** | 1 · 1 | 2 · 1 |
+| cite l'attendu | 96/113 | 96 · 92 | 96 · 95 |
+| refus **toujours** | **22/22** | 18 · 18 | 20 · 19 |
+| refus *parfois* | **0** | 4 · 4 | 2 · 3 |
+
+### Ce que le correctif a fait, et ce qu'il n'a pas fait
+
+**Il a amélioré le refus** — 18/22 toujours et 4 intermittents, contre 19-20 et 2-3
+maintenant — et **restauré la couverture** (92 → 95-96/113).
+
+**Il n'a pas fermé l'écart.** En quatre campagnes, le pipeline n'a **jamais** atteint
+22/22. Et il reste au-dessus du cœur sur les deux indicateurs d'invention : 10-12
+fantômes contre 9, 23-28 hors contexte contre 17.
+
+### La cause profonde, et elle n'est pas dans le pipeline
+
+Avec une seule consigne, le modèle **invente toujours une grammaire de citation** :
+
+    tirage 1 : ['Document 8, Article 12.1.1', 'Document 8, Article 12.1.2', …]
+
+Hier c'était « Doc 1, 1.1 ». La forme change, le comportement non.
+
+**Le prompt demande de citer des ARTICLES, alors que les passages fournis sont des
+DOCUMENTS.** L'unité de citation ne correspond pas à l'unité de recherche, et le modèle
+comble l'écart en composant « Document N, Article X ».
+
+C'est exactement ce que D67 avait identifié pour la confusion de régime : *« filtrer par
+livre suppose que le chunk porte le chemin structurel complet »*. Même racine, deux
+symptômes. Et cela **touche aussi le cœur déployé** — ses 9 fantômes viennent de là.
+
+### La décision
+
+**Ne pas activer le pipeline agent.** Quatre campagnes, jamais gagnant, et l'écart de
+refus — le seul qui compte vraiment pour un assistant juridique — est stable.
+
+**Mais l'abandonner serait prématuré**, parce que son handicap principal est *partagé*
+avec le cœur : l'unité de citation. Tant que les chunks ne portent pas leur identité
+structurelle, aucun des deux ne peut citer proprement, et remesurer le pipeline avant
+cela ne dirait rien de neuf.
+
+> **L'ordre qui en découle** : porter l'identité structurelle dans les chunks (D67),
+> mesurer son effet sur le cœur — c'est lui qui tourne — et seulement ensuite rejuger le
+> pipeline. Si l'écart de refus subsiste alors, l'abandon sera fondé sur cinq campagnes
+> et une cause éliminée.
+
+*Réserve honnête : deux tirages du même code donnent 28 puis 23 en hors contexte, 12
+puis 10 en fantômes. La dispersion est large. Les écarts de un ou deux ne veulent rien
+dire ; seuls comptent le refus, jamais atteint en quatre campagnes, et le hors contexte,
+au-dessus du cœur dans les quatre.*
