@@ -65,6 +65,46 @@ Ta mission :
 - Être factuel : ne jamais inventer d'information absente des sources\
 """
 
+# LA CONVENTION DE CITATION EST SEPAREE DU PROMPT DE ROLE.
+#
+# Elle y etait fondue — « Citer les documents sources entre crochets [nom_fichier.ext] »
+# — et se retrouvait donc accolee aux regles de l'espace, qui en prescrivent souvent une
+# autre. Mesure du 31/08/2026 sur le corpus marches publics, dont la regle 1 dit « Cite
+# l'article, toujours » : somme de citer des noms de fichiers ET des numeros d'article,
+# le modele a produit QUATRE grammaires incompatibles dans une meme campagne —
+#
+#     ['service-public.fr']
+#     ['087-...-section-1-avances-l-article-r2191-10.md']   nom de fichier + article
+#     ['Nom de la Marque/Modele']                            un espace reserve
+#     ['Doc 1, 1.1', 'Doc 1, 1.2', ...]                      douze fois, grammaire inventee
+#
+# Ne pouvant satisfaire les deux ordres, il en a invente un troisieme.
+#
+# `context_builder` enoncait deja la regle — « l'espace vient en dernier, ses regles
+# doivent l'emporter » — sans la tenir : VENIR EN DERNIER NE SUFFIT PAS A L'EMPORTER,
+# il faut que l'autre se taise.
+CONVENTION_DE_CITATION_PAR_DEFAUT = (
+    "- Citer les documents sources entre crochets [nom_fichier.ext]"
+)
+
+
+def composer_prompt_systeme(prompt_de_role: str, prompt_espace: str) -> str:
+    """Assemble le prompt de role et les regles de l'espace, sans les faire se contredire.
+
+    Quand l'espace fournit ses propres regles, la convention de citation par defaut se
+    TAIT : deux grammaires donnees ensemble en produisent une troisieme.
+
+    Ce qui n'est pas une convention de format reste dans les deux cas — le role de
+    l'agent, et la regle anti-invention, qui n'est pas une question de presentation.
+    """
+    prompt = prompt_de_role
+    if prompt_espace and prompt_espace.strip():
+        prompt = prompt.replace(CONVENTION_DE_CITATION_PAR_DEFAUT + "\n", "")
+        prompt = prompt.replace("\n" + CONVENTION_DE_CITATION_PAR_DEFAUT, "")
+        prompt = f"{prompt}\n\n{prompt_espace.strip()}"
+    return prompt
+
+
 DEFAULT_PROMPTS = {
     "analyser": DEFAULT_ANALYSER_PROMPT,
     "orchestrator": DEFAULT_ORCHESTRATOR_PROMPT,
@@ -170,8 +210,7 @@ async def build_agent_context(
     # de l espace dit CE QU EST cet espace et quelles sont ses regles. L espace vient
     # en dernier — ses regles doivent l emporter sur la description generique du
     # metier d agent.
-    if prompt_espace and prompt_espace.strip():
-        system_prompt = f"{system_prompt}\n\n{prompt_espace.strip()}"
+    system_prompt = composer_prompt_systeme(system_prompt, prompt_espace)
 
     # 3. Skills (pour orchestrateur et synthétiseur)
     # Priorité : selected_skills (top-k sémantique, Phase 6) > chargement en bloc (Phase 5)
