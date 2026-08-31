@@ -234,7 +234,17 @@ class Synthesiser:
                 f"{system_prompt}\n\n"
                 f"## Documents de référence\n\n"
                 f"Utilise les documents suivants pour répondre. "
-                f"Cite tes sources entre crochets [nom_du_fichier].\n"
+                # LA GRAMMAIRE DE CITATION APPARTIENT A L'ESPACE.
+                #
+                # Cette ligne prescrivait le nom de fichier entre crochets, alors que
+                # le prompt d'espace peut en prescrire une autre — le corpus marches
+                # publics dit « Cite l'article, toujours ». Somme des deux, le modele
+                # en a invente une troisieme : douze citations « Doc 1, 1.1 » dans une
+                # campagne, puis « Document 8, Article 12.1.1 » dans la suivante.
+                #
+                # Un premier correctif l'avait retiree du prompt de ROLE. Il n'a rien
+                # change : elle etait reinjectee ici, dans les DEUX branches. L'experience
+                # lancee ce jour-la ne testait donc pas ce qu'elle croyait tester.
                 f"IMPORTANT : {CONSIGNE}\n\n"
                 f"{docs_text}"
             )
@@ -245,7 +255,17 @@ class Synthesiser:
                 f"{system_prompt}\n\n"
                 f"## Documents de référence\n\n"
                 f"Utilise les documents suivants pour répondre. "
-                f"Cite tes sources entre crochets [nom_du_fichier].\n"
+                # LA GRAMMAIRE DE CITATION APPARTIENT A L'ESPACE.
+                #
+                # Cette ligne prescrivait le nom de fichier entre crochets, alors que
+                # le prompt d'espace peut en prescrire une autre — le corpus marches
+                # publics dit « Cite l'article, toujours ». Somme des deux, le modele
+                # en a invente une troisieme : douze citations « Doc 1, 1.1 » dans une
+                # campagne, puis « Document 8, Article 12.1.1 » dans la suivante.
+                #
+                # Un premier correctif l'avait retiree du prompt de ROLE. Il n'a rien
+                # change : elle etait reinjectee ici, dans les DEUX branches. L'experience
+                # lancee ce jour-la ne testait donc pas ce qu'elle croyait tester.
                 f"IMPORTANT : {CONSIGNE}\n\n"
                 f"{docs_text}"
             )
@@ -364,11 +384,42 @@ class Synthesiser:
                         pass
                 messages.append({"role": msg["role"], "content": content})
 
-        # 3. La question reformulée — toujours ajouter un message user final
-        # (Albert retourne vide si le dernier message est assistant ou absent)
-        query = plan.intent.query_reformulated or ""
-        if not query:
-            query = "Réponds à la question de l'utilisateur."
+        # 3. LA QUESTION POSEE — pas sa reformulation.
+        #
+        # Cette ligne envoyait `plan.intent.query_reformulated` : le modele repondait
+        # donc a la reformulation qu'un PREMIER modele avait faite de la demande. Si
+        # elle derive — precise ce qui etait vague, generalise ce qui etait precis — le
+        # second repond juste a une question qui n'est plus la bonne.
+        #
+        # Mesure du 31/08/2026, meme corpus, meme jeu dore :
+        #
+        #     | | coeur (question posee) | pipeline (reformulation) |
+        #     | cite l'attendu  | 100/113 | 95-96/113 |
+        #     | hors contexte   |  16     | 23-28     |
+        #     | refus           |  22/22  | 19-20 + 2-3 intermittents |
+        #
+        # Le refus intermittent s'explique bien ainsi : une question reformulee peut
+        # CESSER d'etre sans reponse. Le coeur, lui, envoie la question telle quelle et
+        # refuse 22 fois sur 22.
+        #
+        # LES DEUX SONT UTILES, PAS AU MEME RANG. La question posee EST la question ;
+        # la reformulation dit sur quoi les passages ont ete cherches — utile pour
+        # comprendre ce qui a ete servi, jamais pour decider a quoi repondre. Elle est
+        # donc subordonnee, et tue quand elle n'apporte rien.
+        question_posee = (getattr(message, "body", "") or "").strip() if message else ""
+        reformulation = (plan.intent.query_reformulated or "").strip()
+
+        if question_posee:
+            query = question_posee
+            if reformulation and reformulation.lower() != question_posee.lower():
+                query = (f"{question_posee}\n\n"
+                         f"(Les passages ci-dessus ont été cherchés sur : "
+                         f"« {reformulation} ».)")
+        else:
+            # Certains appelants n'ont pas le message d'origine. Leur rendre une
+            # question vide serait pire que de leur rendre la reformulation.
+            query = reformulation or "Réponds à la question de l'utilisateur."
+
         messages.append({"role": "user", "content": query})
 
         return messages

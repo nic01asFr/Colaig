@@ -184,7 +184,17 @@ class Generator:
                 f"{system_prompt}\n\n"
                 f"## Documents de référence\n\n"
                 f"Utilise les documents suivants pour répondre. "
-                f"Cite tes sources entre crochets [nom_du_fichier].\n"
+                # LA GRAMMAIRE DE CITATION APPARTIENT A L'ESPACE.
+                #
+                # Cette ligne prescrivait le nom de fichier entre crochets, alors que
+                # le prompt d'espace peut en prescrire une autre — le corpus marches
+                # publics dit « Cite l'article, toujours ». Somme des deux, le modele
+                # en a invente une troisieme : douze citations « Doc 1, 1.1 » dans une
+                # campagne, puis « Document 8, Article 12.1.1 » dans la suivante.
+                #
+                # Un premier correctif l'avait retiree du prompt de ROLE. Il n'a rien
+                # change : elle etait reinjectee ici, dans les DEUX branches. L'experience
+                # lancee ce jour-la ne testait donc pas ce qu'elle croyait tester.
                 f"IMPORTANT : {CONSIGNE}\n\n"
                 f"{docs_context}"
             )
