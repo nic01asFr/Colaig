@@ -196,20 +196,17 @@ class Synthesiser:
         # 1. System prompt enrichi
         system_prompt = agent_ctx.system_prompt
 
-        # Ajouter les directives de format/ton
-        directives = plan.intent.synthesiser_directives
-        if directives:
-            parts = []
-            if directives.response_format:
-                parts.append(f"Format de réponse : {directives.response_format}")
-            if directives.response_tone:
-                parts.append(f"Ton : {directives.response_tone}")
-            if directives.focus_points:
-                parts.append(f"Points de focus : {', '.join(directives.focus_points)}")
-            if directives.instructions:
-                parts.append(f"Instructions : {directives.instructions}")
-            if parts:
-                system_prompt = f"{system_prompt}\n\n## Directives\n" + "\n".join(f"- {p}" for p in parts)
+        # LES DIRECTIVES SONT DESORMAIS POSEES PAR `build_agent_context`.
+        #
+        # Elles etaient ajoutees ICI, donc APRES le prompt de l'espace — et avaient le
+        # dernier mot sur son protocole de refus. C'est la symetrie du defaut de
+        # citation corrige le 31/08 : la, l'espace venait en dernier sans l'emporter ;
+        # ici, les directives l'emportaient en venant en dernier.
+        #
+        # Elles sont maintenant composees entre le prompt de role et celui de l'espace,
+        # sous un titre qui dit ce qu'elles sont : la FORME d'une reponse si l'on en
+        # donne une, redigee AVANT la recherche, sans autorite sur la decision de
+        # repondre. Voir `context_builder.bloc_de_directives`.
 
         # Ajouter les skills
         if agent_ctx.skills:

@@ -88,7 +88,61 @@ CONVENTION_DE_CITATION_PAR_DEFAUT = (
 )
 
 
-def composer_prompt_systeme(prompt_de_role: str, prompt_espace: str) -> str:
+def bloc_de_directives(directives) -> str:
+    """Met en forme les directives de l'Analyseur — en disant ce qu'elles sont.
+
+    CE QU'ELLES ETAIENT, ET CE QUE CELA COUTAIT
+
+    Elles etaient ajoutees APRES le prompt de l'espace, sous un titre « ## Directives »
+    et une puce « Instructions : … ». Deux problemes, et le second est le vrai :
+
+    1. Elles avaient le DERNIER MOT, donc apres le protocole de refus de l'espace.
+       C'est la symetrie exacte du defaut de citation corrige le 31/08 — la, l'espace
+       venait en dernier sans l'emporter ; ici, les directives l'emportaient en venant
+       en dernier. LA POSITION NE FAIT PAS L'AUTORITE.
+
+    2. `instructions` est du TEXTE LIBRE produit par l'Analyseur, et l'Analyseur
+       s'execute AVANT la recherche documentaire. Il ne peut donc pas savoir si une
+       reponse existe : ses consignes presupposent toujours qu'il y en a une —
+       « explique la procedure », « liste les etapes ». Lues comme un ordre, elles
+       poussent a produire une reponse la ou il faudrait se taire.
+
+    Mesure du 31/08 : le coeur refuse 22/22, le pipeline 18/21 avec 3 intermittents,
+    alors meme que ses deux deficits de citation etaient fermes.
+
+    CE QUE LE BLOC DIT MAINTENANT
+
+    Qu'il decrit la FORME d'une reponse, si l'on en donne une ; qu'il a ete ecrit AVANT
+    la recherche ; et qu'il ne decide pas s'il faut repondre. Le protocole de l'espace
+    passe apres lui et garde le dernier mot.
+    """
+    if not directives:
+        return ""
+
+    lignes = []
+    if getattr(directives, "response_format", ""):
+        lignes.append(f"- Format : {directives.response_format}")
+    if getattr(directives, "response_tone", ""):
+        lignes.append(f"- Ton : {directives.response_tone}")
+    if getattr(directives, "focus_points", None):
+        lignes.append(f"- Points de focus : {', '.join(directives.focus_points)}")
+    if getattr(directives, "instructions", ""):
+        lignes.append(f"- {directives.instructions}")
+
+    if not lignes:
+        return ""
+
+    return (
+        "## Forme attendue, si tu réponds\n"
+        "Ces indications décrivent la forme d'une réponse, si tu en donnes une. Elles "
+        "ont été rédigées AVANT la recherche documentaire, donc sans savoir si la "
+        "réponse existe dans les passages. Elles ne décident pas s'il faut répondre.\n"
+        + "\n".join(lignes)
+    )
+
+
+def composer_prompt_systeme(prompt_de_role: str, prompt_espace: str,
+                            bloc_directives: str = "") -> str:
     """Assemble le prompt de role et les regles de l'espace, sans les faire se contredire.
 
     Quand l'espace fournit ses propres regles, la convention de citation par defaut se
@@ -98,6 +152,10 @@ def composer_prompt_systeme(prompt_de_role: str, prompt_espace: str) -> str:
     l'agent, et la regle anti-invention, qui n'est pas une question de presentation.
     """
     prompt = prompt_de_role
+    # Les directives entre le role et l'espace : le protocole de refus de l'espace
+    # doit garder le dernier mot.
+    if bloc_directives:
+        prompt = f"{prompt}\n\n{bloc_directives}"
     if prompt_espace and prompt_espace.strip():
         prompt = prompt.replace(CONVENTION_DE_CITATION_PAR_DEFAUT + "\n", "")
         prompt = prompt.replace("\n" + CONVENTION_DE_CITATION_PAR_DEFAUT, "")
@@ -210,7 +268,8 @@ async def build_agent_context(
     # de l espace dit CE QU EST cet espace et quelles sont ses regles. L espace vient
     # en dernier — ses regles doivent l emporter sur la description generique du
     # metier d agent.
-    system_prompt = composer_prompt_systeme(system_prompt, prompt_espace)
+    system_prompt = composer_prompt_systeme(
+        system_prompt, prompt_espace, bloc_de_directives(directives))
 
     # 3. Skills (pour orchestrateur et synthétiseur)
     # Priorité : selected_skills (top-k sémantique, Phase 6) > chargement en bloc (Phase 5)
