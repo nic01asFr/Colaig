@@ -4752,3 +4752,84 @@ cela ne dirait rien de neuf.
 puis 10 en fantômes. La dispersion est large. Les écarts de un ou deux ne veulent rien
 dire ; seuls comptent le refus, jamais atteint en quatre campagnes, et le hors contexte,
 au-dessus du cœur dans les quatre.*
+
+---
+
+## L1.5b — le garde-fou de provenance existait, il ne tournait nulle part
+
+**01/09/2026** · branche `lot/L1.5b-decoupage-par-article`
+
+### Ce qui a été trouvé
+
+Cherchant pourquoi Colaig cite des articles absents des passages, la piste du découpage
+a été mesurée puis **écartée** : la fenêtre glissante produit déjà 94 % de passages
+portant une identité d'article, le découpage par article en produit 98 %. Le modèle
+avait donc déjà cette prise sous les yeux. Les chiffres antérieurs annonçant 35 %
+étaient lus avec un compteur qui ne reconnaît que les numéros du Code, sur un corpus à
+moitié composé de CCAG.
+
+La cause était écrite depuis le début dans la définition du harnais : *« hors contexte —
+le modèle a puisé dans sa mémoire, pas dans le corpus »*.
+
+Or le remède existait, entier et testé, depuis le 23/08 :
+
+| brique | état trouvé |
+|---|---|
+| `verification_citations.verifier()` | `STATUT: COMPLET`, appelé par personne en production |
+| `garde_fou_reponse.appliquer()` | derrière `COLAIG_GARDE_FOU_ENABLED`, défaut `"0"` |
+| le drapeau dans le chart Helm | **absent** — donc inactif en déploiement |
+| le garde-fou dans le pipeline agent | **zéro ligne** dans `synthesiser.py` |
+| `citation_checker` | compare aux **noms de fichiers**, aveugle aux articles |
+
+### Ce qui a été mesuré
+
+`_chantier/scripts/effet_garde_fou.py` rejoue le garde-fou sur les réponses archivées —
+il est post-hoc et pur, donc mesurable **sans un seul appel au modèle**. Il appelle le
+chemin du produit, pas une copie.
+
+| | cœur (179 rép.) | pipeline (179 rép.) |
+|---|---|---|
+| réponses fautives signalées ou écartées | **23/23** | **25/25** |
+| bonnes réponses **détruites** | **0** | **0** |
+| bonnes réponses annotées à tort | 1/156 | 2/154 |
+
+Sans la grammaire du corpus, le cœur détruisait une bonne réponse : **mp-013**, qui
+citait « Article 4.1 » du CCAG Travaux. `verification_citations` prédisait ce défaut en
+commentaire ; la mesure l'a confirmé sur un cas réel.
+
+### Ce qui a été fait
+
+1. `appliquer()` reçoit `formats` et `identifiants` — le garde-fou du produit était
+   moins capable que celui du harnais, qui lui passait le vocabulaire du corpus.
+2. `WorkspaceConfig.garde_fou_provenance` et `.format_citation`, lus depuis
+   `config.yaml` et **filtrés** sur `FORMATS_CONNUS` : ce fichier est du contenu externe,
+   un nom inconnu y lèverait un `KeyError` à chaque génération.
+3. `appliquer_selon_espace()` — un seul endroit décide, le cœur **et** le pipeline
+   l'appliquent. `COLAIG_GARDE_FOU_ENABLED` reste un repli global.
+4. Les deux `TODO-HAUTE` correspondants sont résolus, pas déplacés.
+
+**Défaut inchangé : inactif.** Un espace RH sans articles serait rendu muet. La décision
+appartient à l'espace, ce qui est précisément ce qui manquait.
+
+### Points ouverts
+
+- **Aucun espace ne déclare encore le réglage.** Le garde-fou reste donc inactif en
+  service : il est désormais *activable par espace*, il n'est pas *activé*. C'est une
+  porte humaine — l'activer sur un espace réel se décide, ne se déduit pas.
+- **Le découpage `auto` est écrit, testé, et n'est pas le défaut** (+4 points, mesurés).
+  Le basculer déplacerait l'index et la référence au milieu d'une campagne. **À
+  rejuger une fois la campagne du pipeline close.**
+- **Le harnais reste un jumeau** : `reference_generation` appelle le LLM en direct et ne
+  passe ni par `generator` ni par `synthesiser`. Ses chiffres mesurent le modèle nu, pas
+  le produit — donc jamais l'effet du garde-fou. `effet_garde_fou.py` comble ce trou
+  pour ce seul contrôle.
+- **Le compromis assumé** : les identifiants viennent des passages servis, pas du corpus
+  entier — deux millions de recherches par campagne sinon. Un identifiant à
+  numérotation libre cité mais non servi n'est donc pas signalé. Le silence va vers le
+  faux négatif, pas vers la destruction.
+- **L'écart de refus du pipeline n'est pas traité par ce lot** et reste entier.
+- **Une campagne « négatifs seuls » avait écrasé l'archive complète du 01/09** —
+  même variante, même k, même pile, donc même nom : 135 cas remplacés par 22, sans
+  un mot. Les deux campagnes sont restaurées côte à côte, et le mode marque
+  désormais ses fichiers d'un `-negatifs`. La première mesure du pipeline faite ici
+  portait sur l'archive tronquée ; elle a été refaite sur les 135 cas.

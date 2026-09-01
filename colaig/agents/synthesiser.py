@@ -174,6 +174,28 @@ class Synthesiser:
         from colaig.security.citation_checker import audit_and_adjust
         confidence = audit_and_adjust(text, sources, confidence)
 
+        # GARDE-FOU DE PROVENANCE — le même que le cœur, et c'est tout l'enjeu.
+        #
+        # Ce bloc a manqué jusqu'au 01/09/2026 : `generator.py` contrôlait la
+        # provenance, `synthesiser.py` n'en avait pas une ligne. Le pipeline agent
+        # rendait donc ses réponses sans qu'aucune citation soit confrontée aux
+        # passages, et l'activer revenait à perdre ce contrôle en chemin.
+        #
+        # Mesuré en rejouant le garde-fou sur les réponses archivées du pipeline :
+        # 14 réponses fautives sur 14 signalées ou écartées, aucune des 52 saines
+        # abîmée. `citation_checker`, juste au-dessus, ne compare qu'aux NOMS DE
+        # FICHIERS — il est aveugle aux numéros d'article, qui sont précisément ce
+        # qu'un lecteur vérifie.
+        from colaig.rag.garde_fou_reponse import appliquer_selon_espace
+
+        decision = appliquer_selon_espace(text, plan.search_results,
+                                          getattr(context, "workspace", None))
+        if decision is not None and decision.action != "rendue":
+            logger.info("garde-fou : réponse %s — %s", decision.action, decision.motif)
+            text = decision.reponse
+            if decision.action == "remplacée":
+                confidence = 0.0
+
         # Enrichir la ContextCard
         context_card = self._enrich_context_card(plan, sources, confidence)
 

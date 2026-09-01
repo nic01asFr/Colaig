@@ -88,13 +88,24 @@ _MOTIF_ARTICLE = re.compile(r"\b([LRD])\.?\s?(\d{4}-\d+(?:-\d+)?|\d{1,3}(?:-\d+)
 # sont pas — il serait pire qu'absent.
 #
 # Le format se déclare donc par corpus, comme le garde-fou lui-même (D19).
-# TODO-HAUTE : porter ce choix dans `workspace.yaml`, avec le drapeau du garde-fou.
+# Porté le 01/09/2026 : `WorkspaceConfig.format_citation`, lu depuis `config.yaml` et
+# filtré sur `FORMATS_CONNUS` — un nom inconnu y lèverait un KeyError à chaque
+# génération, et une faute de frappe rendrait l'espace muet.
+#
+# Ce que le format change, mesuré le 01/09 sur les 179 réponses archivées du cœur :
+# sans « clause », le garde-fou remplace par un refus la réponse juste de mp-013, qui
+# citait « Article 4.1 » du CCAG Travaux. Avec, aucune bonne réponse n'est détruite.
 _MOTIF_CLAUSE = re.compile(r"\b(\d{1,2}(?:\.\d{1,2}){1,2})\b")
 
 FORMAT_CODE = "code"          # L2113-10, R. 2122-8 — codes juridiques
 FORMAT_CLAUSE = "clause"      # 20.1, 46.2.3 — CCAG, CCTG, cahiers de clauses
 
 _MOTIFS = {FORMAT_CODE: _MOTIF_ARTICLE, FORMAT_CLAUSE: _MOTIF_CLAUSE}
+
+# Publique, parce qu'un espace declare son format dans `config.yaml` : ce qui vient
+# d'un fichier de configuration doit pouvoir etre valide avant d'atteindre `_MOTIFS`,
+# ou une faute de frappe rendrait l'espace muet a chaque generation.
+FORMATS_CONNUS = frozenset(_MOTIFS)
 
 
 def _litteraux(texte: str, identifiants) -> set[str]:

@@ -33,7 +33,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from colaig.rag.verification_citations import Verification, verifier
+from colaig.rag.verification_citations import FORMAT_CODE, Verification, verifier
 
 REFUS_TYPE = (
     "Cette information ne figure pas dans les documents consultés.\n\n"
@@ -75,8 +75,24 @@ def _est_un_refus(reponse: str) -> bool:
     return any(m in minuscule for m in marqueurs)
 
 
-def appliquer(reponse: str, passages: list[str]) -> Decision:
+def appliquer(reponse: str, passages: list[str],
+              formats: tuple[str, ...] = (FORMAT_CODE,),
+              identifiants=()) -> Decision:
     """Adapte la réponse à ce que les passages permettent réellement d'affirmer.
+
+    Ce que le corpus doit declarer, et pourquoi le defaut ne suffit pas
+    -------------------------------------------------------------------
+    `formats` et `identifiants` disent au garde-fou a quoi ressemble une citation
+    DANS CE CORPUS. Sans eux, il ne reconnait que les numeros du Code.
+
+    Mesure du 01/09/2026 sur les 179 reponses archivees du coeur : le garde-fou
+    attrape 23 reponses fautives sur 23, et n'en abime qu'une seule sur 156 saines.
+    Cette unique perte — mp-013 — citait « Article 4.1 » du CCAG Travaux : une
+    reponse juste, remplacee par un refus faute de savoir lire sa citation.
+
+    C'est le mode de defaillance que `verification_citations` decrit deja : un
+    garde-fou aveugle a la grammaire de son corpus ne protege pas la reponse, il la
+    detruit. Les deux valeurs doivent donc venir de l'espace, pas d'un defaut global.
 
     Trois issues :
 
@@ -91,7 +107,7 @@ def appliquer(reponse: str, passages: list[str]) -> Decision:
     délibéré : une affirmation de droit sans aucune attache dans les documents consultés
     n'est pas une réponse incomplète, c'est une réponse sans fondement.
     """
-    verification = verifier(reponse, passages)
+    verification = verifier(reponse, passages, formats, identifiants)
 
     if _est_un_refus(reponse) and verification.conforme:
         return Decision(reponse, "rendue", "refus assumé par le modèle", verification)
@@ -116,3 +132,59 @@ def appliquer(reponse: str, passages: list[str]) -> Decision:
     # référence n'est pas utilisable — celui qui rédige devra la justifier.
     return Decision(REFUS_TYPE, "remplacée",
                     "réponse sans aucune référence aux passages", verification)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# La politique de l'espace — un seul endroit decide, deux pipelines l'appliquent
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def politique(workspace) -> tuple[bool, tuple[str, ...]]:
+    """Ce que l'espace declare : garde-fou actif, et grammaire de ses citations.
+
+    La variable d'environnement reste un repli, et le deploiement en service s'en
+    sert : la retirer d'un coup couperait le controle sans que personne le demande.
+    Mais elle ne peut pas etre le mecanisme principal — elle vaut pour toute
+    l'instance, alors qu'une instance heberge des corpus qui n'ont pas les memes
+    besoins. Un fonds juridique veut le garde-fou ; la FAQ RH voisine serait rendue
+    muette par lui.
+    """
+    import os
+
+    actif = (bool(getattr(workspace, "garde_fou_provenance", False))
+             or os.environ.get("COLAIG_GARDE_FOU_ENABLED", "0") == "1")
+    formats = tuple(getattr(workspace, "format_citation", ()) or ()) or (FORMAT_CODE,)
+    return actif, formats
+
+
+def appliquer_selon_espace(reponse: str, search_results, workspace) -> Decision | None:
+    """Applique le garde-fou si l'espace le demande. `None` s'il ne le demande pas.
+
+    POURQUOI LES IDENTIFIANTS VIENNENT DES PASSAGES, ET PAS DU CORPUS ENTIER.
+
+    `_litteraux` cherche chaque identifiant connu dans chaque passage. Avec le
+    vocabulaire complet du corpus de mesure — 1021 articles — cela fait pres de deux
+    millions de recherches pour une seule campagne : mesure du 01/09/2026, le rejeu
+    passe de quelques secondes a plusieurs minutes. A chaque reponse rendue, ce cout
+    est inacceptable.
+
+    Les identifiants des passages servis suffisent au cas qui compte : reconnaitre
+    qu'une reponse cite BIEN ce qu'on lui a donne, et ne pas la detruire pour cela.
+
+    Le compromis est reel et doit etre dit : un identifiant litteral cite mais NON
+    servi — « CCAG Travaux 9 » quand on n'a servi que le 4 — n'est pas reconnu comme
+    citation, donc pas signale hors contexte. Les articles du Code, eux, restent
+    attrapes par le motif, qui ne depend d'aucun vocabulaire. Le silence porte donc
+    sur les seuls corpus a numerotation libre, et va vers le faux negatif — le
+    garde-fou se tait au lieu de detruire, ce qui est le bon sens de l'erreur.
+    """
+    actif, formats = politique(workspace)
+    if not actif or not search_results:
+        return None
+    identifiants = {
+        r.chunk.section[len("Article "):]
+        for r in search_results
+        if (getattr(r.chunk, "section", "") or "").startswith("Article ")
+    }
+    return appliquer(reponse, [r.chunk.text for r in search_results],
+                     formats, identifiants)

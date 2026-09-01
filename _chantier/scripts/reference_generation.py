@@ -127,6 +127,15 @@ RAISONNEMENT = os.environ.get("COLAIG_REF_RAISONNEMENT", "1") != "0"
 # decider de refiger le corpus — ce qui invaliderait la reference une fois de plus.
 PERIMETRE = os.environ.get("COLAIG_REF_PERIMETRE", "article")
 
+# Ne jouer que les cas negatifs, pour mesurer le refus avec assez de tirages.
+#
+# CE DRAPEAU DOIT MARQUER LE NOM DES FICHIERS PRODUITS, et c'est le motif de sa
+# remontee ici. Le 01/09/2026 une campagne « negatifs seuls » a ecrase l'archive
+# complete du meme jour : meme variante, meme k, meme pile, donc meme nom — 135 cas
+# remplaces par 22, sans un mot. Une mesure qui detruit une mesure anterieure est
+# pire qu'une mesure absente : on croit comparer deux campagnes, on en lit une.
+NEGATIFS_SEULS = os.environ.get("COLAIG_REF_NEGATIFS_SEULS", "").lower() in ("1", "true", "oui")
+
 # Marque libre, ajoutee au nom du rapport et des reponses. Sert a distinguer deux
 # mesures qui ne different par aucun des autres champs — par exemple le coeur RAG
 # et le pipeline agent, qui partagent variante, k, raisonnement et pile.
@@ -318,6 +327,23 @@ def main() -> int:
     systeme = prompt_systeme()
     cas = [json.loads(l) for l in JEU.read_text(encoding="utf-8").splitlines() if l.strip()]
 
+    # NE JOUER QUE LES CAS NEGATIFS, POUR MESURER LE REFUS AVEC ASSEZ DE TIRAGES.
+    #
+    # Mesure du 01/09/2026 : deux tirages du MEME code donnent 20/22 puis 17/22 de refus.
+    # Le bruit est d'au moins trois cas — plus large que tous les ecarts qu'on cherchait
+    # a attribuer. Sept campagnes ont donne 18, 18, 20, 19, 18, 20, 17 : aucune ne
+    # prouve quoi que ce soit prise seule.
+    #
+    # Les 22 cas negatifs representent 16 % du jeu. Les jouer seuls coute six fois moins
+    # par tirage, donc permet d'en faire assez pour que la dispersion devienne lisible.
+    # C'est la seule facon honnete de dire si un correctif a bouge le refus.
+    #
+    # Le defaut reste le jeu complet : cette porte ne s'ouvre que si on la demande.
+    if NEGATIFS_SEULS:
+        cas = [c for c in cas if c.get("attendu_refus")]
+        print(f"  cas negatifs seuls : {len(cas)}", file=sys.stderr)
+
+
     chunks = decouper(PERIMETRE)
     for _ch in chunks:
         if _ch.section.startswith("Article "):
@@ -505,11 +531,12 @@ def rapport(resultats, latences) -> int:
                + ("" if RAISONNEMENT else "-sansraisonnement")
                + ("" if PERIMETRE == "article" else "-livre1")
                + marque_pile
-               + (f"-{MARQUE}" if MARQUE else ""))
+               + (f"-{MARQUE}" if MARQUE else "")
+               + ("-negatifs" if NEGATIFS_SEULS else ""))
     sortie = RACINE / "docs" / f"baseline-generation-{time.strftime('%Y%m%d')}{suffixe}.md"
     # Les réponses sont conservées : auditer un chiffre ne doit pas exiger de tout
     # relancer. C'est ce qui a manqué pour vérifier la liste de marqueurs de refus.
-    brut = RACINE / "_chantier" / "mesures" / f"reponses-{VARIANTE}-k{K}{'' if RAISONNEMENT else '-sansraisonnement'}{'' if PERIMETRE == 'article' else '-livre1'}{marque_pile}{'-' + MARQUE if MARQUE else ''}-{time.strftime('%Y%m%d')}.json"
+    brut = RACINE / "_chantier" / "mesures" / f"reponses-{VARIANTE}-k{K}{'' if RAISONNEMENT else '-sansraisonnement'}{'' if PERIMETRE == 'article' else '-livre1'}{marque_pile}{'-' + MARQUE if MARQUE else ''}{'-negatifs' if NEGATIFS_SEULS else ''}-{time.strftime('%Y%m%d')}.json"
     brut.parent.mkdir(exist_ok=True)
     import json as _json
     brut.write_text(_json.dumps(

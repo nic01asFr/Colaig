@@ -405,6 +405,16 @@ class WorkspaceConfig:
     max_results: int = 5
     priority_documents: list[str] = field(default_factory=list)
 
+    # Garde-fou de provenance (D19) — INACTIF par defaut, et par espace.
+    # Il juge une reponse a l'aune des articles qu'elle cite. Sur un fonds RH ou
+    # une FAQ, aucune reponse n'en cite : actif partout, il les remplacerait toutes
+    # par un refus. Le critere est une propriete du corpus, pas du produit.
+    garde_fou_provenance: bool = False
+    # Grammaire de citation du corpus — noms de `verification_citations.FORMATS_CONNUS`.
+    # Vide = les numeros du Code seuls. « clause » ajoute « 4.1 », que les CCAG
+    # emploient et qui designe ailleurs un taux ou une version.
+    format_citation: list[str] = field(default_factory=list)
+
     # Capacités (Couche 2)
     tools_enabled: list[str] = field(default_factory=list)
 

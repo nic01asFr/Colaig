@@ -23,6 +23,7 @@ import yaml
 from colaig import paths
 from colaig.exceptions import WorkspaceConfigError
 from colaig.models import WorkspaceConfig
+from colaig.rag.verification_citations import FORMATS_CONNUS
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +148,18 @@ async def load_workspace(storage, workspace_path: str, repair: bool = False) -> 
             except Exception:
                 logger.warning("workspace: mcp_connector invalide ignoré: %s", mc.get("name", "?"))
 
+    # Le format de citation vient de `config.yaml`, donc d'un contenu que Colaig ne
+    # controle pas. Un nom absent de `FORMATS_CONNUS` leverait un KeyError a CHAQUE
+    # generation : une faute de frappe rendrait l'espace muet. On filtre, et on le dit.
+    declares = data.get("format_citation", []) or []
+    if not isinstance(declares, list):
+        logger.warning("workspace: format_citation doit etre une liste, ignore: %r", declares)
+        declares = []
+    format_citation = [f for f in declares if f in FORMATS_CONNUS]
+    if len(format_citation) != len(declares):
+        logger.warning("workspace: format_citation inconnu(s) ignore(s): %s",
+                       [f for f in declares if f not in FORMATS_CONNUS])
+
     return WorkspaceConfig(
         workspace_id=workspace_id,
         name=data.get("name", workspace_id),
@@ -163,6 +176,8 @@ async def load_workspace(storage, workspace_path: str, repair: bool = False) -> 
         similarity_threshold=data.get("similarity_threshold", 0.3),
         max_results=data.get("max_results", 5),
         priority_documents=data.get("priority_documents", []),
+        garde_fou_provenance=bool(data.get("garde_fou_provenance", False)),
+        format_citation=format_citation,
         tools_enabled=data.get("tools_enabled", []),
         storage_readonly=data.get("storage_readonly", False),
         index_path=paths.indexes_dir(base),

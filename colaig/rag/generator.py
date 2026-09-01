@@ -95,7 +95,7 @@ class Generator:
         from colaig.security.citation_checker import audit_and_adjust
         confidence = audit_and_adjust(text, sources, confidence)
 
-        # GARDE-FOU DE PROVENANCE — `COLAIG_GARDE_FOU_ENABLED`, **défaut inactif**.
+        # GARDE-FOU DE PROVENANCE — déclaré **par espace**, défaut inactif.
         #
         # POURQUOI IL N'EST PAS ACTIF PAR DÉFAUT, et c'est le point important.
         #
@@ -116,8 +116,12 @@ class Generator:
         # Le critère de citation est donc une **politique de corpus**, pas un réglage
         # global. Il s'active sur les espaces dont les sources portent des références
         # normalisées.
-        # TODO-HAUTE : porter ce réglage dans `workspace.yaml`, où il a sa place —
-        # une variable d'environnement est globale, or la décision ne l'est pas.
+        # C'est fait depuis le 01/09/2026 : `garde_fou_provenance` et
+        # `format_citation` sont des champs de `WorkspaceConfig`, lus depuis
+        # `config.yaml`. `COLAIG_GARDE_FOU_ENABLED` reste un repli global, parce que
+        # le déploiement en service s'en sert — mais il ne peut plus être le
+        # mécanisme principal : une instance héberge des corpus qui n'ont pas les
+        # mêmes besoins, et une variable d'environnement ne sait pas les distinguer.
         #
         # Il compare les numéros d'article cités à ceux des passages réellement fournis,
         # et adapte la réponse : rendue telle quelle, annotée d'un avertissement, ou
@@ -139,15 +143,15 @@ class Generator:
         #
         # Le drapeau existe pour pouvoir revenir en arrière sans redéployer, et il est
         # daté : à retirer au 31/12/2026 si aucune mesure ne le remet en cause.
-        if os.environ.get("COLAIG_GARDE_FOU_ENABLED", "0") == "1" and search_results:
-            from colaig.rag.garde_fou_reponse import appliquer
+        from colaig.rag.garde_fou_reponse import appliquer_selon_espace
 
-            decision = appliquer(text, [r.chunk.text for r in search_results])
-            if decision.action != "rendue":
-                logger.info("garde-fou : réponse %s — %s", decision.action, decision.motif)
-                text = decision.reponse
-                if decision.action == "remplacée":
-                    confidence = 0.0
+        decision = appliquer_selon_espace(text, search_results,
+                                          getattr(context, "workspace", None))
+        if decision is not None and decision.action != "rendue":
+            logger.info("garde-fou : réponse %s — %s", decision.action, decision.motif)
+            text = decision.reponse
+            if decision.action == "remplacée":
+                confidence = 0.0
 
         return GeneratedResponse(
             text=text,
