@@ -4828,6 +4828,15 @@ appartient à l'espace, ce qui est précisément ce qui manquait.
   numérotation libre cité mais non servi n'est donc pas signalé. Le silence va vers le
   faux négatif, pas vers la destruction.
 - **L'écart de refus du pipeline n'est pas traité par ce lot** et reste entier.
+- **La suite dépendait de l'environnement de la machine.** Lancée avec
+  `COLAIG_GARDE_FOU_ENABLED=1` — la valeur qu'un déploiement peut porter — elle
+  donnait **trois échecs** absents autrement, dont deux créés par le branchement du
+  garde-fou dans le pipeline. Aucun ne signalait un défaut du produit : ce sont des
+  tests dont la réponse factice ne cite aucun article. Mais cela violait le contrat
+  de `tests/CLAUDE.md`. `conftest` efface désormais les drapeaux `_ENABLED` — et
+  eux seuls : les `COLAIG_S3_*` et consorts ouvrent les contrats de stockage, qui
+  n'ont pas d'autre moyen de tourner. Vérifié sur trois configurations : 2752
+  passés dans chacune.
 - **Une campagne « négatifs seuls » avait écrasé l'archive complète du 01/09** —
   même variante, même k, même pile, donc même nom : 135 cas remplacés par 22, sans
   un mot. Les deux campagnes sont restaurées côte à côte, et le mode marque

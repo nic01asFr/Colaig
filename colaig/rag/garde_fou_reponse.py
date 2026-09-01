@@ -142,12 +142,20 @@ def appliquer(reponse: str, passages: list[str],
 def politique(workspace) -> tuple[bool, tuple[str, ...]]:
     """Ce que l'espace declare : garde-fou actif, et grammaire de ses citations.
 
-    La variable d'environnement reste un repli, et le deploiement en service s'en
-    sert : la retirer d'un coup couperait le controle sans que personne le demande.
-    Mais elle ne peut pas etre le mecanisme principal — elle vaut pour toute
+    La variable d'environnement reste un repli. Elle n'est PAS dans le chart Helm —
+    verifie le 01/09/2026 — donc aucun deploiement issu de ce depot ne l'active. Mais
+    elle peut avoir ete posee a la main : la release `colaig-test` a porte pendant des
+    semaines une configuration mise par `kubectl set env`, absente des valeurs Helm.
+    Retirer ce repli couperait donc un controle sans que personne l'ait demande.
+
+    Elle ne peut pas pour autant etre le mecanisme principal : elle vaut pour toute
     l'instance, alors qu'une instance heberge des corpus qui n'ont pas les memes
     besoins. Un fonds juridique veut le garde-fou ; la FAQ RH voisine serait rendue
     muette par lui.
+
+    Et elle ne doit pas decider de l'issue des TESTS : `conftest` efface les drapeaux
+    `_ENABLED` de l'environnement, faute de quoi la suite lancee avec celui-ci donnait
+    trois echecs qu'elle ne produit pas sans lui.
     """
     import os
 

@@ -11,6 +11,7 @@ aucun accès réseau.
 """
 
 import asyncio
+import os
 from datetime import datetime
 
 import pytest
@@ -341,3 +342,33 @@ def magasin_de_pins_isole(tmp_path_factory):
     yield
     mcp_pins.CHEMIN_PAR_DEFAUT = ancien
     mcp_connector._MAGASIN_PINS = None
+
+
+@pytest.fixture(autouse=True)
+def _drapeaux_neutralises(monkeypatch):
+    """Aucun drapeau de comportement de la machine n'entre dans la suite.
+
+    `tests/CLAUDE.md` pose le contrat : « deux exécutions de la suite doivent produire
+    exactement le même résultat, dans le même processus comme dans un autre ». Une
+    variable d'environnement posée sur le poste viole ce contrat en silence.
+
+    Mesuré le 01/09/2026 : la suite lancée avec `COLAIG_GARDE_FOU_ENABLED=1` — la
+    valeur qu'un déploiement peut porter — donne **trois échecs** que la même suite ne
+    produit pas sans elle. Aucun ne signale un défaut du produit : ce sont des tests
+    dont la réponse factice ne cite aucun article, donc légitimement remplacée par un
+    refus. Mais un développeur qui aurait cette variable dans son shell aurait vu la
+    suite rouge sans comprendre pourquoi, et un correctif inutile serait parti de là.
+
+    SEULS LES `_ENABLED` SONT EFFACÉS, et cette limite est délibérée. Les autres
+    `COLAIG_*` fournissent des ressources — `COLAIG_S3_*`, `COLAIG_WEBDAV_*`,
+    `COLAIG_BASE_URL` — et les effacer empêcherait de faire tourner les contrats de
+    stockage avec de vrais accès, qui n'ont pas d'autre moyen de s'exécuter. Un drapeau
+    choisit un chemin de code ; un identifiant ouvre une porte. On neutralise le
+    premier, jamais le second.
+
+    Un test qui veut un drapeau le pose lui-même : `monkeypatch.setenv` s'applique
+    après cette fixture, donc reste souverain.
+    """
+    for nom in [n for n in os.environ
+                if n.startswith("COLAIG_") and n.endswith("_ENABLED")]:
+        monkeypatch.delenv(nom, raising=False)
