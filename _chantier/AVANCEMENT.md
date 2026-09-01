@@ -4827,6 +4827,16 @@ appartient à l'espace, ce qui est précisément ce qui manquait.
   entier — deux millions de recherches par campagne sinon. Un identifiant à
   numérotation libre cité mais non servi n'est donc pas signalé. Le silence va vers le
   faux négatif, pas vers la destruction.
+- **Il n'existe aucun espace juridique en service où mesurer le garde-fou.**
+  Vérifié le 01/09/2026 : le seul espace de `colaig-test` est `colaig-mesure-sst`,
+  dont **aucun** document ne porte de numéro d'article. Y activer le garde-fou
+  rendrait l'espace muet — c'est exactement le cas contre lequel le défaut inactif
+  protège. Le corpus des marchés publics, lui, est un jeu de mesure **local**
+  (107/108 documents avec articles), pas un espace déployé.
+  Mesurer en conditions réelles suppose donc d'abord de créer cet espace en
+  service. C'est une décision, pas une conséquence.
+- **L'image en service est `tronc-dc7b21b`**, antérieure à ce lot : déclarer le
+  réglage aujourd'hui n'aurait aucun effet, le code déployé ignore ces champs.
 - **L'écart de refus du pipeline n'est pas traité par ce lot** et reste entier.
 - **La suite dépendait de l'environnement de la machine.** Lancée avec
   `COLAIG_GARDE_FOU_ENABLED=1` — la valeur qu'un déploiement peut porter — elle
