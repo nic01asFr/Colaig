@@ -742,13 +742,27 @@ async def run_indexation_loop(
                         workspace_vocabulary=_ws_vocabulary or None,
                     )
                     # Charger l'index persisté si disponible.
-                    # Si l'index n'existe pas encore en storage, initial_indexation est
-                    # probablement en cours pour ce workspace → skip ce cycle pour éviter
-                    # une double indexation OCR concurrente.
+                    #
+                    # UN INDEX ABSENT N'EST PAS UNE RAISON DE SAUTER L'ESPACE.
+                    #
+                    # Ce bloc sautait tout workspace sans index en storage, au motif que
+                    # « initial_indexation est probablement en cours ». Mais cette boucle
+                    # attend `initial_done` avant son premier cycle : quand elle arrive
+                    # ici, l'indexation initiale est terminée par construction. Le motif
+                    # ne pouvait donc jamais être vrai là où il était invoqué.
+                    #
+                    # Sans conséquence pour un espace présent au démarrage — il avait
+                    # déjà son index. Fatal pour un espace DÉCOUVERT À CHAUD : aucune
+                    # initial_indexation ne viendra pour lui, et le saut se répétait à
+                    # chaque cycle. Observé le 01/09/2026 sur `colaig-test` : un espace
+                    # de 108 documents découvert, puis muet quarante minutes durant,
+                    # sans une ligne de journal — le message était en `debug`.
                     loaded = await ws_indexer.load_from_storage(ws.index_path)
                     if not loaded:
-                        logger.debug("run_indexation_loop: index %s absent du storage, skip (initial_indexation en cours ?)", ws.workspace_id)
-                        continue
+                        logger.info(
+                            "run_indexation_loop: %s n'a pas encore d'index — "
+                            "première indexation complète", ws.workspace_id,
+                        )
                     workspace_stores[ws.workspace_id] = ws_store
                     if workspace_bm25_stores is not None and ws_bm25 is not None:
                         workspace_bm25_stores[ws.workspace_id] = ws_bm25
