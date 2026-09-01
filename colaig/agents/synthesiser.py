@@ -101,6 +101,16 @@ class Synthesiser:
 
         # Construire le contexte agent
         # selected_skills depuis pre_exec si disponible (top-k sémantique, Phase 6)
+        # Le calibrage temporel prescrit une FORME, comme les directives de l'Analyseur :
+        # il rejoint donc leur bloc, subordonne et place AVANT le prompt de l'espace,
+        # dont le protocole de refus garde le dernier mot. Il etait auparavant ajoute
+        # apres, et le lui prenait.
+        calibrage = _temporal_context_hint(
+            message_ts=message.timestamp if message else None,
+            history=conversation_history or context.conversation_history or [],
+            conversation_phase=context.conversation_phase,
+        )
+
         agent_ctx = await build_agent_context(
             self._storage,
             context.workspace,
@@ -109,6 +119,7 @@ class Synthesiser:
             # le protocole de refus — vivent la, et se perdaient (30/08/2026).
             prompt_espace=context.system_prompt,
             directives=plan.intent.synthesiser_directives,
+            calibrage=calibrage,
             selected_skills=pre_exec.selected_skills if pre_exec else None,
         )
 
@@ -324,15 +335,16 @@ class Synthesiser:
                     + "\n".join(f"- {h}" for h in hints)
                 )
 
-        # Contexte temporel — calibre ton et rythme de réponse
-        history = conversation_history or context.conversation_history
-        temporal_hint = _temporal_context_hint(
-            message_ts=message.timestamp if message else None,
-            history=history,
-            conversation_phase=context.conversation_phase,
-        )
-        if temporal_hint:
-            system_prompt = f"{system_prompt}\n\n## Contexte de la conversation\n{temporal_hint}"
+        # LE CALIBRAGE TEMPOREL EST DESORMAIS POSE PAR `synthesise()`.
+        #
+        # Il etait ajoute ICI, apres `agent_ctx.system_prompt` — donc apres le protocole
+        # de refus de l'espace, dont il prenait le dernier mot. « Complet si la question
+        # le justifie » lu en dernier pousse a produire une reponse la ou il faudrait se
+        # taire.
+        #
+        # Il prescrit une FORME, comme les directives de l'Analyseur : il rejoint donc
+        # leur bloc, subordonne et place AVANT le prompt de l'espace. Un seul endroit
+        # compose le prompt systeme. Voir `context_builder.bloc_de_directives`.
 
         # Fil chronologique des anchors — éléments déjà établis dans la conversation
         if context.context_anchors:
@@ -360,6 +372,7 @@ class Synthesiser:
         messages.append({"role": "system", "content": system_prompt})
 
         # 2. Historique avec étiquettes temporelles contextuelles
+        history = conversation_history or context.conversation_history or []
         ref_ts_for_history = message.timestamp if message else datetime.utcnow()
         for msg in history:
             if "role" in msg and "content" in msg and msg["content"]:
@@ -633,6 +646,24 @@ def _temporal_context_hint(
     ou "" si aucun signal significatif.
     """
     hints: list[str] = []
+
+    # SANS CONVERSATION, PAS DE CALIBRAGE.
+    #
+    # Les trois signaux ci-dessous calibrent le ton et le format d'apres la CONVERSATION.
+    # Or le premier — la periode de la journee — se declenchait des qu'un message portait
+    # un horodatage, ce qui est toujours le cas : `IncomingMessage.timestamp` vaut
+    # `datetime.utcnow()` par defaut.
+    #
+    # Sur un premier message, « Matinee de travail : format standard, complet si la
+    # question le justifie » ne decrivait donc AUCUNE conversation — et prescrivait
+    # l'ampleur d'une reponse avant qu'on sache s'il y en aurait une. Meme motif que les
+    # directives de l'Analyseur, en plus discret.
+    #
+    # Un echange atteste d'une conversation par son historique ou par sa phase declaree.
+    # L'heure seule n'atteste de rien.
+    if not history and not conversation_phase:
+        return ""
+
 
     # ── 1. Période de la journée ─────────────────────────────────────────────
     if message_ts is not None:

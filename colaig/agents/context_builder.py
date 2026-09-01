@@ -88,7 +88,7 @@ CONVENTION_DE_CITATION_PAR_DEFAUT = (
 )
 
 
-def bloc_de_directives(directives) -> str:
+def bloc_de_directives(directives, calibrage: str = "") -> str:
     """Met en forme les directives de l'Analyseur — en disant ce qu'elles sont.
 
     CE QU'ELLES ETAIENT, ET CE QUE CELA COUTAIT
@@ -116,18 +116,20 @@ def bloc_de_directives(directives) -> str:
     la recherche ; et qu'il ne decide pas s'il faut repondre. Le protocole de l'espace
     passe apres lui et garde le dernier mot.
     """
-    if not directives:
-        return ""
-
     lignes = []
-    if getattr(directives, "response_format", ""):
+    if directives and getattr(directives, "response_format", ""):
         lignes.append(f"- Format : {directives.response_format}")
-    if getattr(directives, "response_tone", ""):
+    if directives and getattr(directives, "response_tone", ""):
         lignes.append(f"- Ton : {directives.response_tone}")
-    if getattr(directives, "focus_points", None):
+    if directives and getattr(directives, "focus_points", None):
         lignes.append(f"- Points de focus : {', '.join(directives.focus_points)}")
-    if getattr(directives, "instructions", ""):
+    if directives and getattr(directives, "instructions", ""):
         lignes.append(f"- {directives.instructions}")
+
+    # Le calibrage temporel prescrit lui aussi une FORME : meme bloc, meme
+    # subordination, meme place — avant le prompt de l'espace.
+    if calibrage:
+        lignes.append(calibrage)
 
     if not lignes:
         return ""
@@ -217,6 +219,7 @@ async def build_agent_context(
     workspace: WorkspaceConfig | None,
     agent_role: str,
     directives: AgentDirectives | None = None,
+    calibrage: str = "",
     selected_skills: list | None = None,
     prompt_espace: str = "",
 ) -> AgentContext:
@@ -269,7 +272,7 @@ async def build_agent_context(
     # en dernier — ses regles doivent l emporter sur la description generique du
     # metier d agent.
     system_prompt = composer_prompt_systeme(
-        system_prompt, prompt_espace, bloc_de_directives(directives))
+        system_prompt, prompt_espace, bloc_de_directives(directives, calibrage))
 
     # 3. Skills (pour orchestrateur et synthétiseur)
     # Priorité : selected_skills (top-k sémantique, Phase 6) > chargement en bloc (Phase 5)
