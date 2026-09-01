@@ -4852,3 +4852,40 @@ appartient à l'espace, ce qui est précisément ce qui manquait.
   un mot. Les deux campagnes sont restaurées côte à côte, et le mode marque
   désormais ses fichiers d'un `-negatifs`. La première mesure du pipeline faite ici
   portait sur l'archive tronquée ; elle a été refaite sur les 135 cas.
+
+
+---
+
+## L1.5b — le garde-fou est en service, et l'auto-découverte réparée
+
+**01/09/2026** · `tronc-6c374ae`, révision Helm 19
+
+L'espace **`colaig-mesure-marches-publics`** existe sur `colaig-test` : 108 documents,
+`index.faiss` de 39 Mo, salon Tchap dédié. Le garde-fou de provenance y est **actif** —
+vérifié en passant le `config.yaml` réellement déployé au code réellement déployé, qui
+rend `(True, ('code', 'clause'))`.
+
+C'était le chaînon qui manquait : jusqu'ici le garde-fou n'avait aucun espace juridique
+où s'appliquer, `colaig-mesure-sst` ne portant aucun numéro d'article.
+
+### Un défaut trouvé par la pratique, pas par la lecture
+
+L'espace a été **découvert puis jamais indexé**. Quarante minutes, aucun index, et pas
+une ligne de journal — ni indexation, ni erreur.
+
+`run_indexation_loop` sautait tout espace sans index en storage, au motif que
+« initial_indexation est probablement en cours ». Or la boucle **attend** `initial_done`
+avant son premier cycle : ce motif ne pouvait jamais être vrai là où il était invoqué.
+Sans effet pour un espace présent au démarrage ; définitif pour un espace apparu
+ensuite. Le message était en `debug`, donc invisible en service.
+
+**L'auto-découverte découvrait, puis n'aboutissait à rien, en silence.** Corrigé, avec
+un test qui fait tourner la vraie boucle sur un espace sans index.
+
+### Ce qui n'est pas encore acquis
+
+Deux questions réelles ont donné des réponses ancrées : le garde-fou n'a **rien eu à
+signaler**. Il est donc actif, mais pas encore observé en action ici. Sa validation
+reste celle du rejeu — 48 réponses fautives sur 48 attrapées, aucune bonne réponse
+détruite. **Actif n'est pas éprouvé.** La mesure en conditions réelles demande un volume
+de questions, pas deux.
