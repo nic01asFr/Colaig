@@ -195,7 +195,7 @@ DURCISSEMENT = DURCISSEMENT.format(nb=K)
 # Il y manquait surtout DEUX FAMILLES : les pluriels (« les passages ne contiennent
 # pas »), et la refutation de premisse (« le code ne fixe aucun maximum »), qui couvre
 # 7 des 22 cas negatifs. Voir `colaig/rag/garde_fou_reponse.py` pour la mesure.
-from colaig.rag.garde_fou_reponse import MARQUEURS_REFUS  # noqa: E402
+from colaig.rag.garde_fou_reponse import est_un_refus  # noqa: E402
 
 
 def cle_ssp() -> str:
@@ -419,7 +419,7 @@ def main() -> int:
                 "hors_contexte": sorted((cites & articles_existants) - fournis),
                 "montants_inventes": sorted(montants(reponse) - montants_fournis
                                             - montants(c["question"])),
-                "refus": any(m in reponse.lower() for m in MARQUEURS_REFUS),
+                "refus": est_un_refus(reponse),
                 "cite_attendus": bool(set(c.get("articles_attendus", [])) & cites),
             })
         print(f"  {i}/{len(cas)} {c['id']}", end="\r", file=sys.stderr)

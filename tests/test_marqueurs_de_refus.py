@@ -70,8 +70,13 @@ def test_une_reponse_qui_repond_n_est_pas_prise_pour_un_refus():
         "L'allotissement est le principe, selon l'article L2113-10.")
 
 
-def test_le_harnais_de_mesure_partage_la_meme_liste():
-    """Deux listes divergentes feraient mesurer autre chose que ce qui est décidé."""
+def test_le_harnais_de_mesure_partage_la_meme_decision():
+    """Le harnais appelle la FONCTION, il ne reproduit pas une liste de mots.
+
+    Depuis que les verbes ambigus exigent un sujet, « est-ce un refus » n'est plus
+    décidable par appartenance à une liste : partager les mots ne suffirait plus à
+    partager la décision.
+    """
     import sys
     from pathlib import Path
 
@@ -79,4 +84,8 @@ def test_le_harnais_de_mesure_partage_la_meme_liste():
     sys.path.insert(0, str(racine / "_chantier" / "scripts"))
     import reference_generation as harnais
 
-    assert set(harnais.MARQUEURS_REFUS) == set(MARQUEURS_ABSENCE) | set(MARQUEURS_PREMISSE)
+    from colaig.rag.garde_fou_reponse import est_un_refus
+
+    assert harnais.est_un_refus is est_un_refus
+    assert not hasattr(harnais, "MARQUEURS_REFUS"), (
+        "une liste locale reapparaîtrait comme source de vérité concurrente")

@@ -55,7 +55,10 @@ _ARG = sys.argv[1] if len(sys.argv) > 1 else ""
 
 import reference_generation as R  # noqa: E402
 from colaig.models import WorkspaceConfig  # noqa: E402
-from colaig.rag.garde_fou_reponse import appliquer_selon_espace  # noqa: E402
+from colaig.rag.garde_fou_reponse import (  # noqa: E402
+    appliquer_selon_espace,
+    est_un_refus,
+)
 from colaig.rag.verification_citations import FORMAT_CLAUSE, FORMAT_CODE  # noqa: E402
 
 # La grammaire de citation du corpus, telle qu'un espace la declarerait. Mise a
@@ -172,7 +175,7 @@ def main() -> int:
             if d.action == "remplacée":
                 if attendus & cites:
                     perte_attendu += 1
-                refusait = any(m in texte.lower() for m in R.MARQUEURS_REFUS)
+                refusait = est_un_refus(texte)
                 if negatif and not refusait:
                     gain_refus += 1
 

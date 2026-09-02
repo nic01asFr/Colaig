@@ -31,6 +31,7 @@ module ne le verra pas, et ne le prétend pas.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from colaig.rag.verification_citations import FORMAT_CODE, Verification, verifier
@@ -70,13 +71,11 @@ class Decision:
 # écrit « les passages fournis ne contiennent pas la liste », phrase dont le sujet est
 # pluriel. « ne figurent pas » était là, « ne contiennent pas » manquait.
 MARQUEURS_ABSENCE = (
-    "ne figure pas", "ne figurent pas", "ne contient pas", "ne contiennent pas",
-    "ne permet pas", "ne permettent pas", "pas dans ce corpus", "pas dans le corpus",
+    "ne figure pas", "ne figurent pas", "pas dans ce corpus", "pas dans le corpus",
     "pas dans les passages", "pas dans les documents", "n'y sont pas",
     "ne se déduit", "ne se déduisent", "ne relève pas", "ne relèvent pas",
     "je ne dispose pas", "n'est pas dans", "ne sont pas dans", "aucun élément",
     "hors du corpus", "n'apparaît pas", "n'apparaissent pas",
-    "ne mentionne pas", "ne mentionnent pas", "ne précise pas", "ne précisent pas",
     "n'est pas précisé",
 )
 
@@ -89,7 +88,7 @@ MARQUEURS_ABSENCE = (
 # et l'effet était ASYMÉTRIQUE : +2 cas au pipeline, +0 au cœur, celui-ci préfixant
 # toutes ses réponses d'une formule d'absence, y compris là où elle est inexacte.
 MARQUEURS_PREMISSE = (
-    "ne fixe aucun", "ne fixe aucune", "ne fixe pas de", "ne fixe pas un",
+    "ne fixe aucun", "ne fixe aucune", "ne fixe pas de",
     "n'impose aucun", "n'impose aucune", "n'impose pas de",
     "ne prévoit aucun", "ne prévoit aucune", "ne définit aucun", "ne donne aucun",
     "n'établit aucun", "aucun maximum", "aucune durée maximale",
@@ -98,6 +97,47 @@ MARQUEURS_PREMISSE = (
 
 MARQUEURS_REFUS = MARQUEURS_ABSENCE + MARQUEURS_PREMISSE
 
+# LES VERBES AMBIGUS EXIGENT UN SUJET, et c'est ce qui separe un refus d'un contenu.
+#
+# « contenir », « permettre », « mentionner », « préciser » servent autant a refuser
+# qu'a enoncer le droit. Releve le 02/09/2026 sur toutes les reponses archivees :
+#
+#   « sauf si leur objet NE PERMET PAS l'identification de prestations distinctes »
+#         L2113-10 cite mot pour mot.
+#   « si le montant des sommes dues NE PERMET PAS de prelever la retenue »
+#         une condition juridique, dans une reponse qui donne le taux.
+#   « l'article 15 NE CONTIENT PAS de clause explicite, MAIS la regle generale... »
+#         une nuance, dans une reponse qui repond.
+#
+# Le biais etait DIFFERENTIEL : le coeur prefixe toutes ses reponses de « Cette
+# information ne figure pas dans les passages fournis » et declenche sur une formule
+# non ambigue ; le pipeline redige librement et cite le droit, donc y tombait plus
+# souvent — dans le sens qui l'avantage.
+#
+# Ce qui tranche est le sujet : « LES PASSAGES ne contiennent pas » refuse,
+# « L'ARTICLE 15 ne contient pas » decrit. La borne `[^.;]` retient la recherche a
+# l'interieur d'une meme phrase, sans quoi un sujet documentaire d'une phrase
+# precedente vaudrait caution a la suivante.
+_SOURCE = (r"(?:passages?|documents?|extraits?|sources?|corpus|"
+           r"textes? fournis?|informations? (?:fournies?|disponibles?))")
+_VERBE_AMBIGU = (r"ne\s+(?:contien(?:t|nent)|permet(?:tent)?|mentionne(?:nt)?|"
+                 r"précise(?:nt)?|comporte(?:nt)?|donne(?:nt)?)\s+(?:pas|aucune?)")
+_ABSENCE_SOURCEE = re.compile(_SOURCE + r"[^.;]{0,80}?\b" + _VERBE_AMBIGU, re.I)
+
+
+def est_un_refus(reponse: str) -> bool:
+    """Le modele a-t-il signale que le corpus ne permet pas de repondre ?
+
+    Publique, et c'est le point : le harnais de mesure appelle CETTE FONCTION, il ne
+    reproduit plus une liste de mots. Une decision, un seul endroit.
+    """
+    if not reponse:
+        return False
+    minuscule = reponse.lower()
+    return (any(m in minuscule for m in MARQUEURS_REFUS)
+            or bool(_ABSENCE_SOURCEE.search(minuscule)))
+
+
 
 def _est_un_refus(reponse: str) -> bool:
     """Le modèle a-t-il lui-même signalé l'absence d'information ?
@@ -105,8 +145,7 @@ def _est_un_refus(reponse: str) -> bool:
     Liste volontairement large : mieux vaut reconnaître un refus authentique que le
     remplacer par un refus fabriqué, ce qui ferait perdre l'explication du modèle.
     """
-    minuscule = reponse.lower()
-    return any(m in minuscule for m in MARQUEURS_REFUS)
+    return est_un_refus(reponse)
 
 
 def appliquer(reponse: str, passages: list[str],
