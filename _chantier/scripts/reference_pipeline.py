@@ -226,7 +226,16 @@ if __name__ == "__main__":
     #
     # `MARQUE` existe pour cela : un champ libre, ajoute au nom, qui dit ce que la
     # mesure a d unique quand tous les autres champs coincident.
-    _GEN["MARQUE"] = "pipeline"
+    # LA MARQUE DE L'APPELANT PRIME, et c'est ce qui permet plusieurs tirages.
+    #
+    # Cette ligne ecrasait `COLAIG_REF_MARQUE`. Trois tirages lances le 02/09/2026 avec
+    # les marques « pipeline-t1/t2/t3 » ont donc tous ecrit sous le meme nom, et se sont
+    # ecrases : deux campagnes perdues, sans un mot. QUATRIEME occurrence de ce piege
+    # dans le chantier — apres le k, le modele d'embedding et le mode negatifs-seuls.
+    #
+    # « pipeline » reste le defaut, pour que ce harnais n'ecrase jamais la mesure du
+    # coeur ; mais qui demande une marque l'obtient.
+    _GEN["MARQUE"] = os.environ.get("COLAIG_REF_MARQUE") or "pipeline"
     _GEN["repondre"] = repondre
     code = _GEN["main"]()
 
