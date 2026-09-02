@@ -270,7 +270,11 @@ class MessageHandler:
             is_reply=True,
         )
         await temp_handler.handle_message(msg)
-        return captured[0] if captured else ""
+        # `captured[0]` rendait l'accusé d'avancement du pipeline agent, pas la
+        # réponse — voir `reponse_finale`, qui porte la mesure et le pourquoi.
+        from colaig.messaging.progress import reponse_finale
+
+        return reponse_finale(captured)
 
     async def handle_message(self, message: IncomingMessage) -> None:
         """Dispatch vers le pipeline Phase 1 ou Phase 2.
