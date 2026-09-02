@@ -78,6 +78,18 @@ messaging:
   backend: matrix
 
 extraEnv:
+  # PIPELINE AGENT — Analyseur, Orchestrateur, Synthetiseur, et la memoire de
+  # conversation qui vient avec.
+  #
+  # Active le 01/09/2026, apres avoir leve ce qui l'en empechait : les deux agents
+  # appelaient des modeles Mistral que l'endpoint SSPCloud ne sert pas. Le pipeline
+  # ne pouvait donc pas fonctionner en service, et rien ne le disait — la mesure ne
+  # le voyait pas, son harnais construisant les agents sans preciser de modele.
+  #
+  # Il reste global a l'instance : contrairement au garde-fou, la decision n'est pas
+  # encore portee par l'espace. A faire si deux espaces d'une meme instance doivent
+  # differer.
+  COLAIG_AGENTS_ENABLED: "1"
   MATRIX_HOMESERVER: https://matrix.agent.dev-durable.tchap.gouv.fr
   MATRIX_USERNAME: "@colaig.assistant-developpement-durable.gouv.fr:agent.dev-durable.tchap.gouv.fr"
 

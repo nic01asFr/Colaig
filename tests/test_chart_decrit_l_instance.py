@@ -59,6 +59,10 @@ ENV_DE_L_INSTANCE = {
     "ALBERT_MODEL_EMBED": "qwen3-embedding-8b",
     "LLM_MODEL_OCR": "chandra-ocr-2",
     "COLAIG_EMBEDDING_DIM": "4096",
+    # Le pipeline agent, active le 01/09/2026. Cette entree est ce qui force le
+    # deploiement a suivre le chart : tant que l'instance ne la porte pas, le test
+    # echoue et dit que les deux ont diverge.
+    "COLAIG_AGENTS_ENABLED": "1",
     "COLAIG_AUTO_DISCOVER_ENABLED": "true",
     "COLAIG_AUTO_DISCOVER_INTERVAL": "120",
     "S3_BUCKET_NAME": "colaig",

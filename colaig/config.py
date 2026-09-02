@@ -254,6 +254,26 @@ def load_config(yaml_path: Path | None = None) -> ColaigConfig:
     context = yml.get("context", {})
 
     # Étape 3 : construire la config — env > yaml > defaults
+    # LE MODELE DE REPLI DES AGENTS SUIT CELUI QUI EST CONFIGURE.
+    #
+    # `albert_model_light` (Analyseur) et `albert_model_medium` (Synthetiseur) portaient
+    # en dur « mistralai/Ministral-3-8B » et « mistralai/Mistral-Small-3.2-24B ». Le
+    # chart ne pose ni l'un ni l'autre, et l'endpoint de production ne sert AUCUN
+    # Mistral : verifie le 01/09/2026 sur SSPCloud, qui expose chandra-ocr-2,
+    # gemma4-26b-moe, qwen3-6-35b-moe, qwen3-8-27b, qwen3-cursor, qwen3-embedding-8b,
+    # qwen3-vl.
+    #
+    # Activer le pipeline aurait donc appele, a chaque question, deux modeles
+    # inexistants. Il n'a jamais pu fonctionner en service — et la mesure ne pouvait
+    # pas le dire : `reference_pipeline.py` construit ses agents SANS passer `model=`,
+    # donc le client choisit le sien.
+    #
+    # Un nom de modele d'un fournisseur particulier n'a pas sa place dans un defaut :
+    # c'est un residu de la doctrine « Albert uniquement » que `CLAUDE.md` signale.
+    _modele_de_chat = (_env("LLM_MODEL_CHAT")
+                       or _env("ALBERT_MODEL_CHAT")
+                       or "openai/gpt-oss-120b")
+
     return ColaigConfig(
         # Backends (choix du provider)
         storage_backend=_env("STORAGE_BACKEND", "webdav"),
@@ -379,8 +399,8 @@ def load_config(yaml_path: Path | None = None) -> ColaigConfig:
         document_index_cache_ttl=_env_int("COLAIG_DOCUMENT_INDEX_CACHE_TTL", 300),
         document_index_ai_analysis=_env("COLAIG_DOCUMENT_INDEX_AI_ANALYSIS", "true").lower() not in ("0", "false", "no"),
         # Phase 6 : modèles multi-niveaux + TaskExecutor
-        albert_model_light=_env("ALBERT_MODEL_LIGHT", "mistralai/Ministral-3-8B-Instruct-2512"),
-        albert_model_medium=_env("ALBERT_MODEL_MEDIUM", "mistralai/Mistral-Small-3.2-24B-Instruct-2506"),
+        albert_model_light=_env("ALBERT_MODEL_LIGHT") or _modele_de_chat,
+        albert_model_medium=_env("ALBERT_MODEL_MEDIUM") or _modele_de_chat,
         task_executor_max_concurrent=_env_int("TASK_EXECUTOR_MAX_CONCURRENT", 20),
         task_executor_queue_ttl=_env_int("TASK_EXECUTOR_QUEUE_TTL", 1800),
         agents_phase6_enabled=_env("COLAIG_AGENTS_PHASE6_ENABLED", "").lower() in ("1", "true", "yes"),
