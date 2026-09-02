@@ -184,14 +184,49 @@ async def _repondre_par_le_pipeline(question: str, trouves, cle_api: str):
 
     debut = time.monotonic()
     intent = await analyseur.analyse(message, contexte)
+    t_analyse = time.monotonic()
     plan = await orchestrateur.execute(intent, contexte)
+    t_orchestre = time.monotonic()
     reponse = await synthetiseur.synthesise(plan, contexte, [], None, message=message)
     duree = time.monotonic() - debut
 
     texte = (reponse.text or "")
-    return texte, duree, {"needs_rag": intent.needs_rag,
-                          "intent": intent.intent_type.value,
-                          "sources": len(plan.search_results)}
+
+    # LA TRACE PAR AGENT — de quoi attribuer la variance a son auteur.
+    #
+    # Trois tirages du meme montage donnent 18, 19 puis 16 sur 20 (02/09/2026), la ou
+    # le coeur rend 20, 20, 20. Le pipeline varie donc de trois cas, mais un chiffre
+    # global ne dit pas OU : l'Analyseur peut reformuler autrement, l'Orchestrateur
+    # retenir d'autres passages, le Synthetiseur rediger differemment.
+    #
+    # Ces trois champs permettent le diagnostic par elimination, en comparant deux
+    # tirages du MEME cas :
+    #   intent identique + passages identiques + reponse differente -> Synthetiseur
+    #   intent identique + passages differents                      -> Orchestrateur
+    #   intent different                                            -> Analyseur
+    #
+    # `passages` porte les SECTIONS et non le texte : c'est ce qui identifie un passage
+    # sans gonfler la trace, et cela revele au passage les doublons que l'Orchestrateur
+    # accumule d'une etape a l'autre.
+    sections = [getattr(r.chunk, "section", "") or "" for r in plan.search_results]
+    return texte, duree, {
+        "needs_rag": intent.needs_rag,
+        "intent": intent.intent_type.value,
+        "sources": len(plan.search_results),
+        # Analyseur
+        "reformulation": (intent.query_reformulated or "").strip(),
+        "entites": sorted(getattr(intent, "entities", []) or []),
+        # Orchestrateur
+        "passages": sections,
+        "passages_distincts": len(set(sections)),
+        "etapes": len(getattr(plan, "steps", []) or []),
+        # Synthetiseur
+        "reponse_caracteres": len(texte),
+        # Ou passe le temps
+        "ms_analyse": int((t_analyse - debut) * 1000),
+        "ms_orchestration": int((t_orchestre - t_analyse) * 1000),
+        "ms_synthese": int((duree - (t_orchestre - debut)) * 1000),
+    }
 
 
 _OBSERVATIONS: list[dict] = []
@@ -205,6 +240,7 @@ def repondre(systeme, question, trouves, cle_s):  # noqa: ARG001
     """
     texte, duree, trace = asyncio.run(
         _repondre_par_le_pipeline(question, trouves, cle_s))
+    trace["question"] = question
     _OBSERVATIONS.append(trace)
     # `tronquee` : la MEME regle que la reference, et non plus une devinette.
     #
@@ -240,6 +276,17 @@ if __name__ == "__main__":
     code = _GEN["main"]()
 
     if _OBSERVATIONS:
+        # LES TRACES SONT ARCHIVEES, comme les reponses le sont deja : attribuer la
+        # variance a un agent exige de comparer deux tirages, donc de les conserver.
+        import json as _json
+        import time as _time
+        _marque = _GEN["MARQUE"]
+        _traces = (RACINE / "_chantier" / "mesures"
+                   / f"traces-{_marque}-{_time.strftime('%Y%m%d')}.json")
+        _traces.write_text(_json.dumps(_OBSERVATIONS, ensure_ascii=False, indent=1),
+                           encoding="utf-8")
+        print(f"traces par agent : {_traces.name}")
+
         ferme = sum(1 for o in _OBSERVATIONS if not o["needs_rag"])
         sans_source = sum(1 for o in _OBSERVATIONS if o["sources"] == 0)
         print()
