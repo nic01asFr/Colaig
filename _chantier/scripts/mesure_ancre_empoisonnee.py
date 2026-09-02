@@ -160,6 +160,15 @@ class LLMDistant:
         with urllib.request.urlopen(requete, timeout=180) as reponse:
             charge = json.loads(reponse.read().decode("utf-8"))
         self.derniere_reponse = charge["choices"][0]["message"]["content"] or ""
+        # Le motif d'arret, tel que le serveur le donne. `reference_pipeline` s'en sert
+        # pour juger la troncature EXACTEMENT comme la reference : celle-ci lit
+        # `finish_reason == "length"`, tandis que le harnais du pipeline devinait a la
+        # ponctuation finale. Mesure du 02/09/2026 : sur 179 reponses, cette heuristique
+        # en declarait 7 tronquees dont au moins 5 ne l'etaient pas — elles finissaient
+        # par une fermeture d'italique « .* » ou une fin de tableau « | ». Le
+        # synthetiseur produit beaucoup de markdown, le coeur non : le biais etait
+        # differentiel, donc pire qu'une simple imprecision.
+        self.dernier_finish_reason = charge["choices"][0].get("finish_reason", "")
         return self.derniere_reponse
 
 

@@ -155,6 +155,7 @@ _ETAT: dict = {}
 def _agents(cle_api: str):
     if "analyseur" not in _ETAT:
         llm = _LLMPipeline(cle_api)
+        _ETAT["llm"] = llm._interne
         _ETAT["analyseur"] = Analyser(albert=llm, storage=FakeStorage())
         _ETAT["orchestrateur"] = Orchestrator(FakeStorage(), _RETRIEVER)
         # LA TEMPERATURE DOIT ETRE CELLE DE LA PRODUCTION, pas le defaut de la classe.
@@ -205,8 +206,13 @@ def repondre(systeme, question, trouves, cle_s):  # noqa: ARG001
     texte, duree, trace = asyncio.run(
         _repondre_par_le_pipeline(question, trouves, cle_s))
     _OBSERVATIONS.append(trace)
-    # `tronquee` : même règle que la référence — une réponse coupée ne se juge pas.
-    tronquee = bool(texte) and not texte.rstrip().endswith((".", "!", "?", ")", "»", ":"))
+    # `tronquee` : la MEME regle que la reference, et non plus une devinette.
+    #
+    # Ce commentaire disait deja « meme regle », mais la ligne suivante devinait a la
+    # ponctuation finale, la ou la reference lit `finish_reason == "length"`. Deux
+    # regles differentes ecartent des observations differentes, donc ne comparent pas
+    # les memes denominateurs.
+    tronquee = getattr(_ETAT.get("llm"), "dernier_finish_reason", "") == "length"
     return texte, duree, tronquee
 
 
