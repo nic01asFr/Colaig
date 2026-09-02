@@ -46,6 +46,7 @@ décisions d'agent sont neutres sur ce jeu, ce qui est aussi une information.
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 import time
 from pathlib import Path
@@ -156,7 +157,18 @@ def _agents(cle_api: str):
         llm = _LLMPipeline(cle_api)
         _ETAT["analyseur"] = Analyser(albert=llm, storage=FakeStorage())
         _ETAT["orchestrateur"] = Orchestrator(FakeStorage(), _RETRIEVER)
-        _ETAT["synthetiseur"] = Synthesiser(albert=llm, storage=FakeStorage())
+        # LA TEMPERATURE DOIT ETRE CELLE DE LA PRODUCTION, pas le defaut de la classe.
+        #
+        # Construit sans argument, le Synthetiseur prend 0.3 — alors que la reference
+        # genere a 0.1. Les deux mesures n'etaient donc pas comparables, et une part de
+        # l'ecart observe sur le refus etait celle de leurs reglages : a 0.3 le pipeline
+        # refusait deux essais sur trois puis repondait au troisieme.
+        #
+        # Meme variable et meme defaut que `config.py`, pour que le harnais suive
+        # l'instance au lieu d'avoir sa propre idee.
+        _ETAT["synthetiseur"] = Synthesiser(
+            albert=llm, storage=FakeStorage(),
+            temperature=float(os.environ.get("COLAIG_SYNTHESISER_TEMPERATURE", "0.3")))
     return _ETAT["analyseur"], _ETAT["orchestrateur"], _ETAT["synthetiseur"]
 
 

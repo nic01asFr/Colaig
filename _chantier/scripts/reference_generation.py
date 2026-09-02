@@ -185,12 +185,17 @@ pas que la réponse s'y trouve."""
 # qu'il en reçoit quinze le renseigne faussement sur ce qu'il a sous les yeux.
 DURCISSEMENT = DURCISSEMENT.format(nb=K)
 
-MARQUEURS_REFUS = (
-    "ne figure pas", "ne figurent pas", "ne contient pas", "ne permet pas",
-    "pas dans ce corpus", "pas dans le corpus", "n'y sont pas", "ne se déduit",
-    "je ne dispose pas", "n'est pas dans", "ne relève pas", "aucun élément",
-    "hors du corpus", "n'apparaît pas",
-)
+# LA LISTE VIENT DU PRODUIT, elle n'est plus recopiee ici.
+#
+# Il y en avait deux : celle-ci, et celle de `garde_fou_reponse._est_un_refus`. Elles
+# divergeaient — la seconde connaissait « ne mentionne pas » et « ne precise pas », pas
+# la premiere — de sorte que la mesure et le garde-fou ne jugeaient pas « est-ce un
+# refus » de la meme facon. Sixieme copie de motif de ce chantier, sixieme divergence.
+#
+# Il y manquait surtout DEUX FAMILLES : les pluriels (« les passages ne contiennent
+# pas »), et la refutation de premisse (« le code ne fixe aucun maximum »), qui couvre
+# 7 des 22 cas negatifs. Voir `colaig/rag/garde_fou_reponse.py` pour la mesure.
+from colaig.rag.garde_fou_reponse import MARQUEURS_REFUS  # noqa: E402
 
 
 def cle_ssp() -> str:

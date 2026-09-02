@@ -58,21 +58,55 @@ class Decision:
         return self.action != "annotée"
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Reconnaître un refus — deux familles, parce qu'on ne refuse pas de deux façons
+# ─────────────────────────────────────────────────────────────────────────────
+
+# L'INFORMATION MANQUE. Volontairement large : mieux vaut reconnaître un refus
+# authentique que le remplacer par un refus fabriqué, ce qui ferait perdre
+# l'explication du modèle.
+#
+# Les pluriels comptent autant que les singuliers, et c'est mesuré : le synthétiseur
+# écrit « les passages fournis ne contiennent pas la liste », phrase dont le sujet est
+# pluriel. « ne figurent pas » était là, « ne contiennent pas » manquait.
+MARQUEURS_ABSENCE = (
+    "ne figure pas", "ne figurent pas", "ne contient pas", "ne contiennent pas",
+    "ne permet pas", "ne permettent pas", "pas dans ce corpus", "pas dans le corpus",
+    "pas dans les passages", "pas dans les documents", "n'y sont pas",
+    "ne se déduit", "ne se déduisent", "ne relève pas", "ne relèvent pas",
+    "je ne dispose pas", "n'est pas dans", "ne sont pas dans", "aucun élément",
+    "hors du corpus", "n'apparaît pas", "n'apparaissent pas",
+    "ne mentionne pas", "ne mentionnent pas", "ne précise pas", "ne précisent pas",
+    "n'est pas précisé",
+)
+
+# LA QUESTION SUPPOSE CE QUI N'EST PAS. Sept des vingt-deux cas négatifs du jeu doré
+# sont de cette nature, et aucun ne se réfute en disant que l'information manque : la
+# bonne réponse à « quel est le nombre maximal de lots ? » est « le code n'en fixe
+# aucun », pas « je ne trouve pas ».
+#
+# Sans cette famille, le compteur déclarait échec la réponse même qui était attendue —
+# et l'effet était ASYMÉTRIQUE : +2 cas au pipeline, +0 au cœur, celui-ci préfixant
+# toutes ses réponses d'une formule d'absence, y compris là où elle est inexacte.
+MARQUEURS_PREMISSE = (
+    "ne fixe aucun", "ne fixe aucune", "ne fixe pas de", "ne fixe pas un",
+    "n'impose aucun", "n'impose aucune", "n'impose pas de",
+    "ne prévoit aucun", "ne prévoit aucune", "ne définit aucun", "ne donne aucun",
+    "n'établit aucun", "aucun maximum", "aucune durée maximale",
+    "prémisse inexacte", "ne s'applique par défaut", "aucun ccag ne s'applique",
+)
+
+MARQUEURS_REFUS = MARQUEURS_ABSENCE + MARQUEURS_PREMISSE
+
+
 def _est_un_refus(reponse: str) -> bool:
     """Le modèle a-t-il lui-même signalé l'absence d'information ?
 
     Liste volontairement large : mieux vaut reconnaître un refus authentique que le
     remplacer par un refus fabriqué, ce qui ferait perdre l'explication du modèle.
     """
-    marqueurs = (
-        "ne figure pas", "ne figurent pas", "ne contient pas", "ne permet pas",
-        "pas dans ce corpus", "pas dans le corpus", "pas dans les passages",
-        "pas dans les documents", "n'y sont pas", "ne se déduit", "ne relève pas",
-        "je ne dispose pas", "n'est pas dans", "aucun élément", "hors du corpus",
-        "n'apparaît pas", "ne mentionne pas", "ne précise pas", "n'est pas précisé",
-    )
     minuscule = reponse.lower()
-    return any(m in minuscule for m in marqueurs)
+    return any(m in minuscule for m in MARQUEURS_REFUS)
 
 
 def appliquer(reponse: str, passages: list[str],

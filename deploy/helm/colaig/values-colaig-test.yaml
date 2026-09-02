@@ -90,6 +90,17 @@ extraEnv:
   # encore portee par l'espace. A faire si deux espaces d'une meme instance doivent
   # differer.
   COLAIG_AGENTS_ENABLED: "1"
+  # TEMPERATURE DU SYNTHETISEUR — alignee sur celle a laquelle le coeur est mesure.
+  #
+  # Le defaut du code est 0.3, alors que la reference genere a 0.1. Les deux systemes
+  # n'etaient donc pas compares a conditions egales, et l'ecart observe sur le refus
+  # etait en partie mecanique : a 0.3 le pipeline refusait deux essais sur trois puis
+  # repondait au troisieme — inconstance, pas incomprehension. Mesure du 02/09/2026 :
+  # zero cas ou il manque le refus sur les trois essais.
+  #
+  # Sur du droit, la constance prime sur le naturel de la redaction. A remesurer : si
+  # l'inconstance ne cede pas, la cause est ailleurs et ce reglage doit repartir.
+  COLAIG_SYNTHESISER_TEMPERATURE: "0.1"
   MATRIX_HOMESERVER: https://matrix.agent.dev-durable.tchap.gouv.fr
   MATRIX_USERNAME: "@colaig.assistant-developpement-durable.gouv.fr:agent.dev-durable.tchap.gouv.fr"
 

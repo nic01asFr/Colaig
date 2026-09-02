@@ -63,6 +63,10 @@ ENV_DE_L_INSTANCE = {
     # deploiement a suivre le chart : tant que l'instance ne la porte pas, le test
     # echoue et dit que les deux ont diverge.
     "COLAIG_AGENTS_ENABLED": "1",
+    # Alignee sur la temperature de la reference : sans quoi les deux
+    # systemes ne sont pas comparables, et l'ecart mesure est en partie
+    # celui de leurs reglages.
+    "COLAIG_SYNTHESISER_TEMPERATURE": "0.1",
     "COLAIG_AUTO_DISCOVER_ENABLED": "true",
     "COLAIG_AUTO_DISCOVER_INTERVAL": "120",
     "S3_BUCKET_NAME": "colaig",
