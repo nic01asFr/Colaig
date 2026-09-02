@@ -4889,3 +4889,78 @@ signaler**. Il est donc actif, mais pas encore observé en action ici. Sa valida
 reste celle du rejeu — 48 réponses fautives sur 48 attrapées, aucune bonne réponse
 détruite. **Actif n'est pas éprouvé.** La mesure en conditions réelles demande un volume
 de questions, pas deux.
+
+---
+
+## L1.5b — le pipeline agent est activé, et la mesure qui le jugeait était fausse
+
+**02/09/2026** · `tronc-1491f75`
+
+### Ce qui l'empêchait de tourner, et que personne ne savait
+
+`config.py` fixait en dur les modèles des deux agents :
+
+    albert_model_light  = "mistralai/Ministral-3-8B"     → l'Analyseur
+    albert_model_medium = "mistralai/Mistral-Small-3.2"  → le Synthétiseur
+
+L'endpoint SSPCloud ne sert **aucun Mistral**, et le chart ne posait ni l'une ni l'autre
+de ces variables. Le pipeline aurait appelé deux modèles inexistants à chaque question :
+**il n'a jamais pu fonctionner en service.** La raison n'était écrite nulle part.
+
+Et la mesure ne pouvait pas le voir : `reference_pipeline.py` construit ses agents sans
+passer `model=`, donc le client choisit le sien. **Quatre campagnes portaient sur un
+assemblage qui n'existe pas.**
+
+### Quatre biais de mesure, tous asymétriques
+
+Tous jouaient dans le même sens : contre le pipeline.
+
+| biais | portée |
+|---|---|
+| réfutation de prémisse non reconnue | **+2 cas** au pipeline, **+0** au cœur |
+| verbes ambigus sans sujet (`ne permet pas` = L2113-10 cité) | avantageait le pipeline |
+| troncature devinée à la ponctuation | 7 réponses écartées, 5 à tort (markdown) |
+| température 0,3 contre 0,1 | comparaison hors conditions égales |
+
+Le cœur préfixe toutes ses réponses de « Cette information ne figure pas dans les
+passages fournis » : il déclenche sur une formule non ambiguë. Le pipeline rédige
+librement et cite le droit — d'où sa sensibilité à chacun de ces biais.
+
+**Deux cas dorés sont faux** — mp-130 et mp-135, preuves dans
+`docs/verification-cas-negatifs-20260902.md`. Sur les deux, le pipeline répondait juste
+en citant la bonne source, et était compté en échec.
+
+### Ce qui est établi
+
+- Le pipeline **tourne en service** : activé, déployé, il répond, garde-fou actif.
+- Le compteur mesure enfin ce qu'il prétend, et il est **durci des deux côtés** : la
+  règle du sujet pouvait faire perdre des points au pipeline, il les garde.
+- Une seule décision, un seul endroit : le harnais appelle `est_un_refus`, il ne
+  reproduit plus de liste.
+- **Le pipeline est la seule voie vers les outils.** `generator.py` ne contient pas une
+  occurrence de « tool » ; `tool_registry` n'existe que sous `agents_enabled` ; et
+  `mcp_connectors` n'est lu que par `orchestrator`, `delegate_tools` et
+  `workspace_delegate`. Sans pipeline, un espace peut déclarer des connecteurs MCP :
+  personne ne les lit.
+
+### Ce qui n'est PAS établi
+
+**La dispersion domine tout.** Deux tirages du même montage (t=0,1, compteur corrigé)
+donnent **20/20** puis **18/20**. Un écart de deux cas entre exécutions identiques.
+
+    COEUR             t=0.1    20/20      un seul tirage
+    PIPELINE          t=0.3    18/20 · 19/20
+    PIPELINE          t=0.1    20/20 · 18/20
+
+J'ai annoncé « le pipeline égale le cœur » sur la foi du premier tirage ; le second l'a
+démenti. **Le gain de la température n'est pas distinguable du bruit**, et je n'ai qu'un
+tirage du cœur — sa stabilité n'est pas établie non plus.
+
+Sur le jeu complet, un tirage chacun : fantômes **4 / 10**, hors contexte **16 / 16**,
+cite l'attendu **100/113 / 96/113**, latence **2,0 s / 6,4 s**.
+
+### Point ouvert immédiat
+
+Trois tirages de chaque système, en mode négatifs seuls, pour que la dispersion cesse
+d'être une conjecture. **Tout écart inférieur à 3 cas ne veut rien dire tant que ce
+n'est pas fait** — y compris ceux que ce lot a mesurés.
