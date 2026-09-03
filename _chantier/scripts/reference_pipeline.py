@@ -102,16 +102,34 @@ class _LLMPipeline:
     async def chat_with_tools(self, messages, tools=None, tool_choice="auto",
                               model=None, temperature=0.3, max_tokens=2048,
                               priority="user"):
-        """Sans outils : le jeu doré est documentaire, aucun outil n'a de sens ici.
+        """Appelle vraiment l'endpoint avec les outils, quand on lui en donne.
 
-        Les rendre disponibles mesurerait la boucle d'outils, pas le pipeline — et
-        aucun cas doré n'attend une action.
+        CE QUE CETTE METHODE EMPECHAIT DE MESURER.
+
+        Elle deleguait a `chat()` et rendait `tool_calls=[]` — au motif que le jeu dore
+        est documentaire. C'est juste pour les outils METIER : aucun cas n'attend une
+        action, et les rendre disponibles mesurerait la boucle d'outils.
+
+        Mais l'Analyseur s'en sert pour autre chose : `COLAIG_ANALYSER_USE_TOOL_CALLING`
+        lui fait produire son Intent par un appel d'outil, donc en JSON garanti, au lieu
+        de le rediger en texte libre et de le parser. Avec l'ancienne version, activer
+        ce mode faisait recevoir `tool_calls=[]` a l'Analyseur, qui repliait — et les
+        deux bras auraient rendu le meme resultat.
+
+        C'est le motif exact releve dans `mesure_ancre_empoisonnee` : « quatre tirages
+        sur quatre repliaient, et les DEUX bras rendaient 0 % de bascule. Un resultat
+        parfaitement rassurant qui ne mesurait rien. »
+
+        Sans `tools`, le comportement ne change pas : un appel simple.
         """
         from colaig.models import ChatCompletionResult
 
-        texte = await self.chat(messages, model=model, temperature=temperature,
-                                max_tokens=max_tokens, priority=priority)
-        return ChatCompletionResult(content=texte, tool_calls=[])
+        if not tools:
+            texte = await self.chat(messages, model=model, temperature=temperature,
+                                    max_tokens=max_tokens, priority=priority)
+            return ChatCompletionResult(content=texte, tool_calls=[])
+        return await self._interne.chat_avec_outils(
+            messages, tools, tool_choice, temperature, max_tokens)
 
 
 class _RetrieverFige:
@@ -156,7 +174,19 @@ def _agents(cle_api: str):
     if "analyseur" not in _ETAT:
         llm = _LLMPipeline(cle_api)
         _ETAT["llm"] = llm._interne
-        _ETAT["analyseur"] = Analyser(albert=llm, storage=FakeStorage())
+        # L'ANALYSEUR SUIT LE REGLAGE DE L'INSTANCE, comme le Synthetiseur suit sa
+        # temperature. Mesure du 02/09/2026 : il consomme 3843 ms sur les 6.4 s du
+        # pipeline — 62 % du temps — et produit deux intentions differentes pour la
+        # meme question, ce qui en fait le premier suspect de l'inconstance.
+        #
+        # `use_tool_calling` lui fait rendre son Intent par un appel d'outil, donc en
+        # JSON garanti, au lieu de le rediger en texte libre et de le parser. C'est la
+        # piste a mesurer : structure garantie contre parsing, et son effet sur la
+        # variance comme sur la latence.
+        _ETAT["analyseur"] = Analyser(
+            albert=llm, storage=FakeStorage(),
+            use_tool_calling=os.environ.get(
+                "COLAIG_ANALYSER_USE_TOOL_CALLING", "").lower() in ("1", "true", "oui"))
         _ETAT["orchestrateur"] = Orchestrator(FakeStorage(), _RETRIEVER)
         # LA TEMPERATURE DOIT ETRE CELLE DE LA PRODUCTION, pas le defaut de la classe.
         #

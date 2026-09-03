@@ -54,6 +54,23 @@ from colaig.rag.garde_fou_reponse import est_un_refus  # noqa: E402
 
 MESURES = RACINE / "_chantier" / "mesures"
 
+# CAS DORES DONT LA FAUSSETE EST PROUVEE — voir docs/verification-cas-negatifs-20260902.md.
+# Sur mp-130 et mp-135, le corpus REPOND (« penalite journaliere de 1/3 000 », « ne peut
+# etre superieur a 5 % »). Y refuser est le mauvais comportement, donc y varier n'est pas
+# un defaut a imputer a un agent : les garder fausserait l'attribution.
+CAS_FAUX = {"mp-130", "mp-135"}
+
+
+def _questions_ecartees() -> set[str]:
+    ecartees = set()
+    for ligne in (RACINE / "tests" / "golden" / "v1.jsonl").read_text(
+            encoding="utf-8").splitlines():
+        if ligne.strip():
+            cas = json.loads(ligne)
+            if cas["id"] in CAS_FAUX:
+                ecartees.add(cas["question"])
+    return ecartees
+
 
 def _reponses_du_tirage(marque: str) -> dict[str, list[str]]:
     """Les reponses archivees, indexees par question — pour juger le refus."""
@@ -70,9 +87,12 @@ def analyser(fichier: Path) -> None:
     marque = fichier.stem.replace("traces-", "").rsplit("-", 1)[0]
     reponses = _reponses_du_tirage(marque)
 
+    ecartees = _questions_ecartees()
     par_cas: dict[str, list[dict]] = defaultdict(list)
     for t in traces:
-        par_cas[t.get("question", "")].append(t)
+        q = t.get("question", "")
+        if q not in ecartees:
+            par_cas[q].append(t)
 
     verdicts: Counter = Counter()
     details: list[tuple] = []
@@ -84,8 +104,14 @@ def analyser(fichier: Path) -> None:
         textes = reponses.get(question, [])
         refus = {est_un_refus(t) for t in textes if t}
 
+        # DISTINGUER LE CONSTANT QUI REUSSIT DE CELUI QUI ECHOUE.
+        #
+        # `len(refus) < 2` veut seulement dire « tous les essais pareils ». Un cas
+        # systematiquement RATE y tombe aussi, et disparaissait alors du rapport :
+        # un tirage a 16/20 pouvait afficher « 0 cas inconstant », ce qui laissait
+        # croire a une stabilite parfaite la ou quatre cas echouaient a chaque essai.
         if len(refus) < 2:
-            verdicts["constant"] += 1
+            verdicts["constant" if (refus and True in refus) else "echec constant"] += 1
             continue
         if len(intents) > 1:
             verdicts["ANALYSEUR"] += 1
@@ -100,7 +126,8 @@ def analyser(fichier: Path) -> None:
 
     print(f"\n=== {fichier.name} — {len(par_cas)} cas, {len(traces)} passages")
     total = sum(v for k, v in verdicts.items() if k != "constant")
-    print(f"  cas au refus constant : {verdicts['constant']}")
+    print(f"  refus constant (reussite) : {verdicts['constant']}")
+    print(f"  ECHEC CONSTANT            : {verdicts['echec constant']}")
     print(f"  cas INCONSTANTS       : {total}")
     for agent in ("ANALYSEUR", "ORCHESTRATEUR", "SYNTHETISEUR"):
         if verdicts[agent]:

@@ -172,6 +172,51 @@ class LLMDistant:
         return self.derniere_reponse
 
 
+    async def chat_avec_outils(self, messages, tools, tool_choice="auto",
+                               temperature=0.3, max_tokens=2048):
+        """Le meme appel, avec les outils reellement transmis au serveur.
+
+        Ajoutee le 02/09/2026 pour que `reference_pipeline` puisse mesurer le mode
+        `COLAIG_ANALYSER_USE_TOOL_CALLING` de l'Analyseur — qui produit son Intent par
+        un appel d'outil, donc en JSON garanti, plutot qu'en texte libre a parser.
+        Sans elle, activer ce mode faisait recevoir une liste d'outils vide a
+        l'Analyseur, qui repliait : les deux bras auraient rendu le meme chiffre.
+        """
+        from colaig.models import ChatCompletionResult, ToolCall
+
+        self.dernier_systeme = messages[0]["content"]
+        corps = {
+            "model": MODELE, "messages": messages,
+            "temperature": temperature, "max_tokens": max_tokens,
+            "tools": tools, "tool_choice": tool_choice,
+            "chat_template_kwargs": {"enable_thinking": False},
+        }
+        requete = urllib.request.Request(
+            BASE + "/chat/completions",
+            data=json.dumps(corps).encode("utf-8"), method="POST")
+        requete.add_header("Authorization", "Bearer " + self._cle)
+        requete.add_header("Content-Type", "application/json")
+        with urllib.request.urlopen(requete, timeout=180) as reponse:
+            charge = json.loads(reponse.read().decode("utf-8"))
+        choix = charge["choices"][0]
+        self.dernier_finish_reason = choix.get("finish_reason", "")
+        message = choix.get("message", {})
+        self.derniere_reponse = message.get("content") or ""
+        appels = []
+        for a in (message.get("tool_calls") or []):
+            fonction = a.get("function", {})
+            arguments = fonction.get("arguments")
+            if isinstance(arguments, str):
+                try:
+                    arguments = json.loads(arguments)
+                except json.JSONDecodeError:
+                    arguments = {}
+            appels.append(ToolCall(tool_name=fonction.get("name", ""),
+                                   arguments=arguments or {},
+                                   call_id=a.get("id", "")))
+        return ChatCompletionResult(content=self.derniere_reponse, tool_calls=appels)
+
+
 def _sans_balise(morceaux: list[str]) -> str:
     """Le bras `nu` : le meme contenu, sans balise ni consigne.
 
