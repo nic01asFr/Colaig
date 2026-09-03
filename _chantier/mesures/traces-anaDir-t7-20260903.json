@@ -1,0 +1,3168 @@
+[
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Quelle est la jurisprudence du Conseil d'État relative au rejet d'une offre anormalement basse dans le cadre des marchés publics ?",
+  "entites": [
+   "domaine",
+   "juridiction",
+   "sujet"
+  ],
+  "directives_synthese": {
+   "instructions": "Si la jurisprudence n'est pas dans le corpus, commencer par 'Cette information ne figure pas dans les passages fournis.' Indiquer où chercher (jurisprudence administrative). Si des articles du CCP sont trouvés, les citer pour le cadre légal, mais distinguer clairement la loi de la jurisprudence manquante.",
+   "format": "paragraph",
+   "ton": "formel, prudent, juridique",
+   "focus": [
+    "Absence de jurisprudence dans le corpus",
+    "Distinction entre obligation légale (CCP) et interprétation jurisprudentielle",
+    "Indication des sources externes nécessaires"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Vérifier si le corpus contient des articles sur les offres anormalement basses. Noter explicitement que la jurisprudence du Conseil d'État n'est pas incluse dans le corpus fourni. Ne pas inventer de références jurisprudentielles.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2152-4",
+   "Article L2152-6",
+   "Article L2152-5",
+   "Article R2152-5",
+   "Article R2152-3",
+   "Article R2152-1",
+   "Article L2193-9",
+   "Article L2152-1",
+   "Article L2152-3",
+   "Article R2181-2"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1986,
+  "ms_analyse": 4156,
+  "ms_orchestration": 0,
+  "ms_synthese": 2922,
+  "question": "Quelle jurisprudence du Conseil d'État s'applique au rejet d'une offre anormalement basse ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Quelle est la jurisprudence du Conseil d'État relative au rejet d'une offre anormalement basse dans le cadre des marchés publics ?",
+  "entites": [
+   "domaine",
+   "juridiction",
+   "sujet"
+  ],
+  "directives_synthese": {
+   "instructions": "Répondre en citant les articles du Code de la commande publique si la réponse s'y trouve. Si la réponse dépend de la jurisprudence non incluse dans le corpus, commencer par 'Cette information ne figure pas dans les passages fournis.' et indiquer où chercher. Distinguer obligations légales et pratiques jurisprudentielles.",
+   "format": "paragraph",
+   "ton": "formel, juridique, prudent",
+   "focus": [
+    "Citation exacte des articles du CCP",
+    "Distinction entre code et jurisprudence",
+    "Mention explicite de l'absence de jurisprudence dans le corpus si applicable"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus les articles du Code de la commande publique traitant des offres anormalement basses. Si le corpus ne contient pas la jurisprudence explicite, signaler cette absence selon la règle 2. Ne pas inventer de références jurisprudentielles.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2152-4",
+   "Article L2152-6",
+   "Article L2152-5",
+   "Article R2152-5",
+   "Article R2152-3",
+   "Article R2152-1",
+   "Article L2193-9",
+   "Article L2152-1",
+   "Article L2152-3",
+   "Article R2181-2"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1451,
+  "ms_analyse": 4032,
+  "ms_orchestration": 0,
+  "ms_synthese": 2375,
+  "question": "Quelle jurisprudence du Conseil d'État s'applique au rejet d'une offre anormalement basse ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Quelle est la jurisprudence du Conseil d'État relative au rejet d'une offre anormalement basse dans le cadre des marchés publics ?",
+  "entites": [
+   "domaine",
+   "juridiction",
+   "sujet"
+  ],
+  "directives_synthese": {
+   "instructions": "Si la réponse est dans le corpus, citer les articles/jurisprudence. Si elle n'y est pas, commencer par 'Cette information ne figure pas dans les passages fournis.' et indiquer où chercher. Distinguer obligations légales et pratique jurisprudentielle.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Absence de seuils ou montants inventés",
+    "Citation exacte des arrêts si disponibles",
+    "Distinction entre code et jurisprudence"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Vérifier si le corpus contient des références explicites à la jurisprudence du Conseil d'État sur ce sujet. Si non, signaler que l'information n'est pas dans les passages fournis (règle 2 du protocole). Ne pas inventer d'articles.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2152-4",
+   "Article L2152-6",
+   "Article L2152-5",
+   "Article R2152-5",
+   "Article R2152-3",
+   "Article R2152-1",
+   "Article L2193-9",
+   "Article L2152-1",
+   "Article L2152-3",
+   "Article R2181-2"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 682,
+  "ms_analyse": 4188,
+  "ms_orchestration": 0,
+  "ms_synthese": 1358,
+  "question": "Quelle jurisprudence du Conseil d'État s'applique au rejet d'une offre anormalement basse ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Où télécharger le formulaire DC1 et quel formulaire DC1 spécifique doit être joint à un marché public ?",
+  "entites": [
+   "action",
+   "context",
+   "document_type"
+  ],
+  "directives_synthese": {
+   "instructions": "Fournir le lien direct de téléchargement. Préciser si le DC1 est obligatoire ou recommandé selon le contexte (si info disponible). Rappeler que le code ne contient pas les formulaires eux-mêmes.",
+   "format": "step-by-step",
+   "ton": "administratif et précis",
+   "focus": [
+    "Lien de téléchargement officiel",
+    "Nature du formulaire DC1",
+    "Obligation légale (si applicable dans le code)"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Le corpus ne contient que le Code de la commande publique. Le DC1 est un formulaire administratif, pas un article de loi. Il faut donc utiliser des outils externes ou des compétences de recherche web pour trouver le lien de téléchargement officiel. Vérifier si le DC1 est mentionné dans le code comme pièce obligatoire, mais le lien de téléchargement viendra de l'extérieur.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "multi-step"
+  },
+  "passages": [
+   "Article R2143-4",
+   "Article R2143-13",
+   "Article CCAG Travaux 40",
+   "Article R2143-8",
+   "Article Annexe 12 — Signature électronique 6",
+   "Article Annexe 13 — Modèles de garantie 1",
+   "Article Annexe 13 — Modèles de garantie — texte 1",
+   "Article Annexe 12 — Signature électronique 1",
+   "Article R2143-10",
+   "Article R2143-5"
+  ],
+  "passages_distincts": 10,
+  "etapes": 4,
+  "reponse_caracteres": 1155,
+  "ms_analyse": 3672,
+  "ms_orchestration": 0,
+  "ms_synthese": 1983,
+  "question": "Quel formulaire DC1 dois-je joindre et où le télécharger ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Où télécharger le formulaire DC1 pour les marchés publics et quel est son contenu obligatoire ?",
+  "entites": [
+   "document",
+   "domain"
+  ],
+  "directives_synthese": {
+   "instructions": "Fournir le lien direct de téléchargement. Préciser si le CCP impose ce formulaire. Si le CCP ne le mentionne pas, indiquer clairement que cette information est externe au corpus CCP.",
+   "format": "step-by-step",
+   "ton": "administratif et précis",
+   "focus": [
+    "Lien de téléchargement",
+    "Nature obligatoire ou indicative",
+    "Référence légale (si dans CCP)"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Le formulaire DC1 est souvent un document administratif généré par des plateformes ou fourni par la DAJ, pas toujours un article du CCP. Vérifier si le CCP mentionne ce formulaire. Si non, chercher l'information externe officielle.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "multi-step"
+  },
+  "passages": [
+   "Article R2143-4",
+   "Article R2143-13",
+   "Article CCAG Travaux 40",
+   "Article R2143-8",
+   "Article Annexe 12 — Signature électronique 6",
+   "Article Annexe 13 — Modèles de garantie 1",
+   "Article Annexe 13 — Modèles de garantie — texte 1",
+   "Article Annexe 12 — Signature électronique 1",
+   "Article R2143-10",
+   "Article R2143-5"
+  ],
+  "passages_distincts": 10,
+  "etapes": 3,
+  "reponse_caracteres": 927,
+  "ms_analyse": 3578,
+  "ms_orchestration": 0,
+  "ms_synthese": 1577,
+  "question": "Quel formulaire DC1 dois-je joindre et où le télécharger ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Où télécharger le formulaire DC1 pour les marchés publics et quel est son contenu obligatoire ?",
+  "entites": [
+   "action",
+   "document",
+   "domain"
+  ],
+  "directives_synthese": {
+   "instructions": "Si l'information n'est pas dans le corpus, commencer par 'Cette information ne figure pas dans les passages fournis.' Indiquer ensuite où la trouver (ex: site de la DAJ). Si l'information est trouvée, citer la source. Distinguer clairement l'obligation légale (si applicable) de la pratique administrative.",
+   "format": "paragraph",
+   "ton": "administratif, précis, prudent",
+   "focus": [
+    "Lien de téléchargement ou référence précise",
+    "Source officielle du document",
+    "Statut du document (obligatoire/recommandé)"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Le corpus ne contient que le Code de la commande publique. Le formulaire DC1 est un document administratif externe au code. Il est probable que la réponse ne soit pas dans le corpus. Si non trouvé, indiquer clairement que l'information n'est pas dans les passages fournis et orienter vers les sources externes (DAJ, BOAMP). Ne pas inventer de lien.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2143-4",
+   "Article R2143-13",
+   "Article CCAG Travaux 40",
+   "Article R2143-8",
+   "Article Annexe 12 — Signature électronique 6",
+   "Article Annexe 13 — Modèles de garantie 1",
+   "Article Annexe 13 — Modèles de garantie — texte 1",
+   "Article Annexe 12 — Signature électronique 1",
+   "Article R2143-10",
+   "Article R2143-5"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 885,
+  "ms_analyse": 3704,
+  "ms_orchestration": 0,
+  "ms_synthese": 1452,
+  "question": "Quel formulaire DC1 dois-je joindre et où le télécharger ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "action",
+  "sources": 10,
+  "reformulation": "Quelles sont les obligations légales de contenu d'un CCTP (Cahier des Clauses Techniques Particulières) pour un marché de travaux de voirie selon le Code de la commande publique ?",
+  "entites": [
+   "document_type",
+   "domain",
+   "specific_sector"
+  ],
+  "directives_synthese": {
+   "instructions": "Fournir une structure type de CCTP basée sur les obligations légales citées. Pour chaque section ou mention obligatoire, citer l'article du CCP. Préciser clairement que les détails techniques spécifiques à la voirie (niveaux, matériaux, drainage) relèvent de la technique et non du droit, et que le corpus fourni ne contient pas les normes techniques applicables. Ne pas inventer de clauses techniques.",
+   "format": "list",
+   "ton": "professionnel, juridique, prudent",
+   "focus": [
+    "Avertissement sur l'absence de normes techniques dans le corpus",
+    "Citation systématique des articles du CCP",
+    "Distinction claire entre obligations légales et choix techniques"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher les articles du Code de la commande publique relatifs au contenu du CCTP. Vérifier si le corpus contient des dispositions spécifiques aux travaux de voirie. Si les détails techniques spécifiques à la voirie ne sont pas dans le corpus, indiquer explicitement que le corpus est limité au CCP et ne couvre pas les normes techniques sectorielles (ex: CCTG Travaux, normes NF).",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Techniques de l'information — texte 1",
+   "Article CCAG Techniques de l'information 4",
+   "Article CCAG Marchés industriels 2",
+   "Article CCAG Travaux 4",
+   "Article CCAG Prestations intellectuelles 4",
+   "Article CCAG Marchés industriels 4",
+   "Article CCAG Fournitures et services — texte 1",
+   "Article CCAG Fournitures et services 4",
+   "Article CCAG Prestations intellectuelles — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1309,
+  "ms_analyse": 4406,
+  "ms_orchestration": 0,
+  "ms_synthese": 2141,
+  "question": "Rédige-moi le CCTP de mon marché de voirie."
+ },
+ {
+  "needs_rag": true,
+  "intent": "action",
+  "sources": 10,
+  "reformulation": "Quelles sont les obligations légales de contenu d'un Cahier des Clauses Techniques Particulières (CCTP) pour un marché de travaux de voirie selon le Code de la commande publique ?",
+  "entites": [
+   "document_type",
+   "domain",
+   "legal_framework"
+  ],
+  "directives_synthese": {
+   "instructions": "Proposer une structure type de CCTP basée sur les obligations légales identifiées. Pour chaque section proposée, citer l'article de référence du CCP. Si une information technique spécifique (ex: normes de voirie) n'est pas dans le corpus, indiquer 'Cette information ne figure pas dans les passages fournis' et suggérer de consulter les CCAG ou les normes en vigueur. Distinguer nettement les mentions obligatoires des recommandations.",
+   "format": "step-by-step",
+   "ton": "administratif, précis, juridique",
+   "focus": [
+    "Citation systématique des articles du CCP",
+    "Distinction obligatoire/recommandé",
+    "Gestion des informations absentes du corpus (seuils, normes techniques)"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher les articles du Code de la commande publique relatifs au contenu du CCTP. Vérifier si des articles spécifiques mentionnent la voirie ou les travaux publics. Si le corpus est muet sur les détails techniques, indiquer clairement que les références précises ne sont pas dans le corpus fourni.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Techniques de l'information — texte 1",
+   "Article CCAG Techniques de l'information 4",
+   "Article CCAG Marchés industriels 2",
+   "Article CCAG Travaux 4",
+   "Article CCAG Prestations intellectuelles 4",
+   "Article CCAG Marchés industriels 4",
+   "Article CCAG Fournitures et services — texte 1",
+   "Article CCAG Fournitures et services 4",
+   "Article CCAG Prestations intellectuelles — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 5149,
+  "ms_analyse": 4202,
+  "ms_orchestration": 0,
+  "ms_synthese": 7891,
+  "question": "Rédige-moi le CCTP de mon marché de voirie."
+ },
+ {
+  "needs_rag": true,
+  "intent": "action",
+  "sources": 10,
+  "reformulation": "Quelles sont les obligations légales de contenu d'un CCTP pour un marché de travaux de voirie selon le Code de la commande publique ?",
+  "entites": [
+   "document_cible",
+   "objet",
+   "type_marche"
+  ],
+  "directives_synthese": {
+   "instructions": "Proposer une structure type de CCTP basée sur les mentions obligatoires citées dans le corpus. Pour chaque section proposée, citer l'article de référence. Préciser que les détails techniques (normes NF, DTU) ne sont pas dans le corpus et doivent être ajoutés par l'agent. Ne pas inventer de clauses techniques spécifiques à la voirie.",
+   "format": "list",
+   "ton": "professionnel, juridique, prudent",
+   "focus": [
+    "Avertissement sur l'absence de normes techniques dans le corpus",
+    "Citation systématique des articles",
+    "Distinction entre mentions obligatoires (code) et choix techniques (pratique)"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher les articles du Code de la commande publique définissant le contenu obligatoire du CCTP. Attention : le corpus ne contient pas les CCAG ni les fiches DAJ. Si les détails techniques spécifiques à la voirie ne sont pas dans le corpus, indiquer clairement que la rédaction technique précise doit se baser sur des normes extérieures non fournies ici.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Techniques de l'information — texte 1",
+   "Article CCAG Techniques de l'information 4",
+   "Article CCAG Marchés industriels 2",
+   "Article CCAG Travaux 4",
+   "Article CCAG Prestations intellectuelles 4",
+   "Article CCAG Marchés industriels 4",
+   "Article CCAG Fournitures et services — texte 1",
+   "Article CCAG Fournitures et services 4",
+   "Article CCAG Prestations intellectuelles — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1327,
+  "ms_analyse": 4172,
+  "ms_orchestration": 0,
+  "ms_synthese": 2266,
+  "question": "Rédige-moi le CCTP de mon marché de voirie."
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le taux par défaut des pénalités de retard pour un marché de travaux selon le Code de la commande publique ?",
+  "entites": [
+   "sujet",
+   "type_marche",
+   "valeur"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis. Distinguer clairement si le taux est imposé (obligatoire) ou s'il est déterminé par le contrat (recommandé/pratique). Si le taux n'est pas dans le corpus, indiquer où le chercher sans inventer.",
+   "format": "paragraph",
+   "ton": "juridique, précis, neutre",
+   "focus": [
+    "Absence d'invention de seuil",
+    "Nature obligatoire ou non du taux",
+    "Référence article exacte"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus les articles relatifs aux pénalités de retard pour les marchés de travaux. Vérifier si un taux est imposé par la loi ou s'il est laissé à la discrétion des parties. Ne pas inventer de chiffre.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article CCAG Marchés industriels 15",
+   "Article CCAG Travaux 19",
+   "Article CCAG Fournitures et services 14",
+   "Article R2192-21",
+   "Article CCAG Maîtrise d'œuvre 16",
+   "Article R2192-31",
+   "Article L2192-13",
+   "Article CCAG Prestations intellectuelles 14",
+   "Article CCAG Techniques de l'information 14",
+   "Article R2192-32"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1051,
+  "ms_analyse": 4047,
+  "ms_orchestration": 0,
+  "ms_synthese": 1859,
+  "question": "Quel est le taux des pénalités de retard applicable par défaut à mon marché de travaux ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le taux par défaut des pénalités de retard pour un marché de travaux selon le Code de la commande publique ?",
+  "entites": [
+   "sujet",
+   "type_marche",
+   "valeur"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis si le taux par défaut est fixé par le Code. Si le Code renvoie vers un CCAG ou ne fixe pas de taux par défaut, indiquer clairement que l'information ne figure pas dans les passages fournis (règle 2) et expliquer pourquoi (ex: renvoi vers CCAG-Travaux non inclus dans le corpus). Ne pas inventer de taux.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Absence de taux dans le corpus si applicable",
+    "Citation de l'article",
+    "Distinction entre obligation légale et renvoi vers CCAG"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher spécifiquement les dispositions relatives aux pénalités de retard dans les marchés de travaux. Vérifier si le code prévoit un taux par défaut ou renvoie vers le CCAG-Travaux (qui n'est pas dans le corpus, donc signaler l'absence de réponse directe si le code ne fixe pas le taux).",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article CCAG Marchés industriels 15",
+   "Article CCAG Travaux 19",
+   "Article CCAG Fournitures et services 14",
+   "Article R2192-21",
+   "Article CCAG Maîtrise d'œuvre 16",
+   "Article R2192-31",
+   "Article L2192-13",
+   "Article CCAG Prestations intellectuelles 14",
+   "Article CCAG Techniques de l'information 14",
+   "Article R2192-32"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 721,
+  "ms_analyse": 3875,
+  "ms_orchestration": 0,
+  "ms_synthese": 1500,
+  "question": "Quel est le taux des pénalités de retard applicable par défaut à mon marché de travaux ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le taux par défaut des pénalités de retard pour un marché de travaux selon le Code de la commande publique ?",
+  "entites": [
+   "sujet",
+   "type_marche",
+   "valeur"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis du Code de la commande publique. Si le taux n'est pas dans le corpus, commencer par 'Cette information ne figure pas dans les passages fournis.' et indiquer où chercher. Distinguer clairement le taux légal (s'il existe) des clauses contractuelles possibles. Ne pas inventer de seuil ou de montant.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Distinction obligation/pratique",
+    "Référence article exacte",
+    "Taux applicable ou absence de fixation légale"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher spécifiquement les dispositions relatives aux pénalités de retard dans les marchés de travaux. Vérifier si le taux est fixé par la loi ou laissé à l'appréciation du pouvoir adjudicateur. Si le taux n'est pas dans le corpus, indiquer clairement que l'information manque et ne pas inventer de valeur.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article CCAG Marchés industriels 15",
+   "Article CCAG Travaux 19",
+   "Article CCAG Fournitures et services 14",
+   "Article R2192-21",
+   "Article CCAG Maîtrise d'œuvre 16",
+   "Article R2192-31",
+   "Article L2192-13",
+   "Article CCAG Prestations intellectuelles 14",
+   "Article CCAG Techniques de l'information 14",
+   "Article R2192-32"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1687,
+  "ms_analyse": 3922,
+  "ms_orchestration": 0,
+  "ms_synthese": 2920,
+  "question": "Quel est le taux des pénalités de retard applicable par défaut à mon marché de travaux ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le seuil de montant d'achats annuels déclenchant l'obligation d'adopter un schéma de promotion des achats responsables ?",
+  "entites": [
+   "concept",
+   "critère",
+   "domaine"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis. Si le seuil n'est pas dans le corpus, indiquer clairement que l'information manque et où la chercher. Distinguer l'obligation légale du seuil. Ne pas inventer de montant.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Distinction obligation/threshold",
+    "Présence ou absence du seuil dans le corpus",
+    "Référence article exacte"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher l'article du Code de la commande publique relatif au schéma de promotion des achats responsables. Vérifier si le seuil chiffré est mentionné dans l'article ou s'il renvoie à un texte externe. Si le seuil n'est pas dans le corpus, ne pas l'inventer.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article L2111-3",
+   "Article D2111-3",
+   "Article R2142-6",
+   "Article R2113-7",
+   "Article R2122-8",
+   "Article R2142-7",
+   "Article R2124-1",
+   "Article R2196-9",
+   "Article R2121-2",
+   "Article L2124-1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 439,
+  "ms_analyse": 3952,
+  "ms_orchestration": 0,
+  "ms_synthese": 891,
+  "question": "À partir de quel montant d'achats annuels un acheteur doit-il adopter un schéma de promotion des achats responsables ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le seuil de montant d'achats annuels déclenchant l'obligation d'adopter un schéma de promotion des achats responsables ?",
+  "entites": [
+   "concept",
+   "critère",
+   "domaine"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis. Si le seuil n'est pas dans le corpus, indiquer clairement que l'information manque et où la trouver. Distinguer l'obligation légale du seuil. Ne pas inventer de chiffre.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Distinction obligation/threshold",
+    "Présence ou absence du seuil dans le corpus",
+    "Référence article exacte"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher l'article du Code de la commande publique relatif au schéma de promotion des achats responsables. Vérifier si le seuil chiffré est mentionné dans l'article ou s'il renvoie à un texte externe. Si le seuil n'est pas dans le corpus, appliquer la règle 2 : ne pas inventer.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article L2111-3",
+   "Article D2111-3",
+   "Article R2142-6",
+   "Article R2113-7",
+   "Article R2122-8",
+   "Article R2142-7",
+   "Article R2124-1",
+   "Article R2196-9",
+   "Article R2121-2",
+   "Article L2124-1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 854,
+  "ms_analyse": 3718,
+  "ms_orchestration": 0,
+  "ms_synthese": 1390,
+  "question": "À partir de quel montant d'achats annuels un acheteur doit-il adopter un schéma de promotion des achats responsables ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le seuil de montant d'achats annuels déclenchant l'obligation d'adopter un schéma de promotion des achats responsables ?",
+  "entites": [
+   "concept",
+   "critère",
+   "domaine"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis. Si le seuil n'est pas dans le corpus, indiquer clairement que l'information manque et où la trouver (ex: avis au JO). Distinguer l'obligation légale du seuil. Ne pas inventer de chiffre.",
+   "format": "paragraph",
+   "ton": "formel, juridique, prudent",
+   "focus": [
+    "Distinction obligation/threshold",
+    "Présence ou absence du seuil dans le corpus",
+    "Référence article exacte"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher l'article du Code de la commande publique relatif au schéma de promotion des achats responsables (SPAR). Vérifier si le seuil chiffré est mentionné dans l'article ou s'il renvoie à un autre texte. Si le seuil n'est pas dans le corpus, ne pas l'inventer.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article L2111-3",
+   "Article D2111-3",
+   "Article R2142-6",
+   "Article R2113-7",
+   "Article R2122-8",
+   "Article R2142-7",
+   "Article R2124-1",
+   "Article R2196-9",
+   "Article R2121-2",
+   "Article L2124-1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 610,
+  "ms_analyse": 8641,
+  "ms_orchestration": 0,
+  "ms_synthese": 1094,
+  "question": "À partir de quel montant d'achats annuels un acheteur doit-il adopter un schéma de promotion des achats responsables ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quelles sont les définitions et références légales des normes et référentiels invocables dans les spécifications techniques d'un marché public selon le Code de la commande publique ?",
+  "entites": [
+   "concept",
+   "document_type",
+   "domain"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer systématiquement les articles du CCP. Distinguer clairement les normes obligatoires (si elles existent) des normes recommandées ou invoquées par le pouvoir adjudicateur. Préciser si le code autorise l'usage de référentiels privés ou professionnels.",
+   "format": "list",
+   "ton": "juridique, précis, neutre",
+   "focus": [
+    "Conditions d'invocation dans les pièces du marché",
+    "Définition légale de la norme",
+    "Hiérarchie des normes invocables"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus les définitions des normes et référentiels. Vérifier si le code distingue les normes harmonisées des autres. Attention : ne pas inventer de listes de normes.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2111-8",
+   "Article R2111-11",
+   "Article R2111-9",
+   "Article R2111-4",
+   "Article R2111-7",
+   "Article R2111-10",
+   "Article R2111-5",
+   "Article R2112-2",
+   "Article L2111-2",
+   "Article CCAG Travaux 23"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 4921,
+  "ms_analyse": 3813,
+  "ms_orchestration": 0,
+  "ms_synthese": 6406,
+  "question": "Quelle est la définition exacte des normes et référentiels que je peux invoquer dans mes spécifications techniques ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quelles sont les définitions légales des normes et référentiels invoquables dans les spécifications techniques d'un marché public selon le Code de la commande publique ?",
+  "entites": [
+   "concepts",
+   "document_type",
+   "domain"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer systématiquement les articles du Code de la commande publique. Si la définition exacte n'est pas dans le corpus, indiquer explicitement que l'information manque et où la chercher. Distinguer les obligations légales des usages recommandés.",
+   "format": "paragraph",
+   "ton": "juridique, précis, neutre",
+   "focus": [
+    "Distinction normes/référentiels",
+    "Limites du corpus fourni",
+    "Références articles précis"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher les définitions et conditions d'usage des normes et référentiels dans le Code de la commande publique. Vérifier si le corpus contient les définitions exactes ou seulement les principes.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2111-8",
+   "Article R2111-11",
+   "Article R2111-9",
+   "Article R2111-4",
+   "Article R2111-7",
+   "Article R2111-10",
+   "Article R2111-5",
+   "Article R2112-2",
+   "Article L2111-2",
+   "Article CCAG Travaux 23"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 944,
+  "ms_analyse": 3562,
+  "ms_orchestration": 0,
+  "ms_synthese": 1750,
+  "question": "Quelle est la définition exacte des normes et référentiels que je peux invoquer dans mes spécifications techniques ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quelles sont les définitions et références légales des normes et référentiels invoquables dans les spécifications techniques d'un marché public selon le Code de la commande publique ?",
+  "entites": [
+   "action",
+   "concept",
+   "document_type",
+   "domain"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer systématiquement les articles du Code de la commande publique. Distinguer clairement les normes imposées par la loi de celles qui sont simplement invoquées comme référence. Ne pas inventer de listes de normes.",
+   "format": "list",
+   "ton": "juridique, précis, neutre",
+   "focus": [
+    "Définition légale des normes",
+    "Lien avec les spécifications techniques",
+    "Référentiels professionnels"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus les définitions des normes et référentiels. Vérifier si le code distingue les normes obligatoires des normes de référence. Si la réponse n'est pas explicite dans le corpus, indiquer que l'information manque.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2111-8",
+   "Article R2111-11",
+   "Article R2111-9",
+   "Article R2111-4",
+   "Article R2111-7",
+   "Article R2111-10",
+   "Article R2111-5",
+   "Article R2112-2",
+   "Article L2111-2",
+   "Article CCAG Travaux 23"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 3940,
+  "ms_analyse": 3812,
+  "ms_orchestration": 0,
+  "ms_synthese": 5327,
+  "question": "Quelle est la définition exacte des normes et référentiels que je peux invoquer dans mes spécifications techniques ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le régime juridique de la révision des prix dans les marchés publics et quelles clauses doivent figurer dans le CCAP selon le Code de la commande publique ?",
+  "entites": [
+   "document_type",
+   "legal_framework",
+   "topic"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer systématiquement les articles du Code de la commande publique. Ne pas inventer de formules mathématiques ou de seuils. Préciser si le corpus permet de rédiger la clause ou s'il faut se référer aux CCAG (qui ne sont pas dans le corpus). Distinguer clairement l'obligation légale de la pratique contractuelle.",
+   "format": "paragraph",
+   "ton": "juridique, précis, prudent",
+   "focus": [
+    "Distinction obligatoire/facultatif",
+    "Limites du corpus (absence de CCAG/formules types)",
+    "Références articles CCP"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus les articles traitant de la révision des prix. Vérifier si le corpus contient les dispositions spécifiques sur les formules de révision ou si elles renvoient à des textes externes (comme les CCAG). Si le corpus est muet sur les formules techniques, indiquer explicitement que l'information manque.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article CCAG Fournitures et services 10",
+   "Article CCAG Marchés industriels 11",
+   "Article CCAG Techniques de l'information 10",
+   "Article R2112-13",
+   "Article CCAG Prestations intellectuelles 10",
+   "Article CCAG Travaux 9",
+   "Article CCAG Maîtrise d'œuvre 10",
+   "Article R2112-10",
+   "Article CCAG Travaux 13",
+   "Article R2112-8"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1695,
+  "ms_analyse": 4202,
+  "ms_orchestration": 0,
+  "ms_synthese": 2657,
+  "question": "Quelle formule de révision de prix dois-je écrire dans mon CCAP ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le régime juridique de la révision des prix dans les marchés publics et quels articles du Code de la commande publique encadrent les clauses de révision ?",
+  "entites": [
+   "document_type",
+   "legal_framework",
+   "subject"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer systématiquement les numéros d'article du CCP. Distinguer clairement l'obligation légale de la possibilité contractuelle. Ne pas inventer de seuils ou de formules mathématiques si elles ne sont pas dans le texte. Proposer une formulation type si les articles le permettent, en l'annotant de son fondement.",
+   "format": "paragraph",
+   "ton": "juridique_precis",
+   "focus": [
+    "Articles du CCP applicables",
+    "Caractère obligatoire ou facultatif",
+    "Formulation recommandée (si fondée sur le texte)"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher les dispositions du Code de la commande publique relatives à la révision des prix. Vérifier si le corpus contient les articles L2194-1 à L2194-5. Si les articles sont absents, indiquer explicitement que l'information ne figure pas dans les passages fournis et ne pas inventer de références.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article CCAG Fournitures et services 10",
+   "Article CCAG Marchés industriels 11",
+   "Article CCAG Techniques de l'information 10",
+   "Article R2112-13",
+   "Article CCAG Prestations intellectuelles 10",
+   "Article CCAG Travaux 9",
+   "Article CCAG Maîtrise d'œuvre 10",
+   "Article R2112-10",
+   "Article CCAG Travaux 13",
+   "Article R2112-8"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 2223,
+  "ms_analyse": 3952,
+  "ms_orchestration": 0,
+  "ms_synthese": 3547,
+  "question": "Quelle formule de révision de prix dois-je écrire dans mon CCAP ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le régime juridique de la révision des prix dans les marchés publics et quels articles du Code de la commande publique encadrent les clauses de révision ?",
+  "entites": [
+   "document_type",
+   "legal_framework",
+   "subject"
+  ],
+  "directives_synthese": {
+   "instructions": "Fournir une réponse structurée citant systématiquement les numéros d'articles du CCP. Distinguer clairement les obligations légales des recommandations pratiques. Proposer une formulation type si elle est directement issue du texte, sinon indiquer les principes à respecter.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Absence d'invention de seuils ou de montants",
+    "Citation exacte des articles du CCP",
+    "Distinction obligatoire/recommandé"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher les dispositions du Code de la commande publique relatives à la révision des prix. Ne pas inventer de formules types sans fondement textuel. Si les seuils ou modalités pratiques ne sont pas dans le corpus, l'indiquer explicitement.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article CCAG Fournitures et services 10",
+   "Article CCAG Marchés industriels 11",
+   "Article CCAG Techniques de l'information 10",
+   "Article R2112-13",
+   "Article CCAG Prestations intellectuelles 10",
+   "Article CCAG Travaux 9",
+   "Article CCAG Maîtrise d'œuvre 10",
+   "Article R2112-10",
+   "Article CCAG Travaux 13",
+   "Article R2112-8"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 2987,
+  "ms_analyse": 3577,
+  "ms_orchestration": 0,
+  "ms_synthese": 4750,
+  "question": "Quelle formule de révision de prix dois-je écrire dans mon CCAP ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels indices officiels sont prévus par le Code de la commande publique pour la révision des prix dans les marchés publics ?",
+  "entites": [
+   "domain",
+   "sujet",
+   "élément_recherché"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis du Code de la commande publique qui traite de la révision des prix. Si l'article mentionne des indices, les citer. Si l'article est général, préciser que le choix des indices est laissé aux parties, mais que le code ne les impose pas tous. Respecter la règle de ne pas inventer de seuils ou de montants.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Citation de l'article du CCP",
+    "Distinction entre obligation légale et liberté contractuelle",
+    "Précision sur l'absence d'indices imposés par le code (si applicable)"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus les articles traitant de la révision des prix. Vérifier si des indices spécifiques (ex: INSEE) sont cités dans le texte législatif. Si le code est silencieux sur les indices précis, noter que le choix appartient aux parties dans les limites de la loi.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2112-13",
+   "Article CCAG Marchés industriels 11",
+   "Article CCAG Fournitures et services 10",
+   "Article CCAG Techniques de l'information 10",
+   "Article R2112-14",
+   "Article CCAG Prestations intellectuelles 10",
+   "Article CCAG Maîtrise d'œuvre 10",
+   "Article R2112-10",
+   "Article R2112-8",
+   "Article R2112-12"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 3975,
+  "ms_analyse": 3827,
+  "ms_orchestration": 0,
+  "ms_synthese": 6000,
+  "question": "À quels indices officiels dois-je me référer pour la révision du prix de mon marché ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels indices officiels sont prévus par le Code de la commande publique pour la révision des prix dans les marchés publics ?",
+  "entites": [
+   "sujet",
+   "type_d_document",
+   "élément_recherché"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer systématiquement les numéros d'article du Code de la commande publique. Si l'information n'est pas dans le corpus, commencer par 'Cette information ne figure pas dans les passages fournis.' et indiquer où chercher. Ne pas inventer de seuils ou d'indices.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Citation exacte des articles",
+    "Distinction entre obligation légale et pratique",
+    "Précision sur l'absence d'information si non présente dans le corpus"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus les articles traitant de la révision des prix. Vérifier si des indices spécifiques (ex: INSEE) sont cités. Si le corpus ne contient pas l'information, indiquer clairement que cela ne figure pas dans les passages fournis et ne pas inventer d'indices.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2112-13",
+   "Article CCAG Marchés industriels 11",
+   "Article CCAG Fournitures et services 10",
+   "Article CCAG Techniques de l'information 10",
+   "Article R2112-14",
+   "Article CCAG Prestations intellectuelles 10",
+   "Article CCAG Maîtrise d'œuvre 10",
+   "Article R2112-10",
+   "Article R2112-8",
+   "Article R2112-12"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1076,
+  "ms_analyse": 3594,
+  "ms_orchestration": 0,
+  "ms_synthese": 1905,
+  "question": "À quels indices officiels dois-je me référer pour la révision du prix de mon marché ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels indices officiels sont prévus par le Code de la commande publique pour la révision des prix dans les marchés publics ?",
+  "entites": [
+   "domain",
+   "object",
+   "topic"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer systématiquement les numéros d'article du Code de la commande publique. Si l'information n'est pas dans le corpus, commencer par 'Cette information ne figure pas dans les passages fournis.' et indiquer où chercher. Distinguer les obligations légales des pratiques courantes.",
+   "format": "paragraph",
+   "ton": "formal",
+   "focus": [
+    "Limites du corpus fourni",
+    "Nature des indices (si cités)",
+    "Références articles précis"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus fourni les articles traitant de la révision des prix. Ne pas inventer d'indices. Si les indices ne sont pas mentionnés dans les articles fournis, indiquer que l'information manque dans le corpus.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2112-13",
+   "Article CCAG Marchés industriels 11",
+   "Article CCAG Fournitures et services 10",
+   "Article CCAG Techniques de l'information 10",
+   "Article R2112-14",
+   "Article CCAG Prestations intellectuelles 10",
+   "Article CCAG Maîtrise d'œuvre 10",
+   "Article R2112-10",
+   "Article R2112-8",
+   "Article R2112-12"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1383,
+  "ms_analyse": 3358,
+  "ms_orchestration": 0,
+  "ms_synthese": 2156,
+  "question": "À quels indices officiels dois-je me référer pour la révision du prix de mon marché ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le montant ou le plafond réglementaire applicable aux marchés publics conclus à prix provisoires ?",
+  "entites": [
+   "concept_cible",
+   "type_de_marche"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis si un seuil spécifique existe. Sinon, utiliser la phrase standard : 'Cette information ne figure pas dans les passages fournis.' et expliquer que les seuils sont fixés par avis au Journal officiel. Distinguer clairement obligation légale et pratique. Ne jamais inventer de montant.",
+   "format": "paragraph",
+   "ton": "formel, juridique, prudent",
+   "focus": [
+    "Absence d'invention de seuil",
+    "Citation d'article obligatoire",
+    "Distinction entre CCP et avis au JO"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Vérifier si le corpus contient des articles mentionnant les 'prix provisoires' et leurs seuils. Si aucun article ne mentionne de seuil spécifique, indiquer que l'information ne figure pas dans les passages fournis et que les seuils généraux (révisés tous les deux ans) s'appliquent, mais ne pas inventer de chiffre.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2112-16",
+   "Article R2112-15",
+   "Article R2112-17",
+   "Article R2142-9",
+   "Article R2112-8",
+   "Article R2142-10",
+   "Article R2112-18",
+   "Article R2112-7",
+   "Article L2112-6",
+   "Article R2112-9"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1165,
+  "ms_analyse": 3922,
+  "ms_orchestration": 0,
+  "ms_synthese": 1922,
+  "question": "Quel est le plafond réglementaire d'un marché conclu à prix provisoires ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le montant plafond réglementaire pour la conclusion d'un marché public à prix provisoires selon le Code de la commande publique ?",
+  "entites": [
+   "concept",
+   "critere"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis si le plafond est dans le CCP. Sinon, indiquer clairement que cette information ne figure pas dans les passages fournis car les seuils sont externes au corpus. Distinguer nettement l'obligation légale du seuil de la pratique. Ne jamais inventer de montant.",
+   "format": "paragraph",
+   "ton": "juridique, précis, prudent",
+   "focus": [
+    "Absence de seuil dans le CCP (si applicable)",
+    "Citation de l'article (si applicable)",
+    "Rappel que les seuils sont hors corpus"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Vérifier strictement la présence d'un article fixant un plafond pour les 'marchés à prix provisoires'. Si aucun article ne mentionne ce plafond spécifique, conclure que l'information n'est pas dans le corpus car les seuils de procédure sont révisés par avis au JO. Ne pas extrapoler depuis les seuils généraux.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2112-16",
+   "Article R2112-15",
+   "Article R2112-17",
+   "Article R2142-9",
+   "Article R2112-8",
+   "Article R2142-10",
+   "Article R2112-18",
+   "Article R2112-7",
+   "Article L2112-6",
+   "Article R2112-9"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 874,
+  "ms_analyse": 3967,
+  "ms_orchestration": 0,
+  "ms_synthese": 1407,
+  "question": "Quel est le plafond réglementaire d'un marché conclu à prix provisoires ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le plafond réglementaire d'un marché conclu à prix provisoires ?",
+  "entites": [
+   "concept",
+   "criterion"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis si le plafond est dans le corpus. Si le corpus ne contient pas le plafond spécifique, indiquer que l'information ne figure pas dans les passages fournis et préciser que les seuils sont révisés par avis au JO. Distinguer clairement obligation légale et information manquante.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Citation de l'article",
+    "Mise en garde sur la révision des seuils",
+    "Précision sur l'absence de seuil spécifique dans le CCP si applicable"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus les articles relatifs aux marchés à prix provisoires et aux seuils de procédure. Vérifier si un plafond spécifique est mentionné. Si non, vérifier si les articles généraux sur les seuils sont présents. Rappeler que les seuils exacts ne sont pas dans le corpus.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2112-16",
+   "Article R2112-15",
+   "Article R2112-17",
+   "Article R2142-9",
+   "Article R2112-8",
+   "Article R2142-10",
+   "Article R2112-18",
+   "Article R2112-7",
+   "Article L2112-6",
+   "Article R2112-9"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 813,
+  "ms_analyse": 3875,
+  "ms_orchestration": 0,
+  "ms_synthese": 1452,
+  "question": "Quel est le plafond réglementaire d'un marché conclu à prix provisoires ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels sont les services sociaux et autres services spécifiques énumérés dans le Code de la commande publique pouvant faire l'objet d'une réservation à l'économie sociale et solidaire ?",
+  "entites": [
+   "category_services",
+   "concept",
+   "domain"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis du Code de la commande publique. Lister les services mentionnés. Si l'article n'est pas dans le corpus, indiquer clairement que l'information manque et où la chercher. Distinguer les services obligatoirement réservés des autres.",
+   "format": "list",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Liste des services concernés",
+    "Précision sur le caractère obligatoire ou optionnel de la réservation",
+    "Référence exacte de l'article"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher l'article du Code de la commande publique relatif à la réservation des marchés de services sociaux et autres services spécifiques à l'économie sociale et solidaire. Ne citer que les articles présents dans le corpus.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article L2113-15",
+   "Article R2113-8",
+   "Article R2123-2",
+   "Article R2131-14",
+   "Article L2113-16",
+   "Article L2113-13",
+   "Article R2131-7",
+   "Article R2123-7",
+   "Article L2113-13-1",
+   "Article L2113-12"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 421,
+  "ms_analyse": 3625,
+  "ms_orchestration": 0,
+  "ms_synthese": 938,
+  "question": "Quels services relèvent des services sociaux et autres services spécifiques que je peux réserver à l'économie sociale et solidaire ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels sont les services sociaux et autres services spécifiques énumérés à l'article L212-1 du Code de la commande publique, susceptibles d'être réservés aux entreprises de l'économie sociale et solidaire ?",
+  "entites": [
+   "bénéficiaire",
+   "catégorie",
+   "domaine",
+   "sujet"
+  ],
+  "directives_synthese": {
+   "instructions": "Lister les services mentionnés. Citer l'article L212-1. Préciser que cette liste est limitative pour la réservation. Rappeler la règle 1 : citer l'article. Rappeler la règle 3 : distinguer l'obligation légale de la pratique.",
+   "format": "list",
+   "ton": "juridique et précis",
+   "focus": [
+    "Citation de l'article L212-1",
+    "Liste des services",
+    "Nature juridique de la réservation"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher l'article L212-1 du Code de la commande publique. Extraire la liste des services sociaux et autres services spécifiques. Vérifier si le corpus contient cet article. Si oui, citer l'article. Si non, indiquer que l'information manque.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article L2113-15",
+   "Article R2113-8",
+   "Article R2123-2",
+   "Article R2131-14",
+   "Article L2113-16",
+   "Article L2113-13",
+   "Article R2131-7",
+   "Article R2123-7",
+   "Article L2113-13-1",
+   "Article L2113-12"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 784,
+  "ms_analyse": 3875,
+  "ms_orchestration": 0,
+  "ms_synthese": 1436,
+  "question": "Quels services relèvent des services sociaux et autres services spécifiques que je peux réserver à l'économie sociale et solidaire ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels sont les services sociaux et autres services spécifiques énumérés à l'article L212-1 du Code de la commande publique, susceptibles d'être réservés aux entreprises de l'économie sociale et solidaire ?",
+  "entites": [
+   "bénéficiaire",
+   "catégorie",
+   "domaine",
+   "sujet"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article L212-1. Lister les services. Préciser que cette liste est limitative. Rappeler que la réservation est possible pour les ESS sous conditions. Ne pas inventer de seuils.",
+   "format": "list",
+   "ton": "juridique, précis, neutre",
+   "focus": [
+    "Citation de l'article L212-1",
+    "Distinction obligatoire/recommandé",
+    "Liste des services"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher l'article L212-1 du Code de la commande publique. Extraire la liste des services sociaux et autres services spécifiques. Vérifier si le corpus contient cet article. Si oui, citer l'article. Si non, indiquer que l'information manque.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article L2113-15",
+   "Article R2113-8",
+   "Article R2123-2",
+   "Article R2131-14",
+   "Article L2113-16",
+   "Article L2113-13",
+   "Article R2131-7",
+   "Article R2123-7",
+   "Article L2113-13-1",
+   "Article L2113-12"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 670,
+  "ms_analyse": 3891,
+  "ms_orchestration": 0,
+  "ms_synthese": 1265,
+  "question": "Quels services relèvent des services sociaux et autres services spécifiques que je peux réserver à l'économie sociale et solidaire ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le nombre maximal de lots qu'un même opérateur économique peut se voir attribuer dans un marché public selon le Code de la commande publique ?",
+  "entites": [
+   "acteur",
+   "limite",
+   "sujet"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis. Si le code ne fixe pas de limite, l'indiquer clairement. Distinguer les obligations légales des pratiques recommandées. Ne pas donner de conseil non fondé sur le texte.",
+   "format": "paragraph",
+   "ton": "juridique, précis, neutre",
+   "focus": [
+    "Conditions éventuelles d'attribution multiple",
+    "Existence ou non d'une limite quantitative",
+    "Référence article exacte"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher spécifiquement les articles traitant de l'attribution des lots. Vérifier si le code fixe une limite numérique ou si la réponse dépend de l'appréciation du pouvoir adjudicateur. Ne pas inventer de seuil.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2113-1",
+   "Article L2113-10",
+   "Article L2151-1",
+   "Article R2142-8",
+   "Article D2151-7-1",
+   "Article R2142-15",
+   "Article R2142-4",
+   "Article R2142-9",
+   "Article R2142-16",
+   "Article L2113-14"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 823,
+  "ms_analyse": 3780,
+  "ms_orchestration": 0,
+  "ms_synthese": 1422,
+  "question": "Quel est le nombre maximal de lots qu'un même opérateur peut se voir attribuer selon la réglementation ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Quel est le nombre maximal de lots qu'un même opérateur peut se voir attribuer dans un marché public selon le Code de la commande publique ?",
+  "entites": [
+   "acteur",
+   "limite",
+   "sujet"
+  ],
+  "directives_synthese": {
+   "instructions": "Répondre en citant l'article du CCP s'il existe une règle. Sinon, indiquer clairement que l'information ne figure pas dans les passages fournis et que la limite dépend des pièces du marché. Ne pas inventer de seuil. Distinguer l'obligation légale de la pratique courante.",
+   "format": "paragraph",
+   "ton": "juridique, précis, prudent",
+   "focus": [
+    "Absence de limite générale si non codifiée",
+    "Citation de l'article (si applicable)",
+    "Rôle des pièces du marché"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher spécifiquement les articles du Code de la commande publique traitant de l'attribution des marchés et des lots. Vérifier s'il existe une disposition limitant explicitement le nombre de lots. Si aucune limite n'est trouvée, indiquer que le corpus ne contient pas de règle générale absolue et que cela relève des pièces du marché.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2113-1",
+   "Article L2113-10",
+   "Article L2151-1",
+   "Article R2142-8",
+   "Article D2151-7-1",
+   "Article R2142-15",
+   "Article R2142-4",
+   "Article R2142-9",
+   "Article R2142-16",
+   "Article L2113-14"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 2088,
+  "ms_analyse": 4358,
+  "ms_orchestration": 0,
+  "ms_synthese": 2985,
+  "question": "Quel est le nombre maximal de lots qu'un même opérateur peut se voir attribuer selon la réglementation ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Quel est le nombre maximal de lots qu'un même opérateur peut se voir attribuer dans un marché public selon le Code de la commande publique ?",
+  "entites": [
+   "acteur",
+   "limite",
+   "source_légale",
+   "sujet"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis du Code de la commande publique. Si la réponse est dans le corpus, donner la règle. Si elle n'y est pas, commencer par 'Cette information ne figure pas dans les passages fournis.' et indiquer où chercher (ex: avis de la DAJ, jurisprudence, ou seuils non inclus). Ne pas inventer de chiffre.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Citation exacte de l'article",
+    "Distinction entre obligation légale et pratique",
+    "Précision sur l'absence de seuil si applicable"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher spécifiquement les articles traitant de l'attribution des marchés et des lots. Vérifier si une limite numérique est imposée. Si aucune limite n'est trouvée dans le corpus, indiquer clairement que l'information ne figure pas dans les passages fournis et ne pas inventer de seuil.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2113-1",
+   "Article L2113-10",
+   "Article L2151-1",
+   "Article R2142-8",
+   "Article D2151-7-1",
+   "Article R2142-15",
+   "Article R2142-4",
+   "Article R2142-9",
+   "Article R2142-16",
+   "Article L2113-14"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1480,
+  "ms_analyse": 4217,
+  "ms_orchestration": 0,
+  "ms_synthese": 2157,
+  "question": "Quel est le nombre maximal de lots qu'un même opérateur peut se voir attribuer selon la réglementation ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Quels sont les articles du Code de la commande publique régissant la constitution et les obligations des groupements de commandes ?",
+  "entites": [
+   "concept",
+   "document_type",
+   "domaine"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer systématiquement les articles du CCP. Distinguer les obligations légales des recommandations pratiques. Si un modèle type n'est pas dans le corpus, ne pas en inventer un.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Distinction obligatoire/recommandé",
+    "Limites du corpus (pas de modèles types)",
+    "Références articles CCP"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher les articles du CCP traitant des groupements de commandes. Ne pas inventer de modèle. Si le corpus ne contient pas de modèle type, préciser que seul le cadre légal est disponible.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article L2113-7",
+   "Article L2113-6",
+   "Article CCAG Fournitures et services 3",
+   "Article R2162-13",
+   "Article R2142-22",
+   "Article CCAG Prestations intellectuelles 3",
+   "Article CCAG Marchés industriels 3",
+   "Article Annexe 7 — Profils d'acheteurs 3",
+   "Article CCAG Fournitures et services 12",
+   "Article Annexe 7 — Profils d'acheteurs 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1400,
+  "ms_analyse": 3641,
+  "ms_orchestration": 0,
+  "ms_synthese": 2327,
+  "question": "Donne-moi le modèle de convention constitutive d'un groupement de commandes."
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Quels sont les articles du Code de la commande publique régissant la constitution, les obligations et le fonctionnement des groupements de commandes ?",
+  "entites": [
+   "concept",
+   "document_type",
+   "domain"
+  ],
+  "directives_synthese": {
+   "instructions": "Répondre en citant les articles du CCP pertinents. Préciser explicitement que le modèle de convention n'est pas dans le corpus (Règle 2). Distinguer les obligations légales des usages pratiques. Proposer une structure type de convention basée sur les obligations légales identifiées.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Absence de modèle type dans le corpus",
+    "Citation exacte des articles du CCP",
+    "Distinction obligatoire/recommandé",
+    "Structure suggérée pour la convention"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher les articles du CCP traitant des groupements de commandes. Vérifier si un modèle de convention est fourni (peu probable). Si non, extraire les obligations légales pour guider la rédaction.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article L2113-7",
+   "Article L2113-6",
+   "Article CCAG Fournitures et services 3",
+   "Article R2162-13",
+   "Article R2142-22",
+   "Article CCAG Prestations intellectuelles 3",
+   "Article CCAG Marchés industriels 3",
+   "Article Annexe 7 — Profils d'acheteurs 3",
+   "Article CCAG Fournitures et services 12",
+   "Article Annexe 7 — Profils d'acheteurs 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1635,
+  "ms_analyse": 3813,
+  "ms_orchestration": 0,
+  "ms_synthese": 2561,
+  "question": "Donne-moi le modèle de convention constitutive d'un groupement de commandes."
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Quels sont les articles du Code de la commande publique régissant la constitution et les obligations des groupements de commandes ?",
+  "entites": [
+   "document_cible",
+   "type_de_marche"
+  ],
+  "directives_synthese": {
+   "instructions": "Répondre en citant les articles du CCP si disponibles. Préciser que le CCP ne contient pas de modèle type de convention. Si des articles sont trouvés, expliquer leur portée (obligatoire vs recommandé). Ne pas inventer de clauses.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Absence de modèle type dans le code",
+    "Citation des articles du CCP",
+    "Distinction entre obligations légales et usages"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher les articles du CCP traitant des groupements de commandes. Vérifier si un modèle type est mentionné (probablement non). Si des articles existent, les citer. Sinon, indiquer que l'info n'est pas dans le corpus.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article L2113-7",
+   "Article L2113-6",
+   "Article CCAG Fournitures et services 3",
+   "Article R2162-13",
+   "Article R2142-22",
+   "Article CCAG Prestations intellectuelles 3",
+   "Article CCAG Marchés industriels 3",
+   "Article Annexe 7 — Profils d'acheteurs 3",
+   "Article CCAG Fournitures et services 12",
+   "Article Annexe 7 — Profils d'acheteurs 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1646,
+  "ms_analyse": 3561,
+  "ms_orchestration": 0,
+  "ms_synthese": 2625,
+  "question": "Donne-moi le modèle de convention constitutive d'un groupement de commandes."
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Durée maximale d'une procédure adaptée (marché public)",
+  "entites": [
+   "legal_concept",
+   "procedure_type"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis. Si l'information n'est pas dans le corpus, commencer par 'Cette information ne figure pas dans les passages fournis.' et indiquer où chercher. Ne pas inventer de délai.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Distinction obligatoire/recommandé si applicable",
+    "Mention explicite si l'info manque au corpus",
+    "Référence article exacte"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher spécifiquement les articles définissant les procédures adaptées. Attention : les seuils de montant ne sont pas dans le corpus, mais les délais de procédure peuvent l'être. Si l'information n'est pas dans le corpus, indiquer clairement que l'information manque.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2131-9",
+   "Article L2123-1",
+   "Article R2123-4",
+   "Article R2131-6",
+   "Article R2162-45",
+   "Article L5",
+   "Article L2112-5",
+   "Article L2125-1",
+   "Article R2143-1",
+   "Article R2181-5"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 929,
+  "ms_analyse": 3375,
+  "ms_orchestration": 0,
+  "ms_synthese": 1516,
+  "question": "Quelle est la durée maximale d'une procédure adaptée ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Durée maximale d'une procédure adaptée (marché public)",
+  "entites": [
+   "concept",
+   "procedure_type"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis si une durée est fixée. Si aucune durée n'est mentionnée dans le corpus, utiliser la phrase standard : 'Cette information ne figure pas dans les passages fournis.' Ne pas inventer de durée. Distinguer clairement les obligations légales des pratiques courantes.",
+   "format": "paragraph",
+   "ton": "formal, precise, legal",
+   "focus": [
+    "Citation de l'article",
+    "Distinction obligatoire/recommandé",
+    "Précision sur l'absence de durée si non codifiée"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus les articles régissant les procédures adaptées. Vérifier spécifiquement l'existence d'une clause temporelle. Si aucun article ne fixe de durée, indiquer que cette information ne figure pas dans les passages fournis.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2131-9",
+   "Article L2123-1",
+   "Article R2123-4",
+   "Article R2131-6",
+   "Article R2162-45",
+   "Article L5",
+   "Article L2112-5",
+   "Article L2125-1",
+   "Article R2143-1",
+   "Article R2181-5"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1587,
+  "ms_analyse": 3453,
+  "ms_orchestration": 0,
+  "ms_synthese": 2171,
+  "question": "Quelle est la durée maximale d'une procédure adaptée ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Durée maximale d'une procédure adaptée (marché public)",
+  "entites": [
+   "legal_concept",
+   "procedure_type"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis si la durée est trouvée. Si la durée n'est pas dans le corpus, commencer par 'Cette information ne figure pas dans les passages fournis.' et indiquer où chercher. Ne pas inventer de seuil ou délai.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Distinction entre obligation légale et pratique",
+    "Précision sur l'absence d'info si corpus insuffisant",
+    "Référence article exacte"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus fourni les articles définissant les procédures adaptées. Vérifier si une durée maximale est explicitement mentionnée. Si aucune durée n'est trouvée dans le corpus, indiquer que l'information manque et ne pas inventer de chiffre.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2131-9",
+   "Article L2123-1",
+   "Article R2123-4",
+   "Article R2131-6",
+   "Article R2162-45",
+   "Article L5",
+   "Article L2112-5",
+   "Article L2125-1",
+   "Article R2143-1",
+   "Article R2181-5"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1156,
+  "ms_analyse": 3436,
+  "ms_orchestration": 0,
+  "ms_synthese": 1718,
+  "question": "Quelle est la durée maximale d'une procédure adaptée ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels sont les formalismes de négociation imposés par le Code de la commande publique dans le cadre d'une procédure adaptée ?",
+  "entites": [
+   "code",
+   "procedure",
+   "sujet"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer systématiquement les numéros d'article du Code de la commande publique. Distinguer clairement les obligations légales (articles) des pratiques recommandées. Si l'information n'est pas dans le corpus, indiquer explicitement que le corpus ne contient pas cette précision et ne pas inventer d'article.",
+   "format": "list",
+   "ton": "juridique, précis, neutre",
+   "focus": [
+    "Citation des articles précis",
+    "Distinction obligatoire/recommandé",
+    "Spécificité de la procédure adaptée vs formalisée"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher spécifiquement les sections du Code de la commande publique traitant des procédures adaptées (souvent en dessous des seuils de formalisation). Vérifier si des articles imposent un compte-rendu écrit ou des étapes précises de négociation. Ne pas confondre avec les procédures formalisées.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article L2124-3",
+   "Article R2161-18",
+   "Article R2123-6",
+   "Article R2161-11",
+   "Article R2161-5",
+   "Article L2123-1",
+   "Article R2123-4",
+   "Article R2161-20",
+   "Article R2161-17",
+   "Article R2161-26"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1035,
+  "ms_analyse": 4281,
+  "ms_orchestration": 0,
+  "ms_synthese": 1625,
+  "question": "Quel formalisme de négociation le code impose-t-il en procédure adaptée ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels sont les formalismes de négociation imposés par le Code de la commande publique dans le cadre d'une procédure adaptée ?",
+  "entites": [
+   "code",
+   "procedure",
+   "sujet"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer systématiquement les numéros d'article. Distinguer clairement les obligations légales des recommandations. Si l'information n'est pas dans le corpus, commencer par la phrase standard d'indisponibilité.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Citation des articles",
+    "Distinction obligatoire/recommandé",
+    "Précision sur les limites du corpus si nécessaire"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus les articles régissant la procédure adaptée. Vérifier si des formalismes spécifiques (écrit, compte-rendu, etc.) sont mentionnés. Si le corpus ne contient pas les articles pertinents, indiquer explicitement que l'information manque.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article L2124-3",
+   "Article R2161-18",
+   "Article R2123-6",
+   "Article R2161-11",
+   "Article R2161-5",
+   "Article L2123-1",
+   "Article R2123-4",
+   "Article R2161-20",
+   "Article R2161-17",
+   "Article R2161-26"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1431,
+  "ms_analyse": 3593,
+  "ms_orchestration": 0,
+  "ms_synthese": 2156,
+  "question": "Quel formalisme de négociation le code impose-t-il en procédure adaptée ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels sont les formalismes de négociation imposés par le Code de la commande publique dans le cadre d'une procédure adaptée ?",
+  "entites": [
+   "code",
+   "procedure",
+   "sujet"
+  ],
+  "directives_synthese": {
+   "instructions": "Fournir une réponse structurée citant systématiquement les numéros d'article. Préciser si la négociation est obligatoire ou optionnelle. Si l'information n'est pas dans le corpus, indiquer clairement où la chercher sans inventer de références.",
+   "format": "list",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Absence d'invention de seuils",
+    "Citation des articles du CCP",
+    "Distinction obligatoire/recommandé"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus les articles régissant spécifiquement la 'procédure adaptée'. Distinguer clairement les obligations légales des recommandations pratiques. Ne pas extrapoler les seuils ou les règles des procédures formalisées.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article L2124-3",
+   "Article R2161-18",
+   "Article R2123-6",
+   "Article R2161-11",
+   "Article R2161-5",
+   "Article L2123-1",
+   "Article R2123-4",
+   "Article R2161-20",
+   "Article R2161-17",
+   "Article R2161-26"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1604,
+  "ms_analyse": 3797,
+  "ms_orchestration": 0,
+  "ms_synthese": 2532,
+  "question": "Quel formalisme de négociation le code impose-t-il en procédure adaptée ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels sont les marchés de services sociaux et autres services spécifiques relevant de la procédure adaptée sans condition de montant selon le Code de la commande publique ?",
+  "entites": [
+   "condition",
+   "domaine",
+   "procedure"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer les articles exacts du corpus. Distinguer clairement ce qui est imposé par le code de ce qui relève de la pratique ou d'autres textes non fournis. Si le corpus ne précise pas l'absence de seuil, le signaler explicitement.",
+   "format": "list",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Citation des articles du Code de la commande publique",
+    "Mention explicite si l'information sur l'absence de seuil n'est pas dans le corpus",
+    "Précision sur la condition de montant (si présente dans le corpus)"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus les articles définissant la procédure adaptée et les catégories de services sociaux/spécifiques. Vérifier si le corpus mentionne une exemption de seuil. Si le corpus est muet sur l'absence de seuil, indiquer que l'information manque.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2131-14",
+   "Article R2123-1",
+   "Article L2123-1",
+   "Article R2123-2",
+   "Article R2131-13",
+   "Article R2123-7",
+   "Article R2131-7",
+   "Article R2123-4",
+   "Article L2113-15",
+   "Article R2122-8"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 2877,
+  "ms_analyse": 4093,
+  "ms_orchestration": 0,
+  "ms_synthese": 3936,
+  "question": "Quels marchés relèvent des services sociaux et autres services spécifiques, ceux que je peux passer en procédure adaptée quelle que soit leur valeur ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels sont les marchés de services sociaux et autres services spécifiques relevant de la procédure adaptée sans condition de valeur selon le Code de la commande publique ?",
+  "entites": [
+   "condition",
+   "domaine",
+   "procedure"
+  ],
+  "directives_synthese": {
+   "instructions": "Fournir une réponse précise citant les articles du Code de la commande publique. Distinguer clairement ce qui est obligatoire (liste des services) de ce qui est une interprétation. Si l'information n'est pas dans le corpus, le signaler explicitement sans inventer d'article.",
+   "format": "list",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Citation exacte des articles du Code de la commande publique",
+    "Confirmation de l'absence de seuil de valeur pour ces catégories",
+    "Liste des services sociaux et spécifiques concernés"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus les articles définissant les procédures adaptées et les catégories de services y afférentes. Vérifier si les services sociaux sont explicitement listés comme éligibles sans seuil. Si le corpus ne contient pas cette information précise, indiquer que l'information manque.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2131-14",
+   "Article R2123-1",
+   "Article L2123-1",
+   "Article R2123-2",
+   "Article R2131-13",
+   "Article R2123-7",
+   "Article R2131-7",
+   "Article R2123-4",
+   "Article L2113-15",
+   "Article R2122-8"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1969,
+  "ms_analyse": 4141,
+  "ms_orchestration": 0,
+  "ms_synthese": 2858,
+  "question": "Quels marchés relèvent des services sociaux et autres services spécifiques, ceux que je peux passer en procédure adaptée quelle que soit leur valeur ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels sont les marchés de services sociaux et autres services spécifiques relevant de la procédure adaptée sans condition de valeur selon le Code de la commande publique ?",
+  "entites": [
+   "condition",
+   "domain",
+   "procedure"
+  ],
+  "directives_synthese": {
+   "instructions": "Répondre en citant les articles précis du Code de la commande publique. Distinguer clairement ce qui est obligatoire (la loi) de ce qui est une pratique. Si l'information n'est pas dans le corpus, indiquer où la chercher sans inventer de référence.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Citation exacte des articles",
+    "Confirmation de l'absence de seuil pour la procédure adaptée si applicable",
+    "Distinction entre obligation légale et pratique",
+    "Définition des services sociaux et autres services spécifiques"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus les articles définissant les marchés de services sociaux et autres services spécifiques. Vérifier si le Code prévoit une procédure adaptée sans condition de valeur pour ces marchés. Ne pas inventer de seuils.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2131-14",
+   "Article R2123-1",
+   "Article L2123-1",
+   "Article R2123-2",
+   "Article R2131-13",
+   "Article R2123-7",
+   "Article R2131-7",
+   "Article R2123-4",
+   "Article L2113-15",
+   "Article R2122-8"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 3757,
+  "ms_analyse": 4063,
+  "ms_orchestration": 0,
+  "ms_synthese": 4968,
+  "question": "Quels marchés relèvent des services sociaux et autres services spécifiques, ceux que je peux passer en procédure adaptée quelle que soit leur valeur ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quelles sont les obligations légales de publicité et de mise en concurrence pour un marché public selon le Code de la commande publique ?",
+  "entites": [
+   "domain",
+   "source_law",
+   "topic"
+  ],
+  "directives_synthese": {
+   "instructions": "Fournir une réponse structurée citant systématiquement les numéros d'article du Code de la commande publique. Si des informations critiques (comme les seuils de publicité) dépendent de textes non inclus dans le corpus (avis au JOUE/JO), indiquer explicitement cette limite. Ne pas inventer de montants.",
+   "format": "list",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Citation exacte des articles L30, L31, L32 (ou équivalents dans le corpus)",
+    "Distinction entre publicité obligatoire et mise en concurrence",
+    "Mention des limites du corpus si des détails pratiques manquent"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher les articles du Code de la commande publique traitant de la publicité et de la mise en concurrence. Ne pas inventer de seuils ou de délais spécifiques non présents dans le corpus. Distinguer clairement les obligations légales des recommandations pratiques.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article L2196-2",
+   "Article CCAG Techniques de l'information 28",
+   "Article CCAG Fournitures et services 26",
+   "Article CCAG Prestations intellectuelles 26",
+   "Article R2196-1",
+   "Article R2111-1",
+   "Article L2196-3",
+   "Article CCAG Marchés industriels 5",
+   "Article Annexe 7 — Profils d'acheteurs 1",
+   "Article CCAG Techniques de l'information 5"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1954,
+  "ms_analyse": 3906,
+  "ms_orchestration": 0,
+  "ms_synthese": 3266,
+  "question": "Quelles données essentielles dois-je publier exactement pour mon marché ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quelles sont les obligations légales de publicité et de mise en concurrence pour un marché public selon le Code de la commande publique ?",
+  "entites": [
+   "domain",
+   "source_law",
+   "topic"
+  ],
+  "directives_synthese": {
+   "instructions": "Fournir une réponse structurée citant systématiquement les articles. Si le corpus ne contient pas les détails des modalités (ex: durée d'affichage), indiquer explicitement que cette information manque et ne pas la deviner. Adopter un ton juridique précis.",
+   "format": "list",
+   "ton": "juridique, précis, prudent",
+   "focus": [
+    "Citation des articles L30-L32",
+    "Distinction obligatoire/recommandé",
+    "Signalement des lacunes du corpus sur les détails pratiques"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher les articles du Code de la commande publique relatifs à la publicité et à la mise en concurrence. Ne pas inventer de délais ou de supports non mentionnés dans le texte. Distinguer nettement le cadre légal (obligatoire) des usages.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article L2196-2",
+   "Article CCAG Techniques de l'information 28",
+   "Article CCAG Fournitures et services 26",
+   "Article CCAG Prestations intellectuelles 26",
+   "Article R2196-1",
+   "Article R2111-1",
+   "Article L2196-3",
+   "Article CCAG Marchés industriels 5",
+   "Article Annexe 7 — Profils d'acheteurs 1",
+   "Article CCAG Techniques de l'information 5"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1104,
+  "ms_analyse": 4093,
+  "ms_orchestration": 0,
+  "ms_synthese": 2343,
+  "question": "Quelles données essentielles dois-je publier exactement pour mon marché ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quelles sont les obligations légales de publicité et de mise en concurrence pour un marché public selon le Code de la commande publique ?",
+  "entites": [
+   "domain",
+   "source_law",
+   "topic"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer systématiquement les articles du CCP. Distinguer obligations légales et pratiques courantes. Indiquer clairement l'absence de seuils si non présents dans le corpus.",
+   "format": "list",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Délais de publication",
+    "Mention de l'absence de seuils dans le corpus si applicable",
+    "Références articles CCP",
+    "Supports de publication obligatoires"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher les articles relatifs à la publicité et à la mise en concurrence. Vérifier la présence des seuils dans le corpus. Si absents, ne pas les inventer.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article L2196-2",
+   "Article CCAG Techniques de l'information 28",
+   "Article CCAG Fournitures et services 26",
+   "Article CCAG Prestations intellectuelles 26",
+   "Article R2196-1",
+   "Article R2111-1",
+   "Article L2196-3",
+   "Article CCAG Marchés industriels 5",
+   "Article Annexe 7 — Profils d'acheteurs 1",
+   "Article CCAG Techniques de l'information 5"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 2979,
+  "ms_analyse": 3702,
+  "ms_orchestration": 0,
+  "ms_synthese": 4592,
+  "question": "Quelles données essentielles dois-je publier exactement pour mon marché ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le taux par défaut de pénalité de retard prévu par le CCAG Travaux ?",
+  "entites": [
+   "concept",
+   "document",
+   "paramètre"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis du CCAG Travaux si l'information est trouvée. Si l'information n'est pas dans le corpus, commencer par 'Cette information ne figure pas dans les passages fournis.' et indiquer où la chercher. Distinguer clairement l'obligation légale de la clause contractuelle.",
+   "format": "paragraph",
+   "ton": "formel, précis, juridique",
+   "focus": [
+    "Mention de l'absence d'information dans le corpus si applicable",
+    "Référence exacte à l'article du CCAG Travaux",
+    "Valeur du taux"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Vérifier si le CCAG Travaux est présent dans le corpus. Si non, indiquer que l'information n'est pas disponible dans les passages fournis et orienter vers le texte officiel du CCAG Travaux. Ne pas inventer de taux.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article CCAG Marchés industriels 15",
+   "Article CCAG Travaux 19",
+   "Article CCAG Maîtrise d'œuvre 16",
+   "Article R2192-31",
+   "Article CCAG Prestations intellectuelles 14",
+   "Article CCAG Fournitures et services 14",
+   "Article L2192-13",
+   "Article R2192-21",
+   "Article CCAG Techniques de l'information 14",
+   "Article R2192-36"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 644,
+  "ms_analyse": 3516,
+  "ms_orchestration": 0,
+  "ms_synthese": 1500,
+  "question": "Quel taux de pénalité de retard le CCAG Travaux fixe-t-il par défaut ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le taux par défaut de pénalité de retard prévu par le CCAG Travaux ?",
+  "entites": [
+   "concept",
+   "document",
+   "paramètre"
+  ],
+  "directives_synthese": {
+   "instructions": "Si le CCAG n'est pas dans le corpus, commencer par 'Cette information ne figure pas dans les passages fournis.' Indiquer que le CCAG Travaux n'est pas inclus dans le corpus CCP. Ne citer aucun article du CCP pour ce taux spécifique car il relève du CCAG. Si le CCAG était présent, citer l'article correspondant.",
+   "format": "paragraph",
+   "ton": "formel, précis, prudent",
+   "focus": [
+    "Absence du CCAG dans le corpus",
+    "Distinction entre CCP et CCAG",
+    "Interdiction d'inventer le taux"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Vérifier si le CCAG Travaux est présent dans le corpus. Le corpus ne contient que le Code de la commande publique. Le CCAG est un document distinct. Si le CCAG n'est pas dans le corpus, appliquer la règle de non-invention et indiquer l'absence d'information.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article CCAG Marchés industriels 15",
+   "Article CCAG Travaux 19",
+   "Article CCAG Maîtrise d'œuvre 16",
+   "Article R2192-31",
+   "Article CCAG Prestations intellectuelles 14",
+   "Article CCAG Fournitures et services 14",
+   "Article L2192-13",
+   "Article R2192-21",
+   "Article CCAG Techniques de l'information 14",
+   "Article R2192-36"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1036,
+  "ms_analyse": 3797,
+  "ms_orchestration": 0,
+  "ms_synthese": 1890,
+  "question": "Quel taux de pénalité de retard le CCAG Travaux fixe-t-il par défaut ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le taux par défaut de pénalité de retard prévu par le CCAG Travaux ?",
+  "entites": [
+   "concept",
+   "document",
+   "paramètre"
+  ],
+  "directives_synthese": {
+   "instructions": "Si l'info est dans le corpus, citer l'article exact. Si non, commencer par 'Cette information ne figure pas dans les passages fournis.' et indiquer de consulter le CCAG Travaux. Respecter la règle de ne pas inventer de seuil/montant.",
+   "format": "paragraph",
+   "ton": "formel, précis, juridique",
+   "focus": [
+    "Citation de l'article",
+    "Distinction entre obligation et recommandation",
+    "Limites du corpus (CCAG non inclus)"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Vérifier si le CCAG Travaux est présent dans le corpus. Si non, indiquer que l'information n'est pas dans les passages fournis et orienter vers le CCAG Travaux lui-même. Ne pas inventer de taux.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article CCAG Marchés industriels 15",
+   "Article CCAG Travaux 19",
+   "Article CCAG Maîtrise d'œuvre 16",
+   "Article R2192-31",
+   "Article CCAG Prestations intellectuelles 14",
+   "Article CCAG Fournitures et services 14",
+   "Article L2192-13",
+   "Article R2192-21",
+   "Article CCAG Techniques de l'information 14",
+   "Article R2192-36"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1042,
+  "ms_analyse": 3343,
+  "ms_orchestration": 0,
+  "ms_synthese": 2000,
+  "question": "Quel taux de pénalité de retard le CCAG Travaux fixe-t-il par défaut ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel CCAG s'applique aux marchés de travaux de bâtiment dans le Code de la commande publique ?",
+  "entites": [
+   "document_cible",
+   "secteur",
+   "type_marche"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis si le CCTG est mentionné dans le corpus. Si le CCTG n'est pas dans le corpus (règle 3), indiquer clairement que l'information ne figure pas dans les passages fournis et préciser que les CCTG ne font pas partie du corpus fourni. Ne pas inventer de référence.",
+   "format": "paragraph",
+   "ton": "formel, précis, juridique",
+   "focus": [
+    "Absence de CCTG dans le corpus fourni",
+    "Citation de l'article du CCP",
+    "Distinction entre ce qui est dans le corpus et les CCTG externes"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus les articles faisant référence aux CCTG. Vérifier spécifiquement si le CCTG 'Travaux' (souvent associé au secteur bâtiment) est cité. Si le corpus ne contient pas les CCTG (comme indiqué dans les règles), signaler cette absence.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2112-2",
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Travaux 1",
+   "Article CCAG Maîtrise d'œuvre 1",
+   "Article CCAG Techniques de l'information 1",
+   "Article CCAG Marchés industriels 1",
+   "Article CCAG Prestations intellectuelles 1",
+   "Article CCAG Travaux 4",
+   "Article CCAG Fournitures et services 1",
+   "Article CCAG Techniques de l'information — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1361,
+  "ms_analyse": 3625,
+  "ms_orchestration": 0,
+  "ms_synthese": 2156,
+  "question": "Quel cahier des clauses techniques générales s'applique à mon marché de travaux de bâtiment ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel CCAG s'applique aux marchés de travaux de bâtiment ?",
+  "entites": [
+   "document_cible",
+   "secteur",
+   "type_marche"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis si le CCAG est dans le corpus. Sinon, commencer par 'Cette information ne figure pas dans les passages fournis.' et indiquer où chercher. Ne pas citer d'article externe.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Distinction entre obligation légale et pratique",
+    "Mention explicite de l'absence d'information si le CCAG n'est pas dans le corpus",
+    "Référence exacte à l'article du CCP si disponible"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Vérifier la présence du CCAG Bâtiment dans le corpus. Si absent, ne pas inventer de référence. Préciser que le corpus ne contient pas les CCAG.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2112-2",
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Travaux 1",
+   "Article CCAG Maîtrise d'œuvre 1",
+   "Article CCAG Techniques de l'information 1",
+   "Article CCAG Marchés industriels 1",
+   "Article CCAG Prestations intellectuelles 1",
+   "Article CCAG Travaux 4",
+   "Article CCAG Fournitures et services 1",
+   "Article CCAG Techniques de l'information — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 970,
+  "ms_analyse": 3297,
+  "ms_orchestration": 0,
+  "ms_synthese": 1593,
+  "question": "Quel cahier des clauses techniques générales s'applique à mon marché de travaux de bâtiment ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel CCAG s'applique aux marchés de travaux de bâtiment dans le Code de la commande publique ?",
+  "entites": [
+   "document_cible",
+   "secteur",
+   "type_marche"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis si le CCAG est dans le corpus. Sinon, commencer par 'Cette information ne figure pas dans les passages fournis.' et indiquer où chercher. Distinguer obligation légale et pratique.",
+   "format": "paragraph",
+   "ton": "formel",
+   "focus": [
+    "Distinction obligatoire/recommandé",
+    "Présence ou absence du CCAG dans le corpus",
+    "Référence exacte de l'article"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Vérifier la présence du CCAG Bâtiment dans le corpus. Si absent, signaler explicitement que le CCAG n'est pas inclus dans le corpus fourni (règle 3). Ne pas inventer de référence.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2112-2",
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Travaux 1",
+   "Article CCAG Maîtrise d'œuvre 1",
+   "Article CCAG Techniques de l'information 1",
+   "Article CCAG Marchés industriels 1",
+   "Article CCAG Prestations intellectuelles 1",
+   "Article CCAG Travaux 4",
+   "Article CCAG Fournitures et services 1",
+   "Article CCAG Techniques de l'information — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1368,
+  "ms_analyse": 3500,
+  "ms_orchestration": 0,
+  "ms_synthese": 2139,
+  "question": "Quel cahier des clauses techniques générales s'applique à mon marché de travaux de bâtiment ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Définition légale des travaux au sens du Code de la commande publique et liste des activités concernées",
+  "entites": [
+   "code",
+   "concept",
+   "nature"
+  ],
+  "directives_synthese": {
+   "instructions": "Fournir la définition légale en citant l'article. Lister les activités si elles sont énumérées dans le texte. Distinguer clairement ce qui est défini comme travaux de ce qui ne l'est pas. Si la liste n'est pas fournie dans le corpus, indiquer que l'information manque.",
+   "format": "list",
+   "ton": "juridique, précis",
+   "focus": [
+    "Citation de l'article",
+    "Distinction obligatoire/recommandé",
+    "Liste des activités"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher la définition légale des 'travaux'. Citer l'article exact. Ne pas inventer de liste si elle n'est pas textuellement présente dans les articles fournis.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article L2",
+   "Article R2121-5",
+   "Article R2172-1",
+   "Article CCAG Travaux — texte 1",
+   "Article L2193-1",
+   "Article L2112-3",
+   "Article CCAG Travaux 2",
+   "Article CCAG Travaux 1",
+   "Article L4",
+   "Article L2111-2"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1255,
+  "ms_analyse": 3483,
+  "ms_orchestration": 0,
+  "ms_synthese": 1968,
+  "question": "Quelle est la liste des activités qui sont des travaux au sens du code de la commande publique ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Définition légale des travaux au sens du Code de la commande publique et liste des activités concernées",
+  "entites": [
+   "code",
+   "concept",
+   "nature"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article définissant les travaux. Lister les activités si elles sont explicitement mentionnées dans le texte fourni. Distinguer clairement ce qui est défini par la loi de ce qui relève de la pratique ou d'autres textes non fournis (CCAG, jurisprudence). Ne pas inventer de liste.",
+   "format": "list",
+   "ton": "formal",
+   "focus": [
+    "Distinction travaux/assimilations",
+    "Limites du corpus fourni",
+    "Référence article précis"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher la définition légale des travaux. Vérifier si le corpus contient la liste exhaustive ou les critères de qualification. Si la liste n'est pas explicite, indiquer que l'information manque dans le corpus.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article L2",
+   "Article R2121-5",
+   "Article R2172-1",
+   "Article CCAG Travaux — texte 1",
+   "Article L2193-1",
+   "Article L2112-3",
+   "Article CCAG Travaux 2",
+   "Article CCAG Travaux 1",
+   "Article L4",
+   "Article L2111-2"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1394,
+  "ms_analyse": 3405,
+  "ms_orchestration": 0,
+  "ms_synthese": 2532,
+  "question": "Quelle est la liste des activités qui sont des travaux au sens du code de la commande publique ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Définition légale des travaux au sens du Code de la commande publique et liste des activités concernées",
+  "entites": [
+   "code",
+   "concept",
+   "nature"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article du CCP définissant les travaux. Lister les activités mentionnées. Préciser si le texte fourni contient la liste complète ou seulement des exemples. Respecter la règle de ne pas inventer de seuils ou de listes non présentes.",
+   "format": "list",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Distinction avec fournitures/services si mentionnée",
+    "Liste des activités",
+    "Référence article CCP"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher la définition des travaux dans le Code de la commande publique. Vérifier si le corpus contient la liste exhaustive ou les critères de distinction avec les fournitures et services. Ne pas inventer de liste si elle n'est pas explicite dans le texte.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article L2",
+   "Article R2121-5",
+   "Article R2172-1",
+   "Article CCAG Travaux — texte 1",
+   "Article L2193-1",
+   "Article L2112-3",
+   "Article CCAG Travaux 2",
+   "Article CCAG Travaux 1",
+   "Article L4",
+   "Article L2111-2"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1167,
+  "ms_analyse": 3468,
+  "ms_orchestration": 0,
+  "ms_synthese": 1797,
+  "question": "Quelle est la liste des activités qui sont des travaux au sens du code de la commande publique ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel CCAG s'applique par défaut si aucun CCAG n'est désigné dans les documents particuliers d'un marché public ?",
+  "entites": [
+   "condition",
+   "domaine",
+   "sujet"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis du Code de la commande publique si la réponse s'y trouve. Si l'information n'est pas dans le corpus, commencer par 'Cette information ne figure pas dans les passages fournis.' et indiquer de consulter les CCAG types ou la jurisprudence. Distinguer clairement l'obligation légale de la pratique contractuelle.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Distinction obligatoire/recommandé",
+    "Nature du marché (travaux/fournitures/services)",
+    "Référence article CCP"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Vérifier si le Code de la commande publique contient une disposition imposant un CCAG par défaut ou renvoyant à un usage. Attention : le corpus ne contient pas les CCAG eux-mêmes, ni les seuils. Si le code ne précise pas le CCAG par défaut, indiquer que l'information manque dans le corpus.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article CCAG Marchés industriels 1",
+   "Article CCAG Fournitures et services 1",
+   "Article CCAG Travaux 1",
+   "Article CCAG Prestations intellectuelles 1",
+   "Article CCAG Techniques de l'information 1",
+   "Article CCAG Maîtrise d'œuvre 1",
+   "Article CCAG Fournitures et services — texte 1",
+   "Article CCAG Prestations intellectuelles — texte 1",
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Marchés industriels — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1155,
+  "ms_analyse": 4078,
+  "ms_orchestration": 0,
+  "ms_synthese": 1905,
+  "question": "Quel CCAG s'applique à mon marché si je n'en désigne aucun dans mes documents particuliers ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel CCAG s'applique par défaut si aucun CCAG n'est désigné dans les documents particuliers d'un marché public ?",
+  "entites": [
+   "condition",
+   "domaine",
+   "sujet"
+  ],
+  "directives_synthese": {
+   "instructions": "Si la réponse est dans le corpus, citer l'article. Si elle n'y est pas, indiquer explicitement que l'information ne figure pas dans les passages fournis et que la question dépend des CCAG (non fournis) ou de la pratique. Distinguer clairement obligation légale et usage. Proposer une formulation type si applicable, avec fondement.",
+   "format": "paragraph",
+   "ton": "formel, précis, juridique",
+   "focus": [
+    "Citation d'article si applicable",
+    "Distinction obligatoire/recommandé",
+    "Mention de l'absence d'info dans le corpus si nécessaire",
+    "Pas d'invention de seuil ou de CCAG"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Vérifier dans le corpus si un article impose un CCAG spécifique par défaut. Si aucun article ne le fait, ou si le silence est toléré, noter que la réponse dépend de la pratique ou des CCAG eux-mêmes (non inclus dans le corpus). Ne pas inventer de CCAG par défaut.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article CCAG Marchés industriels 1",
+   "Article CCAG Fournitures et services 1",
+   "Article CCAG Travaux 1",
+   "Article CCAG Prestations intellectuelles 1",
+   "Article CCAG Techniques de l'information 1",
+   "Article CCAG Maîtrise d'œuvre 1",
+   "Article CCAG Fournitures et services — texte 1",
+   "Article CCAG Prestations intellectuelles — texte 1",
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Marchés industriels — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1469,
+  "ms_analyse": 3968,
+  "ms_orchestration": 0,
+  "ms_synthese": 2202,
+  "question": "Quel CCAG s'applique à mon marché si je n'en désigne aucun dans mes documents particuliers ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel CCAG s'applique par défaut si aucun CCAG n'est désigné dans les documents particuliers d'un marché public ?",
+  "entites": [
+   "condition",
+   "domaine",
+   "sujet"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis si la réponse est dans le corpus. Si la réponse n'est pas dans le corpus, commencer par 'Cette information ne figure pas dans les passages fournis.' et indiquer où chercher (ex: CCAG eux-mêmes, fiches DAJ). Ne pas inventer de règle. Distinguer l'obligation légale de la pratique courante.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Article de référence",
+    "Limites du corpus fourni",
+    "Nature du CCAG par défaut"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus les articles régissant le choix et l'application des CCAG. Vérifier si le corpus contient la règle de détermination du CCAG par défaut. Si le corpus ne contient pas cette règle spécifique (souvent dans les CCAG eux-mêmes ou la jurisprudence/DAJ), indiquer explicitement que l'information manque.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article CCAG Marchés industriels 1",
+   "Article CCAG Fournitures et services 1",
+   "Article CCAG Travaux 1",
+   "Article CCAG Prestations intellectuelles 1",
+   "Article CCAG Techniques de l'information 1",
+   "Article CCAG Maîtrise d'œuvre 1",
+   "Article CCAG Fournitures et services — texte 1",
+   "Article CCAG Prestations intellectuelles — texte 1",
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Marchés industriels — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1192,
+  "ms_analyse": 3733,
+  "ms_orchestration": 0,
+  "ms_synthese": 1969,
+  "question": "Quel CCAG s'applique à mon marché si je n'en désigne aucun dans mes documents particuliers ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Peut-on associer CCAG Travaux et CCAG Prestations intellectuelles dans un même marché public ?",
+  "entites": [
+   "context",
+   "documents"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article du Code de la commande publique s'il existe sur les marchés mixtes. Si le Code est muet ou ne traite pas des CCAG, indiquer que l'information ne figure pas dans les passages fournis. Distinguer l'obligation légale du Code de la pratique contractuelle. Ne pas citer les CCAG comme s'ils étaient dans le corpus.",
+   "format": "paragraph",
+   "ton": "juridique, précis, prudent",
+   "focus": [
+    "Absence des CCAG dans le corpus",
+    "Distinction entre règle de droit et clause contractuelle",
+    "Existence d'une disposition sur les marchés mixtes dans le Code"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Vérifier si le corpus contient des articles traitant des marchés mixtes ou de l'application des CCAG. Si le corpus ne contient pas les CCAG eux-mêmes, indiquer clairement que la réponse juridique de principe (rattachement) peut être dans le Code, mais les conditions d'application des CCAG spécifiques ne le sont pas. Ne pas inventer de règles.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article CCAG Prestations intellectuelles 1",
+   "Article CCAG Prestations intellectuelles — texte 1",
+   "Article CCAG Travaux 1",
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Marchés industriels 1",
+   "Article CCAG Techniques de l'information 1",
+   "Article CCAG Maîtrise d'œuvre 1",
+   "Article CCAG Fournitures et services 1",
+   "Article CCAG Techniques de l'information — texte 1",
+   "Article CCAG Fournitures et services — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 840,
+  "ms_analyse": 4280,
+  "ms_orchestration": 0,
+  "ms_synthese": 1485,
+  "question": "Puis-je me référer à la fois au CCAG Travaux et au CCAG Prestations intellectuelles dans un même marché ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Peut-on associer CCAG Travaux et CCAG Prestations intellectuelles dans un même marché public ?",
+  "entites": [
+   "context",
+   "documents"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer les articles du CCP si la réponse y figure. Sinon, commencer par 'Cette information ne figure pas dans les passages fournis.' Distinguer clairement les obligations légales des recommandations de la DAJ ou de la pratique contractuelle.",
+   "format": "paragraph",
+   "ton": "juridique, précis, prudent",
+   "focus": [
+    "Existence d'une base légale dans le CCP pour l'association des CCAG",
+    "Indication claire si la réponse relève de la pratique et non du code",
+    "Règles de compatibilité ou de primauté en cas de conflit"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Vérifier si le corpus contient des articles sur les marchés mixtes ou l'application simultanée de CCAG. Si le corpus est muet, appliquer la règle de non-invention et signaler l'absence d'information dans le CCP.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article CCAG Prestations intellectuelles 1",
+   "Article CCAG Prestations intellectuelles — texte 1",
+   "Article CCAG Travaux 1",
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Marchés industriels 1",
+   "Article CCAG Techniques de l'information 1",
+   "Article CCAG Maîtrise d'œuvre 1",
+   "Article CCAG Fournitures et services 1",
+   "Article CCAG Techniques de l'information — texte 1",
+   "Article CCAG Fournitures et services — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1386,
+  "ms_analyse": 4047,
+  "ms_orchestration": 0,
+  "ms_synthese": 2218,
+  "question": "Puis-je me référer à la fois au CCAG Travaux et au CCAG Prestations intellectuelles dans un même marché ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Fusion de marchés publics : possibilité de combiner CCAG Travaux et CCAG Prestations intellectuelles dans un même contrat",
+  "entites": [
+   "context",
+   "documents"
+  ],
+  "directives_synthese": {
+   "instructions": "Répondre en citant systématiquement les articles du Code de la commande publique si la réponse s'y trouve. Si l'information n'est pas dans le corpus, commencer par 'Cette information ne figure pas dans les passages fournis.' et indiquer où chercher. Distinguer clairement les obligations légales des pratiques courantes. Ne pas inventer de seuils ou de règles non présentes dans le texte.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Absence d'information dans le corpus si applicable",
+    "Citation des articles du CCP",
+    "Distinction obligatoire/recommandé"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus les articles régissant l'objet des marchés et l'application des CCAG. Vérifier si une disposition interdit ou permet explicitement la combinaison de CCAG différentes. Si l'information n'est pas dans le corpus, signaler l'absence de référence précise.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article CCAG Prestations intellectuelles 1",
+   "Article CCAG Prestations intellectuelles — texte 1",
+   "Article CCAG Travaux 1",
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Marchés industriels 1",
+   "Article CCAG Techniques de l'information 1",
+   "Article CCAG Maîtrise d'œuvre 1",
+   "Article CCAG Fournitures et services 1",
+   "Article CCAG Techniques de l'information — texte 1",
+   "Article CCAG Fournitures et services — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1612,
+  "ms_analyse": 4187,
+  "ms_orchestration": 0,
+  "ms_synthese": 2718,
+  "question": "Puis-je me référer à la fois au CCAG Travaux et au CCAG Prestations intellectuelles dans un même marché ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le montant ou le pourcentage de la retenue de garantie applicable aux marchés de travaux selon le Code de la commande publique ?",
+  "entites": [
+   "concept",
+   "question",
+   "type_marche"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis du Code de la commande publique. Si le code ne fixe pas un taux unique mais laisse une marge de manœuvre, l'indiquer clairement. Distinguer l'obligation légale de la pratique courante. Ne pas donner de montant si l'article ne le contient pas.",
+   "format": "paragraph",
+   "ton": "juridique, précis, neutre",
+   "focus": [
+    "Distinction obligatoire/recommandé",
+    "Référence article exacte",
+    "Taux ou montant légal"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher dans le corpus les articles traitant de la retenue de garantie. Vérifier si le taux est imposé par la loi ou laissé à l'appréciation des pouvoirs adjudicateurs. Ne pas inventer de chiffre si l'article ne le précise pas.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2191-33",
+   "Article R2191-34",
+   "Article R2191-21",
+   "Article R2191-32",
+   "Article L2191-7",
+   "Article R2191-35",
+   "Article R2191-38",
+   "Article R2191-36",
+   "Article R2191-44",
+   "Article R2191-40"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1890,
+  "ms_analyse": 3936,
+  "ms_orchestration": 0,
+  "ms_synthese": 2844,
+  "question": "Quel est le montant de la retenue de garantie applicable à mon marché de travaux ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le montant ou le pourcentage de la retenue de garantie applicable aux marchés de travaux selon le Code de la commande publique ?",
+  "entites": [
+   "concept",
+   "question",
+   "type_marche"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis du Code de la commande publique. Si le montant n'est pas dans le corpus, indiquer clairement que l'information manque et où la trouver. Distinguer l'obligation légale de l'usage contractuel. Proposer une formulation de clause si applicable.",
+   "format": "paragraph",
+   "ton": "formel, juridique, précis",
+   "focus": [
+    "Distinction obligatoire/recommandé",
+    "Montant ou taux précis",
+    "Référence article exacte",
+    "Source de l'information (corpus vs extérieur)"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher spécifiquement les dispositions relatives à la retenue de garantie dans le Code de la commande publique. Vérifier si le texte fixe un taux obligatoire ou s'il renvoie à des usages ou décrets. Ne pas inventer de chiffre.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2191-33",
+   "Article R2191-34",
+   "Article R2191-21",
+   "Article R2191-32",
+   "Article L2191-7",
+   "Article R2191-35",
+   "Article R2191-38",
+   "Article R2191-36",
+   "Article R2191-44",
+   "Article R2191-40"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 2156,
+  "ms_analyse": 3890,
+  "ms_orchestration": 0,
+  "ms_synthese": 3250,
+  "question": "Quel est le montant de la retenue de garantie applicable à mon marché de travaux ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le montant ou le pourcentage de la retenue de garantie applicable aux marchés de travaux selon le Code de la commande publique ?",
+  "entites": [
+   "concept",
+   "question",
+   "type_marche"
+  ],
+  "directives_synthese": {
+   "instructions": "Citer l'article précis du Code de la commande publique. Si le code ne fixe pas de montant, indiquer que cela relève de la rédaction du marché. Distinguer clairement l'obligation légale de la pratique contractuelle. Ne pas inventer de chiffre.",
+   "format": "paragraph",
+   "ton": "juridique, précis, prudent",
+   "focus": [
+    "Absence d'invention de montant",
+    "Distinction obligatoire/recommandé",
+    "Référence article exacte"
+   ],
+   "strategie": ""
+  },
+  "directives_orchestre": {
+   "instructions": "Rechercher les articles du Code de la commande publique relatifs à la retenue de garantie. Vérifier si un taux est imposé par la loi ou s'il s'agit d'une liberté contractuelle. Attention : ne pas inventer de seuil ou de montant.",
+   "format": "",
+   "ton": "",
+   "focus": [],
+   "strategie": "precise"
+  },
+  "passages": [
+   "Article R2191-33",
+   "Article R2191-34",
+   "Article R2191-21",
+   "Article R2191-32",
+   "Article L2191-7",
+   "Article R2191-35",
+   "Article R2191-38",
+   "Article R2191-36",
+   "Article R2191-44",
+   "Article R2191-40"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1233,
+  "ms_analyse": 4125,
+  "ms_orchestration": 0,
+  "ms_synthese": 3031,
+  "question": "Quel est le montant de la retenue de garantie applicable à mon marché de travaux ?"
+ }
+]

@@ -237,6 +237,21 @@ async def _repondre_par_le_pipeline(question: str, trouves, cle_api: str):
     debut = time.monotonic()
     intent = await analyseur.analyse(message, contexte)
     t_analyse = time.monotonic()
+
+    # BRAS EXPERIMENTAL — le Synthetiseur sans les directives de l'Analyseur.
+    #
+    # Mesure du 03/09/2026 : pour une meme question et des passages identiques,
+    # l'Analyseur produit jusqu'a SIX jeux de directives distincts sur six essais. Le
+    # `format` bascule entre « list » et « paragraph », et les points de focus changent
+    # de sujet — d'une liste de services a une question de seuils. Le Synthetiseur
+    # recoit donc des consignes differentes a chaque appel : c'est la seule voie par
+    # laquelle un refus peut basculer, les passages etant figes.
+    #
+    # Ce bras coupe cette voie pour verifier qu'elle est bien la cause. Il ne prejuge
+    # pas du correctif : contraindre les directives et les supprimer sont deux options,
+    # et c'est la mesure qui doit departager.
+    if os.environ.get("COLAIG_REF_SANS_DIRECTIVES", "").lower() in ("1", "true", "oui"):
+        intent.synthesiser_directives = None
     plan = await orchestrateur.execute(intent, contexte)
     t_orchestre = time.monotonic()
     reponse = await synthetiseur.synthesise(plan, contexte, [], None, message=message)

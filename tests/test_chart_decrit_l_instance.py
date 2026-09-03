@@ -67,6 +67,11 @@ ENV_DE_L_INSTANCE = {
     # systemes ne sont pas comparables, et l'ecart mesure est en partie
     # celui de leurs reglages.
     "COLAIG_SYNTHESISER_TEMPERATURE": "0.1",
+    # Poses explicitement : sans eux, le Synthetiseur et la
+    # contextualisation convergent avec les autres agents par repli, ce qui
+    # ne se voit nulle part et se defait au premier reglage pose a la main.
+    "ALBERT_MODEL_MEDIUM": "qwen3-6-35b-moe",
+    "ALBERT_MODEL_LIGHT": "qwen3-6-35b-moe",
     "COLAIG_AUTO_DISCOVER_ENABLED": "true",
     "COLAIG_AUTO_DISCOVER_INTERVAL": "120",
     "S3_BUCKET_NAME": "colaig",

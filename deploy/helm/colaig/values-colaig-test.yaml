@@ -101,6 +101,23 @@ extraEnv:
   # Sur du droit, la constance prime sur le naturel de la redaction. A remesurer : si
   # l'inconstance ne cede pas, la cause est ailleurs et ce reglage doit repartir.
   COLAIG_SYNTHESISER_TEMPERATURE: "0.1"
+  # LES MODELES DES AGENTS, POSES PLUTOT QUE DEDUITS.
+  #
+  # Le Synthetiseur passe par `albert_model_medium` et la contextualisation par
+  # `albert_model_light`, la ou l'Analyseur, l'Orchestrateur et le coeur RAG utilisent
+  # `albert_model_chat`. Ces trois reglages valaient en dur des modeles Mistral que
+  # l'endpoint SSPCloud ne sert pas : le pipeline aurait analyse, orchestre, puis
+  # echoue au moment de rediger.
+  #
+  # Ils retombent desormais sur le modele de chat configure, donc convergent — mais
+  # PAR REPLI, ce qui ne se voit nulle part. Les poser rend la decision lisible, et
+  # `test_chart_decrit_l_instance` la protege : personne ne les fera diverger sans
+  # que le test le dise.
+  #
+  # S'ils doivent un jour differer — un modele plus leger pour l'analyse, qui consomme
+  # 62 % du temps du pipeline — ce sera une decision mesuree, ecrite ici.
+  ALBERT_MODEL_MEDIUM: qwen3-6-35b-moe
+  ALBERT_MODEL_LIGHT: qwen3-6-35b-moe
   MATRIX_HOMESERVER: https://matrix.agent.dev-durable.tchap.gouv.fr
   MATRIX_USERNAME: "@colaig.assistant-developpement-durable.gouv.fr:agent.dev-durable.tchap.gouv.fr"
 
