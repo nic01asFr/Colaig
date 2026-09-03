@@ -166,7 +166,46 @@ def _contexte() -> WorkspaceContext:
     return ctx
 
 
+class _RetrieverVif:
+    """Un retriever qui cherche VRAIMENT, avec la requete recue et le k demande.
+
+    POURQUOI IL FALLAIT LE FAIRE.
+
+    `_RetrieverFige` rend toujours la meme liste, quelles que soient la requete et
+    la profondeur. Trois consequences, toutes invisibles jusqu'au 03/09/2026 :
+
+    - la reformulation de l'Analyseur n'atteint rien ;
+    - les `chunk_queries` — « 2-3 reformulations variees » que son prompt lui demande
+      de produire — ne servent a rien ;
+    - le `k` de production (`workspace.max_results`, 5) n'est jamais applique, la
+      mesure en servant 10.
+
+    Et l'Orchestrateur, prive de LLM, tombait en mode deterministe : `0 ms` a chaque
+    appel. Un tiers du pipeline echappait donc a toute mesure, et aucune des
+    conclusions tirees sur « le pipeline » ne le concernait.
+
+    Le mode fige reste le DEFAUT : il repond a une autre question — « le pipeline
+    redige-t-il mieux que le coeur, a matiere egale ? » — et toutes les campagnes
+    deja menees s'y comparent. Les confondre serait remplacer une mesure par une
+    autre sans le dire.
+    """
+
+    def __init__(self, store, embed, cle: str) -> None:
+        self._store, self._embed, self._cle = store, embed, cle
+
+    async def retrieve(self, query, k=5, score_threshold=0.3, store=None,
+                       bm25_store=None, query_embedding=None):
+        vecteur = query_embedding or self._embed([query], self._cle)[0]
+        trouves = (store or self._store).search(vecteur, k=k)
+        return [r for r in trouves if r.score >= score_threshold]
+
+    async def retrieve_many(self, queries, **kwargs):
+        return {q: await self.retrieve(q, **kwargs) for q in queries}
+
+
 _RETRIEVER = _RetrieverFige()
+_ORCHESTRATION_VIVE = os.environ.get(
+    "COLAIG_REF_ORCHESTRATION", "figee").lower() in ("vive", "vif", "1", "true")
 _ETAT: dict = {}
 
 
@@ -187,7 +226,30 @@ def _agents(cle_api: str):
             albert=llm, storage=FakeStorage(),
             use_tool_calling=os.environ.get(
                 "COLAIG_ANALYSER_USE_TOOL_CALLING", "").lower() in ("1", "true", "oui"))
-        _ETAT["orchestrateur"] = Orchestrator(FakeStorage(), _RETRIEVER)
+        # L'ORCHESTRATEUR, ENTIER OU INERTE — et il faut savoir lequel on mesure.
+        #
+        # Construit ainsi — sans `albert`, sans `tool_registry` — il tombe en mode
+        # deterministe : sa boucle agentique ne tourne pas, et il consomme 0 ms. En
+        # production il recoit les deux, fait quatre etapes et met 3243 ms.
+        #
+        # Le mode vif lui rend son LLM, son registre d'outils et un retriever qui
+        # cherche vraiment. C'est le seul montage ou les TROIS agents travaillent.
+        if _ORCHESTRATION_VIVE:
+            from colaig.agents import build_tool_registry
+
+            chunks = _GEN["decouper"](_GEN["PERIMETRE"])
+            store = _GEN["FaissStore"](dimension=_GEN["_ns"]["DIMENSION"])
+            store.add(_GEN["embed"]([c.text for c in chunks], cle_api), chunks)
+            _ETAT["retriever"] = _RetrieverVif(store, _GEN["embed"], cle_api)
+            _ETAT["registre"] = build_tool_registry(
+                _ETAT["retriever"], FakeStorage(), llm)
+            _ETAT["orchestrateur"] = Orchestrator(
+                FakeStorage(), _ETAT["retriever"], albert=llm,
+                tool_registry=_ETAT["registre"],
+                max_iterations=int(os.environ.get("COLAIG_ORCHESTRATOR_MAX_ITERATIONS", "5")),
+                temperature=float(os.environ.get("COLAIG_ORCHESTRATOR_TEMPERATURE", "0.1")))
+        else:
+            _ETAT["orchestrateur"] = Orchestrator(FakeStorage(), _RETRIEVER)
         # LA TEMPERATURE DOIT ETRE CELLE DE LA PRODUCTION, pas le defaut de la classe.
         #
         # Construit sans argument, le Synthetiseur prend 0.3 — alors que la reference
@@ -227,7 +289,10 @@ def _directives_de(intent, cible: str) -> dict:
 
 async def _repondre_par_le_pipeline(question: str, trouves, cle_api: str):
     analyseur, orchestrateur, synthetiseur = _agents(cle_api)
-    _RETRIEVER.courants = list(trouves)
+    # En mode fige, on impose les passages de la reference ; en mode vif,
+    # l'Orchestrateur va les chercher lui-meme et cette ligne n'a pas de sens.
+    if not _ORCHESTRATION_VIVE:
+        _RETRIEVER.courants = list(trouves)
     contexte = _contexte()
 
     message = IncomingMessage(user_id="@mesure:tchap.gouv.fr",
