@@ -204,8 +204,22 @@ class _RetrieverVif:
 
 
 _RETRIEVER = _RetrieverFige()
-_ORCHESTRATION_VIVE = os.environ.get(
-    "COLAIG_REF_ORCHESTRATION", "figee").lower() in ("vive", "vif", "1", "true")
+# TROIS MONTAGES, parce qu'ils repondent a trois questions differentes.
+#
+#   figee        passages imposes, Orchestrateur inerte — « le pipeline redige-t-il
+#                mieux que le coeur, a matiere egale ? » C'est le DEFAUT, et toutes
+#                les campagnes anterieures s'y comparent.
+#   deterministe recherche vive, mais sans boucle agentique — isole ce que coute et
+#                ce que rapporte la recherche elle-meme.
+#   vive         recherche vive + LLM + outils — le pipeline tel qu'il tourne.
+#
+# Mesure du 03/09/2026 en mode vif : l'orchestration consomme 6300 ms sur 12 100,
+# soit la MOITIE du temps, et ramene toujours les memes passages que la recherche
+# directe (« jeux de passages distincts = 1 » sur tous les cas mesures). Le mode
+# deterministe dit si ses etapes et ses reformulations servent a quelque chose.
+_ORCHESTRATION = os.environ.get("COLAIG_REF_ORCHESTRATION", "figee").lower()
+_ORCHESTRATION_VIVE = _ORCHESTRATION in ("vive", "vif", "1", "true")
+_RECHERCHE_VIVE = _ORCHESTRATION_VIVE or _ORCHESTRATION.startswith("determinis")
 _ETAT: dict = {}
 
 
@@ -234,20 +248,27 @@ def _agents(cle_api: str):
         #
         # Le mode vif lui rend son LLM, son registre d'outils et un retriever qui
         # cherche vraiment. C'est le seul montage ou les TROIS agents travaillent.
-        if _ORCHESTRATION_VIVE:
+        if _RECHERCHE_VIVE:
             from colaig.agents import build_tool_registry
 
             chunks = _GEN["decouper"](_GEN["PERIMETRE"])
             store = _GEN["FaissStore"](dimension=_GEN["_ns"]["DIMENSION"])
             store.add(_GEN["embed"]([c.text for c in chunks], cle_api), chunks)
             _ETAT["retriever"] = _RetrieverVif(store, _GEN["embed"], cle_api)
-            _ETAT["registre"] = build_tool_registry(
-                _ETAT["retriever"], FakeStorage(), llm)
-            _ETAT["orchestrateur"] = Orchestrator(
-                FakeStorage(), _ETAT["retriever"], albert=llm,
-                tool_registry=_ETAT["registre"],
-                max_iterations=int(os.environ.get("COLAIG_ORCHESTRATOR_MAX_ITERATIONS", "5")),
-                temperature=float(os.environ.get("COLAIG_ORCHESTRATOR_TEMPERATURE", "0.1")))
+            if _ORCHESTRATION_VIVE:
+                _ETAT["registre"] = build_tool_registry(
+                    _ETAT["retriever"], FakeStorage(), llm)
+                _ETAT["orchestrateur"] = Orchestrator(
+                    FakeStorage(), _ETAT["retriever"], albert=llm,
+                    tool_registry=_ETAT["registre"],
+                    max_iterations=int(os.environ.get(
+                        "COLAIG_ORCHESTRATOR_MAX_ITERATIONS", "5")),
+                    temperature=float(os.environ.get(
+                        "COLAIG_ORCHESTRATOR_TEMPERATURE", "0.1")))
+            else:
+                # Recherche vive, SANS LLM : l'Orchestrateur retombe en mode
+                # deterministe. Ce qu'on retire ici est exactement sa boucle.
+                _ETAT["orchestrateur"] = Orchestrator(FakeStorage(), _ETAT["retriever"])
         else:
             _ETAT["orchestrateur"] = Orchestrator(FakeStorage(), _RETRIEVER)
         # LA TEMPERATURE DOIT ETRE CELLE DE LA PRODUCTION, pas le defaut de la classe.
@@ -291,7 +312,7 @@ async def _repondre_par_le_pipeline(question: str, trouves, cle_api: str):
     analyseur, orchestrateur, synthetiseur = _agents(cle_api)
     # En mode fige, on impose les passages de la reference ; en mode vif,
     # l'Orchestrateur va les chercher lui-meme et cette ligne n'a pas de sens.
-    if not _ORCHESTRATION_VIVE:
+    if not _RECHERCHE_VIVE:
         _RETRIEVER.courants = list(trouves)
     contexte = _contexte()
 
