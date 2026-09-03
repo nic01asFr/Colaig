@@ -203,6 +203,28 @@ def _agents(cle_api: str):
     return _ETAT["analyseur"], _ETAT["orchestrateur"], _ETAT["synthetiseur"]
 
 
+
+def _directives_de(intent, cible: str) -> dict:
+    """Les consignes que l'Analyseur adresse a un agent, sous forme comparable.
+
+    Deux essais dont les directives different donnent au Synthetiseur deux consignes
+    differentes : c'est la seule voie par laquelle l'Analyseur peut faire basculer un
+    refus, le retriever etant fige.
+    """
+    d = getattr(intent, f"{cible}_directives", None)
+    if d is None:
+        return {}
+    if isinstance(d, dict):        # certaines variantes rendent le JSON brut
+        return {k: d[k] for k in sorted(d)}
+    return {
+        "instructions": (getattr(d, "instructions", "") or "").strip(),
+        "format": getattr(d, "response_format", "") or "",
+        "ton": getattr(d, "response_tone", "") or "",
+        "focus": sorted(getattr(d, "focus_points", []) or []),
+        "strategie": getattr(d, "search_strategy", "") or "",
+    }
+
+
 async def _repondre_par_le_pipeline(question: str, trouves, cle_api: str):
     analyseur, orchestrateur, synthetiseur = _agents(cle_api)
     _RETRIEVER.courants = list(trouves)
@@ -243,9 +265,19 @@ async def _repondre_par_le_pipeline(question: str, trouves, cle_api: str):
         "needs_rag": intent.needs_rag,
         "intent": intent.intent_type.value,
         "sources": len(plan.search_results),
-        # Analyseur
+        # Analyseur — la reformulation ET les directives, car les deux l'atteignent.
+        #
+        # Les directives manquaient a la premiere version de cette trace, et c'est ce
+        # qui rendait l'attribution fausse : sur le cas le plus instable, le type et
+        # `needs_rag` sont TOUJOURS identiques, seule la forme de la reformulation
+        # bouge — « invoquables » / « invocables ». Le retriever etant fige, cette
+        # variation-la ne touche pas les passages. Ce qui atteint le Synthetiseur, et
+        # peut donc faire basculer un refus, ce sont les CONSIGNES que l'Analyseur lui
+        # adresse : instructions, format, points de focus.
         "reformulation": (intent.query_reformulated or "").strip(),
         "entites": sorted(getattr(intent, "entities", []) or []),
+        "directives_synthese": _directives_de(intent, "synthesiser"),
+        "directives_orchestre": _directives_de(intent, "orchestrator"),
         # Orchestrateur
         "passages": sections,
         "passages_distincts": len(set(sections)),

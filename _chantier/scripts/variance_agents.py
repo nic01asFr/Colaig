@@ -40,6 +40,7 @@ C'est alors sa temperature ou son prompt qu'il faut reprendre — pas la recherc
 from __future__ import annotations
 
 import json
+import re
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -59,6 +60,14 @@ MESURES = RACINE / "_chantier" / "mesures"
 # etre superieur a 5 % »). Y refuser est le mauvais comportement, donc y varier n'est pas
 # un defaut a imputer a un agent : les garder fausserait l'attribution.
 CAS_FAUX = {"mp-130", "mp-135"}
+
+
+def _normaliser(texte: str) -> str:
+    """La reformulation, dépouillée de ce qui ne change rien pour la suite."""
+    import unicodedata
+    sans_accent = "".join(c for c in unicodedata.normalize("NFD", texte or "")
+                          if unicodedata.category(c) != "Mn")
+    return " ".join(re.sub(r"[^a-z0-9 ]", " ", sans_accent.lower()).split())
 
 
 def _questions_ecartees() -> set[str]:
@@ -99,7 +108,20 @@ def analyser(fichier: Path) -> None:
     for question, essais in par_cas.items():
         if len(essais) < 2:
             continue
-        intents = {(e["intent"], e["needs_rag"], e["reformulation"]) for e in essais}
+        # CE QUI COMPTE EST CE QUI ATTEINT L'AGENT SUIVANT, pas la forme.
+        #
+        # Premiere version : toute difference de reformulation valait « intention
+        # differente ». Sur le cas le plus instable, le type et `needs_rag` sont
+        # pourtant TOUJOURS identiques — seuls « invoquables » / « invocables » et
+        # l'ordre des cles d'entites changent. Le retriever etant fige, cette
+        # variation ne touche aucun passage : l'imputer a l'Analyseur etait faux.
+        #
+        # On compare donc l'intention sur ce qui a un effet : son type, `needs_rag`,
+        # la reformulation NORMALISEE, et les directives adressees au Synthetiseur —
+        # seule voie par laquelle l'Analyseur peut faire basculer un refus.
+        intents = {(e["intent"], e["needs_rag"], _normaliser(e["reformulation"]),
+                    json.dumps(e.get("directives_synthese", {}), sort_keys=True))
+                   for e in essais}
         passages = {tuple(e["passages"]) for e in essais}
         textes = reponses.get(question, [])
         refus = {est_un_refus(t) for t in textes if t}
