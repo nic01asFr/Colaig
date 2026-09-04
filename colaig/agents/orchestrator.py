@@ -140,6 +140,37 @@ class Orchestrator:
         self._admin_user_ids = admin_user_ids or []      # administration réflexive (DM admin)
         self._retrait_outils_hors_plan = retrait_outils_hors_plan
 
+    def _index_de_l_espace(self, context) -> tuple:
+        """Rend (index vectoriel, index lexical) de l'espace courant, ou (None, None).
+
+        POURQUOI CETTE METHODE
+        ----------------------
+        Deux chemins cherchent dans le corpus : la recherche du plan
+        (`_execute_rag_search`) et l'outil `search_documents` que le modele appelle
+        lui-meme. Le premier passait le store vectoriel et oubliait l'index lexical ;
+        le second oubliait les deux moities de la question. `retrieve()` n'active la
+        fusion RRF que si `bm25_store` lui parvient : `COLAIG_HYBRID_SEARCH_ENABLED`
+        etait donc sans effet sur le pipeline agent, index BM25 construit et persiste
+        compris.
+
+        Les deux chemins passent desormais par ici — un seul endroit a corriger la
+        prochaine fois.
+        """
+        ws = getattr(context, "workspace", None)
+        if ws is None:
+            return None, None
+        vectoriel = (self._workspace_stores or {}).get(ws.workspace_id)
+        lexical = (self._bm25_stores or {}).get(ws.workspace_id)
+        return vectoriel, lexical
+
+    def _handler_de_recherche(self, context):
+        """Handler `search_documents` lie aux index de l'espace, ou None."""
+        vectoriel, lexical = self._index_de_l_espace(context)
+        if vectoriel is None:
+            return None
+        from colaig.agents.tools.rag_tools import create_search_handler
+        return create_search_handler(self._retriever, store=vectoriel, bm25_store=lexical)
+
     @property
     def is_agentic(self) -> bool:
         """True si le mode agentique est disponible."""
@@ -233,18 +264,13 @@ class Orchestrator:
         # Le cas s'aggrave au lot L3.4 : un outil MCP sans annotation compte pour
         # destructif (spécification MCP), et ils sont enregistrés dynamiquement.
 
-        # Isolation workspace : remplacer search_documents par un handler lié au store du workspace
-        if self._workspace_stores and context.workspace:
-            ws_store = self._workspace_stores.get(context.workspace.workspace_id)
-            if ws_store is not None and available_tools.get("search_documents"):
-                from colaig.agents.tools.rag_tools import (
-                    SEARCH_DOCUMENTS_DEFINITION,
-                    create_search_handler,
-                )
-                available_tools.register(
-                    SEARCH_DOCUMENTS_DEFINITION,
-                    create_search_handler(self._retriever, store=ws_store),
-                )
+        # Isolation workspace : remplacer search_documents par un handler lié aux
+        # index de l'espace — vectoriel ET lexical (voir `_index_de_l_espace`).
+        if available_tools.get("search_documents"):
+            handler = self._handler_de_recherche(context)
+            if handler is not None:
+                from colaig.agents.tools.rag_tools import SEARCH_DOCUMENTS_DEFINITION
+                available_tools.register(SEARCH_DOCUMENTS_DEFINITION, handler)
 
         # Délégation inter-workspace : injecter ask_workspace avec le user_id courant.
         # Mode PERSONAL : l'agent DM peut interroger tous les workspaces accessibles.
@@ -952,11 +978,12 @@ class Orchestrator:
         threshold = context.workspace.similarity_threshold if context.workspace else 0.3
 
         retrieve_kwargs: dict = dict(query=query, k=k, score_threshold=threshold)
-        # Isolation par workspace : utiliser le store spécifique si disponible
-        if self._workspace_stores and context.workspace:
-            ws_store = self._workspace_stores.get(context.workspace.workspace_id)
-            if ws_store is not None:
-                retrieve_kwargs["store"] = ws_store
+        # Isolation par workspace + recherche hybride (voir `_index_de_l_espace`).
+        vectoriel, lexical = self._index_de_l_espace(context)
+        if vectoriel is not None:
+            retrieve_kwargs["store"] = vectoriel
+        if lexical is not None:
+            retrieve_kwargs["bm25_store"] = lexical
         results = await self._retriever.retrieve(**retrieve_kwargs)
         plan.search_results.extend(results)
         step.result = {

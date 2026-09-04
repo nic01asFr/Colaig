@@ -44,18 +44,21 @@ SEARCH_DOCUMENTS_DEFINITION = ToolDefinition(
 )
 
 
-def create_search_handler(retriever, workspace_id: str = "", store=None) -> Callable:
+def create_search_handler(retriever, workspace_id: str = "", store=None, bm25_store=None) -> Callable:
     """Crée un handler async pour l'outil search_documents.
 
     Args:
         retriever: Implémentation de RetrieverProtocol.
         workspace_id: ID du workspace pour le logging (optionnel).
         store: VectorStore spécifique au workspace (optionnel, pour isolation).
+        bm25_store: Index lexical BM25 du workspace (optionnel). Sans lui,
+            `retrieve()` reste purement vectoriel : la fusion RRF n'a pas lieu.
 
     Returns:
         Callable async(query, k=5, threshold=0.3) -> str (JSON)
     """
     _store = store  # fermeture sur le store workspace-spécifique
+    _bm25_store = bm25_store  # idem pour l'index lexical (recherche hybride)
 
     async def search_handler(
         query: str,
@@ -71,7 +74,12 @@ def create_search_handler(retriever, workspace_id: str = "", store=None) -> Call
         k_val = k if k is not None else 5
         threshold_val = threshold if threshold is not None else 0.3
 
-        results = await retriever.retrieve(query, k=k_val, score_threshold=threshold_val, store=_store)
+        # `bm25_store` n'est passe que s'il existe : `RetrieverProtocol.retrieve`
+        # ne le declare pas, et une implementation conforme au contrat le refuserait.
+        kwargs: dict = dict(k=k_val, score_threshold=threshold_val, store=_store)
+        if _bm25_store is not None:
+            kwargs["bm25_store"] = _bm25_store
+        results = await retriever.retrieve(query, **kwargs)
 
         serialized = []
         for r in results:
