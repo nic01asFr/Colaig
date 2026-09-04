@@ -73,6 +73,7 @@ async def consigner_echange(
     temps_ms: int,
     message_id: str,
     horodatage: str = "",
+    passages: list[dict] | None = None,
 ) -> None:
     """Ecrit la trace d'un echange. NE LEVE JAMAIS.
 
@@ -90,6 +91,15 @@ async def consigner_echange(
             "question": question,
             "reponse": reponse,
             "sources": list(sources or []),
+            # LES PASSAGES, PAS SEULEMENT LES FICHIERS.
+            #
+            # Le decoupage etant par article, un fichier porte des dizaines de
+            # passages. Avec les seuls noms de fichiers, on ne distingue pas « le
+            # passage attendu a ete servi et le modele ne s'en est pas saisi » de
+            # « c'est le passage VOISIN qui a ete servi » — deux constats qui
+            # appellent des corrections opposees. Le 04/09/2026, il a fallu le
+            # deduire de la lecture de 21 reponses.
+            "passages": list(passages or []),
             "confiance": confiance,
             "temps_ms": temps_ms,
         }

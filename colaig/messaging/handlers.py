@@ -36,6 +36,45 @@ from colaig.protocols import ReactionProtocol
 logger = logging.getLogger(__name__)
 
 
+def _passages_servis(resultats) -> list[dict]:
+    """Ce qui a REELLEMENT ete donne a lire, passage par passage.
+
+    Le nom du fichier ne suffit pas a juger une reponse quand le decoupage est par
+    article : `code.md` porte des dizaines de passages, et servir le fichier ne sert
+    pas l'article. Voir `journal_echanges.consigner_echange`.
+    """
+    passages: list[dict] = []
+    for r in resultats or []:
+        chunk = getattr(r, "chunk", None)
+        if chunk is None:
+            # Les resultats de l'outil `search_documents` arrivent deja aplatis en
+            # dictionnaires : ils ont ete servis autant que les autres.
+            if isinstance(r, dict):
+                passages.append({
+                    "source": r.get("source", ""),
+                    "section": r.get("section", ""),
+                    "position": r.get("position", -1),
+                    "score": r.get("score", 0.0),
+                })
+            continue
+        passages.append({
+            "source": chunk.source_name or chunk.source_path,
+            "section": chunk.section,
+            "position": chunk.position,
+            "score": round(getattr(r, "score", 0.0), 4),
+        })
+    return passages
+
+
+def _passages_du_plan(plan) -> list[dict]:
+    """Tout ce que le pipeline agent a donne a lire : sa recherche ET ses outils."""
+    servis = list(getattr(plan, "search_results", []) or [])
+    for entree in getattr(plan, "tool_results", []) or []:
+        if isinstance(entree, dict) and entree.get("tool") == "search_documents":
+            servis.extend(entree.get("results", []) or [])
+    return _passages_servis(servis)
+
+
 # Ce que Colaig sait ranger. Les IMAGES en font partie : un plan photographié, un devis
 # scanné, un panneau relevé sur le terrain sont des documents, et l'OCR existe (L1.3b).
 #
@@ -1011,6 +1050,7 @@ class MessageHandler:
                 question=message.body,
                 reponse=response.text,
                 sources=list(response.sources or []),
+                passages=_passages_servis(search_results),
                 confiance=response.confidence,
                 temps_ms=response.generation_time_ms,
                 message_id=message.message_id,
@@ -1227,6 +1267,7 @@ class MessageHandler:
                 question=message.body,
                 reponse=response.text,
                 sources=list(response.sources or []),
+                passages=_passages_du_plan(plan),
                 confiance=response.confidence,
                 temps_ms=response.generation_time_ms,
                 message_id=message.message_id,

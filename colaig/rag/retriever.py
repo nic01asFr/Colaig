@@ -57,6 +57,80 @@ Réponds directement, sans introduction."""
 # des voisins mediocres.
 _FACTEUR_DE_VIVIER_DEFAUT = 2
 
+# ELARGISSEMENT AUX VOISINS — ce que le decoupage a separe, la lecture le rejoint.
+#
+# Mesure du 04/09/2026 sur le service : sur les 102 cas dores dont l'article attendu
+# est un numero de code, le FICHIER qui le porte est servi 89 fois, mais 21 reponses
+# ne le citent pas. En les lisant, le motif est constant — le modele cite les articles
+# VOISINS et declare que l'information ne figure pas dans les passages fournis :
+#
+#     attendu R2111-12   servis R2111-15
+#     attendu R2113-6    servis R2113-4
+#     attendu L2113-14   servis L2113-12, L2113-13
+#     attendu R2124-3    servis R2124-4
+#
+# Le decoupage etant PAR ARTICLE, servir le fichier ne sert pas l'article : un fichier
+# en porte des dizaines. La recherche ne part pas ailleurs, elle s'arrete a deux ou
+# trois rangs — et le refus qui suit est CORRECT au vu de ce qui a ete servi.
+#
+# Le rayon coute des passages : a k=5 et rayon 1, on sert jusqu'a 15 passages au lieu
+# de 5. Le budget de jetons s'applique APRES, et tranche.
+_RAYON_DES_VOISINS_DEFAUT = 1
+
+
+def _elargissement_aux_voisins() -> int:
+    """Rayon d'elargissement, ou 0 si le drapeau est absent."""
+    import os
+
+    if os.environ.get("COLAIG_VOISINS_ENABLED", "").lower() not in ("1", "true", "yes"):
+        return 0
+    try:
+        rayon = int(os.environ.get("COLAIG_VOISINS_RAYON", ""))
+    except ValueError:
+        return _RAYON_DES_VOISINS_DEFAUT
+    return rayon if rayon >= 1 else _RAYON_DES_VOISINS_DEFAUT
+
+
+def _avec_les_voisins(retenus: list, store, rayon: int) -> list:
+    """Insere apres chaque passage retenu ses voisins immediats du MEME document.
+
+    Un voisin complete une reponse, il ne la precede pas : il se place juste apres son
+    ancre, et le classement des passages trouves est inchange.
+
+    `get_all_active_chunks` n'appartient pas a `VectorStoreProtocol`. Un magasin qui ne
+    l'expose pas rend la recherche telle quelle — degradation, pas echec.
+    """
+    inventaire = getattr(store, "get_all_active_chunks", None)
+    if not callable(inventaire):
+        return retenus
+    try:
+        chunks = inventaire()
+    except Exception:  # noqa: BLE001
+        logger.debug("inventaire du magasin indisponible — pas d'elargissement", exc_info=True)
+        return retenus
+
+    par_place: dict[tuple, object] = {(c.source_path, c.position): c for c in chunks}
+    deja = {(r.chunk.source_path, r.chunk.position) for r in retenus}
+
+    elargi: list = []
+    for r in retenus:
+        elargi.append(r)
+        for pas in range(1, rayon + 1):
+            for place in ((r.chunk.source_path, r.chunk.position - pas),
+                          (r.chunk.source_path, r.chunk.position + pas)):
+                voisin = par_place.get(place)
+                if voisin is None or place in deja:
+                    continue
+                deja.add(place)
+                # Le score du voisin est celui de son ancre : il n'a pas ete classe,
+                # il est servi PARCE QUE son ancre l'a ete. Lui inventer un score
+                # propre le ferait remonter ou tomber sans qu'aucune mesure le dise.
+                elargi.append(SearchResult(chunk=voisin, score=r.score, rank=r.rank))
+    if len(elargi) > len(retenus):
+        logger.info("retriever: elargissement aux voisins — %d passages → %d (rayon %d)",
+                    len(retenus), len(elargi), rayon)
+    return elargi
+
 
 def _facteur_de_vivier() -> int:
     """Multiple de `k` a demander au magasin. Une valeur invalide retombe sur le defaut.
@@ -323,6 +397,12 @@ class Retriever:
         else:
             effective_threshold = score_threshold
         filtered = [r for r in reranked if r.score >= effective_threshold]
+
+        # 5b. Elargissement aux voisins (opt-in) — AVANT le budget, qui doit trancher
+        # sur ce qui sera reellement servi.
+        rayon = _elargissement_aux_voisins()
+        if rayon:
+            filtered = _avec_les_voisins(filtered, effective_store, rayon)
 
         # 6. Budget tokens : éviter de dépasser la fenêtre de contexte Albert
         # Estimation : 4 chars ≈ 1 token. Budget cible : 6000 tokens pour les documents.

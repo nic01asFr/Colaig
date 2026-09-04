@@ -188,3 +188,41 @@ async def test_un_message_redelivre_ne_compte_qu_une_fois():
                                 sources=[], confiance=0.5, temps_ms=1, message_id="$evt42")
 
     assert len(s.fichiers) == 1
+
+
+@pytest.mark.asyncio
+async def test_le_journal_dit_QUELS_passages_ont_ete_servis():
+    """Le nom du fichier ne suffit pas a juger une reponse.
+
+    Le decoupage etant par article, un fichier porte des dizaines de passages. Le
+    journal ne notait que les NOMS DE FICHIERS : on ne pouvait donc pas distinguer
+    « le passage attendu a ete servi et le modele ne s'en est pas saisi » de « c'est
+    le passage voisin qui a ete servi ». Les deux appellent des corrections opposees.
+
+    Releve du 04/09/2026 : sur 21 reponses ne citant pas l'article attendu alors que
+    son fichier etait servi, la lecture montre que ce sont les articles VOISINS qui
+    avaient ete servis. Il a fallu le deduire des reponses, faute de le lire ici.
+    """
+    s = _Storage()
+
+    await consigner_echange(
+        s, "/espace/", question="a quelles conditions exiger un label ?",
+        reponse="…", sources=["code.md"], confiance=0.5, temps_ms=1,
+        message_id="$m1",
+        passages=[{"source": "code.md", "section": "R2111-15", "position": 2},
+                  {"source": "code.md", "section": "R2111-16", "position": 3}])
+
+    relus = await lire_echanges(s, "/espace/")
+    assert [p["section"] for p in relus[0]["passages"]] == ["R2111-15", "R2111-16"]
+
+
+@pytest.mark.asyncio
+async def test_un_journal_sans_passages_reste_relisible():
+    """Les traces ecrites avant ce champ ne doivent pas devenir illisibles."""
+    s = _Storage()
+
+    await consigner_echange(s, "/espace/", question="q", reponse="r", sources=[],
+                            confiance=0.5, temps_ms=1, message_id="$m")
+
+    relus = await lire_echanges(s, "/espace/")
+    assert relus[0]["passages"] == []
