@@ -73,6 +73,11 @@ ENV_DE_L_INSTANCE = {
     # 45 points de couverture separent « auto » de « fenetre » — mesure du 04/09.
     # BM25 + RRF : 37 des 113 cas positifs ne recevaient pas le bon fichier.
     "COLAIG_HYBRID_SEARCH_ENABLED": "true",
+    # Elargissement aux voisins. Mesure du 04/09 au grain du PASSAGE : sur les
+    # 34 cas ou l'article attendu n'est pas servi, 21 ont pourtant leur FICHIER
+    # servi — la recherche trouve le bon document et sert l'article voisin.
+    "COLAIG_VOISINS_ENABLED": "true",
+    "COLAIG_VOISINS_RAYON": "1",
     "COLAIG_CHUNK_STRATEGIE": "auto",
     "ALBERT_MODEL_MEDIUM": "qwen3-6-35b-moe",
     "ALBERT_MODEL_LIGHT": "qwen3-6-35b-moe",

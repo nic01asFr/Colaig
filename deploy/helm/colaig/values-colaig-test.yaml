@@ -145,6 +145,29 @@ extraEnv:
   # ACTIVER IMPOSE DE REINDEXER : le bm25.pkl n'existe pas dans l'index actuel,
   # construit sans lui.
   COLAIG_HYBRID_SEARCH_ENABLED: "true"
+  # ELARGISSEMENT AUX VOISINS — ce que le decoupage a separe, la lecture le rejoint.
+  #
+  # Mesure du 04/09/2026 sur le service, au grain du PASSAGE (le journal porte
+  # desormais la section de chaque passage servi, et non plus le seul nom de
+  # fichier — au grain du fichier, cette mesure surestimait le service de 21 cas) :
+  #
+  #   article attendu servi        79/113
+  #   article attendu NON servi    34/113
+  #     dont son FICHIER etait servi   21   <-- la recherche s'arrete a quelques rangs
+  #
+  # Vingt et un cas sur trente-quatre ne sont pas des recherches qui partent
+  # ailleurs : le bon document est trouve, et c'est l'article VOISIN qui est servi.
+  # Le modele le dit lui-meme — il cite R2111-15 et declare que l'information ne
+  # figure pas dans les passages fournis, alors qu'on attendait R2111-12.
+  #
+  # Rayon 1 : un article et ses deux voisins immediats dans le meme document. Le
+  # budget de jetons tranche apres. NE DEMANDE PAS DE REINDEXATION — l'elargissement
+  # se fait a la lecture, sur l'index existant.
+  #
+  # PEREMPTION : si la campagne comparative ne montre pas de gain, ce reglage part
+  # au meme lot que la mesure qui l'a introduit.
+  COLAIG_VOISINS_ENABLED: "true"
+  COLAIG_VOISINS_RAYON: "1"
   COLAIG_CHUNK_STRATEGIE: auto
   ALBERT_MODEL_MEDIUM: qwen3-6-35b-moe
   ALBERT_MODEL_LIGHT: qwen3-6-35b-moe
