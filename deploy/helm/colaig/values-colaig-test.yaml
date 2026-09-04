@@ -116,6 +116,21 @@ extraEnv:
   #
   # S'ils doivent un jour differer — un modele plus leger pour l'analyse, qui consomme
   # 62 % du temps du pipeline — ce sera une decision mesuree, ecrite ici.
+  # DECOUPAGE PAR ARTICLE — le reglage qui decide de la couverture.
+  #
+  # Mesure sur le service, 04/09/2026, causes eliminees une a une :
+  #
+  #   fenetre k=5 sans prompt    refus  5/22   cite l'attendu 53/113
+  #   fenetre k=5 avec prompt    refus 20/22   cite l'attendu 52/113
+  #   article k=5 avec prompt    refus 22/22   cite l'attendu 97/113
+  #
+  # Le prompt explique tout le refus et RIEN de la couverture. Le k n'explique rien
+  # (97/113 a k=5 comme a k=10), la memoire non plus. Restent 45 points imputables au
+  # seul decoupage.
+  #
+  # « auto » detecte par document : par article si le texte en porte, fenetre sinon.
+  # CHANGER CE REGLAGE IMPOSE DE REINDEXER — l'index existant suit l'ancien decoupage.
+  COLAIG_CHUNK_STRATEGIE: auto
   ALBERT_MODEL_MEDIUM: qwen3-6-35b-moe
   ALBERT_MODEL_LIGHT: qwen3-6-35b-moe
   MATRIX_HOMESERVER: https://matrix.agent.dev-durable.tchap.gouv.fr

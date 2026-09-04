@@ -70,6 +70,8 @@ ENV_DE_L_INSTANCE = {
     # Poses explicitement : sans eux, le Synthetiseur et la
     # contextualisation convergent avec les autres agents par repli, ce qui
     # ne se voit nulle part et se defait au premier reglage pose a la main.
+    # 45 points de couverture separent « auto » de « fenetre » — mesure du 04/09.
+    "COLAIG_CHUNK_STRATEGIE": "auto",
     "ALBERT_MODEL_MEDIUM": "qwen3-6-35b-moe",
     "ALBERT_MODEL_LIGHT": "qwen3-6-35b-moe",
     "COLAIG_AUTO_DISCOVER_ENABLED": "true",

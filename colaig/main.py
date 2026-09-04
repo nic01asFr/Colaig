@@ -486,7 +486,8 @@ async def run_client_stack(cc, config: ColaigConfig, shutdown_event: asyncio.Eve
     albert = create_llm_for_client(cc, config)
     messaging = messaging_instance if messaging_instance is not None else create_messaging_for_client(cc)
 
-    chunker = Chunker(chunk_size=config.chunk_size, chunk_overlap=config.chunk_overlap)
+    chunker = Chunker(chunk_size=config.chunk_size, chunk_overlap=config.chunk_overlap,
+                      strategie=config.chunk_strategie)
     _embed_ns = _embedding_namespace(cc.llm_api_key or config.albert_api_key, cc.llm_model_embed or config.albert_model_embed)
     embedding_service = EmbeddingService(albert, dimension=config.embedding_dimension, cache_namespace=_embed_ns, local_fallback=config.local_embeddings)
     faiss_store = FaissStore(dimension=config.embedding_dimension)
@@ -1219,6 +1220,7 @@ async def main() -> None:
     chunker = Chunker(
         chunk_size=config.chunk_size,
         chunk_overlap=config.chunk_overlap,
+        strategie=config.chunk_strategie,
     )
 
     _embed_ns = _embedding_namespace(config.albert_api_key, config.albert_model_embed)

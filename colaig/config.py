@@ -368,6 +368,20 @@ def load_config(yaml_path: Path | None = None) -> ColaigConfig:
             "COLAIG_CHUNK_SIZE",
             rag.get("chunk_size", 800),
         ),
+        # STRATEGIE DE DECOUPAGE — elle decide de la couverture, pas du confort.
+        #
+        # Mesure sur le service, 04/09/2026, causes eliminees une a une : le prompt
+        # explique tout le refus (5 -> 20 sur 22) et RIEN de la couverture (53 -> 52).
+        # Le k n'explique rien — 97/113 a k=5 comme a k=10. La memoire non plus. Reste
+        # le decoupage : 45 points de couverture entre la fenetre (52/113) et l'article
+        # (97/113).
+        #
+        # Une valeur inconnue retombe sur le defaut : elle vient d'un environnement ou
+        # d'un fichier, et `chunk_document` ne connait que trois stratégies — une faute
+        # de frappe y produirait un decoupage indefini sans que personne le sache.
+        chunk_strategie=(_env("COLAIG_CHUNK_STRATEGIE", "fenetre")
+                         if _env("COLAIG_CHUNK_STRATEGIE", "fenetre")
+                         in ("fenetre", "article", "auto") else "fenetre"),
         chunk_overlap=_env_int(
             "COLAIG_CHUNK_OVERLAP",
             rag.get("chunk_overlap", 100),

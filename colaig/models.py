@@ -1384,6 +1384,12 @@ class ColaigConfig:
     default_max_results: int = 5
     chunk_size: int = 800
     chunk_overlap: int = 100
+    # « fenetre » (defaut) | « article » | « auto ».
+    #
+    # Mesure sur le service, 04/09/2026 : 45 points de couverture separent la fenetre
+    # (52/113) de l'article (97/113), toutes autres causes eliminees. Le defaut ne
+    # bouge pas — changer le decoupage impose de reindexer — mais il se declare.
+    chunk_strategie: str = "fenetre"
 
     # Polling
     index_refresh_interval_seconds: int = 300  # 5 minutes
