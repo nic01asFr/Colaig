@@ -57,6 +57,7 @@ async def m():
     s = create_storage(load_config())
     for e in await lire_echanges(s, '{espace}'):
         print(json.dumps({{'q': e.get('question', ''), 's': e.get('sources', []),
+                           'r': e.get('reponse', ''),
                            'p': [x.get('section', '') for x in e.get('passages', [])]}},
                          ensure_ascii=False))
 asyncio.run(m())
@@ -83,7 +84,7 @@ def _journal_du_stockage(pod: str, espace: str) -> list[tuple[str, list[str], li
             d = json.loads(ligne)
         except Exception:  # noqa: BLE001
             continue
-        echanges.append((d["q"], d["s"], d.get("p", [])))
+        echanges.append((d["q"], d["s"], d.get("p", []), d.get("r", "")))
     return echanges
 
 
@@ -105,7 +106,7 @@ def _journal(pod: str) -> list[tuple[str, list[str], list[str]]]:
         # `question=` et `sources=` sont ecrits par %r : ce sont des litteraux Python.
         question = _litteral(m.group("q"))
         sources = [_litteral(x.strip()) for x in m.group("s")[1:-1].split(",") if x.strip()]
-        echanges.append((question, sources, []))
+        echanges.append((question, sources, [], ""))
     return echanges
 
 
@@ -115,6 +116,11 @@ def _litteral(texte: str) -> str:
         return ast.literal_eval(texte)
     except Exception:  # noqa: BLE001
         return texte.strip("\"'")
+
+
+def _empreinte_reponse(texte: str) -> str:
+    """Ce qui distingue deux campagnes sur la meme question."""
+    return " ".join((texte or "").split())[:200]
 
 
 def _carte_des_articles() -> dict[str, set[str]]:
@@ -151,8 +157,18 @@ def main() -> int:
         print("[!] journal de l'espace vide — repli sur le journal du conteneur,"
               " qui ne porte qu'une fin de campagne", file=sys.stderr)
         brut = _journal(pod)
-    echanges = {q: (s_, p_) for q, s_, p_ in brut}
-    au_passage = any(p_ for _, (_, p_) in echanges.items())
+    # CHAQUE CAMPAGNE RELIT SES PROPRES TRACES.
+    #
+    # Le journal conserve tous les echanges, campagne apres campagne. Les indexer par
+    # la seule question fait gagner le plus recent : on ne peut alors plus reanalyser
+    # une campagne anterieure — ce qui est exactement ce qu'on veut faire quand la
+    # mesure elle-meme a ete corrigee entre les deux.
+    #
+    # La REPONSE distingue les campagnes : elle est enregistree des deux cotes.
+    par_reponse = {(q, _empreinte_reponse(r)): (s_, p_) for q, s_, p_, r in brut}
+    par_question = {q: (s_, p_) for q, s_, p_, _ in brut}
+    echanges = par_question
+    au_passage = any(p_ for _, p_ in par_question.values())
 
     servis = non_servis = sans_journal = sans_passages = 0
     fichier_sans_passage = 0
@@ -169,7 +185,9 @@ def main() -> int:
         if not attendus:
             continue
         vus += 1
-        entree = echanges.get(r["question"])
+        entree = par_reponse.get((r["question"], _empreinte_reponse(r["reponse"])))
+        if entree is None:
+            entree = echanges.get(r["question"])
         if entree is None:
             sans_journal += 1
             continue

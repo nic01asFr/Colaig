@@ -78,6 +78,35 @@ _FACTEUR_DE_VIVIER_DEFAUT = 2
 _RAYON_DES_VOISINS_DEFAUT = 1
 
 
+# BUDGET DOCUMENTAIRE, EN JETONS. Lu a chaque appel, comme le facteur de vivier.
+#
+# Il valait 6000, CODE EN DUR. La fenetre du modele de chat servi par l'endpoint a ete
+# relevee le 04/09/2026 en poussant une requete jusqu'au refus :
+#
+#     « This model's maximum context length is 131072 tokens »
+#
+# Le budget documentaire consommait donc 4,6 % de ce que le modele accepte — et c'est
+# lui, non la recherche, qui decidait de ce qui etait servi. La comparaison du meme
+# jour le montre : avec l'elargissement aux voisins, le nombre de passages servis n'a
+# pas bouge (mediane 10, moyenne 14,7 contre 14,8), les voisins ayant REMPLACE les
+# documents les plus faibles au lieu de s'y ajouter.
+#
+# Le defaut ne change pas : un contexte long se paie en latence et en attention diluee.
+# C'est la mesure qui choisira la valeur, pas ce commentaire.
+_BUDGET_DE_JETONS_DEFAUT = 6000
+
+
+def _budget_de_jetons() -> int:
+    """Jetons alloues aux passages. Une valeur invalide retombe sur le defaut."""
+    import os
+
+    try:
+        valeur = int(os.environ.get("COLAIG_BUDGET_JETONS", ""))
+    except ValueError:
+        return _BUDGET_DE_JETONS_DEFAUT
+    return valeur if valeur >= 100 else _BUDGET_DE_JETONS_DEFAUT
+
+
 def _elargissement_aux_voisins() -> int:
     """Rayon d'elargissement, ou 0 si le drapeau est absent."""
     import os
@@ -404,16 +433,22 @@ class Retriever:
         if rayon:
             filtered = _avec_les_voisins(filtered, effective_store, rayon)
 
-        # 6. Budget tokens : éviter de dépasser la fenêtre de contexte Albert
-        # Estimation : 4 chars ≈ 1 token. Budget cible : 6000 tokens pour les documents.
-        TOKEN_BUDGET = 6000
+        # 6. Budget tokens : éviter de dépasser la fenêtre de contexte du modèle.
+        # Estimation : 4 chars ≈ 1 token.
+        TOKEN_BUDGET = _budget_de_jetons()
         budgeted: list[SearchResult] = []
         token_count = 0
         for r in filtered:
             estimated_tokens = len(r.chunk.text) // 4
             if token_count + estimated_tokens > TOKEN_BUDGET:
-                logger.debug("retriever: budget tokens atteint (%d tokens), %d chunks tronqués",
-                             token_count, len(filtered) - len(budgeted))
+                # EN INFO, PARCE QUE C'EST LUI QUI TRANCHE.
+                #
+                # La comparaison du 04/09/2026 a mesure un elargissement aux voisins
+                # qui ne servait pas un passage de plus : le budget etait sature avant
+                # comme apres, et les voisins REMPLACAIENT au lieu d'ajouter. Rien ne
+                # le disait — cette ligne etait en DEBUG.
+                logger.info("retriever: budget de jetons atteint (%d/%d), %d passages ecartes",
+                            token_count, TOKEN_BUDGET, len(filtered) - len(budgeted))
                 break
             budgeted.append(r)
             token_count += estimated_tokens
