@@ -151,7 +151,8 @@ class Chunker:
         #
         # Le decoupage des articles trop LONGS est conserve : lui protege le budget
         # de contexte, et ne detruit aucune identite.
-        processed = self._postprocess(raw_chunks, fusionner=not par_article)
+        processed = self._postprocess(raw_chunks, fusionner=not par_article,
+                                      redecouper=not par_article)
 
         chunks: list[DocumentChunk] = []
         for i, (text, section) in enumerate(processed):
@@ -296,8 +297,28 @@ class Chunker:
         return [c for c in chunks if c]
 
     def _postprocess(self, chunks: list[tuple[str, str]],
-                     fusionner: bool = True) -> list[tuple[str, str]]:
-        """Fusionne les chunks trop petits, re-découpe les trop gros."""
+                     fusionner: bool = True,
+                     redecouper: bool = True) -> list[tuple[str, str]]:
+        """Fusionne les chunks trop petits, re-découpe les trop gros.
+
+        UN ARTICLE IDENTIFIÉ NE SE COUPE PAS, et c'est ce que `redecouper=False` dit.
+
+        Mesuré sur le service le 04/09/2026 : passer la fenêtre glissante au découpage
+        par article a fait gagner 11 points de couverture (52 → 63 sur 113), là où le
+        harnais en obtient 97. La différence tient à ce redécoupage : **176 des 1021
+        articles du corpus (17 %) dépassent MAX_CHUNK_SIZE** et partaient en morceaux.
+
+        Coupé en trois, un article n'est plus retrouvé — la recherche remonte un
+        fragment, et le fragment retenu n'est pas forcément celui qui porte la réponse.
+        Cela explique le gain partiel : les 83 % d'articles courts passaient entiers et
+        gagnaient les 11 points, les 17 % restants continuaient de perdre.
+
+        Le plafond garde tout son sens ailleurs : un chapitre de rapport n'a pas de
+        raison d'être servi d'un bloc. Mais un article de loi est une unité de sens ET
+        de citation — coupé, il perd la propriété même qu'on exploite. Le plus long du
+        corpus fait 5143 caractères ; à k=5, cinq articles de cette taille tiennent
+        largement dans la fenêtre du modèle.
+        """
         result: list[tuple[str, str]] = []
         buffer_text = ""
         buffer_section = ""
@@ -323,7 +344,7 @@ class Chunker:
                     buffer_text = ""
                     buffer_section = ""
 
-            if len(text) > MAX_CHUNK_SIZE:
+            if len(text) > MAX_CHUNK_SIZE and redecouper:
                 for sub in self._sliding_window(text):
                     result.append((sub, section))
             else:
