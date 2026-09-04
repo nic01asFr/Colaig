@@ -101,6 +101,32 @@ extraEnv:
   # Sur du droit, la constance prime sur le naturel de la redaction. A remesurer : si
   # l'inconstance ne cede pas, la cause est ailleurs et ce reglage doit repartir.
   COLAIG_SYNTHESISER_TEMPERATURE: "0.1"
+  # LA DISPERSION ETAIT PLUS GRANDE QUE TOUT CE QU'ON COMPARAIT.
+  #
+  # Deux campagnes du 05/09/2026, MONTAGE STRICTEMENT IDENTIQUE, sans redeploiement
+  # entre les deux :
+  #
+  #   cite l'attendu        68/113   puis   75/113
+  #   article attendu servi 75/113   puis   84/113
+  #
+  # Sept et neuf points d'ecart pour zero changement. Or les ecarts qu'on cherchait a
+  # trancher — recherche hybride, elargissement aux voisins, budget documentaire —
+  # valaient trois a dix points. Aucune de ces comparaisons, faite a une repetition,
+  # ne dit quoi que ce soit.
+  #
+  # La source n'est pas un reglage oublie : l'Analyseur et l'Orchestrateur etaient
+  # deja a 0,1. Mais ce sont EUX qui ecrivent les requetes de recherche — mediane 2
+  # par question, moyenne 2,8 — et une reformulation tiree autrement ramene d'autres
+  # passages. Ce que « l'article est servi » mesure inclut donc le tirage.
+  #
+  # A 0, le decodage devient glouton. Ce n'est pas un determinisme parfait — le
+  # batching cote serveur en laisse — mais c'est ce qui est atteignable ici.
+  #
+  # CE N'EST PAS QU'UN REGLAGE DE MESURE. L'Analyseur et l'Orchestrateur DECIDENT
+  # (quelles requetes, quels outils) ; ils ne redigent pas. Un plan doit etre
+  # reproductible : la meme question posee deux fois ne doit pas chercher ailleurs.
+  COLAIG_ANALYSER_TEMPERATURE: "0"
+  COLAIG_ORCHESTRATOR_TEMPERATURE: "0"
   # LES MODELES DES AGENTS, POSES PLUTOT QUE DEDUITS.
   #
   # Le Synthetiseur passe par `albert_model_medium` et la contextualisation par

@@ -67,6 +67,11 @@ ENV_DE_L_INSTANCE = {
     # systemes ne sont pas comparables, et l'ecart mesure est en partie
     # celui de leurs reglages.
     "COLAIG_SYNTHESISER_TEMPERATURE": "0.1",
+    # Deux campagnes identiques du 05/09 ont donne 68 puis 75 sur 113 : la
+    # dispersion depassait tous les ecarts qu'on cherchait a trancher. L'Analyseur
+    # et l'Orchestrateur ecrivent les requetes ; a 0 le decodage devient glouton.
+    "COLAIG_ANALYSER_TEMPERATURE": "0",
+    "COLAIG_ORCHESTRATOR_TEMPERATURE": "0",
     # Poses explicitement : sans eux, le Synthetiseur et la
     # contextualisation convergent avec les autres agents par repli, ce qui
     # ne se voit nulle part et se defait au premier reglage pose a la main.
