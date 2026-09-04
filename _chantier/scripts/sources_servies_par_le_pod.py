@@ -56,13 +56,14 @@ from colaig.journal_echanges import lire_echanges
 async def m():
     s = create_storage(load_config())
     for e in await lire_echanges(s, '{espace}'):
-        print(json.dumps({{'q': e.get('question', ''), 's': e.get('sources', [])}},
+        print(json.dumps({{'q': e.get('question', ''), 's': e.get('sources', []),
+                           'p': [x.get('section', '') for x in e.get('passages', [])]}},
                          ensure_ascii=False))
 asyncio.run(m())
 """
 
 
-def _journal_du_stockage(pod: str, espace: str) -> list[tuple[str, list[str]]]:
+def _journal_du_stockage(pod: str, espace: str) -> list[tuple[str, list[str], list[str]]]:
     """Lit le journal ECRIT PAR LE POD sur le stockage de l'espace.
 
     Prefere au journal du conteneur, qui tourne : sur une campagne de 135 questions
@@ -82,11 +83,11 @@ def _journal_du_stockage(pod: str, espace: str) -> list[tuple[str, list[str]]]:
             d = json.loads(ligne)
         except Exception:  # noqa: BLE001
             continue
-        echanges.append((d["q"], d["s"]))
+        echanges.append((d["q"], d["s"], d.get("p", [])))
     return echanges
 
 
-def _journal(pod: str) -> list[tuple[str, list[str]]]:
+def _journal(pod: str) -> list[tuple[str, list[str], list[str]]]:
     """Rend [(question, sources)] dans l'ordre du journal."""
     out = subprocess.run(["kubectl", "logs", pod, "-n", NAMESPACE],
                          capture_output=True, text=True, encoding="utf-8", check=True)
@@ -104,7 +105,7 @@ def _journal(pod: str) -> list[tuple[str, list[str]]]:
         # `question=` et `sources=` sont ecrits par %r : ce sont des litteraux Python.
         question = _litteral(m.group("q"))
         sources = [_litteral(x.strip()) for x in m.group("s")[1:-1].split(",") if x.strip()]
-        echanges.append((question, sources))
+        echanges.append((question, sources, []))
     return echanges
 
 
@@ -135,15 +136,18 @@ def main() -> int:
            (json.loads(l) for l in JEU.read_text(encoding="utf-8").splitlines() if l.strip())}
     carte = _carte_des_articles()
     pod = _pod()
-    echanges = dict(_journal_du_stockage(pod, ESPACE))
-    if not echanges:
+    brut = _journal_du_stockage(pod, ESPACE)
+    if not brut:
         print("[!] journal de l'espace vide — repli sur le journal du conteneur,"
               " qui ne porte qu'une fin de campagne", file=sys.stderr)
-        echanges = dict(_journal(pod))
+        brut = _journal(pod)
+    echanges = {q: (s_, p_) for q, s_, p_ in brut}
+    au_passage = any(p_ for _, (_, p_) in echanges.items())
 
-    servis = non_servis = sans_journal = 0
+    servis = non_servis = sans_journal = sans_passages = 0
+    fichier_sans_passage = 0
     cite_sans_service = 0
-    manques: list[tuple[str, list[str], list[str]]] = []
+    manques: list[tuple[str, list[str], bool]] = []
     frequence: dict[str, int] = {}
     vus = 0
 
@@ -155,39 +159,72 @@ def main() -> int:
         if not attendus:
             continue
         vus += 1
-        sources = echanges.get(r["question"])
-        if sources is None:
+        entree = echanges.get(r["question"])
+        if entree is None:
             sans_journal += 1
             continue
-        for s in sources:
-            frequence[s] = frequence.get(s, 0) + 1
+        sources, sections = entree
+        for x in sources:
+            frequence[x] = frequence.get(x, 0) + 1
+
+        # LE PASSAGE, PAS LE FICHIER. Le decoupage etant par article, un fichier en
+        # porte des dizaines : servir `094-…contenu-du-marche.md` ne sert pas
+        # `R2112-14`. Tant que le journal ne portait que des noms de fichiers, cette
+        # mesure surestimait le service de 21 cas sur 102 (04/09/2026).
+        titres = {t[len("Article "):] if t.startswith("Article ") else t for t in sections}
+        au_niveau_du_passage = bool(titres & set(attendus))
+
         porteurs: set[str] = set()
         for a in attendus:
             porteurs |= carte.get(a, set())
-        if porteurs & set(sources):
-            servis += 1
-        else:
-            non_servis += 1
-            if r.get("cite_attendu"):
-                cite_sans_service += 1
-            manques.append((r["id"], attendus, sorted(porteurs)))
+        au_niveau_du_fichier = bool(porteurs & set(sources))
 
+        if au_passage:
+            if not sections:
+                # Trace ecrite AVANT que le journal porte les passages : on ne peut
+                # pas la juger au meme grain que les autres, et la compter au grain
+                # du fichier gonflerait « fichier servi, passage absent ».
+                sans_passages += 1
+                continue
+            if au_niveau_du_passage:
+                servis += 1
+            else:
+                non_servis += 1
+                if au_niveau_du_fichier:
+                    fichier_sans_passage += 1
+                if r.get("cite_attendu"):
+                    cite_sans_service += 1
+                manques.append((r["id"], attendus, au_niveau_du_fichier))
+        else:
+            if au_niveau_du_fichier:
+                servis += 1
+            else:
+                non_servis += 1
+                manques.append((r["id"], attendus, False))
+
+    grain = "PASSAGE" if au_passage else "fichier (journal ancien)"
+    print(f"granularite                      : {grain}")
     print(f"cas positifs avec article attendu : {vus}")
-    print(f"  fichier porteur SERVI           : {servis}")
-    print(f"  fichier porteur NON servi       : {non_servis}")
+    print(f"  article attendu SERVI           : {servis}")
+    print(f"  article attendu NON servi       : {non_servis}")
+    if fichier_sans_passage:
+        print(f"    dont son FICHIER etait servi  : {fichier_sans_passage}"
+              "  (la recherche s'arrete a quelques rangs)")
     if cite_sans_service:
-        print(f"    (dont cites quand meme        : {cite_sans_service} — memoire du modele)")
+        print(f"    dont cites quand meme         : {cite_sans_service} — memoire du modele")
     if sans_journal:
         print(f"  absent du journal du pod        : {sans_journal}")
-    if vus - sans_journal:
-        moyenne = sum(frequence.values()) / (vus - sans_journal)
-        print(f"  sources servies par question    : {moyenne:.1f} en moyenne")
-    print("\nfichiers les plus servis :")
-    for nom, n in sorted(frequence.items(), key=lambda kv: -kv[1])[:8]:
+    if sans_passages:
+        print(f"  trace anterieure au champ passages : {sans_passages} — non jugees")
+    print()
+    print("fichiers les plus servis :")
+    for nom, n in sorted(frequence.items(), key=lambda kv: -kv[1])[:6]:
         print(f"  {100 * n / max(vus - sans_journal, 1):5.1f}%  {nom}")
-    print(f"\ncas dont le porteur n'est pas servi ({len(manques)}) :")
-    for cid, attendus, porteurs in manques:
-        print(f"  {cid}  attendu {','.join(attendus)}  porte par {', '.join(porteurs) or '(aucun fichier)'}")
+    proches = [m for m in manques if m[2]]
+    print()
+    print(f'cas manquants dont le fichier etait pourtant servi ({len(proches)}) :')
+    for cid, attendus, _ in proches:
+        print(f"  {cid}  attendu {','.join(attendus)}")
     return 0
 
 
