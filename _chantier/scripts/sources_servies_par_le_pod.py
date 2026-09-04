@@ -33,6 +33,7 @@ RACINE = Path(__file__).resolve().parents[2]
 CORPUS = RACINE / "tests" / "golden" / "corpus-marches-publics"
 JEU = RACINE / "tests" / "golden" / "v1.jsonl"
 NAMESPACE = "user-nic01asfr"
+ESPACE = "/colaig-mesure-marches-publics/"
 
 _ARTICLE = re.compile(r"\b([LRD]\d{3,4}-\d+(?:-\d+)?)\b")
 _ECHANGE = re.compile(r"question=(?P<q>.+?) sources=(?P<s>\[.*\])")
@@ -45,6 +46,44 @@ def _pod() -> str:
          "-o", "jsonpath={.items[0].metadata.name}"],
         capture_output=True, text=True, check=True)
     return out.stdout.strip()
+
+
+_LECTURE_DU_STOCKAGE = """
+import asyncio, json
+from colaig.config import load_config
+from colaig.main import create_storage
+from colaig.journal_echanges import lire_echanges
+async def m():
+    s = create_storage(load_config())
+    for e in await lire_echanges(s, '{espace}'):
+        print(json.dumps({{'q': e.get('question', ''), 's': e.get('sources', [])}},
+                         ensure_ascii=False))
+asyncio.run(m())
+"""
+
+
+def _journal_du_stockage(pod: str, espace: str) -> list[tuple[str, list[str]]]:
+    """Lit le journal ECRIT PAR LE POD sur le stockage de l'espace.
+
+    Prefere au journal du conteneur, qui tourne : sur une campagne de 135 questions
+    aux sources longues, `kubectl logs` n'en rend que la fin (52 sur 113 le 04/09).
+    Le journal de l'espace, lui, est complet et survit au redeploiement.
+    """
+    out = subprocess.run(
+        ["kubectl", "exec", "-n", NAMESPACE, pod, "--",
+         "python", "-c", _LECTURE_DU_STOCKAGE.format(espace=espace)],
+        capture_output=True, text=True, encoding="utf-8")
+    echanges: list[tuple[str, list[str]]] = []
+    for ligne in out.stdout.splitlines():
+        ligne = ligne.strip()
+        if not ligne.startswith("{"):
+            continue
+        try:
+            d = json.loads(ligne)
+        except Exception:  # noqa: BLE001
+            continue
+        echanges.append((d["q"], d["s"]))
+    return echanges
 
 
 def _journal(pod: str) -> list[tuple[str, list[str]]]:
@@ -95,7 +134,12 @@ def main() -> int:
     cas = {c["id"]: c for c in
            (json.loads(l) for l in JEU.read_text(encoding="utf-8").splitlines() if l.strip())}
     carte = _carte_des_articles()
-    echanges = dict(_journal(_pod()))
+    pod = _pod()
+    echanges = dict(_journal_du_stockage(pod, ESPACE))
+    if not echanges:
+        print("[!] journal de l'espace vide — repli sur le journal du conteneur,"
+              " qui ne porte qu'une fin de campagne", file=sys.stderr)
+        echanges = dict(_journal(pod))
 
     servis = non_servis = sans_journal = 0
     cite_sans_service = 0
