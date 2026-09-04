@@ -132,6 +132,57 @@ def _verifier_le_montage() -> str:
     return image
 
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Isoler les questions les unes des autres
+# ─────────────────────────────────────────────────────────────────────────────
+
+_S3 = {}
+
+
+def _client_s3():
+    """Client S3 de l'instance, pour purger la conversation entre deux questions."""
+    if "client" not in _S3:
+        import base64
+
+        import boto3
+        brut = subprocess.run(
+            ["kubectl", "get", "secret", "colaig-test", "-n", NS, "-o", "json"],
+            capture_output=True, text=True, check=True, timeout=60).stdout
+        d = {k: base64.b64decode(v).decode()
+             for k, v in json.loads(brut)["data"].items()}
+        _S3["client"] = boto3.client(
+            "s3", endpoint_url="https://minio.lab.sspcloud.fr",
+            aws_access_key_id=d["S3_ACCESS_KEY"],
+            aws_secret_access_key=d["S3_SECRET_KEY"],
+            aws_session_token=d.get("S3_SESSION_TOKEN") or None)
+    return _S3["client"]
+
+
+def _purger_la_conversation() -> None:
+    """Efface le fil, pour que chaque question reparte de zero.
+
+    LE JEU DORE SUPPOSE DES QUESTIONS INDEPENDANTES. Le pipeline, lui, a la memoire
+    de conversation : `handlers` la charge, la passe au Synthetiseur, puis la
+    sauvegarde. Poser les 135 questions dans un meme `conversation_id` les enchaine
+    donc dans un seul fil, chacune voyant les precedentes.
+
+    Mesure du 03/09/2026, faite sans cette purge : le fichier de conversation avait
+    atteint 140 497 octets, et les chiffres — 5/22 de refus, 61/113 de couverture —
+    decrivaient un fil de 135 questions enchainees, pas 135 questions. Ils n'etaient
+    comparables a rien.
+
+    Le fil continu reste une condition legitime — c'est meme l'usage reel — mais
+    c'est une AUTRE mesure, et il faut dire laquelle on fait.
+    """
+    cle = (f"colaig-mesure-marches-publics/.colaig/conversations/"
+           f"{SALON.replace('!', '_').replace(':', '_').replace('.', '_')}.json")
+    try:
+        _client_s3().delete_object(Bucket="colaig", Key=cle)
+    except Exception as e:  # noqa: BLE001
+        print(f"  [!] purge impossible : {type(e).__name__}", file=sys.stderr)
+
+
 def _demander(question: str, pause: float) -> tuple[str, float]:
     charge = json.dumps({"message": question, "conversation_id": SALON,
                          "user_id": UTILISATEUR}).encode()
@@ -149,6 +200,8 @@ def _demander(question: str, pause: float) -> tuple[str, float]:
 def main() -> int:
     _verifier_le_montage()
     negatifs_seuls = "--negatifs" in _ARGS
+    # Isole par defaut : c'est la condition du jeu dore. `--fil` mesure l'autre.
+    isole = "--fil" not in _ARGS
     pause = 0.0
     for a in _ARGS:
         if a.startswith("--pause="):
@@ -162,6 +215,8 @@ def main() -> int:
 
     resultats, latences = [], []
     for i, c in enumerate(cas, 1):
+        if isole:
+            _purger_la_conversation()
         try:
             texte, duree = _demander(c["question"], pause)
         except Exception as e:  # noqa: BLE001
@@ -180,7 +235,7 @@ def main() -> int:
         print(f"  {i}/{len(cas)} {c['id']} {duree:.1f}s", end="\r", flush=True)
 
     MESURES.mkdir(exist_ok=True)
-    suffixe = "negatifs" if negatifs_seuls else "complet"
+    suffixe = ("negatifs" if negatifs_seuls else "complet") + ("" if isole else "-fil")
     sortie = MESURES / f"pod-{suffixe}-{time.strftime('%Y%m%d-%H%M')}.json"
     sortie.write_text(json.dumps(resultats, ensure_ascii=False, indent=1), encoding="utf-8")
 
