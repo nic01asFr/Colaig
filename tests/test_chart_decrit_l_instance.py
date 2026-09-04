@@ -71,6 +71,8 @@ ENV_DE_L_INSTANCE = {
     # contextualisation convergent avec les autres agents par repli, ce qui
     # ne se voit nulle part et se defait au premier reglage pose a la main.
     # 45 points de couverture separent « auto » de « fenetre » — mesure du 04/09.
+    # BM25 + RRF : 37 des 113 cas positifs ne recevaient pas le bon fichier.
+    "COLAIG_HYBRID_SEARCH_ENABLED": "true",
     "COLAIG_CHUNK_STRATEGIE": "auto",
     "ALBERT_MODEL_MEDIUM": "qwen3-6-35b-moe",
     "ALBERT_MODEL_LIGHT": "qwen3-6-35b-moe",

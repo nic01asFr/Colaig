@@ -130,6 +130,21 @@ extraEnv:
   #
   # « auto » detecte par document : par article si le texte en porte, fenetre sinon.
   # CHANGER CE REGLAGE IMPOSE DE REINDEXER — l'index existant suit l'ancien decoupage.
+  # RECHERCHE HYBRIDE — BM25 lexical fusionne au vectoriel par RRF.
+  #
+  # Mesure du 04/09/2026 sur le service : sur 113 cas positifs, le fichier portant
+  # l'article attendu n'est PAS SERVI dans 37 cas. Le modele ne peut donc pas le
+  # citer — on ne le lui donne jamais. Et sur les 37, aucun article voisin n'etait
+  # servi non plus : la recherche ne rate pas de peu, elle part ailleurs.
+  #
+  # BM25 capture les correspondances EXACTES de termes — numeros d'article, sigles,
+  # noms propres — la ou les embeddings les manquent. C'est precisement le mode
+  # d'echec observe. La fusion RRF ne remplace pas le vectoriel : elle additionne
+  # les rangs des deux, un passage present dans les deux index remontant plus haut.
+  #
+  # ACTIVER IMPOSE DE REINDEXER : le bm25.pkl n'existe pas dans l'index actuel,
+  # construit sans lui.
+  COLAIG_HYBRID_SEARCH_ENABLED: "true"
   COLAIG_CHUNK_STRATEGIE: auto
   ALBERT_MODEL_MEDIUM: qwen3-6-35b-moe
   ALBERT_MODEL_LIGHT: qwen3-6-35b-moe
