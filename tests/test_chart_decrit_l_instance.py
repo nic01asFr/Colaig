@@ -78,6 +78,9 @@ ENV_DE_L_INSTANCE = {
     # servi — la recherche trouve le bon document et sert l'article voisin.
     "COLAIG_VOISINS_ENABLED": "true",
     "COLAIG_VOISINS_RAYON": "1",
+    # Le budget documentaire valait 6000 jetons code en dur, sur une fenetre de
+    # 131072 relevee sur l'endpoint. Il saturait avant les voisins comme apres.
+    "COLAIG_BUDGET_JETONS": "20000",
     "COLAIG_CHUNK_STRATEGIE": "auto",
     "ALBERT_MODEL_MEDIUM": "qwen3-6-35b-moe",
     "ALBERT_MODEL_LIGHT": "qwen3-6-35b-moe",

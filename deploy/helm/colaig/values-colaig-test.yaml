@@ -168,6 +168,20 @@ extraEnv:
   # au meme lot que la mesure qui l'a introduit.
   COLAIG_VOISINS_ENABLED: "true"
   COLAIG_VOISINS_RAYON: "1"
+  # BUDGET DOCUMENTAIRE. Il valait 6000 jetons, code en dur, et c'est LUI qui
+  # tranchait : avec l'elargissement aux voisins, le nombre de passages servis n'a
+  # pas bouge (mediane 10, moyenne 14,7 contre 14,8) — les voisins ont REMPLACE les
+  # documents les plus faibles au lieu de s'y ajouter. Treize cas ont ainsi perdu
+  # leur document quand sept en gagnaient un.
+  #
+  # La fenetre du modele a ete RELEVEE sur l'endpoint le 04/09/2026, en poussant une
+  # requete jusqu'au refus : « maximum context length is 131072 tokens ». Le budget
+  # en consommait 4,6 %.
+  #
+  # 20000 : trois fois le defaut, 15 % de la fenetre. Assez pour que les voisins
+  # s'ajoutent au lieu de remplacer, sans diluer l'attention sur cent passages. La
+  # valeur suivante, s'il en faut une, sera choisie par la mesure.
+  COLAIG_BUDGET_JETONS: "20000"
   COLAIG_CHUNK_STRATEGIE: auto
   ALBERT_MODEL_MEDIUM: qwen3-6-35b-moe
   ALBERT_MODEL_LIGHT: qwen3-6-35b-moe
