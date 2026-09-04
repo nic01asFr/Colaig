@@ -122,8 +122,18 @@ def _carte_des_articles() -> dict[str, set[str]]:
     carte: dict[str, set[str]] = {}
     for f in sorted(CORPUS.glob("*.md")):
         texte = f.read_text(encoding="utf-8", errors="ignore")
-        for art in set(_ARTICLE.findall(texte)):
-            carte.setdefault(art, set()).add(f.name)
+        # L'EN-TETE, ET NON LA MENTION.
+        #
+        # Une premiere version cherchait le motif des codes dans le TEXTE. Elle
+        # rattachait donc un article a tout fichier qui le MENTIONNE — un renvoi
+        # suffisait — et le compte « fichier servi » s'en trouvait gonfle. Elle
+        # laissait par ailleurs sans porteur les onze cas dores dont l'attendu ne
+        # suit aucun motif : « CCAG Travaux 4 », « Annexe 2 — Seuils — texte 1 ».
+        #
+        # L'en-tete dit ou l'article HABITE. C'est la seule question posee ici.
+        for ligne in texte.splitlines():
+            if ligne.startswith("## Article "):
+                carte.setdefault(ligne[len("## Article "):].strip(), set()).add(f.name)
     return carte
 
 
