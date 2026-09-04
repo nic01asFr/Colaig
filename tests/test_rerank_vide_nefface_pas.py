@@ -91,8 +91,12 @@ async def test_un_rerank_vide_conserve_les_resultats(resultats):
     """LE défaut du 30/08 : le corpus disparaissait entre FAISS et la réponse."""
     r = _retriever(_LLMSansRerank())
 
-    obtenus = await r._albert_rerank("une question", list(resultats))
+    obtenus, reranke = await r._albert_rerank("une question", list(resultats))
 
+    assert reranke is False, (
+        "un reranking qui n'a pas eu lieu ne doit pas etre annonce : "
+        "l'appelant en deduit l'echelle de ses scores, donc son seuil"
+    )
     assert len(obtenus) == 3, (
         "un fournisseur sans reranking efface la recherche : sur SSPCloud, toute "
         "question au corpus rendait zéro source"
@@ -107,8 +111,9 @@ async def test_un_rerank_qui_repond_reclasse_bien(resultats):
     """La correction ne doit pas neutraliser le reranking quand il existe."""
     r = _retriever(_LLMQuiRerank())
 
-    obtenus = await r._albert_rerank("une question", list(resultats))
+    obtenus, reranke = await r._albert_rerank("une question", list(resultats))
 
+    assert reranke is True
     assert [x.chunk.source_name for x in obtenus] == ["c", "a", "b"]
     assert obtenus[0].score == 0.9
 
@@ -118,6 +123,7 @@ async def test_une_erreur_conserve_toujours_les_resultats(resultats):
     """Comportement d'origine du `except`, préservé."""
     r = _retriever(_LLMQuiEchoue())
 
-    obtenus = await r._albert_rerank("une question", list(resultats))
+    obtenus, reranke = await r._albert_rerank("une question", list(resultats))
 
+    assert reranke is False
     assert len(obtenus) == 3

@@ -132,3 +132,47 @@ async def test_le_handler_transmet_l_index_lexical():
     assert retriever.appels[0]["k"] == 3
     assert retriever.appels[0]["store"] is vectoriel
     assert retriever.appels[0]["bm25_store"] is lexical
+
+
+@pytest.mark.asyncio
+async def test_la_fusion_se_voit_dans_le_journal(caplog):
+    """Sans cette ligne, on ne peut pas savoir laquelle des deux recherches tourne.
+
+    Une campagne du 04/09/2026 a conclu « BM25 n'apporte rien » alors que la fusion
+    n'avait jamais eu lieu : le drapeau etait actif, l'index construit et persiste, et
+    l'orchestrateur ne transmettait pas le store. Aucune trace ne permettait de le voir.
+    """
+    import logging
+
+    from colaig.models import DocumentChunk, SearchResult
+    from colaig.rag.retriever import Retriever
+
+    class _Embeddings:
+        async def embed_query(self, texte):
+            return [1.0, 0.0]
+
+        async def embed_text(self, texte):
+            return [1.0, 0.0]
+
+    def _chunk(nom):
+        return DocumentChunk(text=f"un passage extrait de {nom}", source_path=f"/{nom}",
+                             source_name=nom, position=0, section="")
+
+    class _Store:
+        count = 1
+
+        def search(self, embedding, k=5):
+            return [SearchResult(chunk=_chunk("vectoriel.md"), score=0.9, rank=1)]
+
+    class _BM25:
+        count = 1
+
+        def search(self, query, k=10):
+            return [(_chunk("lexical.md"), 3.2)]
+
+    retriever = Retriever(embedding_service=_Embeddings(), store=_Store(), albert_client=None)
+
+    with caplog.at_level(logging.INFO, logger="colaig.rag.retriever"):
+        await retriever.retrieve("delai de paiement", k=5, bm25_store=_BM25())
+
+    assert any("fusion RRF" in r.getMessage() for r in caplog.records), caplog.text

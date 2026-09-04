@@ -144,9 +144,11 @@ def echanges_dir(workspace_path: str) -> str:
 def echange_file(workspace_path: str, empreinte: str) -> str:
     """Un echange — `{ws}/.colaig/echanges/{empreinte}.json`.
 
-    `empreinte` derive de l'identifiant du message, comme pour les retours : un
-    `event_id` Matrix contient `$` et `:`, pieges comme nom de fichier. Il dedoublonne
-    aussi un evenement redelivre.
+    `empreinte` derive de l'identifiant du message quand il y en a un, comme pour les
+    retours : un `event_id` Matrix contient `$` et `:`, pieges comme nom de fichier. Il
+    dedoublonne aussi un evenement redelivre. A defaut d'identifiant — `/ask` n'en
+    fournit pas — elle derive de l'echange lui-meme, sans quoi tous s'ecraseraient
+    (voir `journal_echanges._empreinte`).
     """
     return f"{echanges_dir(workspace_path)}{empreinte}.json"
 

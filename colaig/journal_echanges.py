@@ -43,8 +43,23 @@ from colaig import paths
 logger = logging.getLogger(__name__)
 
 
-def _empreinte(message_id: str) -> str:
-    return hashlib.sha256((message_id or "").encode("utf-8")).hexdigest()[:32]
+def _empreinte(message_id: str, *, secours: str = "") -> str:
+    """Nom de fichier d'un echange.
+
+    UN IDENTIFIANT DE MESSAGE N'EST PAS TOUJOURS FOURNI.
+    ------------------------------------------------------
+    Il l'est sur Matrix (`event_id`), ou il sert aussi a DEDOUBLONNER un evenement
+    redelivre apres reconnexion. Il ne l'est pas sur `/ask` — l'endpoint par lequel
+    passe toute la mesure. Le nom derivant du seul `message_id`, les 135 questions
+    d'une campagne ecrivaient 135 fois le meme fichier : le journal cense « survivre
+    au redeploiement » gardait un echange sur 135 (releve du 04/09/2026).
+
+    A defaut d'identifiant, on nomme d'apres ce qui distingue l'echange lui-meme
+    (`secours` : horodatage + question + reponse). Le dedoublonnage reste entier la
+    ou un identifiant existe.
+    """
+    graine = message_id or secours
+    return hashlib.sha256(graine.encode("utf-8")).hexdigest()[:32]
 
 
 async def consigner_echange(
@@ -68,9 +83,10 @@ async def consigner_echange(
     if not espace:
         return
     try:
+        quand = horodatage or str(int(time.time() * 1000))
         contenu = {
             "message_id": message_id,
-            "horodatage": horodatage or str(int(time.time() * 1000)),
+            "horodatage": quand,
             "question": question,
             "reponse": reponse,
             "sources": list(sources or []),
@@ -79,7 +95,10 @@ async def consigner_echange(
         }
         await storage.mkdir(paths.echanges_dir(espace))
         await storage.upload(
-            paths.echange_file(espace, _empreinte(message_id)),
+            paths.echange_file(
+                espace,
+                _empreinte(message_id, secours=f"{quand}|{question}|{reponse}"),
+            ),
             json.dumps(contenu, ensure_ascii=False, indent=2).encode("utf-8"))
     except Exception:
         logger.debug("echange non consigne pour %s", espace, exc_info=True)

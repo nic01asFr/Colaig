@@ -256,9 +256,26 @@ class Retriever:
             return []
 
         # 3. BM25 + RRF (hybrid search)
+        #
+        # LA FUSION SE JOURNALISE, PARCE QUE SON ABSENCE NE SE VOYAIT PAS.
+        #
+        # `COLAIG_HYBRID_SEARCH_ENABLED` construit l'index BM25, le remplit, l'ecrit
+        # dans `bm25.pkl` et le recharge — mais la fusion n'a lieu que si l'appelant
+        # transmet `bm25_store`. L'orchestrateur ne le transmettait pas : le drapeau
+        # etait actif, l'index present, et la recherche restait purement vectorielle.
+        # Une campagne entiere a conclu « BM25 n'apporte rien » en mesurant deux fois
+        # la meme chose (04/09/2026). Rien, nulle part, ne disait laquelle des deux
+        # recherches tournait.
+        fusion_rrf = False
         if bm25_store is not None and bm25_store.count > 0:
+            fusion_rrf = True
             bm25_results = bm25_store.search(query, k=vivier)
+            avant_fusion = len(candidates)
             candidates = _rrf_combine(candidates, bm25_results, k=vivier, k_constant=self._rrf_k)
+            logger.info(
+                "retriever: fusion RRF — %d candidats vectoriels + %d lexicaux → %d",
+                avant_fusion, len(bm25_results), len(candidates),
+            )
 
         # 3b. Le meme passage ne prend pas deux places.
         # AVANT le MMR : celui-ci reduit le vivier a , donc dedupliquer apres
@@ -273,15 +290,34 @@ class Retriever:
         if self._albert_client is not None and len(reranked) > 1:
             faiss_scores = [round(r.score, 4) for r in reranked[:3]]
             logger.info("retriever: FAISS top scores avant rerank: %s", faiss_scores)
-            reranked = await self._albert_rerank(query, reranked)
-            albert_reranked = True
+            reranked, albert_reranked = await self._albert_rerank(query, reranked)
 
         # 5. Filtrage par score
-        # Threshold adaptatif : HyDE produit des embeddings enrichis → similarités plus élevées
-        # → le seuil par défaut 0.3 peut être trop conservateur. Avec reranker Albert
-        # (BAAI/bge-reranker-v2-m3), les scores sigmoid sont ~0.001-0.005.
+        #
+        # UN SEUIL NE VAUT QUE POUR L'ECHELLE QU'IL FILTRE.
+        #
+        # `score_threshold` est une similarite COSINUS (0,3 par defaut ; les relevés
+        # sur corpus reel donnent ~0,72 en tete). Le score porte par un resultat ne
+        # vient pas toujours de cette echelle :
+        #
+        #   FAISS      cosinus dans [0, 1]
+        #   RRF        1 / (60 + rang) — soit 0,016 AU PREMIER RANG
+        #   reranker   sigmoide ~0,001-0,005 (bge-reranker-v2-m3)
+        #
+        # Filtrer des scores RRF a 0,3 les elimine TOUS, sans erreur ni resultat.
+        # Cela ne se voyait pas parce que `albert_reranked` etait pose a True apres
+        # TOUT appel au reranker, y compris quand celui-ci repondait « je n'existe
+        # pas » — le cas permanent sur SSPCloud. Le seuil tombait a 0,001 et laissait
+        # passer la fusion : la recherche hybride ne fonctionnait en service que par
+        # cet accident, et le filtrage cosinus etait mort partout ailleurs.
+        #
+        # Chaque etage annonce donc desormais son echelle.
         if albert_reranked:
             effective_threshold = 0.001
+        elif fusion_rrf:
+            # Un rang n'est pas une similarite : il n'y a pas de seuil absolu a poser.
+            # C'est `k` qui borne le nombre de passages, comme dans tout classement.
+            effective_threshold = 0.0
         elif self._hyde_enabled and self._albert_client is not None:
             effective_threshold = max(score_threshold - 0.05, 0.0)  # HyDE → seuil légèrement abaissé
         else:
@@ -376,11 +412,16 @@ class Retriever:
         self,
         query: str,
         results: list[SearchResult],
-    ) -> list[SearchResult]:
+    ) -> tuple[list[SearchResult], bool]:
         """Reranke les résultats MMR via le cross-encoder Albert.
 
         Remplace les scores FAISS/RRF par les scores du reranker et retrie.
         En cas d'erreur, retourne l'ordre MMR inchangé.
+
+        Returns:
+            (resultats, reranke) — `reranke` dit si les scores portes ont CHANGE
+            d'echelle. L'appelant en depend pour choisir son seuil de filtrage :
+            l'annoncer a tort revient a desactiver le filtrage (voir etape 5).
         """
         try:
             texts = [r.chunk.text for r in results]
@@ -407,7 +448,7 @@ class Retriever:
             if not ranked_pairs:
                 logger.info("reranking non disponible — ordre MMR conserve (%d résultats)",
                             len(results))
-                return results
+                return results, False
 
             logger.info(
                 "reranker Albert scores: %s",
@@ -418,10 +459,10 @@ class Retriever:
                 result = results[orig_idx]
                 result.score = score
                 reordered.append(result)
-            return reordered
+            return reordered, True
         except Exception:
             logger.warning("reranking Albert échoué, fallback ordre MMR", exc_info=True)
-            return results
+            return results, False
 
 
 # ── Fonctions utilitaires ────────────────────────────────────────────────────

@@ -149,3 +149,42 @@ def test_les_deux_sites_d_envoi_consignent():
     source = Path("colaig/messaging/handlers.py").read_text(encoding="utf-8")
     assert source.count("consigner_echange") >= 3, (
         "les deux sites d'échange doivent consigner (plus l'import)")
+
+
+@pytest.mark.asyncio
+async def test_deux_echanges_sans_identifiant_ne_s_ecrasent_pas():
+    """Un canal qui ne fournit pas d'identifiant de message a droit a son journal.
+
+    Le nom du fichier derivait du SEUL `message_id`. `/ask` — l'endpoint par lequel
+    passe toute la mesure — n'en fournit pas : les 135 questions d'une campagne
+    ecrivaient donc 135 fois LE MEME fichier, et le journal cense « survivre au
+    redeploiement » gardait exactement un echange.
+
+    Releve le 04/09/2026 : 1 fichier pour 135 questions posees.
+    """
+    s = _Storage()
+
+    for q in ("premiere question", "deuxieme question", "troisieme question"):
+        await consigner_echange(s, "/espace/", question=q, reponse="r",
+                                sources=[], confiance=0.5, temps_ms=1, message_id="")
+
+    assert len(s.fichiers) == 3
+    relus = await lire_echanges(s, "/espace/")
+    assert [e["question"] for e in relus] == [
+        "premiere question", "deuxieme question", "troisieme question"]
+
+
+@pytest.mark.asyncio
+async def test_un_message_redelivre_ne_compte_qu_une_fois():
+    """Le dedoublonnage reste la propriete de ceux qui ont un identifiant.
+
+    Matrix redelivre un evenement apres reconnexion. Deux traces pour un seul echange
+    fausseraient toute observation faite sur ce journal.
+    """
+    s = _Storage()
+
+    for _ in range(3):
+        await consigner_echange(s, "/espace/", question="q", reponse="r",
+                                sources=[], confiance=0.5, temps_ms=1, message_id="$evt42")
+
+    assert len(s.fichiers) == 1
