@@ -50,7 +50,7 @@ _ARGS = sys.argv[1:]
 sys.path.insert(0, str(RACINE))
 
 from colaig.rag.garde_fou_reponse import est_un_refus  # noqa: E402
-from colaig.rag.verification_citations import articles_cites  # noqa: E402
+from colaig.rag.verification_citations import articles_cites as _articles_cites  # noqa: E402
 
 BASE = "https://user-nic01asfr-colaig-test.user.lab.sspcloud.fr"
 NS = "user-nic01asfr"
@@ -58,6 +58,37 @@ SALON = "!GVJlwHqwWSTxStFIGh:agent.dev-durable.tchap.gouv.fr"
 UTILISATEUR = "@nicolas.laval-developpement-durable.gouv.fr1:agent.dev-durable.tchap.gouv.fr"
 JEU = RACINE / "tests" / "golden" / "v1.jsonl"
 MESURES = RACINE / "_chantier" / "mesures"
+CORPUS = RACINE / "tests" / "golden" / "corpus-marches-publics"
+
+
+def _vocabulaire_du_corpus() -> set[str]:
+    """Identifiants d'articles que AUCUNE expression reguliere ne decrit.
+
+    « CCAG Travaux 4 », « Annexe 2 — Seuils de procedure — texte 1 » : le motif des
+    codes juridiques (L2112-1) ne les couvre pas, et en ecrire un qui les couvre
+    attraperait la moitie de la prose. `verification_citations` a la voie prevue pour
+    cela — `identifiants=`, cherches litteralement — et `reference_generation` s'en
+    sert depuis toujours.
+
+    CE HARNAIS NE S'EN SERVAIT PAS. Onze cas dores portent un de ces identifiants en
+    attendu : une reponse qui les citait correctement etait comptee comme ne citant
+    RIEN. Recomptees apres coup, les quatre campagnes du 04/09/2026 y perdaient une a
+    deux reponses justes chacune. Le biais est modeste et uniforme, mais il etait
+    invisible — et c'est la troisieme fois qu'un compteur decide d'un diagnostic.
+    """
+    vocabulaire: set[str] = set()
+    for f in sorted(CORPUS.glob("*.md")):
+        for ligne in f.read_text(encoding="utf-8", errors="ignore").splitlines():
+            if ligne.startswith("## Article "):
+                vocabulaire.add(ligne[len("## Article "):].strip())
+    return vocabulaire
+
+
+_VOCABULAIRE = _vocabulaire_du_corpus()
+
+
+def articles_cites(texte: str) -> set[str]:
+    return _articles_cites(texte, identifiants=_VOCABULAIRE)
 
 
 def _image_du_pod() -> str:
@@ -211,7 +242,8 @@ def main() -> int:
     if negatifs_seuls:
         cas = [c for c in cas if c.get("attendu_refus")]
     print(f"cas      : {len(cas)}{' (negatifs seuls)' if negatifs_seuls else ' (jeu complet)'}")
-    print(f"pause    : {pause} s entre appels\n")
+    print(f"pause    : {pause} s entre appels")
+    print(f"vocabulaire du corpus : {len(_VOCABULAIRE)} identifiants\n")
 
     resultats, latences = [], []
     for i, c in enumerate(cas, 1):
@@ -227,8 +259,8 @@ def main() -> int:
             "id": c["id"], "negatif": bool(c.get("attendu_refus")),
             "question": c["question"], "reponse": texte,
             "refus": est_un_refus(texte),
-            "articles_cites": sorted(articles_cites(texte)),
-            "cite_attendu": bool(set(c.get("articles_attendus", [])) & articles_cites(texte)),
+            "articles_cites": sorted(cites := articles_cites(texte)),
+            "cite_attendu": bool(set(c.get("articles_attendus", [])) & cites),
             "annote_par_le_garde_fou": "non vérifiable" in texte,
             "latence_s": round(duree, 1),
         })
