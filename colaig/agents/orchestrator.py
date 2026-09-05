@@ -860,6 +860,30 @@ class Orchestrator:
 
         tool_result = await available_tools.execute(tool_call)
 
+        # CHAQUE APPEL D'OUTIL LAISSE UNE TRACE.
+        #
+        # Seuls les destructifs se journalisaient — suspendus, ou executes sur accord.
+        # Un appel a `search_documents`, `fetch_document` ou `list_documents` ne
+        # laissait rien, et l'on ne pouvait donc pas dire quels outils le modele
+        # emploie reellement.
+        #
+        # Le cas qui l'a rendu genant, mp-057 du jeu dore, 05/09/2026 : le modele
+        # repond « le document relatif a la definition du besoin a ete identifie dans
+        # le sommaire », puis declare que l'information ne figure pas dans les
+        # passages. Il a lu le sommaire, NOMME le bon fichier, et n'est pas alle le
+        # chercher — alors que `fetch_document` lui etait offert. A-t-il essaye ? Le
+        # journal ne permettait pas de le dire.
+        #
+        # Meme trou que la fusion RRF, qui a coute une campagne avant qu'une ligne ne
+        # montre qu'elle n'avait jamais lieu. Les arguments sont tronques : ils disent
+        # CE QUE le modele cherchait, ils n'ont pas a remplir le journal.
+        logger.info(
+            "outil %s : %s — %s",
+            tool_call.tool_name,
+            "ok" if tool_result.success else f"echec ({tool_result.error})",
+            json.dumps(tool_call.arguments, ensure_ascii=False)[:200],
+        )
+
         # Accumuler les résultats RAG dans plan.search_results
         if tool_call.tool_name == "search_documents" and tool_result.success:
             try:
