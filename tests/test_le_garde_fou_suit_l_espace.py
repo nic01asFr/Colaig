@@ -103,18 +103,31 @@ async def test_la_variable_globale_reste_un_repli(monkeypatch):
 # ── La grammaire suit l'espace ───────────────────────────────────────────────
 
 
-async def test_sans_grammaire_declaree_une_citation_de_ccag_est_detruite(monkeypatch):
-    """Le defaut mesure — fige tel quel, pour que sa correction soit visible.
+async def test_sans_grammaire_declaree_une_citation_de_ccag_survit(monkeypatch):
+    """Le defaut que ce test figeait est corrige — 05/09/2026.
 
-    Ce test dit ce qu'il en coute de ne rien declarer : une reponse juste devient un
-    refus. Il ne valide pas ce comportement, il en garde la trace.
+    Il portait, jusqu'a cette date, la trace inverse : sans grammaire declaree, une
+    reponse juste citant « l'Article 4.1 du CCAG Travaux » etait REMPLACEE PAR UN
+    REFUS, faute que le garde-fou reconnaisse la citation. Sa formulation le disait :
+    « fige tel quel, pour que sa correction soit visible ».
+
+    Elle l'est. `articles_cites` rapproche desormais la forme du metier — « l'article
+    4.1 du CCAG Travaux » — de celle du corpus — « CCAG Travaux 4 ». Le rapprochement
+    exige le nom du cahier a proximite du numero, et refuse si un autre cahier
+    s'interpose : le corpus en porte quatre dont les articles portent les memes
+    numeros.
+
+    Declarer `format_citation` reste utile pour d'autres formes ; ce n'est plus une
+    condition pour qu'une citation de CCAG soit vue.
     """
     monkeypatch.delenv("COLAIG_GARDE_FOU_ENABLED", raising=False)
+    reponse = "L'ordre de priorite des pieces figure a l'Article 4.1 du CCAG Travaux."
     sortie = await _coeur(
-        "L'ordre de priorite des pieces figure a l'Article 4.1 du CCAG Travaux.",
+        reponse,
         _contexte(garde_fou_provenance=True),
         _resultats(PASSAGE_CCAG, "Article CCAG Travaux 4"))
-    assert "ne figure pas dans les documents consultés" in sortie
+    assert "ne figure pas dans les documents consultés" not in sortie
+    assert reponse in sortie
 
 
 async def test_avec_la_grammaire_declaree_la_citation_de_ccag_est_reconnue(monkeypatch):

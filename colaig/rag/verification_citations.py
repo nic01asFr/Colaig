@@ -108,6 +108,73 @@ _MOTIFS = {FORMAT_CODE: _MOTIF_ARTICLE, FORMAT_CLAUSE: _MOTIF_CLAUSE}
 FORMATS_CONNUS = frozenset(_MOTIFS)
 
 
+# Un identifiant de corpus se decompose en « <cahier> <numero> » : « CCAG Travaux 4 »,
+# « CCAG Prestations intellectuelles 3 ». Le suffixe « — texte N » que porte une annexe
+# vient du decoupage, pas du nom.
+_IDENTIFIANT_NUMEROTE = re.compile(r"^(?P<cahier>.+?) (?P<numero>\d{1,3})$")
+_SUFFIXE_DE_DECOUPAGE = re.compile(r"\s*—\s*texte\s+\d+$", re.I)
+
+# « article 4.1 », « art. 41 », « Article 3 » — le sous-numero appartient a son article.
+_ARTICLE_EN_TEXTE = re.compile(r"\bart(?:icle|\.)?\s+(\d{1,3})(?:\.\d{1,2})*\b", re.I)
+
+# Distance maximale, en caracteres, entre le numero d'article et le nom du cahier.
+# Sans elle, tout texte mentionnant un cahier citerait tous ses articles ; trop large,
+# elle rapprocherait l'article d'un cahier du nom d'un autre — le corpus en porte
+# quatre dont les articles portent les memes numeros.
+_PORTEE_DU_RAPPROCHEMENT = 60
+
+
+def _en_forme_naturelle(texte: str, identifiants) -> set:
+    """Identifiants cites sous la forme du metier plutot que sous celle du corpus.
+
+    Le corpus NOMME ses articles « CCAG Travaux 4 » parce que c'est ainsi qu'il les
+    indexe. Un redacteur ecrit « l'article 4.1 du CCAG Travaux ». La recherche
+    litterale ne rapproche pas les deux, et une reponse exacte compte pour un echec —
+    releve le 05/09/2026 sur cinq cas dores au moins, et le garde-fou s'en sert aussi :
+    une citation qu'il ne voit pas est une reponse qu'il peut affaiblir a tort.
+
+    Le rapprochement exige le nom du cahier a PROXIMITE IMMEDIATE du numero, et refuse
+    si le nom d'un autre cahier s'interpose : « l'article 3 du CCAG Prestations
+    intellectuelles » ne cite pas « CCAG Travaux 3 ».
+    """
+    plat = " ".join((texte or "").split())
+    trouves = set()
+
+    par_cahier = {}
+    for identifiant in identifiants:
+        m = _IDENTIFIANT_NUMEROTE.match(identifiant.strip())
+        if m:
+            par_cahier.setdefault(m.group("cahier"), {})[m.group("numero")] = identifiant
+    cahiers = sorted(par_cahier, key=len, reverse=True)
+
+    for occurrence in _ARTICLE_EN_TEXTE.finditer(plat):
+        numero = occurrence.group(1)
+        debut = max(0, occurrence.start() - _PORTEE_DU_RAPPROCHEMENT)
+        fin = occurrence.end() + _PORTEE_DU_RAPPROCHEMENT
+        voisinage = plat[debut:fin]
+        # Le cahier le plus long d'abord : « CCAG Fournitures et services » avant
+        # « CCAG », faute de quoi un prefixe commun capterait tout.
+        candidats = [c for c in cahiers if c in voisinage]
+        if len(candidats) != 1:
+            continue          # aucun cahier nomme, ou plusieurs : on ne tranche pas
+        identifiant = par_cahier[candidats[0]].get(numero)
+        if identifiant:
+            trouves.add(identifiant)
+
+    # Une annexe citee sans le suffixe que le decoupage lui a ajoute.
+    #
+    # SEULEMENT SI LE NOM AINSI OBTENU NE DESIGNE QUE CELLE-LA. « CCAG Travaux —
+    # texte 1 » donnerait « CCAG Travaux », qui prefixe les quarante articles du meme
+    # cahier : toute mention du cahier aurait alors cite ce texte. « Annexe 2 — Seuils
+    # de procedure », lui, ne prefixe rien d'autre.
+    for identifiant in identifiants:
+        nom = _SUFFIXE_DE_DECOUPAGE.sub("", identifiant).strip()
+        if nom and nom != identifiant and nom not in par_cahier and nom in plat:
+            trouves.add(identifiant)
+
+    return trouves
+
+
 def _litteraux(texte: str, identifiants) -> set[str]:
     """Identifiants du corpus retrouvés **littéralement** dans un texte.
 
@@ -155,6 +222,7 @@ def articles_cites(texte: str, formats: tuple[str, ...] = (FORMAT_CODE,),
             trouves.add("".join(capture) if isinstance(capture, tuple) else capture)
     if identifiants:
         trouves |= _litteraux(texte, identifiants)
+        trouves |= _en_forme_naturelle(texte, identifiants)
     return trouves
 
 
