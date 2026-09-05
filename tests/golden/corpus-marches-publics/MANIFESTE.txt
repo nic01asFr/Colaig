@@ -6,6 +6,12 @@
 # Une régénération qui ne reproduit pas ces empreintes signale que la source
 # a bougé : le jeu doré doit alors être revérifié avant d'être cru.
 
+#
+# reordonne le 05/09/2026 : 22 fichiers dont les articles etaient tries comme des
+# chaines — « R2194-10 » se placait entre « R2194-1 » et « R2194-2 ». AUCUN ARTICLE
+# N'A CHANGE : verifie fichier par fichier, l'ensemble des blocs est rigoureusement
+# le meme avant et apres, et les reponses attendues du jeu dore restent valides.
+
 f1785bc543dc1300    20159  000-SOMMAIRE.md
 eb21ca853b78d809     6846  001-annexe-12-signature-electronique-texte.md
 b80f1091b3941d13     6524  002-annexe-13-modeles-de-garantie-annexe.md
@@ -70,47 +76,47 @@ ad73953ad0383c3c     4664  060-ccag-travaux-chapitre-8-differends.md
 56d79f786db33e94     1915  061-deuxieme-partie-marches-publics-livre-ie-livre-ier-dispositions-generales.md
 d548a8f77b21432f     5888  062-deuxieme-partie-marches-publics-livre-ie-titre-ii-choix-de-la-procedure-de-passation.md
 c9d191470dde7d75     2082  063-deuxieme-partie-marches-publics-livre-ie-titre-iii-engagement-de-la-procedure-de-passation.md
-6d9e8b169be4567e    14680  064-deuxieme-partie-marches-publics-livre-ie-titre-iv-phase-de-candidature.md
-d092efe077c64704     6400  065-deuxieme-partie-marches-publics-livre-ie-chapitre-ii-modalites-de-facturation-et-de-paiemen.md
-6c78996a3c697191     6187  066-deuxieme-partie-marches-publics-livre-ie-chapitre-iii-sous-traitance.md
+addac4470d78b3c8    14546  064-deuxieme-partie-marches-publics-livre-ie-titre-iv-phase-de-candidature.md
+47b8e52d3eefbc5e     6306  065-deuxieme-partie-marches-publics-livre-ie-chapitre-ii-modalites-de-facturation-et-de-paiemen.md
+2067abd0d1c735ba     6094  066-deuxieme-partie-marches-publics-livre-ie-chapitre-iii-sous-traitance.md
 225493a37a9b7d3c     2045  067-deuxieme-partie-marches-publics-livre-ie-chapitre-iv-modification-du-marche.md
 188a75b92964b213     3232  068-deuxieme-partie-marches-publics-livre-ie-chapitre-ier-execution-financiere.md
 b7c42c13c2592b10     2586  069-deuxieme-partie-marches-publics-livre-ie-chapitre-v-resiliation-du-marche.md
 8a44af65a2b72623     4235  070-deuxieme-partie-marches-publics-livre-ie-chapitre-vi-informations-relatives-a-l-achat.md
 113e815bbc90a274     2709  071-deuxieme-partie-marches-publics-livre-ie-chapitre-vii-reglement-alternatif-des-differends.md
-62366a854d87bafa    17964  072-deuxieme-partie-marches-publics-livre-ie-titre-ier-preparation-du-marche.md
+6538b70a9deaa9c2    17771  072-deuxieme-partie-marches-publics-livre-ie-titre-ier-preparation-du-marche.md
 05a5c4a7acf361a7     7330  073-deuxieme-partie-marches-publics-livre-ie-titre-v-phase-d-offre.md
 57d40618d78c81d2    11097  074-deuxieme-partie-marches-publics-livre-ie-titre-vii-regles-applicables-a-certains-marches.md
 9eeff6ad2ea7ea0b     1164  075-deuxieme-partie-marches-publics-livre-ie-titre-viii-achevement-de-la-procedure.md
 371a126541fb737a     3817  076-partie-legislative-titre-preliminaire.md
 d68da2c1ea13cd05     1362  077-deuxieme-partie-marches-publics-livre-ie-livre-ier-dispositions-generales.md
-64090e8b8964d6fa    20697  078-deuxieme-partie-marches-publics-livre-ie-titre-ii-choix-de-la-procedure-de-passation.md
-de8f641cc23adc97    24633  079-deuxieme-partie-marches-publics-livre-ie-titre-iii-engagement-de-la-procedure-de-passation.md
-d7b1e3e9632f26da    12678  080-deuxieme-partie-marches-publics-livre-ie-chapitre-ii-conditions-de-participation.md
-890526ac37bfd52b     9316  081-deuxieme-partie-marches-publics-livre-ie-chapitre-iii-contenu-des-candidatures.md
+fadb21a34a052ed6    20467  078-deuxieme-partie-marches-publics-livre-ie-titre-ii-choix-de-la-procedure-de-passation.md
+579a5bf7a3f1c65c    24412  079-deuxieme-partie-marches-publics-livre-ie-titre-iii-engagement-de-la-procedure-de-passation.md
+eea9de3cd5963d17    12498  080-deuxieme-partie-marches-publics-livre-ie-chapitre-ii-conditions-de-participation.md
+01747f33d2b349a4     9209  081-deuxieme-partie-marches-publics-livre-ie-chapitre-iii-contenu-des-candidatures.md
 0592de855831074d     5005  082-deuxieme-partie-marches-publics-livre-ie-chapitre-iv-examen-des-candidatures.md
-f608f8290e583bb6    16429  083-deuxieme-partie-marches-publics-livre-ie-chapitre-ii-modalites-de-facturation-et-de-paiemen.md
-526cfc6c1727349d    10594  084-deuxieme-partie-marches-publics-livre-ie-chapitre-iii-sous-traitance.md
-3cb5a32825b4ef5a     5796  085-deuxieme-partie-marches-publics-livre-ie-chapitre-iv-modification-du-marche.md
+304aa20724d48967    16210  083-deuxieme-partie-marches-publics-livre-ie-chapitre-ii-modalites-de-facturation-et-de-paiemen.md
+446665bbd9bddb54    10449  084-deuxieme-partie-marches-publics-livre-ie-chapitre-iii-sous-traitance.md
+d886ecc9d8428abc     5727  085-deuxieme-partie-marches-publics-livre-ie-chapitre-iv-modification-du-marche.md
 300ffa005d916c68     1237  086-deuxieme-partie-marches-publics-livre-ie-chapitre-ier-execution-financiere.md
-edde767d9bffdd1d     6422  087-deuxieme-partie-marches-publics-livre-ie-section-1-avances.md
+8dc26c70725c6792     6319  087-deuxieme-partie-marches-publics-livre-ie-section-1-avances.md
 b8509008f31ac0ca     1646  088-deuxieme-partie-marches-publics-livre-ie-section-2-acomptes.md
 e08950572a58a0e1     4015  089-deuxieme-partie-marches-publics-livre-ie-section-3-regime-des-paiements.md
 aa8f7fd37c0a911c     6669  090-deuxieme-partie-marches-publics-livre-ie-section-4-garanties.md
 dafb02a052caeba5     7483  091-deuxieme-partie-marches-publics-livre-ie-section-5-cession-ou-nantissement-des-creances.md
-7118a05fa5543920     6575  092-deuxieme-partie-marches-publics-livre-ie-chapitre-vi-informations-relatives-a-l-achat.md
-8187d27d6cbbca53    14459  093-deuxieme-partie-marches-publics-livre-ie-chapitre-vii-reglement-alternatif-des-differends.md
-e1ac16ae09839aa7     9401  094-deuxieme-partie-marches-publics-livre-ie-chapitre-ii-contenu-du-marche.md
+3120cdc32d60b763     6492  092-deuxieme-partie-marches-publics-livre-ie-chapitre-vi-informations-relatives-a-l-achat.md
+d45256d7fe7ee98e    14298  093-deuxieme-partie-marches-publics-livre-ie-chapitre-vii-reglement-alternatif-des-differends.md
+5cd4b8f5d1a7671b     9279  094-deuxieme-partie-marches-publics-livre-ie-chapitre-ii-contenu-du-marche.md
 6a00fab5ef867ca6     3693  095-deuxieme-partie-marches-publics-livre-ie-chapitre-iii-organisation-de-l-achat.md
-cfaa6ca70d9e5137     9179  096-deuxieme-partie-marches-publics-livre-ie-chapitre-ier-definition-du-besoin.md
-ba2780186a8c9dc0    19742  097-deuxieme-partie-marches-publics-livre-ie-titre-v-phase-d-offre.md
-cf3d4436e888da8a     7470  098-deuxieme-partie-marches-publics-livre-ie-section-1-accords-cadres.md
+2921270c75a498fa     9067  096-deuxieme-partie-marches-publics-livre-ie-chapitre-ier-definition-du-besoin.md
+71754c2e868430de    19514  097-deuxieme-partie-marches-publics-livre-ie-titre-v-phase-d-offre.md
+1d7bb7e5f9a96cab     7371  098-deuxieme-partie-marches-publics-livre-ie-section-1-accords-cadres.md
 5525d47047fe9c47     5208  099-deuxieme-partie-marches-publics-livre-ie-section-2-concours.md
 abeef25a5be82fde     5410  100-deuxieme-partie-marches-publics-livre-ie-section-3-systeme-de-qualification-des-entites-adj.md
 7a6f27f144c0b46f     7639  101-deuxieme-partie-marches-publics-livre-ie-section-4-systeme-d-acquisition-dynamique.md
 4b9fc5773ce976fa     4401  102-deuxieme-partie-marches-publics-livre-ie-section-5-catalogues-electroniques.md
 c18aa5ad3ef5d977     5494  103-deuxieme-partie-marches-publics-livre-ie-section-6-encheres-electroniques.md
-daa5f13ac8125321    14455  104-deuxieme-partie-marches-publics-livre-ie-chapitre-ier-regles-applicables-aux-procedures-for.md
-9fe4a4df53759d9f    16920  105-deuxieme-partie-marches-publics-livre-ie-chapitre-ii-regles-applicables-a-certains-marches.md
-ec6af0d45d99a13a    12488  106-deuxieme-partie-marches-publics-livre-ie-chapitre-ier-regles-applicables-a-certains-marches.md
-8ffa8a54189807fb    15484  107-deuxieme-partie-marches-publics-livre-ie-titre-viii-achevement-de-la-procedure.md
+2408e87489b2681e    14260  104-deuxieme-partie-marches-publics-livre-ie-chapitre-ier-regles-applicables-aux-procedures-for.md
+a2ebe55132649f9c    16693  105-deuxieme-partie-marches-publics-livre-ie-chapitre-ii-regles-applicables-a-certains-marches.md
+dab09018283a95ca    12334  106-deuxieme-partie-marches-publics-livre-ie-chapitre-ier-regles-applicables-a-certains-marches.md
+a2eaa5bd3bbe47ae    15262  107-deuxieme-partie-marches-publics-livre-ie-titre-viii-achevement-de-la-procedure.md
