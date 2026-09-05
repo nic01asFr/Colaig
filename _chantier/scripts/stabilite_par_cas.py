@@ -42,6 +42,16 @@ def _module_des_sources():
     return mod
 
 
+def _reponses(chemin) -> list:
+    """Les reponses d'un fichier de mesure, quelle que soit sa forme.
+
+    Les fichiers anterieurs au 05/09/2026 sont une liste nue ; depuis, ils portent
+    aussi le montage qui les a produits.
+    """
+    d = json.loads(Path(chemin).read_text(encoding="utf-8"))
+    return d["reponses"] if isinstance(d, dict) else d
+
+
 def main() -> int:
     if len(sys.argv) < 3:
         print(__doc__)
@@ -58,7 +68,7 @@ def main() -> int:
     vus = collections.Counter()
 
     for chemin in sys.argv[1:]:
-        for r in json.loads(Path(chemin).read_text(encoding="utf-8")):
+        for r in _reponses(chemin):
             if r.get("negatif"):
                 continue
             attendus = set(cas.get(r["id"], {}).get("articles_attendus") or [])

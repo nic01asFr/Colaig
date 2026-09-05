@@ -113,6 +113,39 @@ def _commit_attendu() -> str:
     return (r.stdout or "").strip()
 
 
+def _reglages_du_pod() -> dict:
+    """Les variables COLAIG_* et ALBERT_MODEL_* que porte le pod mesure.
+
+    POURQUOI CE RELEVE
+    --------------------
+    Un fichier de mesure ne disait que ce qui en etait sorti, jamais dans quelles
+    conditions. Neuf campagnes du 04-05/09/2026 se sont ainsi accumulees sous des
+    montages differents — decoupage, recherche hybride, elargissement aux voisins,
+    budget de jetons, temperatures — et il a fallu les reconstituer a la main, depuis
+    l'historique du fichier de valeurs Helm, pour savoir laquelle mesurait quoi.
+
+    Une mesure dont on ne peut pas dire ce qu'elle mesurait n'est pas une mesure.
+    """
+    out = subprocess.run(
+        ["kubectl", "get", "pods", "-n", NS,
+         "-l", "app.kubernetes.io/instance=colaig-test", "-o", "json"],
+        capture_output=True, text=True, encoding="utf-8", timeout=60)
+    try:
+        pods = json.loads(out.stdout)["items"]
+    except Exception:  # noqa: BLE001
+        return {}
+    if not pods:
+        return {}
+    reglages = {}
+    for entree in pods[0]["spec"]["containers"][0].get("env", []):
+        nom, valeur = entree.get("name", ""), entree.get("value")
+        # Une entree sans `value` vient d'un Secret : on note qu'elle existe, jamais
+        # ce qu'elle vaut.
+        if nom.startswith(("COLAIG_", "ALBERT_MODEL_", "LLM_MODEL_")):
+            reglages[nom] = valeur if valeur is not None else "(secret)"
+    return dict(sorted(reglages.items()))
+
+
 def _verifier_le_montage() -> str:
     """Refuse de mesurer si l'image ne CONTIENT pas le code presente.
 
@@ -269,7 +302,17 @@ def main() -> int:
     MESURES.mkdir(exist_ok=True)
     suffixe = ("negatifs" if negatifs_seuls else "complet") + ("" if isole else "-fil")
     sortie = MESURES / f"pod-{suffixe}-{time.strftime('%Y%m%d-%H%M')}.json"
-    sortie.write_text(json.dumps(resultats, ensure_ascii=False, indent=1), encoding="utf-8")
+    # LE MONTAGE ACCOMPAGNE LA MESURE. Les fichiers anterieurs au 05/09/2026 sont des
+    # listes nues ; les lecteurs acceptent les deux formes.
+    contenu = {
+        "montage": {
+            "image": _image_du_pod(),
+            "horodatage": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "reglages": _reglages_du_pod(),
+        },
+        "reponses": resultats,
+    }
+    sortie.write_text(json.dumps(contenu, ensure_ascii=False, indent=1), encoding="utf-8")
 
     negatifs = [r for r in resultats if r["negatif"]]
     positifs = [r for r in resultats if not r["negatif"]]

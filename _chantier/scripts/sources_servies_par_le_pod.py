@@ -143,11 +143,21 @@ def _carte_des_articles() -> dict[str, set[str]]:
     return carte
 
 
+def _reponses(chemin) -> list:
+    """Les reponses d'un fichier de mesure, quelle que soit sa forme.
+
+    Les fichiers anterieurs au 05/09/2026 sont une liste nue ; depuis, ils portent
+    aussi le montage qui les a produits.
+    """
+    d = json.loads(Path(chemin).read_text(encoding="utf-8"))
+    return d["reponses"] if isinstance(d, dict) else d
+
+
 def main() -> int:
     if len(sys.argv) < 2:
         print(__doc__)
         return 2
-    mesure = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+    mesure = _reponses(sys.argv[1])
     cas = {c["id"]: c for c in
            (json.loads(l) for l in JEU.read_text(encoding="utf-8").splitlines() if l.strip())}
     carte = _carte_des_articles()

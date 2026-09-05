@@ -48,7 +48,17 @@ def _mcnemar(gagnes: int, perdus: int) -> float:
 
 
 def _charger(chemin: str) -> dict[str, dict]:
-    return {r["id"]: r for r in json.loads(Path(chemin).read_text(encoding="utf-8"))}
+    return {r["id"]: r for r in _reponses(chemin)}
+
+
+def _reponses(chemin) -> list:
+    """Les reponses d'un fichier de mesure, quelle que soit sa forme.
+
+    Les fichiers anterieurs au 05/09/2026 sont une liste nue ; depuis, ils portent
+    aussi le montage qui les a produits.
+    """
+    d = json.loads(Path(chemin).read_text(encoding="utf-8"))
+    return d["reponses"] if isinstance(d, dict) else d
 
 
 def main() -> int:
