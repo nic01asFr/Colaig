@@ -3,56 +3,11 @@
 > **Position dans le Code de la commande publique**  
 > Partie réglementaire › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre IX : EXÉCUTION DU MARCHÉ › Chapitre Ier : EXÉCUTION FINANCIÈRE › Section 1 : Avances
 
-**14 articles en vigueur** — R2191-10 à R2191-9.
+**14 articles en vigueur** — R2191-3 à R2191-18.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
 ---
-
-## Article R2191-10
-
-*En vigueur depuis le 2019-04-01.*
-
-Les clauses du marché précisent les conditions de versement de l'avance ainsi que son taux.
-
-## Article R2191-11
-
-*En vigueur depuis le 2026-01-01.*
-
-Le remboursement de l'avance s'impute sur les sommes dues au titulaire, selon un rythme et des modalités fixées par les clauses du marché par précompte sur les sommes dues à titre d'acomptes, de règlement partiel définitif ou de solde.
-Dans le silence du marché, le remboursement de l'avance est échelonné en tenant compte du montant de l'avance accordée et des sommes restant dues au titulaire. Ce remboursement s'impute par précompte sur les sommes dues au titulaire et débute :
-1° Pour les avances inférieures ou égales à 30 % du montant toutes taxes comprises du marché, quand le montant des prestations exécutées par le titulaire atteint 65 % du montant toutes taxes comprises de sa part du marché ;
-2° Pour les avances supérieures à 30 % du montant toutes taxes comprises du marché, à la première demande de paiement.
-
-## Article R2191-13
-
-*En vigueur depuis le 2019-04-01.*
-
-Dans le cas d'un marché à tranche optionnelle, une avance est versée au titulaire pour chaque tranche affermie dans les conditions prévues à la sous-section 1.
-
-## Article R2191-15
-
-*En vigueur depuis le 2019-04-01.*
-
-Dans le cas d'un marché reconductible, une avance est versée au titulaire pour chaque reconduction dans les conditions prévues à la sous-section 1.
-
-## Article R2191-16
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque l'accord-cadre exécuté par l'émission de bons de commande ne prévoit pas de montant minimum, l'avance est accordée pour chaque bon de commande remplissant les conditions prévues à la sous-section 1.
-
-## Article R2191-17
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque l'accord-cadre exécuté par l'émission de bons de commande prévoit un montant minimum supérieur à 50 000 euros hors taxes, l'avance est accordée en une seule fois sur la base de ce montant minimum.
-
-## Article R2191-18
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque l'accord-cadre exécuté par l'émission de bons de commande prévoit un montant minimum supérieur à 50 000 euros hors taxes et est conclu par un groupement de commande, l'avance peut être accordée dans les conditions fixées à l'article R. 2191-16 dès lors que chaque membre du groupement procède au paiement des prestations qu'il a commandées.
 
 ## Article R2191-3
 
@@ -101,3 +56,48 @@ L'acheteur peut porter le montant de l'avance au-delà de 30 % du montant calcul
 *En vigueur depuis le 2019-04-01.*
 
 Le montant de l'avance ne peut être affecté par la mise en œuvre d'une clause de variation de prix.
+
+## Article R2191-10
+
+*En vigueur depuis le 2019-04-01.*
+
+Les clauses du marché précisent les conditions de versement de l'avance ainsi que son taux.
+
+## Article R2191-11
+
+*En vigueur depuis le 2026-01-01.*
+
+Le remboursement de l'avance s'impute sur les sommes dues au titulaire, selon un rythme et des modalités fixées par les clauses du marché par précompte sur les sommes dues à titre d'acomptes, de règlement partiel définitif ou de solde.
+Dans le silence du marché, le remboursement de l'avance est échelonné en tenant compte du montant de l'avance accordée et des sommes restant dues au titulaire. Ce remboursement s'impute par précompte sur les sommes dues au titulaire et débute :
+1° Pour les avances inférieures ou égales à 30 % du montant toutes taxes comprises du marché, quand le montant des prestations exécutées par le titulaire atteint 65 % du montant toutes taxes comprises de sa part du marché ;
+2° Pour les avances supérieures à 30 % du montant toutes taxes comprises du marché, à la première demande de paiement.
+
+## Article R2191-13
+
+*En vigueur depuis le 2019-04-01.*
+
+Dans le cas d'un marché à tranche optionnelle, une avance est versée au titulaire pour chaque tranche affermie dans les conditions prévues à la sous-section 1.
+
+## Article R2191-15
+
+*En vigueur depuis le 2019-04-01.*
+
+Dans le cas d'un marché reconductible, une avance est versée au titulaire pour chaque reconduction dans les conditions prévues à la sous-section 1.
+
+## Article R2191-16
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsque l'accord-cadre exécuté par l'émission de bons de commande ne prévoit pas de montant minimum, l'avance est accordée pour chaque bon de commande remplissant les conditions prévues à la sous-section 1.
+
+## Article R2191-17
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsque l'accord-cadre exécuté par l'émission de bons de commande prévoit un montant minimum supérieur à 50 000 euros hors taxes, l'avance est accordée en une seule fois sur la base de ce montant minimum.
+
+## Article R2191-18
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsque l'accord-cadre exécuté par l'émission de bons de commande prévoit un montant minimum supérieur à 50 000 euros hors taxes et est conclu par un groupement de commande, l'avance peut être accordée dans les conditions fixées à l'article R. 2191-16 dès lors que chaque membre du groupement procède au paiement des prestations qu'il a commandées.

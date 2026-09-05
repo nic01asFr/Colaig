@@ -21,48 +21,6 @@ Le seuil prévu au second alinéa de l'article L. 2151-1 à partir duquel les en
 
 L'acheteur fixe les délais de réception des offres en tenant compte de la complexité du marché et du temps nécessaire aux opérateurs économiques pour préparer leur offre.
 
-## Article R2151-10
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque l'acheteur autorise ou exige la présentation de variantes, il mentionne dans les documents de la consultation les exigences minimales que les variantes doivent respecter ainsi que toute condition particulière de leur présentation.
-
-## Article R2151-11
-
-*En vigueur depuis le 2019-04-01.*
-
-Pour les marchés de fournitures ou de services, une variante ne peut être rejetée au seul motif qu'elle aboutirait, si elle était retenue, à un marché de services au lieu d'un marché de fournitures ou à un marché de fournitures au lieu d'un marché de services.
-
-## Article R2151-12
-
-*En vigueur depuis le 2019-04-01.*
-
-L'acheteur peut exiger que les soumissionnaires joignent une traduction en français aux documents rédigés dans une autre langue qu'ils remettent en application de l'article R. 2151-6. Il n'impose pas de traduction certifiée sauf lorsque cela est justifié par une raison impérieuse d'intérêt général.
-
-## Article R2151-13
-
-*En vigueur depuis le 2019-04-01.*
-
-Dans les documents de la consultation, l'acheteur peut demander aux soumissionnaires d'indiquer dans leur offre la part du marché qu'ils ont l'intention de sous-traiter à des tiers, notamment à des petites et moyennes entreprises au sens de la recommandation 2003/361/CE de la Commission du 6 mai 2003 concernant la définition des micro, petites et moyennes entreprises ou à des artisans au sens du I de l'article 19 de la loi n° 96-603 du 5 juillet 1996 modifiée relative au développement et à la promotion du commerce et de l'artisanat.
-
-## Article R2151-14
-
-*En vigueur depuis le 2019-04-01.*
-
-Dans les documents de la consultation, l'acheteur peut exiger que les soumissionnaires fournissent, comme moyen de preuve de la conformité aux spécifications techniques, aux critères d'attribution ou aux conditions d'exécution du marché, un rapport d'essai d'un organisme d'évaluation de la conformité accrédité, conformément au règlement (CE) n° 765/2008 du Parlement européen et du Conseil du 9 juillet 2008 fixant les prescriptions relatives à l'accréditation et à la surveillance du marché pour la commercialisation des produits et abrogeant le règlement (CEE) n° 339/93 du Conseil, ou un certificat délivré par un tel organisme. Lorsqu'il exige un certificat établi par un organisme d'évaluation identifié, il accepte un certificat établi par un organisme équivalent.Lorsqu'un opérateur économique n'a pas accès aux certificats ou aux rapports d'essai mentionnés à l'alinéa précédent ni la possibilité de les obtenir dans les délais fixés par l'acheteur, ce dernier accepte d'autres moyens de preuve appropriés.
-
-## Article R2151-15
-
-*En vigueur depuis le 2019-04-01.*
-
-Dans les documents de la consultation, l'acheteur peut exiger que les offres soient accompagnées d'échantillons, de maquettes ou de prototypes ainsi que de tout document permettant d'apprécier l'offre. Lorsque ces demandes impliquent un investissement significatif pour les soumissionnaires, elles donnent lieu au versement d'une prime. Le montant de la prime est indiqué dans les documents de la consultation. Ce montant est déduit de la rémunération du titulaire du marché.
-
-## Article R2151-16
-
-*En vigueur depuis le 2019-04-01.*
-
-Dans les marchés de travaux ou de services et les marchés de fournitures nécessitant des travaux de pose ou d'installation ou comportant des prestations de service, l'acheteur peut imposer aux soumissionnaires qu'ils indiquent les noms et les qualifications professionnelles pertinentes des personnes physiques qui seront chargées de l'exécution du marché, lorsque la qualité de l'offre est évaluée sur la base du savoir-faire, de l'efficacité, de l'expérience ou de la fiabilité de l'équipe dédiée à cette exécution.
-
 ## Article R2151-2
 
 *En vigueur depuis le 2019-04-01.*
@@ -111,35 +69,53 @@ Les acheteurs peuvent autoriser la présentation de variantes dans les condition
 
 L'acheteur peut exiger la présentation de variantes. Dans ce cas, il l'indique dans l'avis d'appel à la concurrence, dans l'invitation à confirmer l'intérêt ou, en l'absence d'un tel avis ou d'une telle invitation, dans les documents de la consultation.
 
+## Article R2151-10
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsque l'acheteur autorise ou exige la présentation de variantes, il mentionne dans les documents de la consultation les exigences minimales que les variantes doivent respecter ainsi que toute condition particulière de leur présentation.
+
+## Article R2151-11
+
+*En vigueur depuis le 2019-04-01.*
+
+Pour les marchés de fournitures ou de services, une variante ne peut être rejetée au seul motif qu'elle aboutirait, si elle était retenue, à un marché de services au lieu d'un marché de fournitures ou à un marché de fournitures au lieu d'un marché de services.
+
+## Article R2151-12
+
+*En vigueur depuis le 2019-04-01.*
+
+L'acheteur peut exiger que les soumissionnaires joignent une traduction en français aux documents rédigés dans une autre langue qu'ils remettent en application de l'article R. 2151-6. Il n'impose pas de traduction certifiée sauf lorsque cela est justifié par une raison impérieuse d'intérêt général.
+
+## Article R2151-13
+
+*En vigueur depuis le 2019-04-01.*
+
+Dans les documents de la consultation, l'acheteur peut demander aux soumissionnaires d'indiquer dans leur offre la part du marché qu'ils ont l'intention de sous-traiter à des tiers, notamment à des petites et moyennes entreprises au sens de la recommandation 2003/361/CE de la Commission du 6 mai 2003 concernant la définition des micro, petites et moyennes entreprises ou à des artisans au sens du I de l'article 19 de la loi n° 96-603 du 5 juillet 1996 modifiée relative au développement et à la promotion du commerce et de l'artisanat.
+
+## Article R2151-14
+
+*En vigueur depuis le 2019-04-01.*
+
+Dans les documents de la consultation, l'acheteur peut exiger que les soumissionnaires fournissent, comme moyen de preuve de la conformité aux spécifications techniques, aux critères d'attribution ou aux conditions d'exécution du marché, un rapport d'essai d'un organisme d'évaluation de la conformité accrédité, conformément au règlement (CE) n° 765/2008 du Parlement européen et du Conseil du 9 juillet 2008 fixant les prescriptions relatives à l'accréditation et à la surveillance du marché pour la commercialisation des produits et abrogeant le règlement (CEE) n° 339/93 du Conseil, ou un certificat délivré par un tel organisme. Lorsqu'il exige un certificat établi par un organisme d'évaluation identifié, il accepte un certificat établi par un organisme équivalent.Lorsqu'un opérateur économique n'a pas accès aux certificats ou aux rapports d'essai mentionnés à l'alinéa précédent ni la possibilité de les obtenir dans les délais fixés par l'acheteur, ce dernier accepte d'autres moyens de preuve appropriés.
+
+## Article R2151-15
+
+*En vigueur depuis le 2019-04-01.*
+
+Dans les documents de la consultation, l'acheteur peut exiger que les offres soient accompagnées d'échantillons, de maquettes ou de prototypes ainsi que de tout document permettant d'apprécier l'offre. Lorsque ces demandes impliquent un investissement significatif pour les soumissionnaires, elles donnent lieu au versement d'une prime. Le montant de la prime est indiqué dans les documents de la consultation. Ce montant est déduit de la rémunération du titulaire du marché.
+
+## Article R2151-16
+
+*En vigueur depuis le 2019-04-01.*
+
+Dans les marchés de travaux ou de services et les marchés de fournitures nécessitant des travaux de pose ou d'installation ou comportant des prestations de service, l'acheteur peut imposer aux soumissionnaires qu'ils indiquent les noms et les qualifications professionnelles pertinentes des personnes physiques qui seront chargées de l'exécution du marché, lorsque la qualité de l'offre est évaluée sur la base du savoir-faire, de l'efficacité, de l'expérience ou de la fiabilité de l'équipe dédiée à cette exécution.
+
 ## Article R2152-1
 
 *En vigueur depuis le 2019-04-01.*
 
 Dans les procédures adaptées sans négociation et les procédures d'appel d'offres, les offres irrégulières, inappropriées ou inacceptables sont éliminées.Dans les autres procédures, les offres inappropriées sont éliminées. Les offres irrégulières ou inacceptables peuvent devenir régulières ou acceptables au cours de la négociation ou du dialogue, à condition qu'elles ne soient pas anormalement basses. Lorsque la négociation ou le dialogue a pris fin, les offres qui demeurent irrégulières ou inacceptables sont éliminées.
-
-## Article R2152-10
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque l'acheteur évalue les coûts selon une approche fondée sur le cycle de vie, il indique dans les documents de la consultation les données que doivent fournir les soumissionnaires et la méthode qu'il utilisera pour déterminer le coût du cycle de vie sur la base de ces données.La méthode utilisée pour évaluer les coûts imputés aux externalités environnementales respecte l'ensemble des conditions suivantes :a) Elle se fonde sur des critères non-discriminatoires et vérifiables de façon objective ;b) Elle est accessible à toutes les parties intéressées ;c) Elle implique que les données requises puissent être fournies moyennant un effort raisonnable consenti par des opérateurs économiques normalement diligents.
-
-## Article R2152-11
-
-*En vigueur depuis le 2019-04-01.*
-
-Les critères d'attribution ainsi que les modalités de leur mise en œuvre sont indiqués dans les documents de la consultation.
-
-## Article R2152-12
-
-*En vigueur depuis le 2019-04-01.*
-
-Pour les marchés passés selon une procédure formalisée, les critères d'attribution font l'objet d'une pondération ou, lorsque la pondération n'est pas possible pour des raisons objectives, sont indiqués par ordre décroissant d'importance. La pondération peut être exprimée sous forme d'une fourchette avec un écart maximum approprié.
-
-## Article R2152-13
-
-*En vigueur depuis le 2019-04-01.*
-
-L'acheteur et le soumissionnaire retenu peuvent procéder à une mise au point des composantes du marché avant sa signature. Cependant, cette mise au point ne peut avoir pour effet de modifier des caractéristiques substantielles de l'offre ou du marché.
 
 ## Article R2152-2
 
@@ -196,6 +172,30 @@ En cas de dialogue compétitif et pour les partenariats d'innovation, l'offre é
 *En vigueur depuis le 2019-04-01.*
 
 Le coût du cycle de vie couvre, dans la mesure où ils sont pertinents, tout ou partie des coûts suivants du cycle de vie d'un produit, d'un service ou d'un ouvrage :1° Les coûts supportés par l'acheteur ou par d'autres utilisateurs, tels que :a) Les coûts liés à l'acquisition ;b) Les coûts liés à l'utilisation comme la consommation d'énergie et d'autres ressources ;c) Les frais de maintenance ;d) Les coûts liés à la fin de vie comme les coûts de collecte et de recyclage ;2° Les coûts imputés aux externalités environnementales et liés au produit, au service ou à l'ouvrage pendant son cycle de vie, à condition que leur valeur monétaire puisse être déterminée et vérifiée. Ces coûts peuvent inclure le coût des émissions de gaz à effet de serre et d'autres émissions polluantes ainsi que d'autres coûts d'atténuation du changement climatique.
+
+## Article R2152-10
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsque l'acheteur évalue les coûts selon une approche fondée sur le cycle de vie, il indique dans les documents de la consultation les données que doivent fournir les soumissionnaires et la méthode qu'il utilisera pour déterminer le coût du cycle de vie sur la base de ces données.La méthode utilisée pour évaluer les coûts imputés aux externalités environnementales respecte l'ensemble des conditions suivantes :a) Elle se fonde sur des critères non-discriminatoires et vérifiables de façon objective ;b) Elle est accessible à toutes les parties intéressées ;c) Elle implique que les données requises puissent être fournies moyennant un effort raisonnable consenti par des opérateurs économiques normalement diligents.
+
+## Article R2152-11
+
+*En vigueur depuis le 2019-04-01.*
+
+Les critères d'attribution ainsi que les modalités de leur mise en œuvre sont indiqués dans les documents de la consultation.
+
+## Article R2152-12
+
+*En vigueur depuis le 2019-04-01.*
+
+Pour les marchés passés selon une procédure formalisée, les critères d'attribution font l'objet d'une pondération ou, lorsque la pondération n'est pas possible pour des raisons objectives, sont indiqués par ordre décroissant d'importance. La pondération peut être exprimée sous forme d'une fourchette avec un écart maximum approprié.
+
+## Article R2152-13
+
+*En vigueur depuis le 2019-04-01.*
+
+L'acheteur et le soumissionnaire retenu peuvent procéder à une mise au point des composantes du marché avant sa signature. Cependant, cette mise au point ne peut avoir pour effet de modifier des caractéristiques substantielles de l'offre ou du marché.
 
 ## Article R2153-1
 

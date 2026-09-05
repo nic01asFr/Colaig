@@ -18,38 +18,6 @@ La condamnation définitive pour l'une de ces infractions ou pour recel d'une de
 Sauf lorsque la peine d'exclusion des marchés a été prononcée pour une durée différente par une décision de justice définitive, l'exclusion de la procédure de passation des marchés au titre du présent article s'applique pour une durée de cinq ans à compter du prononcé de la condamnation.
 Cette exclusion n'est pas applicable en cas d'obtention d'un sursis en application des articles 132-31 ou 132-32 du code pénal, d'un ajournement du prononcé de la peine en application des articles 132-58 à 132-62 du même code ou d'un relèvement de peine en application de l'article 132-21 dudit code ou des articles 702-1 ou 703 du code de procédure pénale.
 
-## Article L2141-10
-
-*En vigueur depuis le 2019-04-01.*
-
-L'acheteur peut exclure de la procédure de passation du marché les personnes qui, par leur candidature, créent une situation de conflit d'intérêts, lorsqu'il ne peut y être remédié par d'autres moyens.Constitue une telle situation toute situation dans laquelle une personne qui participe au déroulement de la procédure de passation du marché ou est susceptible d'en influencer l'issue a, directement ou indirectement, un intérêt financier, économique ou tout autre intérêt personnel qui pourrait compromettre son impartialité ou son indépendance dans le cadre de la procédure de passation du marché.
-
-## Article L2141-11
-
-*En vigueur depuis le 2023-03-11.*
-
-L'acheteur qui envisage d'exclure une personne en application de la présente section doit la mettre à même de fournir des preuves qu'elle a pris des mesures de nature à démontrer sa fiabilité et, le cas échéant, que sa participation à la procédure de passation du marché n'est pas susceptible de porter atteinte à l'égalité de traitement des candidats.
- La personne établit notamment qu'elle a, le cas échéant, entrepris de verser une indemnité en réparation des manquements précédemment énoncés, qu'elle a clarifié totalement les faits et les circonstances en collaborant activement avec les autorités chargées de l'enquête et qu'elle a pris des mesures concrètes propres à régulariser sa situation et à prévenir toute nouvelle situation mentionnée aux articles L. 2141-7 à L. 2141-10. Ces mesures sont évaluées en tenant compte de la gravité et des circonstances particulières attachées à ces situations.
- Si l'acheteur estime que ces preuves sont suffisantes, la personne concernée n'est pas exclue de la procédure de passation de marché.
-
-## Article L2141-12
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsqu'un opérateur économique est, au cours de la procédure de passation d'un marché, placé dans l'un des cas d'exclusion mentionnés aux sections 1 et 2, il informe sans délai l'acheteur de ce changement de situation. Dans cette hypothèse, l'acheteur exclut le candidat de la procédure de passation du marché pour ce motif.
-
-## Article L2141-13
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque le motif d'exclusion de la procédure de passation concerne un membre d'un groupement d'opérateurs économiques, l'acheteur exige son remplacement par un autre opérateur économique qui ne fait pas l'objet d'un motif d'exclusion, dans un délai de dix jours à compter de la réception de cette demande par le mandataire du groupement, sous peine d'exclusion du groupement de la procédure.
-
-## Article L2141-14
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque le sous-traitant à l'encontre duquel il existe un motif d'exclusion est présenté au stade de la procédure de passation d'un marché, l'acheteur exige son remplacement par un autre opérateur économique qui ne fait pas l'objet d'un motif d'exclusion, dans un délai de dix jours à compter de la réception de cette demande par le candidat ou le soumissionnaire, sous peine d'exclusion de la procédure.
-
 ## Article L2141-2
 
 *En vigueur depuis le 2019-04-01.*
@@ -126,6 +94,38 @@ L'acheteur peut exclure de la procédure de passation d'un marché les personnes
 *En vigueur depuis le 2019-04-01.*
 
 L'acheteur peut exclure de la procédure de passation d'un marché les personnes à l'égard desquelles il dispose d'éléments suffisamment probants ou constituant un faisceau d'indices graves, sérieux et concordants pour en déduire qu'elles ont conclu une entente avec d'autres opérateurs économiques en vue de fausser la concurrence.
+
+## Article L2141-10
+
+*En vigueur depuis le 2019-04-01.*
+
+L'acheteur peut exclure de la procédure de passation du marché les personnes qui, par leur candidature, créent une situation de conflit d'intérêts, lorsqu'il ne peut y être remédié par d'autres moyens.Constitue une telle situation toute situation dans laquelle une personne qui participe au déroulement de la procédure de passation du marché ou est susceptible d'en influencer l'issue a, directement ou indirectement, un intérêt financier, économique ou tout autre intérêt personnel qui pourrait compromettre son impartialité ou son indépendance dans le cadre de la procédure de passation du marché.
+
+## Article L2141-11
+
+*En vigueur depuis le 2023-03-11.*
+
+L'acheteur qui envisage d'exclure une personne en application de la présente section doit la mettre à même de fournir des preuves qu'elle a pris des mesures de nature à démontrer sa fiabilité et, le cas échéant, que sa participation à la procédure de passation du marché n'est pas susceptible de porter atteinte à l'égalité de traitement des candidats.
+ La personne établit notamment qu'elle a, le cas échéant, entrepris de verser une indemnité en réparation des manquements précédemment énoncés, qu'elle a clarifié totalement les faits et les circonstances en collaborant activement avec les autorités chargées de l'enquête et qu'elle a pris des mesures concrètes propres à régulariser sa situation et à prévenir toute nouvelle situation mentionnée aux articles L. 2141-7 à L. 2141-10. Ces mesures sont évaluées en tenant compte de la gravité et des circonstances particulières attachées à ces situations.
+ Si l'acheteur estime que ces preuves sont suffisantes, la personne concernée n'est pas exclue de la procédure de passation de marché.
+
+## Article L2141-12
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsqu'un opérateur économique est, au cours de la procédure de passation d'un marché, placé dans l'un des cas d'exclusion mentionnés aux sections 1 et 2, il informe sans délai l'acheteur de ce changement de situation. Dans cette hypothèse, l'acheteur exclut le candidat de la procédure de passation du marché pour ce motif.
+
+## Article L2141-13
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsque le motif d'exclusion de la procédure de passation concerne un membre d'un groupement d'opérateurs économiques, l'acheteur exige son remplacement par un autre opérateur économique qui ne fait pas l'objet d'un motif d'exclusion, dans un délai de dix jours à compter de la réception de cette demande par le mandataire du groupement, sous peine d'exclusion du groupement de la procédure.
+
+## Article L2141-14
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsque le sous-traitant à l'encontre duquel il existe un motif d'exclusion est présenté au stade de la procédure de passation d'un marché, l'acheteur exige son remplacement par un autre opérateur économique qui ne fait pas l'objet d'un motif d'exclusion, dans un délai de dix jours à compter de la réception de cette demande par le candidat ou le soumissionnaire, sous peine d'exclusion de la procédure.
 
 ## Article L2142-1
 

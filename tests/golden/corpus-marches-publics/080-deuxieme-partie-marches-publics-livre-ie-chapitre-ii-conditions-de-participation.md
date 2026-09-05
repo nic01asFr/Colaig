@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie réglementaire › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre IV : PHASE DE CANDIDATURE › Chapitre II : CONDITIONS DE PARTICIPATION
 
-**27 articles en vigueur** — R2142-1 à R2142-9.
+**27 articles en vigueur** — R2142-1 à R2142-27.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -14,6 +14,59 @@
 *En vigueur depuis le 2019-04-01.*
 
 Les conditions de participation à la procédure de passation relatives aux capacités du candidat mentionnées à l'article L. 2142-1, ainsi que les moyens de preuve acceptables, sont indiqués par l'acheteur dans l'avis d'appel à la concurrence ou dans l'invitation à confirmer l'intérêt ou, en l'absence d'un tel avis ou d'une telle invitation, dans les documents de la consultation.
+
+## Article R2142-2
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsque l'acheteur décide de fixer des niveaux minimaux de capacité, il ne peut exiger que des niveaux minimaux liés et proportionnés à l'objet du marché ou à ses conditions d'exécution.
+
+## Article R2142-3
+
+*En vigueur depuis le 2025-01-01.*
+
+Un opérateur économique peut avoir recours aux capacités d'autres opérateurs économiques, quelle que soit la nature juridique des liens qui l'unissent à ces opérateurs. L'acheteur peut exiger que les opérateurs économiques concernés soient solidairement responsables dans la mesure où cela est nécessaire à la bonne exécution du marché. Dans ce cas, l'acheteur justifie cette exigence dans les documents de la consultation.
+Dans le cadre de procédures incluant une ou plusieurs phases de négociation ou de dialogue, l'acheteur peut autoriser le candidat qui en fait la demande à se constituer en groupement entre la date de remise des candidatures et la date de signature du marché, avec un ou plusieurs des candidats invités à négocier ou à participer au dialogue ou un ou plusieurs des opérateurs économiques aux capacités desquels il a eu recours, lorsque les conditions suivantes sont remplies :
+ 1° Le groupement dispose des garanties économiques, financières, techniques et professionnelles exigées par l'acheteur pour participer à la procédure ;
+ 2° La constitution d'un groupement ne porte pas atteinte au principe d'égalité de traitement des candidats ni à une concurrence effective entre ceux-ci.
+
+## Article R2142-4
+
+*En vigueur depuis le 2019-04-01.*
+
+Une même personne ne peut représenter plus d'un candidat pour un même marché.
+
+## Article R2142-5
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsqu'un opérateur économique doit être inscrit sur un registre professionnel, l'acheteur peut exiger qu'il le justifie.
+
+## Article R2142-6
+
+*En vigueur depuis le 2019-04-01.*
+
+L'acheteur peut notamment exiger que les opérateurs économiques réalisent un chiffre d'affaires annuel minimal, notamment dans le domaine concerné par le marché.
+
+## Article R2142-7
+
+*En vigueur depuis le 2026-01-01.*
+
+Le chiffre d'affaires minimal exigé ne peut être supérieur à une fois et demie le montant estimé du marché ou du lot, sauf justifications liées à son objet ou à ses conditions d'exécution. Les raisons pour lesquelles un chiffre d'affaires annuel minimal supérieur à ce plafond est exigé figurent dans les documents de la consultation ou, à défaut :
+1° Sont indiquées dans le rapport de présentation mentionné aux articles R. 2184-1 à R. 2184-6 pour les pouvoirs adjudicateurs ;
+2° Sont conservées dans les conditions des articles R. 2184-7 à R. 2184-11 pour les entités adjudicatrices.
+
+## Article R2142-8
+
+*En vigueur depuis le 2019-04-01.*
+
+En cas de marché alloti, le plafond mentionné à l'article R. 2142-7 s'applique pour chacun des lots. Toutefois, l'acheteur peut exiger un chiffre d'affaires annuel minimal pour des groupes de lots, dans l'éventualité où un titulaire se verrait attribuer plusieurs lots à exécuter en même temps.
+
+## Article R2142-9
+
+*En vigueur depuis le 2019-04-01.*
+
+Pour les accords-cadres, le plafond mentionné à l'article R. 2142-7 est calculé sur la base du montant total maximal des marchés subséquents ou des bons de commande dont l'exécution par un même titulaire pourrait être effectuée concomitamment ou, si ce montant ne peut être estimé, sur la base de la valeur totale estimée des marchés passés sur le fondement de l'accord-cadre ou des bons de commande susceptibles d'être attribués à un même titulaire pendant la durée de validité de l'accord-cadre.
 
 ## Article R2142-10
 
@@ -75,12 +128,6 @@ Lorsque le nombre de candidats satisfaisant aux critères de sélection est inf�
 
 Les groupements d'opérateurs économiques peuvent participer aux procédures de passation de marchés.
 
-## Article R2142-2
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque l'acheteur décide de fixer des niveaux minimaux de capacité, il ne peut exiger que des niveaux minimaux liés et proportionnés à l'objet du marché ou à ses conditions d'exécution.
-
 ## Article R2142-20
 
 *En vigueur depuis le 2019-04-01.*
@@ -132,50 +179,3 @@ Dans le cadre de procédures incluant une ou plusieurs phases de négociation ou
 *En vigueur depuis le 2019-04-01.*
 
 Pour les marchés de services ou de travaux et les marchés de fournitures nécessitant des travaux de pose ou d'installation ou comprenant des prestations de service, l'acheteur peut exiger que certaines tâches essentielles soient effectuées par l'un des membres du groupement, à condition de l'avoir mentionné dans les documents de la consultation.
-
-## Article R2142-3
-
-*En vigueur depuis le 2025-01-01.*
-
-Un opérateur économique peut avoir recours aux capacités d'autres opérateurs économiques, quelle que soit la nature juridique des liens qui l'unissent à ces opérateurs. L'acheteur peut exiger que les opérateurs économiques concernés soient solidairement responsables dans la mesure où cela est nécessaire à la bonne exécution du marché. Dans ce cas, l'acheteur justifie cette exigence dans les documents de la consultation.
-Dans le cadre de procédures incluant une ou plusieurs phases de négociation ou de dialogue, l'acheteur peut autoriser le candidat qui en fait la demande à se constituer en groupement entre la date de remise des candidatures et la date de signature du marché, avec un ou plusieurs des candidats invités à négocier ou à participer au dialogue ou un ou plusieurs des opérateurs économiques aux capacités desquels il a eu recours, lorsque les conditions suivantes sont remplies :
- 1° Le groupement dispose des garanties économiques, financières, techniques et professionnelles exigées par l'acheteur pour participer à la procédure ;
- 2° La constitution d'un groupement ne porte pas atteinte au principe d'égalité de traitement des candidats ni à une concurrence effective entre ceux-ci.
-
-## Article R2142-4
-
-*En vigueur depuis le 2019-04-01.*
-
-Une même personne ne peut représenter plus d'un candidat pour un même marché.
-
-## Article R2142-5
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsqu'un opérateur économique doit être inscrit sur un registre professionnel, l'acheteur peut exiger qu'il le justifie.
-
-## Article R2142-6
-
-*En vigueur depuis le 2019-04-01.*
-
-L'acheteur peut notamment exiger que les opérateurs économiques réalisent un chiffre d'affaires annuel minimal, notamment dans le domaine concerné par le marché.
-
-## Article R2142-7
-
-*En vigueur depuis le 2026-01-01.*
-
-Le chiffre d'affaires minimal exigé ne peut être supérieur à une fois et demie le montant estimé du marché ou du lot, sauf justifications liées à son objet ou à ses conditions d'exécution. Les raisons pour lesquelles un chiffre d'affaires annuel minimal supérieur à ce plafond est exigé figurent dans les documents de la consultation ou, à défaut :
-1° Sont indiquées dans le rapport de présentation mentionné aux articles R. 2184-1 à R. 2184-6 pour les pouvoirs adjudicateurs ;
-2° Sont conservées dans les conditions des articles R. 2184-7 à R. 2184-11 pour les entités adjudicatrices.
-
-## Article R2142-8
-
-*En vigueur depuis le 2019-04-01.*
-
-En cas de marché alloti, le plafond mentionné à l'article R. 2142-7 s'applique pour chacun des lots. Toutefois, l'acheteur peut exiger un chiffre d'affaires annuel minimal pour des groupes de lots, dans l'éventualité où un titulaire se verrait attribuer plusieurs lots à exécuter en même temps.
-
-## Article R2142-9
-
-*En vigueur depuis le 2019-04-01.*
-
-Pour les accords-cadres, le plafond mentionné à l'article R. 2142-7 est calculé sur la base du montant total maximal des marchés subséquents ou des bons de commande dont l'exécution par un même titulaire pourrait être effectuée concomitamment ou, si ce montant ne peut être estimé, sur la base de la valeur totale estimée des marchés passés sur le fondement de l'accord-cadre ou des bons de commande susceptibles d'être attribués à un même titulaire pendant la durée de validité de l'accord-cadre.

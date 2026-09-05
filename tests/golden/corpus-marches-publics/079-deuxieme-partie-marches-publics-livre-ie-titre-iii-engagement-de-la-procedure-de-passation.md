@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie réglementaire › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre III : ENGAGEMENT DE LA PROCÉDURE DE PASSATION
 
-**34 articles en vigueur** — R2131-1 à R2132-9.
+**34 articles en vigueur** — R2131-1 à R2132-14.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -14,6 +14,55 @@
 *En vigueur depuis le 2019-04-01.*
 
 L'acheteur peut faire connaître son intention de passer un marché par la publication, pour le pouvoir adjudicateur, d'un avis de préinformation, ou, pour l'entité adjudicatrice, d'un avis périodique indicatif.Ces avis sont établis conformément aux modèles fixés par le règlement de la Commission européenne établissant les formulaires standard pour la publication d'avis dans le cadre de la passation de marchés.
+
+## Article R2131-2
+
+*En vigueur depuis le 2019-04-01.*
+
+Les avis mentionnés à l'article R. 2131-1 peuvent être : 1° Soit adressés pour publication à l'Office des publications de l'Union européenne ; 2° Soit publiés par l'acheteur sur son profil d'acheteur mentionné à l'article R. 2132-3. Dans ce cas, l'acheteur envoie à l'Office des publications de l'Union européenne un avis annonçant cette publication. L'avis n'est pas publié sur le profil d'acheteur avant l'envoi à l'Office des publications de l'Union européenne. La date de cet envoi est mentionnée dans l'avis publié sur le profil d'acheteur.
+
+## Article R2131-3
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsqu'une entité adjudicatrice publie un avis périodique indicatif, elle communique aux candidats qui le demandent les spécifications techniques qu'elle fait habituellement figurer ou qu'elle entend faire figurer dans les marchés ayant le même objet que celui mentionné dans l'avis. Ces spécifications techniques sont mises à disposition sur un profil d'acheteur dans les conditions fixées aux articles R. 2131-2, R. 2131-4,
+R. 2131-5 et R. 2131-6. Toutefois, elles sont transmises par d'autres moyens dans les cas suivants : 1° Lorsqu'il n'est pas possible d'offrir un accès gratuit, sans restriction, complet et direct par voie électronique à certains documents de la consultation pour une des raisons mentionnées aux R. 2132-12 et R. 2131-14 ; 2° Lorsque l'entité adjudicatrice entend imposer aux opérateurs économiques des exigences visant à protéger la confidentialité des informations qu'elle met à disposition tout au long de la procédure de passation.
+
+## Article R2131-4
+
+*En vigueur depuis le 2019-04-01.*
+
+Les acheteurs, à l'exception des autorités publiques centrales dont la liste figure dans un avis annexé au présent code, peuvent utiliser un avis mentionné à l'article R. 2131-1 pour lancer un appel à la concurrence dans le cadre d'une procédure d'appel d'offres restreint ou d'une procédure avec négociation. Dans ce cas, cet avis doit remplir les conditions suivantes : 1° Faire référence spécifiquement aux travaux, aux fournitures ou aux services qui feront l'objet du marché à passer ; 2° Mentionner que ce marché sera passé selon une procédure d'appel d'offres restreint ou une procédure avec négociation sans publication ultérieure d'un avis d'appel à la concurrence et inviter les opérateurs économiques intéressés à manifester leur intérêt ; 3° Avoir été envoyé pour publication entre trente-cinq jours et douze mois avant la date d'envoi de l'invitation à confirmer l'intérêt.
+
+## Article R2131-5
+
+*En vigueur depuis le 2019-04-01.*
+
+Les avis mentionnés à l'article R. 2131-4 ne sont pas publiés sur le profil d'acheteur. Toutefois, une publication supplémentaire peut être réalisée sur le profil d'acheteur, dans les conditions prévues aux articles R. 2131-19 et R. 2131-20.
+
+## Article R2131-6
+
+*En vigueur depuis le 2019-04-01.*
+
+La durée maximale de validité des avis mentionnés à l'article R. 2131-4 qui constituent un appel à la concurrence est de douze mois à compter de la date de transmission de l'avis pour publication.
+
+## Article R2131-7
+
+*En vigueur depuis le 2019-04-01.*
+
+L'acheteur peut utiliser, pour lancer un appel à la concurrence, un avis mentionné à l'article R. 2131-1 pour les marchés de services sociaux et autres services spécifiques mentionnés au 3° de l'article R. 2123-1 lorsque la valeur estimée du besoin est égale ou supérieure au seuil européen applicable à ces marchés qui figure dans un avis annexé au présent code. Dans ce cas, l'avis mentionné à l'article R. 2131-1 doit remplir les conditions suivantes : 1° Faire référence spécifiquement aux types de services qui feront l'objet des marchés à passer ; 2° Indiquer que les marchés seront passés sans publication ultérieure et inviter les opérateurs économiques intéressés à manifester leur intérêt par écrit.
+
+## Article R2131-8
+
+*En vigueur depuis le 2019-04-01.*
+
+L'avis mentionné à l'article R. 2131-7 est publié au Journal officiel de l'Union européenne dans les conditions prévues aux articles R. 2131-19 et R. 2131-20. L'acheteur peut faire paraître une publicité supplémentaire sur un autre support que celui choisi à titre principal. La publicité supplémentaire peut ne comporter que certains des renseignements figurant dans l'avis publié à titre principal sur le support de son choix à condition qu'elle en indique les références.
+
+## Article R2131-9
+
+*En vigueur depuis le 2019-04-01.*
+
+L'avis mentionné à l'article R. 2131-7 peut avoir une durée de validité supérieure à douze mois.
 
 ## Article R2131-10
 
@@ -78,96 +127,17 @@ L'acheteur peut faire paraître une publicité supplémentaire sur un autre supp
 
 Les avis destinés à être publiés au Journal officiel de l'Union européenne sont transmis par voie électronique à l'Office des publications de l'Union européenne. L'acheteur conserve la preuve de la date d'envoi de ces avis.
 
-## Article R2131-2
-
-*En vigueur depuis le 2019-04-01.*
-
-Les avis mentionnés à l'article R. 2131-1 peuvent être : 1° Soit adressés pour publication à l'Office des publications de l'Union européenne ; 2° Soit publiés par l'acheteur sur son profil d'acheteur mentionné à l'article R. 2132-3. Dans ce cas, l'acheteur envoie à l'Office des publications de l'Union européenne un avis annonçant cette publication. L'avis n'est pas publié sur le profil d'acheteur avant l'envoi à l'Office des publications de l'Union européenne. La date de cet envoi est mentionnée dans l'avis publié sur le profil d'acheteur.
-
 ## Article R2131-20
 
 *En vigueur depuis le 2019-04-01.*
 
 Les publications au niveau national ne peuvent être effectuées avant la publication au Journal officiel de l'Union européenne. Elles peuvent néanmoins avoir lieu, en tout état de cause, lorsque l'acheteur n'a pas été avisé de la publication au Journal officiel de l'Union européenne dans les quarante-huit heures suivant la confirmation de la réception de l'avis par l'Office des publications de l'Union européenne.Ces publications ne peuvent fournir plus de renseignements que ceux envoyés à l'Office des publications de l'Union européenne. Elles mentionnent la date de cet envoi.
 
-## Article R2131-3
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsqu'une entité adjudicatrice publie un avis périodique indicatif, elle communique aux candidats qui le demandent les spécifications techniques qu'elle fait habituellement figurer ou qu'elle entend faire figurer dans les marchés ayant le même objet que celui mentionné dans l'avis. Ces spécifications techniques sont mises à disposition sur un profil d'acheteur dans les conditions fixées aux articles R. 2131-2, R. 2131-4,
-R. 2131-5 et R. 2131-6. Toutefois, elles sont transmises par d'autres moyens dans les cas suivants : 1° Lorsqu'il n'est pas possible d'offrir un accès gratuit, sans restriction, complet et direct par voie électronique à certains documents de la consultation pour une des raisons mentionnées aux R. 2132-12 et R. 2131-14 ; 2° Lorsque l'entité adjudicatrice entend imposer aux opérateurs économiques des exigences visant à protéger la confidentialité des informations qu'elle met à disposition tout au long de la procédure de passation.
-
-## Article R2131-4
-
-*En vigueur depuis le 2019-04-01.*
-
-Les acheteurs, à l'exception des autorités publiques centrales dont la liste figure dans un avis annexé au présent code, peuvent utiliser un avis mentionné à l'article R. 2131-1 pour lancer un appel à la concurrence dans le cadre d'une procédure d'appel d'offres restreint ou d'une procédure avec négociation. Dans ce cas, cet avis doit remplir les conditions suivantes : 1° Faire référence spécifiquement aux travaux, aux fournitures ou aux services qui feront l'objet du marché à passer ; 2° Mentionner que ce marché sera passé selon une procédure d'appel d'offres restreint ou une procédure avec négociation sans publication ultérieure d'un avis d'appel à la concurrence et inviter les opérateurs économiques intéressés à manifester leur intérêt ; 3° Avoir été envoyé pour publication entre trente-cinq jours et douze mois avant la date d'envoi de l'invitation à confirmer l'intérêt.
-
-## Article R2131-5
-
-*En vigueur depuis le 2019-04-01.*
-
-Les avis mentionnés à l'article R. 2131-4 ne sont pas publiés sur le profil d'acheteur. Toutefois, une publication supplémentaire peut être réalisée sur le profil d'acheteur, dans les conditions prévues aux articles R. 2131-19 et R. 2131-20.
-
-## Article R2131-6
-
-*En vigueur depuis le 2019-04-01.*
-
-La durée maximale de validité des avis mentionnés à l'article R. 2131-4 qui constituent un appel à la concurrence est de douze mois à compter de la date de transmission de l'avis pour publication.
-
-## Article R2131-7
-
-*En vigueur depuis le 2019-04-01.*
-
-L'acheteur peut utiliser, pour lancer un appel à la concurrence, un avis mentionné à l'article R. 2131-1 pour les marchés de services sociaux et autres services spécifiques mentionnés au 3° de l'article R. 2123-1 lorsque la valeur estimée du besoin est égale ou supérieure au seuil européen applicable à ces marchés qui figure dans un avis annexé au présent code. Dans ce cas, l'avis mentionné à l'article R. 2131-1 doit remplir les conditions suivantes : 1° Faire référence spécifiquement aux types de services qui feront l'objet des marchés à passer ; 2° Indiquer que les marchés seront passés sans publication ultérieure et inviter les opérateurs économiques intéressés à manifester leur intérêt par écrit.
-
-## Article R2131-8
-
-*En vigueur depuis le 2019-04-01.*
-
-L'avis mentionné à l'article R. 2131-7 est publié au Journal officiel de l'Union européenne dans les conditions prévues aux articles R. 2131-19 et R. 2131-20. L'acheteur peut faire paraître une publicité supplémentaire sur un autre support que celui choisi à titre principal. La publicité supplémentaire peut ne comporter que certains des renseignements figurant dans l'avis publié à titre principal sur le support de son choix à condition qu'elle en indique les références.
-
-## Article R2131-9
-
-*En vigueur depuis le 2019-04-01.*
-
-L'avis mentionné à l'article R. 2131-7 peut avoir une durée de validité supérieure à douze mois.
-
 ## Article R2132-1
 
 *En vigueur depuis le 2019-04-01.*
 
 Les documents de la consultation sont l'ensemble des documents fournis par l'acheteur ou auxquels il se réfère afin de définir son besoin et de décrire les modalités de la procédure de passation, y compris l'avis d'appel à la concurrence. Les informations fournies sont suffisamment précises pour permettre aux opérateurs économiques de déterminer la nature et l'étendue du besoin et de décider de demander ou non à participer à la procédure.
-
-## Article R2132-10
-
-*En vigueur depuis le 2019-04-01.*
-
-L'acheteur peut, si nécessaire, exiger l'utilisation d'outils et de dispositifs qui ne sont pas communément disponibles, tels que des outils de modélisation électronique des données du bâtiment ou des outils similaires. Dans ce cas, il offre un ou plusieurs des moyens d'accès mentionnés à l'article R. 2132-14, jusqu'à ce que ces outils et dispositifs soient devenus communément disponibles aux opérateurs économiques.
-
-## Article R2132-11
-
-*En vigueur depuis le 2022-12-30.*
-
-Les candidats ou soumissionnaires peuvent adresser à l'acheteur une copie de sauvegarde des documents transmis par voie électronique dans des conditions fixées par un arrêté du ministre chargé de l'économie annexé au présent code. Cette copie ne peut être prise en considération que si elle est parvenue à l'acheteur dans le délai prescrit pour le dépôt, selon le cas, des candidatures ou des offres.
-
-## Article R2132-12
-
-*En vigueur depuis le 2019-04-01.*
-
-L'acheteur n'est pas tenu d'utiliser des moyens de communication électronique dans les cas suivants : 1° Pour les marchés mentionnés aux articles R. 2122-1 à R. 2122-11 et répondant à un besoin dont la valeur estimée est inférieure aux seuils de procédure formalisée ; 2° Pour les marchés de services sociaux et autres services spécifiques mentionnés au 3° de l'article R. 2123-1 et à l'article R. 2123-2 ; 3° Lorsque, en raison de la nature particulière du marché, l'utilisation de moyens de communication électroniques nécessiterait des outils, des dispositifs ou des formats de fichiers particuliers qui ne sont pas communément disponibles ou pris en charge par des applications communément disponibles ; 4° Lorsque les applications prenant en charge les formats de fichier adaptés à la description des offres utilisent des formats de fichiers qui ne peuvent être traités par aucune autre application ouverte ou communément disponibles ou sont soumises à un régime de droit de propriété intellectuelle et ne peuvent être mises à disposition par téléchargement ou à distance par l'acheteur ; 5° Lorsque l'utilisation de moyens de communication électroniques nécessiterait un équipement de bureau spécialisé dont les acheteurs ne disposent pas communément ; 6° Lorsque les documents de la consultation exigent la présentation de maquettes, de modèles réduits, de prototypes ou d'échantillons qui ne peuvent être transmis par voie électronique ; 7° Lorsque l'utilisation d'autres moyens de communication est nécessaire en raison soit d'une violation de la sécurité des moyens de communication électroniques, soit du caractère particulièrement sensible des informations qui exigent un degré de protection extrêmement élevé ne pouvant pas être assuré convenablement par l'utilisation de moyens de communication électroniques dont disposent communément les opérateurs économiques ou qui peuvent être mis à leur disposition par un des moyens d'accès mentionnés à l'article R. 2132-14.
-
-## Article R2132-13
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque l'acheteur n'utilise pas de moyens de communication électroniques en application de l'article R. 2132-12, il l'indique dans l'avis d'appel à la concurrence ou, en l'absence d'un tel avis, dans les documents de la consultation. Les raisons pour lesquelles d'autres moyens de communication sont utilisés, sont indiquées dans le rapport de présentation mentionné aux articles R. 2184-1 à R. 2184-6 pour les pouvoirs adjudicateurs et dans les documents conservés en application des articles R. 2184-7 à R. 2184-10 pour les entités adjudicatrices. Pour chaque étape de la procédure, les candidats et soumissionnaires appliquent le même mode de transmission à l'ensemble des documents qu'ils transmettent à l'acheteur.
-
-## Article R2132-14
-
-*En vigueur depuis le 2019-04-01.*
-
-L'acheteur est réputé offrir d'autres moyens d'accès appropriés dans tous les cas suivants : 1° Lorsqu'il offre gratuitement un accès sans restriction, complet et direct par moyen électronique aux outils et dispositifs mentionnés au premier alinéa de l'article R. 2132-10 à partir de la date de publication de l'avis d'appel à la concurrence ou de la date d'envoi de l'invitation à confirmer l'intérêt ou, en l'absence d'un tel avis ou d'une telle invitation, à compter du lancement de la consultation. Le texte de l'avis ou de l'invitation à confirmer l'intérêt précise l'adresse internet à laquelle ces outils et dispositifs sont accessibles ; 2° Lorsqu'il veille à ce que les opérateurs économiques n'ayant pas accès à ces outils et dispositifs ni la possibilité de se les procurer dans les délais requis, à condition que l'absence d'accès ne soit pas imputable à l'opérateur économique concerné, puissent accéder à la procédure de passation du marché en utilisant des jetons provisoires mis gratuitement à disposition en ligne ; 3° Lorsqu'il assure la disponibilité d'une autre voie de présentation électronique des offres.
 
 ## Article R2132-2
 
@@ -220,3 +190,33 @@ Les moyens de communication électronique ainsi que leurs caractéristiques tech
 *En vigueur depuis le 2019-04-01.*
 
 L'acheteur assure la confidentialité et la sécurité des transactions sur un réseau informatique accessible selon des modalités figurant dans un arrêté du ministre chargé de l'économie figurant en annexe au présent code. Les frais d'accès au réseau restent à la charge de l'opérateur économique.Les communications, les échanges et le stockage d'informations sont effectués de manière à assurer l'intégrité des données et la confidentialité des candidatures, des offres et des demandes de participation et à garantir que l'acheteur ne prend connaissance de leur contenu qu'à l'expiration du délai prévu pour leur présentation.
+
+## Article R2132-10
+
+*En vigueur depuis le 2019-04-01.*
+
+L'acheteur peut, si nécessaire, exiger l'utilisation d'outils et de dispositifs qui ne sont pas communément disponibles, tels que des outils de modélisation électronique des données du bâtiment ou des outils similaires. Dans ce cas, il offre un ou plusieurs des moyens d'accès mentionnés à l'article R. 2132-14, jusqu'à ce que ces outils et dispositifs soient devenus communément disponibles aux opérateurs économiques.
+
+## Article R2132-11
+
+*En vigueur depuis le 2022-12-30.*
+
+Les candidats ou soumissionnaires peuvent adresser à l'acheteur une copie de sauvegarde des documents transmis par voie électronique dans des conditions fixées par un arrêté du ministre chargé de l'économie annexé au présent code. Cette copie ne peut être prise en considération que si elle est parvenue à l'acheteur dans le délai prescrit pour le dépôt, selon le cas, des candidatures ou des offres.
+
+## Article R2132-12
+
+*En vigueur depuis le 2019-04-01.*
+
+L'acheteur n'est pas tenu d'utiliser des moyens de communication électronique dans les cas suivants : 1° Pour les marchés mentionnés aux articles R. 2122-1 à R. 2122-11 et répondant à un besoin dont la valeur estimée est inférieure aux seuils de procédure formalisée ; 2° Pour les marchés de services sociaux et autres services spécifiques mentionnés au 3° de l'article R. 2123-1 et à l'article R. 2123-2 ; 3° Lorsque, en raison de la nature particulière du marché, l'utilisation de moyens de communication électroniques nécessiterait des outils, des dispositifs ou des formats de fichiers particuliers qui ne sont pas communément disponibles ou pris en charge par des applications communément disponibles ; 4° Lorsque les applications prenant en charge les formats de fichier adaptés à la description des offres utilisent des formats de fichiers qui ne peuvent être traités par aucune autre application ouverte ou communément disponibles ou sont soumises à un régime de droit de propriété intellectuelle et ne peuvent être mises à disposition par téléchargement ou à distance par l'acheteur ; 5° Lorsque l'utilisation de moyens de communication électroniques nécessiterait un équipement de bureau spécialisé dont les acheteurs ne disposent pas communément ; 6° Lorsque les documents de la consultation exigent la présentation de maquettes, de modèles réduits, de prototypes ou d'échantillons qui ne peuvent être transmis par voie électronique ; 7° Lorsque l'utilisation d'autres moyens de communication est nécessaire en raison soit d'une violation de la sécurité des moyens de communication électroniques, soit du caractère particulièrement sensible des informations qui exigent un degré de protection extrêmement élevé ne pouvant pas être assuré convenablement par l'utilisation de moyens de communication électroniques dont disposent communément les opérateurs économiques ou qui peuvent être mis à leur disposition par un des moyens d'accès mentionnés à l'article R. 2132-14.
+
+## Article R2132-13
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsque l'acheteur n'utilise pas de moyens de communication électroniques en application de l'article R. 2132-12, il l'indique dans l'avis d'appel à la concurrence ou, en l'absence d'un tel avis, dans les documents de la consultation. Les raisons pour lesquelles d'autres moyens de communication sont utilisés, sont indiquées dans le rapport de présentation mentionné aux articles R. 2184-1 à R. 2184-6 pour les pouvoirs adjudicateurs et dans les documents conservés en application des articles R. 2184-7 à R. 2184-10 pour les entités adjudicatrices. Pour chaque étape de la procédure, les candidats et soumissionnaires appliquent le même mode de transmission à l'ensemble des documents qu'ils transmettent à l'acheteur.
+
+## Article R2132-14
+
+*En vigueur depuis le 2019-04-01.*
+
+L'acheteur est réputé offrir d'autres moyens d'accès appropriés dans tous les cas suivants : 1° Lorsqu'il offre gratuitement un accès sans restriction, complet et direct par moyen électronique aux outils et dispositifs mentionnés au premier alinéa de l'article R. 2132-10 à partir de la date de publication de l'avis d'appel à la concurrence ou de la date d'envoi de l'invitation à confirmer l'intérêt ou, en l'absence d'un tel avis ou d'une telle invitation, à compter du lancement de la consultation. Le texte de l'avis ou de l'invitation à confirmer l'intérêt précise l'adresse internet à laquelle ces outils et dispositifs sont accessibles ; 2° Lorsqu'il veille à ce que les opérateurs économiques n'ayant pas accès à ces outils et dispositifs ni la possibilité de se les procurer dans les délais requis, à condition que l'absence d'accès ne soit pas imputable à l'opérateur économique concerné, puissent accéder à la procédure de passation du marché en utilisant des jetons provisoires mis gratuitement à disposition en ligne ; 3° Lorsqu'il assure la disponibilité d'une autre voie de présentation électronique des offres.

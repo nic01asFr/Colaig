@@ -72,6 +72,20 @@ REVISION = "67be48b3d4a8df343d7dc6597b88bb896d02236e"
 # Date à laquelle l'applicabilité des articles est appréciée. Épinglée pour la même
 # raison que l'instantané : un corpus dont le périmètre change selon le jour de son
 # exécution ne peut pas servir de référence de mesure.
+_NUMERO_D_ARTICLE = re.compile(r"^([LRD])(\d+)-(\d+)(?:-(\d+))?$")
+
+
+def _ordre_de_l_article(numero: str):
+    """Cle de tri d'un numero d'article — (lettre, groupe, article, alinea).
+
+    Un numero hors motif (CCAG, annexe) se range apres, dans l'ordre du texte.
+    """
+    m = _NUMERO_D_ARTICLE.match((numero or "").strip())
+    if not m:
+        return ("Z", 0, 0, 0, numero or "")
+    return (m.group(1), int(m.group(2)), int(m.group(3)), int(m.group(4) or 0), "")
+
+
 DATE_REFERENCE = "2026-08-23"
 
 # Perimetre : le regime des marches publics ORDINAIRES — deuxieme partie, livre Ier.
@@ -365,7 +379,18 @@ def main():
     total_octets = 0
     index_lignes = []
     for rang, (cle, arts) in enumerate(sorted(groupes.items()), 1):
-        arts.sort(key=lambda a: (a["number"] or ""))
+        # NUMERIQUEMENT, PAS COMME DES CHAINES.
+        #
+        # Ce tri portait `(a["number"] or "")`. « R2194-10 » se place alors entre
+        # « R2194-1 » et « R2194-2 » : 22 des 45 fichiers d'articles du Code sortaient
+        # dans le desordre, et la ligne de tete annoncait « R2194-1 a R2194-9 » pour un
+        # fichier qui va jusqu'a R2194-10.
+        #
+        # Un lecteur humain est trompe. Et l'elargissement aux voisins, qui sert les
+        # positions +/-1, servait des articles arbitraires une fois sur deux : depuis
+        # R2194-1 il servait R2194-10. C'est ce qui l'a fait paraitre sans effet sur
+        # trois campagnes (04-05/09/2026).
+        arts.sort(key=lambda a: _ordre_de_l_article(a["number"] or ""))
         titre = cle[-1] if cle else "Dispositions diverses"
         # La mention de source suit le document : annoncer « Code de la commande
         # publique » en tete d'un CCAG serait faux, et c'est le genre d'etiquette

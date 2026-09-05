@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie réglementaire › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre Ier : PRÉPARATION DU MARCHÉ › Chapitre Ier : DÉFINITION DU BESOIN
 
-**17 articles en vigueur** — D2111-3 à R2111-9.
+**17 articles en vigueur** — D2111-3 à R2111-17.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -21,6 +21,48 @@ Afin de déterminer le montant total annuel de leurs achats, les pouvoirs adjudi
 *En vigueur depuis le 2019-04-01.*
 
 Afin de préparer la passation d'un marché, l'acheteur peut effectuer des consultations ou réaliser des études de marché, solliciter des avis ou informer les opérateurs économiques de son projet et de ses exigences. Les résultats des études et échanges préalables peuvent être utilisés par l'acheteur, à condition que leur utilisation n'ait pas pour effet de fausser la concurrence ou de méconnaître les principes mentionnés à l'article L. 3.
+
+## Article R2111-2
+
+*En vigueur depuis le 2019-04-01.*
+
+L'acheteur prend les mesures appropriées pour que la concurrence ne soit pas faussée par la participation à la procédure de passation du marché d'un opérateur économique qui aurait eu accès à des informations ignorées par d'autres candidats ou soumissionnaires, en raison de sa participation préalable, directe ou indirecte, à la préparation de cette procédure. Cet opérateur n'est exclu de la procédure de passation que lorsqu'il ne peut être remédié à cette situation par d'autres moyens, conformément aux dispositions du 2° de l'article L. 2141-8.
+
+## Article R2111-4
+
+*En vigueur depuis le 2019-04-01.*
+
+Les spécifications techniques définissent les caractéristiques requises des travaux, des fournitures ou des services qui font l'objet du marché.Ces caractéristiques peuvent se référer au processus ou à la méthode spécifique de production ou de fourniture des travaux, des produits ou des services demandés ou à un processus propre à un autre stade de leur cycle de vie même lorsque ces facteurs ne font pas partie de leur contenu matériel, à condition qu'ils soient liés à l'objet du marché et proportionnés à sa valeur et à ses objectifs.
+
+## Article R2111-5
+
+*En vigueur depuis le 2019-04-01.*
+
+Les spécifications techniques peuvent préciser si le transfert des droits de propriété intellectuelle sera exigé.
+
+## Article R2111-6
+
+*En vigueur depuis le 2019-04-01.*
+
+Sauf cas dûment justifié, les spécifications techniques sont établies de manière à prendre en compte des critères d'accessibilité pour les personnes handicapées ou des critères de fonctionnalité pour tous les utilisateurs.
+
+## Article R2111-7
+
+*En vigueur depuis le 2019-04-01.*
+
+Les spécifications techniques ne peuvent pas faire mention d'un mode ou procédé de fabrication particulier ou d'une provenance ou origine déterminée, ni faire référence à une marque, à un brevet ou à un type lorsqu'une telle mention ou référence est susceptible de favoriser ou d'éliminer certains opérateurs économiques ou certains produits. Toutefois, une telle mention ou référence est possible si elle est justifiée par l'objet du marché ou, à titre exceptionnel, dans le cas où une description suffisamment précise et intelligible de l'objet du marché n'est pas possible sans elle et à la condition qu'elle soit accompagnée des termes " ou équivalent ".
+
+## Article R2111-8
+
+*En vigueur depuis le 2019-04-01.*
+
+L'acheteur formule les spécifications techniques :1° Soit par référence à des normes ou à d'autres documents équivalents accessibles aux candidats ;2° Soit en termes de performances ou d'exigences fonctionnelles ;3° Soit par une combinaison des deux.
+
+## Article R2111-9
+
+*En vigueur depuis le 2019-04-01.*
+
+Les normes ou documents sont accompagnés de la mention " ou équivalent " et choisis dans l'ordre de préférence suivant : 1° Les normes nationales transposant des normes européennes ; 2° Les évaluations techniques européennes ; 3° Les spécifications techniques communes ; 4° Les normes internationales ; 5° Les autres référentiels techniques élaborés par les organismes européens de normalisation ou, en leur absence, les normes nationales, les agréments techniques nationaux ou les spécifications techniques nationales en matière de conception, de calcul et de réalisation des ouvrages et d'utilisation des fournitures. La définition des normes ou autres documents mentionnés au présent article figure dans un avis annexé au présent code.
 
 ## Article R2111-10
 
@@ -69,45 +111,3 @@ L'acheteur qui exige un label particulier accepte tous les labels qui confirment
 *En vigueur depuis le 2019-04-01.*
 
 Lorsque l'opérateur économique n'a pas la possibilité, pour des raisons qui ne lui sont pas imputables, d'obtenir dans les délais le label exigé ou un label équivalent qui répond aux conditions de l'article R. 2111-15, il peut prouver par tout moyen que les caractéristiques exigées par l'acheteur sont remplies.
-
-## Article R2111-2
-
-*En vigueur depuis le 2019-04-01.*
-
-L'acheteur prend les mesures appropriées pour que la concurrence ne soit pas faussée par la participation à la procédure de passation du marché d'un opérateur économique qui aurait eu accès à des informations ignorées par d'autres candidats ou soumissionnaires, en raison de sa participation préalable, directe ou indirecte, à la préparation de cette procédure. Cet opérateur n'est exclu de la procédure de passation que lorsqu'il ne peut être remédié à cette situation par d'autres moyens, conformément aux dispositions du 2° de l'article L. 2141-8.
-
-## Article R2111-4
-
-*En vigueur depuis le 2019-04-01.*
-
-Les spécifications techniques définissent les caractéristiques requises des travaux, des fournitures ou des services qui font l'objet du marché.Ces caractéristiques peuvent se référer au processus ou à la méthode spécifique de production ou de fourniture des travaux, des produits ou des services demandés ou à un processus propre à un autre stade de leur cycle de vie même lorsque ces facteurs ne font pas partie de leur contenu matériel, à condition qu'ils soient liés à l'objet du marché et proportionnés à sa valeur et à ses objectifs.
-
-## Article R2111-5
-
-*En vigueur depuis le 2019-04-01.*
-
-Les spécifications techniques peuvent préciser si le transfert des droits de propriété intellectuelle sera exigé.
-
-## Article R2111-6
-
-*En vigueur depuis le 2019-04-01.*
-
-Sauf cas dûment justifié, les spécifications techniques sont établies de manière à prendre en compte des critères d'accessibilité pour les personnes handicapées ou des critères de fonctionnalité pour tous les utilisateurs.
-
-## Article R2111-7
-
-*En vigueur depuis le 2019-04-01.*
-
-Les spécifications techniques ne peuvent pas faire mention d'un mode ou procédé de fabrication particulier ou d'une provenance ou origine déterminée, ni faire référence à une marque, à un brevet ou à un type lorsqu'une telle mention ou référence est susceptible de favoriser ou d'éliminer certains opérateurs économiques ou certains produits. Toutefois, une telle mention ou référence est possible si elle est justifiée par l'objet du marché ou, à titre exceptionnel, dans le cas où une description suffisamment précise et intelligible de l'objet du marché n'est pas possible sans elle et à la condition qu'elle soit accompagnée des termes " ou équivalent ".
-
-## Article R2111-8
-
-*En vigueur depuis le 2019-04-01.*
-
-L'acheteur formule les spécifications techniques :1° Soit par référence à des normes ou à d'autres documents équivalents accessibles aux candidats ;2° Soit en termes de performances ou d'exigences fonctionnelles ;3° Soit par une combinaison des deux.
-
-## Article R2111-9
-
-*En vigueur depuis le 2019-04-01.*
-
-Les normes ou documents sont accompagnés de la mention " ou équivalent " et choisis dans l'ordre de préférence suivant : 1° Les normes nationales transposant des normes européennes ; 2° Les évaluations techniques européennes ; 3° Les spécifications techniques communes ; 4° Les normes internationales ; 5° Les autres référentiels techniques élaborés par les organismes européens de normalisation ou, en leur absence, les normes nationales, les agréments techniques nationaux ou les spécifications techniques nationales en matière de conception, de calcul et de réalisation des ouvrages et d'utilisation des fournitures. La définition des normes ou autres documents mentionnés au présent article figure dans un avis annexé au présent code.

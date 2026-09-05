@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie réglementaire › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre VI : RÈGLES APPLICABLES AUX PROCÉDURES DE PASSATION ET AUX TECHNIQUES D'ACHAT › Chapitre II : RÈGLES APPLICABLES AUX TECHNIQUES D'ACHAT › Section 1 : Accords-cadres
 
-**14 articles en vigueur** — R2162-1 à R2162-9.
+**14 articles en vigueur** — R2162-1 à R2162-14.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -14,36 +14,6 @@
 *En vigueur depuis le 2019-04-01.*
 
 Les acheteurs ne peuvent recourir aux accords-cadres de manière abusive ou aux fins d'empêcher, de restreindre ou de fausser la concurrence.
-
-## Article R2162-10
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsqu'un accord-cadre est conclu avec plusieurs opérateurs économiques, le pouvoir adjudicateur organise une mise en concurrence selon la procédure suivante :1° Pour chacun des marchés subséquents, le pouvoir adjudicateur consulte par écrit les titulaires de l'accord-cadre ou, lorsque l'accord-cadre a été divisé en lots, les titulaires du lot correspondant à l'objet du marché subséquent ;2° Le pouvoir adjudicateur fixe un délai suffisant pour la présentation des offres en tenant compte d'éléments tels que la complexité des prestations attendues ou le temps nécessaire à la transmission des offres ;3° Les offres sont proposées conformément aux caractéristiques fixées par l'accord-cadre et les documents de la consultation propres au marché subséquent. Elles sont établies par écrit et ne sont pas ouvertes avant l'expiration du délai prévu pour le dépôt des offres ;4° Le marché subséquent est attribué à celui ou à ceux des titulaires de l'accord-cadre qui ont présenté les offres économiquement les plus avantageuses, sur la base des critères d'attribution énoncés dans l'accord-cadre.L'accord-cadre peut prévoir que l'attribution de certains marchés subséquents ne donnera pas lieu à remise en concurrence lorsqu'il apparaît que, pour des raisons techniques, ces marchés ne peuvent plus être confiés qu'à un opérateur économique déterminé. Tel est notamment le cas lorsque aucun produit, matériel ou service ne peut être substitué au produit, matériel ou service à acquérir et qu'un seul des titulaires est en mesure de le fournir.
-
-## Article R2162-11
-
-*En vigueur depuis le 2019-04-01.*
-
-Pour les entités adjudicatrices, les marchés subséquents sont passés sur la base de règles ou de critères objectifs et non-discriminatoires définis dans l'accord-cadre, qui peuvent inclure la remise en concurrence des titulaires.
-
-## Article R2162-12
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsqu'une remise en concurrence est prévue, l'entité adjudicatrice fixe un délai suffisant pour permettre la présentation des offres. Le marché subséquent est attribué à celui ou à ceux des titulaires de l'accord-cadre qui ont présenté les offres économiquement les plus avantageuses, sur la base des critères d'attribution définis dans l'accord-cadre.
-
-## Article R2162-13
-
-*En vigueur depuis le 2019-04-01.*
-
-Les bons de commande sont des documents écrits adressés aux titulaires de l'accord-cadre qui précisent celles des prestations, décrites dans l'accord-cadre, dont l'exécution est demandée et en déterminent la quantité.
-
-## Article R2162-14
-
-*En vigueur depuis le 2019-04-01.*
-
-L'émission des bons de commande s'effectue sans négociation ni remise en concurrence préalable des titulaires, selon des modalités prévues par l'accord-cadre.
 
 ## Article R2162-2
 
@@ -98,3 +68,33 @@ Les marchés subséquents peuvent prendre la forme d'un accord-cadre fixant tout
 *En vigueur depuis le 2019-04-01.*
 
 Pour les pouvoirs adjudicateurs, lorsqu'un accord-cadre est conclu avec un seul opérateur économique, les marchés subséquents sont attribués dans les conditions fixées par l'accord-cadre. Préalablement à la conclusion des marchés subséquents, le pouvoir adjudicateur peut demander par écrit au titulaire de compléter son offre.
+
+## Article R2162-10
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsqu'un accord-cadre est conclu avec plusieurs opérateurs économiques, le pouvoir adjudicateur organise une mise en concurrence selon la procédure suivante :1° Pour chacun des marchés subséquents, le pouvoir adjudicateur consulte par écrit les titulaires de l'accord-cadre ou, lorsque l'accord-cadre a été divisé en lots, les titulaires du lot correspondant à l'objet du marché subséquent ;2° Le pouvoir adjudicateur fixe un délai suffisant pour la présentation des offres en tenant compte d'éléments tels que la complexité des prestations attendues ou le temps nécessaire à la transmission des offres ;3° Les offres sont proposées conformément aux caractéristiques fixées par l'accord-cadre et les documents de la consultation propres au marché subséquent. Elles sont établies par écrit et ne sont pas ouvertes avant l'expiration du délai prévu pour le dépôt des offres ;4° Le marché subséquent est attribué à celui ou à ceux des titulaires de l'accord-cadre qui ont présenté les offres économiquement les plus avantageuses, sur la base des critères d'attribution énoncés dans l'accord-cadre.L'accord-cadre peut prévoir que l'attribution de certains marchés subséquents ne donnera pas lieu à remise en concurrence lorsqu'il apparaît que, pour des raisons techniques, ces marchés ne peuvent plus être confiés qu'à un opérateur économique déterminé. Tel est notamment le cas lorsque aucun produit, matériel ou service ne peut être substitué au produit, matériel ou service à acquérir et qu'un seul des titulaires est en mesure de le fournir.
+
+## Article R2162-11
+
+*En vigueur depuis le 2019-04-01.*
+
+Pour les entités adjudicatrices, les marchés subséquents sont passés sur la base de règles ou de critères objectifs et non-discriminatoires définis dans l'accord-cadre, qui peuvent inclure la remise en concurrence des titulaires.
+
+## Article R2162-12
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsqu'une remise en concurrence est prévue, l'entité adjudicatrice fixe un délai suffisant pour permettre la présentation des offres. Le marché subséquent est attribué à celui ou à ceux des titulaires de l'accord-cadre qui ont présenté les offres économiquement les plus avantageuses, sur la base des critères d'attribution définis dans l'accord-cadre.
+
+## Article R2162-13
+
+*En vigueur depuis le 2019-04-01.*
+
+Les bons de commande sont des documents écrits adressés aux titulaires de l'accord-cadre qui précisent celles des prestations, décrites dans l'accord-cadre, dont l'exécution est demandée et en déterminent la quantité.
+
+## Article R2162-14
+
+*En vigueur depuis le 2019-04-01.*
+
+L'émission des bons de commande s'effectue sans négociation ni remise en concurrence préalable des titulaires, selon des modalités prévues par l'accord-cadre.

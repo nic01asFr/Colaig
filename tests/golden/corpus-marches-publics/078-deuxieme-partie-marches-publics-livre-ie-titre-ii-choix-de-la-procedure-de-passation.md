@@ -71,18 +71,6 @@ L'acheteur peut passer un marché sans publicité ni mise en concurrence préala
 Tel est notamment le cas des marchés rendus nécessaires pour l'exécution d'office, en urgence, des travaux mentionnés à l'article L. 1311-4 du code de la santé publique et aux articles L. 184-1, L. 511-11, L. 511-15, L. 511-16 et L. 511-19 à L. 511-21 du code de la construction et de l'habitation ainsi que des marchés passés pour faire face à des dangers sanitaires mentionnés au 3° du I, au 1° du II et au 1° du III de l'article L. 201-1 du code rural et de la pêche maritime.
 Le marché est limité aux prestations strictement nécessaires pour faire face à la situation d'urgence.
 
-## Article R2122-10
-
-*En vigueur depuis le 2019-04-01.*
-
-Un pouvoir adjudicateur peut passer un marché sans publicité ni mise en concurrence préalables ayant pour objet l'achat de produits fabriqués uniquement à des fins de recherche, d'expérimentation, d'étude ou de développement, sans objectif de rentabilité ou d'amortissement des coûts de recherche et de développement.
-
-## Article R2122-11
-
-*En vigueur depuis le 2019-04-01.*
-
-Une entité adjudicatrice peut passer un marché sans publicité ni mise en concurrence préalables :1° A des fins de recherche, d'expérimentation, d'étude ou de développement, sans objectif de rentabilité ou d'amortissement des coûts de recherche et de développement. La passation d'un tel marché ne doit pas porter préjudice à la mise en concurrence des marchés ultérieurs qui poursuivent ces mêmes objectifs ;2° Ayant pour objet l'achat de fournitures qu'il est possible d'acquérir en profitant d'une occasion particulièrement avantageuse qui se présente dans une période de temps très courte et pour lesquelles le prix à payer est considérablement plus bas que les prix normalement pratiqués sur le marché.
-
 ## Article R2122-2
 
 *En vigueur depuis le 2021-04-02.*
@@ -144,6 +132,18 @@ Les acheteurs mentionnés aux 1° et 2° de l'article 3 de la loi n° 81-766 du 
 L'acheteur peut passer un marché public sans publicité ni mise en concurrence préalables portant sur des travaux, fournitures ou services innovants au sens du second alinéa de l'article L. 2172-3 et répondant à un besoin dont la valeur estimée est inférieure à 100 000 euros hors taxes.
  Ces dispositions sont également applicables aux lots dont le montant est inférieur à 80 000 euros hors taxes pour des fournitures ou des services innovants ou à 100 000 euros hors taxes pour des travaux innovants et qui remplissent la condition prévue au b du 2° de l'article R. 2123-1.
  Lorsqu'il fait usage de cette faculté, l'acheteur veille à choisir une offre pertinente, à faire une bonne utilisation des deniers publics et à ne pas contracter systématiquement avec un même opérateur économique lorsqu'il existe une pluralité d'offres susceptibles de répondre au besoin.
+
+## Article R2122-10
+
+*En vigueur depuis le 2019-04-01.*
+
+Un pouvoir adjudicateur peut passer un marché sans publicité ni mise en concurrence préalables ayant pour objet l'achat de produits fabriqués uniquement à des fins de recherche, d'expérimentation, d'étude ou de développement, sans objectif de rentabilité ou d'amortissement des coûts de recherche et de développement.
+
+## Article R2122-11
+
+*En vigueur depuis le 2019-04-01.*
+
+Une entité adjudicatrice peut passer un marché sans publicité ni mise en concurrence préalables :1° A des fins de recherche, d'expérimentation, d'étude ou de développement, sans objectif de rentabilité ou d'amortissement des coûts de recherche et de développement. La passation d'un tel marché ne doit pas porter préjudice à la mise en concurrence des marchés ultérieurs qui poursuivent ces mêmes objectifs ;2° Ayant pour objet l'achat de fournitures qu'il est possible d'acquérir en profitant d'une occasion particulièrement avantageuse qui se présente dans une période de temps très courte et pour lesquelles le prix à payer est considérablement plus bas que les prix normalement pratiqués sur le marché.
 
 ## Article R2123-1
 

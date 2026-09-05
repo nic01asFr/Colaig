@@ -41,6 +41,13 @@ Sans préjudice des mentions obligatoires fixées par les dispositions législat
 
 Le montant de l'indemnité forfaitaire pour frais de recouvrement est fixé à 40 euros.
 
+## Article R2192-3
+
+*En vigueur depuis le 2019-07-22.*
+
+Un arrêté du ministre chargé du budget, annexé au présent code, définit les modalités techniques selon lesquelles le dépôt, la transmission et la réception des factures sont effectués sur le portail public de facturation en application de l'article L. 2192-5. Ces modalités garantissent la réception immédiate et intégrale des factures et assure la fiabilité de l'identification de l'émetteur, l'intégrité des données, la sécurité, la confidentialité et la traçabilité des échanges.
+ L'utilisation du portail public de facturation est exclusive de tout autre mode de transmission. Lorsqu'une facture lui est transmise en dehors de ce portail, la personne publique destinataire ne peut la rejeter qu'après avoir informé l'émetteur par tout moyen de l'obligation mentionnée à l'article L. 2192-1 et l'avoir invité à s'y conformer en utilisant ce portail.
+
 ## Article R2192-10
 
 *En vigueur depuis le 2019-04-01.*
@@ -165,13 +172,6 @@ L'interruption du délai de paiement mentionnée à l'article R. 2192-27 fait l'
 *En vigueur depuis le 2019-04-01.*
 
 A compter de la réception de la totalité des pièces et mentions prévues à l'article R. 2192-27, un nouveau délai de paiement est ouvert. Ce délai est de trente jours ou égal au solde restant à courir à la date de réception de la notification de l'interruption si ce solde est supérieur à trente jours.
-
-## Article R2192-3
-
-*En vigueur depuis le 2019-07-22.*
-
-Un arrêté du ministre chargé du budget, annexé au présent code, définit les modalités techniques selon lesquelles le dépôt, la transmission et la réception des factures sont effectués sur le portail public de facturation en application de l'article L. 2192-5. Ces modalités garantissent la réception immédiate et intégrale des factures et assure la fiabilité de l'identification de l'émetteur, l'intégrité des données, la sécurité, la confidentialité et la traçabilité des échanges.
- L'utilisation du portail public de facturation est exclusive de tout autre mode de transmission. Lorsqu'une facture lui est transmise en dehors de ce portail, la personne publique destinataire ne peut la rejeter qu'après avoir informé l'émetteur par tout moyen de l'obligation mentionnée à l'article L. 2192-1 et l'avoir invité à s'y conformer en utilisant ce portail.
 
 ## Article R2192-30
 

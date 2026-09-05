@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie réglementaire › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre VI : RÈGLES APPLICABLES AUX PROCÉDURES DE PASSATION ET AUX TECHNIQUES D'ACHAT › Chapitre Ier : RÈGLES APPLICABLES AUX PROCÉDURES FORMALISÉES
 
-**31 articles en vigueur** — R2161-1 à R2161-9.
+**31 articles en vigueur** — R2161-1 à R2161-31.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -14,6 +14,54 @@
 *En vigueur depuis le 2019-04-01.*
 
 Les dispositions du présent chapitre relatives aux délais de présentation des candidatures et des offres s'appliquent sans préjudice de celles figurant aux articles R. 2143-1, R. 2151-1 et R. 2151-2.
+
+## Article R2161-2
+
+*En vigueur depuis le 2019-04-01.*
+
+Le délai minimal de réception des candidatures et des offres est de trente-cinq jours à compter de la date de l'envoi de l'avis de marché.
+
+## Article R2161-3
+
+*En vigueur depuis le 2019-04-01.*
+
+Le délai minimal fixé à l'article R. 2161-2 peut être ramené : 1° A quinze jours si l'acheteur a publié un avis de préinformation ou un avis périodique indicatif qui n'a pas été utilisé comme avis d'appel à la concurrence et lorsque les conditions suivantes sont réunies : a) L'avis de préinformation ou l'avis périodique indicatif a été envoyé pour publication trente-cinq jours au moins à douze mois au plus avant la date d'envoi de l'avis de marché ; b) Cet avis contient les mêmes renseignements que ceux qui figurent dans l'avis de marché, pour autant que ces renseignements soient disponibles au moment de son envoi pour publication ; 2° A trente jours si les candidatures et les offres sont ou peuvent être transmises par voie électronique ; 3° A quinze jours lorsqu'une situation d'urgence, dûment justifiée, rend le délai minimal impossible à respecter.
+
+## Article R2161-4
+
+*En vigueur depuis le 2019-04-01.*
+
+L'acheteur peut décider d'examiner les offres avant les candidatures. Lorsqu'il fait usage de cette faculté, il examine les candidatures de manière impartiale et transparente. Il veille notamment à ce que sa connaissance des offres n'influe en rien sur l'appréciation des motifs d'exclusion ou des critères de sélection.
+
+## Article R2161-5
+
+*En vigueur depuis le 2019-04-01.*
+
+L'acheteur ne peut négocier avec les soumissionnaires. Il lui est seulement possible de leur demander de préciser la teneur de leur offre.
+
+## Article R2161-6
+
+*En vigueur depuis le 2019-04-01.*
+
+Les délais minimaux de réception des candidatures sont :1° Pour les pouvoirs adjudicateurs, de trente jours à compter de la date d'envoi de l'avis de marché ou, lorsque l'appel à la concurrence est effectué au moyen d'un avis de préinformation, à compter de la date d'envoi de l'invitation à confirmer l'intérêt.Lorsqu'une situation d'urgence, dûment justifiée, rend ce délai minimal impossible à respecter, le pouvoir adjudicateur peut fixer un délai de réception des candidatures qui ne peut être inférieur à quinze jours à compter de la date d'envoi de l'avis de marché ou de l'invitation à confirmer l'intérêt ;2° Pour les entités adjudicatrices, de quinze jours à compter de la date d'envoi de l'avis de marché ou de l'invitation à confirmer l'intérêt.
+
+## Article R2161-7
+
+*En vigueur depuis le 2019-04-01.*
+
+Le délai minimal de réception des offres est, pour les pouvoirs adjudicateurs, de trente jours à compter de la date d'envoi de l'invitation à soumissionner.
+
+## Article R2161-8
+
+*En vigueur depuis le 2019-04-01.*
+
+Le délai minimal fixé à l'article R. 2161-7 peut être ramené : 1° A dix jours si le pouvoir adjudicateur a publié un avis de préinformation qui n'a pas été utilisé comme avis d'appel à la concurrence et lorsque cet avis remplit les conditions suivantes : a) Il a été envoyé pour publication trente-cinq jours au moins à douze mois au plus avant la date d'envoi de l'avis de marché ; b) Il contient les mêmes renseignements que ceux qui figurent dans l'avis de marché, pour autant que ces renseignements soient disponibles au moment de son envoi pour publication ; 2° A vingt-cinq jours si les offres sont transmises par voie électronique ; 3° A dix jours lorsqu'une situation d'urgence, dûment justifiée, rend le délai minimal impossible à respecter.
+
+## Article R2161-9
+
+*En vigueur depuis le 2019-04-01.*
+
+Un pouvoir adjudicateur autre qu'une autorité publique centrale dont la liste figure dans un avis annexé au présent code peut fixer la date limite de réception des offres d'un commun accord avec les candidats sélectionnés, à condition que cette date soit la même pour tous. En l'absence d'accord, il fixe un délai qui ne peut être inférieur à dix jours à compter de la date d'envoi de l'invitation à soumissionner.
 
 ## Article R2161-10
 
@@ -75,12 +123,6 @@ La procédure avec négociation peut se dérouler en phases successives de mani�
 
 Le pouvoir adjudicateur informe par écrit tous les soumissionnaires dont les offres n'ont pas été éliminées en application de l'article R. 2161-18 de tous les changements apportés aux spécifications techniques ou aux autres documents de la consultation, à l'exception de ceux qui définissent les exigences minimales. A la suite de ces changements, le pouvoir adjudicateur accorde aux soumissionnaires un délai suffisant et identique pour leur permettre de modifier leurs offres et, le cas échéant, de les présenter à nouveau.
 
-## Article R2161-2
-
-*En vigueur depuis le 2019-04-01.*
-
-Le délai minimal de réception des candidatures et des offres est de trente-cinq jours à compter de la date de l'envoi de l'avis de marché.
-
 ## Article R2161-20
 
 *En vigueur depuis le 2019-04-01.*
@@ -141,12 +183,6 @@ Lorsqu'il estime que le dialogue est arrivé à son terme, l'acheteur en informe
 
 Des précisions, clarifications, perfectionnements ou compléments peuvent être demandés aux participants sur leur offre finale. Cependant, ces demandes ne peuvent avoir pour effet de modifier les aspects essentiels de l'offre finale, notamment les besoins et exigences indiqués dans les documents de la consultation.
 
-## Article R2161-3
-
-*En vigueur depuis le 2019-04-01.*
-
-Le délai minimal fixé à l'article R. 2161-2 peut être ramené : 1° A quinze jours si l'acheteur a publié un avis de préinformation ou un avis périodique indicatif qui n'a pas été utilisé comme avis d'appel à la concurrence et lorsque les conditions suivantes sont réunies : a) L'avis de préinformation ou l'avis périodique indicatif a été envoyé pour publication trente-cinq jours au moins à douze mois au plus avant la date d'envoi de l'avis de marché ; b) Cet avis contient les mêmes renseignements que ceux qui figurent dans l'avis de marché, pour autant que ces renseignements soient disponibles au moment de son envoi pour publication ; 2° A trente jours si les candidatures et les offres sont ou peuvent être transmises par voie électronique ; 3° A quinze jours lorsqu'une situation d'urgence, dûment justifiée, rend le délai minimal impossible à respecter.
-
 ## Article R2161-30
 
 *En vigueur depuis le 2019-04-01.*
@@ -158,39 +194,3 @@ A la demande de l'acheteur, l'attributaire peut être amené à clarifier des as
 *En vigueur depuis le 2019-04-01.*
 
 L'acheteur peut prévoir des primes au profit des participants au dialogue. Le montant de la prime est indiqué dans les documents de la consultation et la rémunération du titulaire du marché tient compte de la prime qui lui a été éventuellement versée pour sa participation à la procédure.
-
-## Article R2161-4
-
-*En vigueur depuis le 2019-04-01.*
-
-L'acheteur peut décider d'examiner les offres avant les candidatures. Lorsqu'il fait usage de cette faculté, il examine les candidatures de manière impartiale et transparente. Il veille notamment à ce que sa connaissance des offres n'influe en rien sur l'appréciation des motifs d'exclusion ou des critères de sélection.
-
-## Article R2161-5
-
-*En vigueur depuis le 2019-04-01.*
-
-L'acheteur ne peut négocier avec les soumissionnaires. Il lui est seulement possible de leur demander de préciser la teneur de leur offre.
-
-## Article R2161-6
-
-*En vigueur depuis le 2019-04-01.*
-
-Les délais minimaux de réception des candidatures sont :1° Pour les pouvoirs adjudicateurs, de trente jours à compter de la date d'envoi de l'avis de marché ou, lorsque l'appel à la concurrence est effectué au moyen d'un avis de préinformation, à compter de la date d'envoi de l'invitation à confirmer l'intérêt.Lorsqu'une situation d'urgence, dûment justifiée, rend ce délai minimal impossible à respecter, le pouvoir adjudicateur peut fixer un délai de réception des candidatures qui ne peut être inférieur à quinze jours à compter de la date d'envoi de l'avis de marché ou de l'invitation à confirmer l'intérêt ;2° Pour les entités adjudicatrices, de quinze jours à compter de la date d'envoi de l'avis de marché ou de l'invitation à confirmer l'intérêt.
-
-## Article R2161-7
-
-*En vigueur depuis le 2019-04-01.*
-
-Le délai minimal de réception des offres est, pour les pouvoirs adjudicateurs, de trente jours à compter de la date d'envoi de l'invitation à soumissionner.
-
-## Article R2161-8
-
-*En vigueur depuis le 2019-04-01.*
-
-Le délai minimal fixé à l'article R. 2161-7 peut être ramené : 1° A dix jours si le pouvoir adjudicateur a publié un avis de préinformation qui n'a pas été utilisé comme avis d'appel à la concurrence et lorsque cet avis remplit les conditions suivantes : a) Il a été envoyé pour publication trente-cinq jours au moins à douze mois au plus avant la date d'envoi de l'avis de marché ; b) Il contient les mêmes renseignements que ceux qui figurent dans l'avis de marché, pour autant que ces renseignements soient disponibles au moment de son envoi pour publication ; 2° A vingt-cinq jours si les offres sont transmises par voie électronique ; 3° A dix jours lorsqu'une situation d'urgence, dûment justifiée, rend le délai minimal impossible à respecter.
-
-## Article R2161-9
-
-*En vigueur depuis le 2019-04-01.*
-
-Un pouvoir adjudicateur autre qu'une autorité publique centrale dont la liste figure dans un avis annexé au présent code peut fixer la date limite de réception des offres d'un commun accord avec les candidats sélectionnés, à condition que cette date soit la même pour tous. En l'absence d'accord, il fixe un délai qui ne peut être inférieur à dix jours à compter de la date d'envoi de l'invitation à soumissionner.

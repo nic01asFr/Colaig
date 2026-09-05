@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie réglementaire › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre IX : EXÉCUTION DU MARCHÉ › Chapitre III : SOUS-TRAITANCE
 
-**22 articles en vigueur** — R2193-1 à R2193-9.
+**22 articles en vigueur** — R2193-1 à R2193-22.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -15,6 +15,55 @@
 
 Lorsque la déclaration de sous-traitance intervient au moment du dépôt de l'offre, le soumissionnaire fournit à l'acheteur une déclaration mentionnant l'ensemble des informations suivantes : 1° La nature des prestations sous-traitées ; 2° Le nom, la raison ou la dénomination sociale et l'adresse du sous-traitant proposé ; 3° Le montant maximum des sommes à verser au sous-traitant ; 4° Les conditions de paiement prévues par le projet de contrat de sous-traitance et, le cas échéant, les modalités de variation des prix ; 5° Le cas échéant, les capacités du sous-traitant sur lesquelles le candidat s'appuie. Le soumissionnaire remet également à l'acheteur une déclaration du sous-traitant indiquant qu'il n'est pas placé dans un cas d'exclusion mentionné par les dispositions législatives des sections 1 
 et 2 du chapitre Ier du titre IV.
+
+## Article R2193-2
+
+*En vigueur depuis le 2019-04-01.*
+
+La notification du marché emporte acceptation du sous-traitant et agrément des conditions de paiement.
+
+## Article R2193-3
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsque la déclaration de sous-traitance intervient après la notification du marché, le titulaire remet à l'acheteur contre récépissé ou lui adresse par lettre recommandée avec demande d'avis de réception, un acte spécial de sous-traitance contenant les renseignements mentionnés à l'article R. 2193-1. 
+Le titulaire établit en outre qu'aucune cession ni aucun nantissement de créances résultant du marché ne font obstacle au paiement direct du sous-traitant, en produisant, lorsque les dispositions du chapitre Ier du présent titre s'appliquent, soit l'exemplaire unique ou le certificat de cessibilité du marché qui lui a été délivré, soit une attestation ou une mainlevée du bénéficiaire de la cession ou du nantissement de créances.
+
+## Article R2193-4
+
+*En vigueur depuis le 2019-04-01.*
+
+L'acceptation du sous-traitant et l'agrément des conditions de paiement sont constatés par la signature de l'acte spécial de sous-traitance. Le silence de l'acheteur gardé pendant vingt-et-un jours à compter de la réception des documents mentionnés à l'article R. 2193-3 vaut également acceptation du sous-traitant et agrément des conditions de paiement.
+
+## Article R2193-5
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsque le titulaire envisage de confier à des sous-traitants bénéficiant du paiement direct, postérieurement à la notification du marché, l'exécution de prestations pour un montant supérieur à celui qui a été indiqué dans le marché ou l'acte spécial et que les dispositions du chapitre Ier du présent titre s'appliquent, il demande à l'acheteur, sans préjudice des dispositions relatives à l'acceptation du sous-traitant de la sous-section 1 de la présente section, la modification de l'exemplaire unique ou du certificat de cessibilité prévus à l'article R. 2191-46.
+
+## Article R2193-6
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsque l'exemplaire unique ou le certificat de cessibilité a été remis en vue d'une cession ou d'un nantissement de créances et ne peut être restitué, le titulaire justifie soit que la cession ou le nantissement de créances concernant le marché est d'un montant tel qu'il ne fait pas obstacle au paiement direct de la partie sous-traitée, soit que son montant a été réduit afin que ce paiement soit possible.Cette justification est donnée par une attestation du bénéficiaire de la cession ou du nantissement de créances.
+
+## Article R2193-7
+
+*En vigueur depuis le 2019-04-01.*
+
+L'acheteur ne peut pas accepter un sous-traitant ni agréer ses conditions de paiement si l'exemplaire unique ou le certificat de cessibilité n'a pas été modifié ou si la justification mentionnée à l'article R. 2193-6 ne lui a pas été remise. Le silence de l'acheteur gardé pendant vingt-et-un jours à compter de la réception des documents mentionnés au premier alinéa et à l'article R. 2193-3 vaut acceptation du sous-traitant et agrément des conditions de paiement.
+
+## Article R2193-8
+
+*En vigueur depuis le 2019-04-01.*
+
+Toute modification en cours d'exécution du marché dans la répartition des prestations entre le titulaire et les sous-traitants payés directement ou entre les sous-traitants eux-mêmes nécessite la modification de l'exemplaire unique ou du certificat de cessibilité ou, le cas échéant, la production d'une attestation ou d'une mainlevée du ou des cessionnaires.
+
+## Article R2193-9
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsque le montant de la sous-traitance apparaît anormalement bas, l'acheteur met en œuvre les dispositions des articles R. 2152-3 à R. 2152-5.
 
 ## Article R2193-10
 
@@ -76,12 +125,6 @@ Lorsqu'une partie du marché est sous-traitée, l'avance versée au titulaire es
 
 Dès lors que le titulaire remplit les conditions pour bénéficier d'une avance, une avance est versée, sur leur demande, aux sous-traitants bénéficiaires du paiement direct. Pour le calcul du montant de cette avance, les limites fixées aux articles R. 2191-3 à R. 2191-10 sont appréciées par référence au montant des prestations confiées au sous-traitant tel qu'il figure dans le marché ou dans l'acte spécial mentionné à l'article R. 2193-3.
 
-## Article R2193-2
-
-*En vigueur depuis le 2019-04-01.*
-
-La notification du marché emporte acceptation du sous-traitant et agrément des conditions de paiement.
-
 ## Article R2193-20
 
 *En vigueur depuis le 2025-01-01.*
@@ -101,46 +144,3 @@ Le remboursement par le titulaire s'impute sur les sommes qui lui sont dues par 
 *En vigueur depuis le 2019-04-01.*
 
 Le sous-traitant qui a été accepté et dont les conditions de paiement ont été agréées peut céder ou nantir, à concurrence du montant des prestations qui lui sont réglées directement, tout ou partie de sa créance. La copie de l'original du marché ou du certificat de cessibilité prévu à l'article R. 2191-46 ou, le cas échéant, de l'acte spécial prévu à l'article R. 2193-4 désignant un sous-traitant admis au paiement direct, est remise à chaque sous-traitant bénéficiant du paiement direct.
-
-## Article R2193-3
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque la déclaration de sous-traitance intervient après la notification du marché, le titulaire remet à l'acheteur contre récépissé ou lui adresse par lettre recommandée avec demande d'avis de réception, un acte spécial de sous-traitance contenant les renseignements mentionnés à l'article R. 2193-1. 
-Le titulaire établit en outre qu'aucune cession ni aucun nantissement de créances résultant du marché ne font obstacle au paiement direct du sous-traitant, en produisant, lorsque les dispositions du chapitre Ier du présent titre s'appliquent, soit l'exemplaire unique ou le certificat de cessibilité du marché qui lui a été délivré, soit une attestation ou une mainlevée du bénéficiaire de la cession ou du nantissement de créances.
-
-## Article R2193-4
-
-*En vigueur depuis le 2019-04-01.*
-
-L'acceptation du sous-traitant et l'agrément des conditions de paiement sont constatés par la signature de l'acte spécial de sous-traitance. Le silence de l'acheteur gardé pendant vingt-et-un jours à compter de la réception des documents mentionnés à l'article R. 2193-3 vaut également acceptation du sous-traitant et agrément des conditions de paiement.
-
-## Article R2193-5
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque le titulaire envisage de confier à des sous-traitants bénéficiant du paiement direct, postérieurement à la notification du marché, l'exécution de prestations pour un montant supérieur à celui qui a été indiqué dans le marché ou l'acte spécial et que les dispositions du chapitre Ier du présent titre s'appliquent, il demande à l'acheteur, sans préjudice des dispositions relatives à l'acceptation du sous-traitant de la sous-section 1 de la présente section, la modification de l'exemplaire unique ou du certificat de cessibilité prévus à l'article R. 2191-46.
-
-## Article R2193-6
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque l'exemplaire unique ou le certificat de cessibilité a été remis en vue d'une cession ou d'un nantissement de créances et ne peut être restitué, le titulaire justifie soit que la cession ou le nantissement de créances concernant le marché est d'un montant tel qu'il ne fait pas obstacle au paiement direct de la partie sous-traitée, soit que son montant a été réduit afin que ce paiement soit possible.Cette justification est donnée par une attestation du bénéficiaire de la cession ou du nantissement de créances.
-
-## Article R2193-7
-
-*En vigueur depuis le 2019-04-01.*
-
-L'acheteur ne peut pas accepter un sous-traitant ni agréer ses conditions de paiement si l'exemplaire unique ou le certificat de cessibilité n'a pas été modifié ou si la justification mentionnée à l'article R. 2193-6 ne lui a pas été remise. Le silence de l'acheteur gardé pendant vingt-et-un jours à compter de la réception des documents mentionnés au premier alinéa et à l'article R. 2193-3 vaut acceptation du sous-traitant et agrément des conditions de paiement.
-
-## Article R2193-8
-
-*En vigueur depuis le 2019-04-01.*
-
-Toute modification en cours d'exécution du marché dans la répartition des prestations entre le titulaire et les sous-traitants payés directement ou entre les sous-traitants eux-mêmes nécessite la modification de l'exemplaire unique ou du certificat de cessibilité ou, le cas échéant, la production d'une attestation ou d'une mainlevée du ou des cessionnaires.
-
-## Article R2193-9
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque le montant de la sous-traitance apparaît anormalement bas, l'acheteur met en œuvre les dispositions des articles R. 2152-3 à R. 2152-5.

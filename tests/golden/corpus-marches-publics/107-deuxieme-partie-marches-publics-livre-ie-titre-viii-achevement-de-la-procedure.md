@@ -130,30 +130,6 @@ Pour les marchés de services de recherche et développement passés par une ent
 
 Le pouvoir adjudicateur établit un rapport de présentation de la procédure de passation des marchés et des systèmes d'acquisition dynamiques répondant à un besoin dont la valeur est égale ou supérieure aux seuils européens figurant dans un avis annexé au présent code.L'établissement de ce rapport n'est pas exigé pour les marchés subséquents fondés sur un accord-cadre lorsque ceux-ci sont conclus sans remise en concurrence.
 
-## Article R2184-10
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque l'entité adjudicatrice est soumise à un contrôle de ses marchés, elle transmet aux autorités chargées de ce contrôle les informations, documents ou leurs principaux éléments mentionnés dans la présente section en même temps que les documents contractuels.
-
-## Article R2184-11
-
-*En vigueur depuis le 2019-04-01.*
-
-Les informations, documents ou les principaux éléments mentionnés dans la présente section sont communiqués à la Commission européenne à sa demande.
-
-## Article R2184-12
-
-*En vigueur depuis le 2019-04-01.*
-
-L'acheteur conserve les candidatures et les offres ainsi que les documents relatifs à la procédure de passation pendant une période minimale de cinq ans à compter de la date de signature du marché.
-
-## Article R2184-13
-
-*En vigueur depuis le 2019-04-01.*
-
-L'acheteur conserve les pièces constitutives du marché pendant une durée minimale de cinq ans pour les marchés de fournitures ou de services et de dix ans pour les marchés de travaux, de maîtrise d'œuvre ou de contrôle technique à compter de la fin de l'exécution du marché.
-
 ## Article R2184-2
 
 *En vigueur depuis le 2019-04-01.*
@@ -208,6 +184,30 @@ L'entité adjudicatrice conserve également les informations suivantes : 1° Les
 *En vigueur depuis le 2019-04-01.*
 
 Dans la mesure où l'avis d'attribution contient les informations exigées aux articles R. 2184-7 et R. 2184-8, l'entité adjudicatrice peut se référer à cet avis.
+
+## Article R2184-10
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsque l'entité adjudicatrice est soumise à un contrôle de ses marchés, elle transmet aux autorités chargées de ce contrôle les informations, documents ou leurs principaux éléments mentionnés dans la présente section en même temps que les documents contractuels.
+
+## Article R2184-11
+
+*En vigueur depuis le 2019-04-01.*
+
+Les informations, documents ou les principaux éléments mentionnés dans la présente section sont communiqués à la Commission européenne à sa demande.
+
+## Article R2184-12
+
+*En vigueur depuis le 2019-04-01.*
+
+L'acheteur conserve les candidatures et les offres ainsi que les documents relatifs à la procédure de passation pendant une période minimale de cinq ans à compter de la date de signature du marché.
+
+## Article R2184-13
+
+*En vigueur depuis le 2019-04-01.*
+
+L'acheteur conserve les pièces constitutives du marché pendant une durée minimale de cinq ans pour les marchés de fournitures ou de services et de dix ans pour les marchés de travaux, de maîtrise d'œuvre ou de contrôle technique à compter de la fin de l'exécution du marché.
 
 ## Article R2185-1
 

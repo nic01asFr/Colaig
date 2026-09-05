@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie réglementaire › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre VII : RÈGLES APPLICABLES A CERTAINS MARCHÉS › Chapitre II : RÈGLES APPLICABLES À CERTAINS MARCHÉS EN FONCTION DE LEUR OBJET
 
-**34 articles en vigueur** — R2172-1 à R2172-9.
+**34 articles en vigueur** — R2172-1 à R2172-34.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -14,6 +14,61 @@
 *En vigueur depuis le 2019-04-01.*
 
 Les marchés de maîtrise d'œuvre ont pour objet, en vue de la réalisation d'un ouvrage ou d'un projet urbain ou paysager, l'exécution d'un ou plusieurs éléments de la mission définie à l'article L. 2431-1. Ces marchés sont passés selon les modalités prévues à la présente section et, lorsqu'ils relèvent ainsi que les acheteurs qui les concluent du livre IV, dans le respect de ces dispositions.
+
+## Article R2172-2
+
+*En vigueur depuis le 2026-02-22.*
+
+Pour les acheteurs soumis au livre IV, les marchés de maîtrise d'œuvre qui répondent à un besoin dont le montant est égal ou supérieur aux seuils de procédure formalisée sont négociés en application de l'article R. 2122-6, avec le ou les lauréats d'un concours restreint organisé dans les conditions des articles R. 2162-15 à R. 2162-21.
+Toutefois, l'acheteur n'est pas tenu d'organiser un concours pour l'attribution d'un marché de maîtrise d'œuvre :
+1° Relatif à la réutilisation ou à la réhabilitation d'ouvrages existants ou à la réalisation d'un projet urbain ou paysager ;
+2° Relatif à des ouvrages réalisés à titre de recherche, d'essai ou d'expérimentation ;
+3° Relatif à des ouvrages d'infrastructures ;
+4° Qui ne confie aucune mission de conception au titulaire.
+5° Relatif à des ouvrages de bâtiment réalisés par des organismes d'habitations à loyer modéré mentionnés à l'article L. 411-2 du code de la construction et de l'habitation, des sociétés d'économie mixte mentionnées à l'article L. 481-1 du même code pour leur activité agréée ainsi que des centres régionaux des œuvres universitaires et scolaires définis à l'article L. 822-3 du code de l'éducation ; 
+6° Qui est conclu par une collectivité territoriale, un établissement public local ou un groupement de collectivités territoriales, agissant en tant que pouvoir adjudicateur, et qui répond à un besoin dont le montant est inférieur à 300 000 euros hors taxes.
+
+## Article R2172-3
+
+*En vigueur depuis le 2019-04-01.*
+
+Pour les autres acheteurs, les marchés de maîtrise d'œuvre qui répondent à un besoin dont la valeur estimée est égale ou supérieure aux seuils de procédure formalisée sont passés selon l'une des procédures mentionnées au chapitre IV du titre II ou, si les conditions mentionnées au chapitre II du titre II sont remplies, sans publicité ni mise en concurrence préalables.
+
+## Article R2172-4
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsque l'acheteur est soumis au livre IV et organise un concours, les opérateurs économiques qui ont remis des prestations conformes au règlement du concours bénéficient d'une prime. Le montant de cette prime est égal au prix estimé des études à effectuer, affecté d'un abattement au plus égal à 20 %. L'acheteur précise dans les documents de la consultation les modalités selon lesquelles la prime peut être réduite ou supprimée. Il verse cette prime aux participants au concours sur proposition du jury.
+
+## Article R2172-5
+
+*En vigueur depuis le 2019-04-01.*
+
+Lorsque l'acheteur n'est pas soumis au livre IV ou lorsqu'il n'organise pas de concours, les opérateurs économiques qui ont remis des prestations conformes aux documents de la consultation bénéficient d'une prime dont le montant est librement défini par l'acheteur.
+
+## Article R2172-6
+
+*En vigueur depuis le 2019-04-01.*
+
+Le montant de la prime mentionnée à la présente sous-section est indiqué dans les documents de la consultation et la rémunération du titulaire du marché de maîtrise d'œuvre tient compte de la prime reçue pour sa participation à la procédure.
+
+## Article R2172-7
+
+*En vigueur depuis le 2019-04-01.*
+
+Les collectivités publiques soumises à l'obligation de décoration des constructions publiques passent des marchés ayant pour objet de satisfaire cette obligation conformément aux dispositions de la présente section.
+
+## Article R2172-8
+
+*En vigueur depuis le 2019-04-01.*
+
+Le marché de décoration des constructions publiques est passé dans les conditions fixées au présent paragraphe lorsque les deux conditions suivantes sont remplies :1° Il porte sur la commande d'une ou plusieurs réalisations artistiques à créer ;2° Son montant est inférieur aux seuils européens mentionnés dans un avis figurant en annexe du présent code.
+
+## Article R2172-9
+
+*En vigueur depuis le 2019-04-01.*
+
+L'acheteur constitue un comité artistique dans les conditions fixées à la sous-section 3, dès l'approbation de l'avant-projet sommaire défini à l'article R. 2431-10.
 
 ## Article R2172-10
 
@@ -82,19 +137,6 @@ Le président du comité peut inviter un représentant de la commune du lieu d'i
 
 Pour les opérations situées hors du territoire national, le comité artistique mentionné à l'article R. 2172-9 est composé des membres suivants : 1° Le maître d'ouvrage ou son représentant, qui en assure la présidence ; 2° L'ambassadeur ou son représentant ; 3° Le maître d'œuvre ; 4° Le directeur général de la création artistique ou son représentant ; 5° Deux personnalités qualifiées dans le domaine des arts plastiques, dont l'une est désignée par le maître de l'ouvrage et l'autre par l'ambassadeur.
 
-## Article R2172-2
-
-*En vigueur depuis le 2026-02-22.*
-
-Pour les acheteurs soumis au livre IV, les marchés de maîtrise d'œuvre qui répondent à un besoin dont le montant est égal ou supérieur aux seuils de procédure formalisée sont négociés en application de l'article R. 2122-6, avec le ou les lauréats d'un concours restreint organisé dans les conditions des articles R. 2162-15 à R. 2162-21.
-Toutefois, l'acheteur n'est pas tenu d'organiser un concours pour l'attribution d'un marché de maîtrise d'œuvre :
-1° Relatif à la réutilisation ou à la réhabilitation d'ouvrages existants ou à la réalisation d'un projet urbain ou paysager ;
-2° Relatif à des ouvrages réalisés à titre de recherche, d'essai ou d'expérimentation ;
-3° Relatif à des ouvrages d'infrastructures ;
-4° Qui ne confie aucune mission de conception au titulaire.
-5° Relatif à des ouvrages de bâtiment réalisés par des organismes d'habitations à loyer modéré mentionnés à l'article L. 411-2 du code de la construction et de l'habitation, des sociétés d'économie mixte mentionnées à l'article L. 481-1 du même code pour leur activité agréée ainsi que des centres régionaux des œuvres universitaires et scolaires définis à l'article L. 822-3 du code de l'éducation ; 
-6° Qui est conclu par une collectivité territoriale, un établissement public local ou un groupement de collectivités territoriales, agissant en tant que pouvoir adjudicateur, et qui répond à un besoin dont le montant est inférieur à 300 000 euros hors taxes.
-
 ## Article R2172-20
 
 *En vigueur depuis le 2019-04-01.*
@@ -155,12 +197,6 @@ Le délai minimum de réception des candidatures prévu à l'article R. 2161-12 
 
 Sans préjudice de l'application des dispositions des articles R. 2151-1 à R. 2151-5, le délai minimal de réception des offres initiales est librement fixé par l'acheteur.
 
-## Article R2172-3
-
-*En vigueur depuis le 2019-04-01.*
-
-Pour les autres acheteurs, les marchés de maîtrise d'œuvre qui répondent à un besoin dont la valeur estimée est égale ou supérieure aux seuils de procédure formalisée sont passés selon l'une des procédures mentionnées au chapitre IV du titre II ou, si les conditions mentionnées au chapitre II du titre II sont remplies, sans publicité ni mise en concurrence préalables.
-
 ## Article R2172-30
 
 *En vigueur depuis le 2019-04-01.*
@@ -190,39 +226,3 @@ Pour la réalisation d'ouvrages issus de projets retenus par l'Etat dans le cadr
 *En vigueur depuis le 2019-04-01.*
 
 Ces marchés sont conclus au terme d'une procédure de mise en concurrence conforme aux dispositions du présent livre, limitée à des opérateurs économiques choisis parmi ceux dont les projets auront été sélectionnés par le jury du programme public national, après publication d'un avis de marché. Un protocole d'expérimentation est passé entre l'acheteur et l'organisme public responsable du programme national.
-
-## Article R2172-4
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque l'acheteur est soumis au livre IV et organise un concours, les opérateurs économiques qui ont remis des prestations conformes au règlement du concours bénéficient d'une prime. Le montant de cette prime est égal au prix estimé des études à effectuer, affecté d'un abattement au plus égal à 20 %. L'acheteur précise dans les documents de la consultation les modalités selon lesquelles la prime peut être réduite ou supprimée. Il verse cette prime aux participants au concours sur proposition du jury.
-
-## Article R2172-5
-
-*En vigueur depuis le 2019-04-01.*
-
-Lorsque l'acheteur n'est pas soumis au livre IV ou lorsqu'il n'organise pas de concours, les opérateurs économiques qui ont remis des prestations conformes aux documents de la consultation bénéficient d'une prime dont le montant est librement défini par l'acheteur.
-
-## Article R2172-6
-
-*En vigueur depuis le 2019-04-01.*
-
-Le montant de la prime mentionnée à la présente sous-section est indiqué dans les documents de la consultation et la rémunération du titulaire du marché de maîtrise d'œuvre tient compte de la prime reçue pour sa participation à la procédure.
-
-## Article R2172-7
-
-*En vigueur depuis le 2019-04-01.*
-
-Les collectivités publiques soumises à l'obligation de décoration des constructions publiques passent des marchés ayant pour objet de satisfaire cette obligation conformément aux dispositions de la présente section.
-
-## Article R2172-8
-
-*En vigueur depuis le 2019-04-01.*
-
-Le marché de décoration des constructions publiques est passé dans les conditions fixées au présent paragraphe lorsque les deux conditions suivantes sont remplies :1° Il porte sur la commande d'une ou plusieurs réalisations artistiques à créer ;2° Son montant est inférieur aux seuils européens mentionnés dans un avis figurant en annexe du présent code.
-
-## Article R2172-9
-
-*En vigueur depuis le 2019-04-01.*
-
-L'acheteur constitue un comité artistique dans les conditions fixées à la sous-section 3, dès l'approbation de l'avant-projet sommaire défini à l'article R. 2431-10.

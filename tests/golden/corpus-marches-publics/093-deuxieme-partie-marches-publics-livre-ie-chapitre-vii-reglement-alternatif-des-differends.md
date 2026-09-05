@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie réglementaire › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre IX : EXÉCUTION DU MARCHÉ › Chapitre VII : RÈGLEMENT ALTERNATIF DES DIFFÉRENDS
 
-**25 articles en vigueur** — D2197-13 à R2197-9.
+**25 articles en vigueur** — D2197-13 à R2197-25.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -71,53 +71,11 @@ La décision prise par l'acheteur sur l'avis du comité est notifiée au titulai
 
 En cas de différend concernant l'exécution des marchés, les acheteurs et les titulaires peuvent recourir aux comités consultatifs de règlement amiable des différends relatifs aux marchés.Les comités consultatifs de règlement amiable des différends, qui peuvent être national ou locaux, ont pour mission de rechercher des éléments de droit ou de fait en vue de proposer une solution amiable et équitable aux différends relatifs à l'exécution des marchés.
 
-## Article R2197-10
-
-*En vigueur depuis le 2019-04-01.*
-
-Les représentants de l'Etat mentionnés au 3° de l'article R. 2197-6 et au 2° de l'article R. 2197-7 sont choisis, à l'occasion de chaque affaire, par le président, sur des listes nominatives établies dans les conditions ci-après : 1° Les listes des représentants de l'Etat sont arrêtées, pour le comité national, par le ministre chargé de l'économie, sur proposition du ministre compétent ; 2° Les listes des représentants de l'Etat sont arrêtées, pour les comités locaux, par le préfet désigné par l'arrêté mentionné à l'article R. 2197-3, avec l'accord de l'autorité hiérarchique dont, le cas échéant, ils dépendent.
-
-## Article R2197-11
-
-*En vigueur depuis le 2019-04-01.*
-
-Les listes des représentants des collectivités territoriales, de leurs groupements et de leurs établissements publics, habilités à siéger dans les comités locaux, sont arrêtées par le préfet désigné par l'arrêté mentionné à l'article R. 2197-3, sur proposition des autorités dont ils dépendent.
-
-## Article R2197-12
-
-*En vigueur depuis le 2019-04-01.*
-
-Les listes des organisations professionnelles les plus représentatives appelées à désigner, sur demande des présidents des comités, deux personnalités compétentes pour y siéger en application du 4° de l'article R. 2197-6 et du 3° de l'article R. 2197-7 sont arrêtées : 1° Pour le comité national, par le ministre chargé de l'économie ; 2° Pour les comités locaux, par le préfet désigné par l'arrêté mentionné à l'article R. 2197-3.
-
-## Article R2197-16
-
-*En vigueur depuis le 2019-04-01.*
-
-La saisine d'un comité consultatif de règlement amiable des différends interrompt les délais de recours contentieux pour les marchés qui sont des contrats administratifs jusqu'à la notification de la décision prise par l'acheteur sur l'avis du comité.
-
 ## Article R2197-2
 
 *En vigueur depuis le 2019-04-01.*
 
 Un comité national est placé auprès du ministre chargé de l'économie. Il connaît des différends relatifs aux marchés passés par : 1° Les services centraux de l'Etat ; 2° Les services et organismes à compétence nationale lorsque les marchés en cause couvrent des besoins excédant la circonscription d'un seul comité local mentionné à l'article R. 2197-3.
-
-## Article R2197-23
-
-*En vigueur depuis le 2019-04-01.*
-
-En cas de différend concernant l'exécution des marchés, les acheteurs et les titulaires peuvent recourir au médiateur des entreprises.Le médiateur des entreprises agit comme tierce partie, sans pouvoir décisionnel, afin d'aider les parties, qui en ont exprimé la volonté, à trouver une solution mutuellement acceptable à leur différend.
-
-## Article R2197-24
-
-*En vigueur depuis le 2019-04-01.*
-
-La saisine du médiateur des entreprises interrompt les délais de recours contentieux pour les marchés qui sont des contrats administratifs.
-
-## Article R2197-25
-
-*En vigueur depuis le 2019-04-01.*
-
-Pour l'Etat, le recours à l'arbitrage dans les cas mentionnés à l'article L. 2197-6 est autorisé par décret pris sur le rapport du ministre compétent et du ministre chargé de l'économie.
 
 ## Article R2197-3
 
@@ -160,3 +118,45 @@ Le président et le vice-président du comité national ainsi que les président
 *En vigueur depuis le 2019-04-01.*
 
 Les représentants de l'Etat mentionnés au 3° de l'article R. 2197-6 et au 2° de l'article R. 2197-7 et les représentants des collectivités territoriales, de leurs groupements ou de leurs établissements publics n'ayant pas la qualité d'élu ont un mandat limité à trois ans et renouvelable. Le mandat des représentants des collectivités territoriales, de leurs groupements ou de leurs établissements publics ayant la qualité d'élu est limité à la durée de leurs fonctions électives.
+
+## Article R2197-10
+
+*En vigueur depuis le 2019-04-01.*
+
+Les représentants de l'Etat mentionnés au 3° de l'article R. 2197-6 et au 2° de l'article R. 2197-7 sont choisis, à l'occasion de chaque affaire, par le président, sur des listes nominatives établies dans les conditions ci-après : 1° Les listes des représentants de l'Etat sont arrêtées, pour le comité national, par le ministre chargé de l'économie, sur proposition du ministre compétent ; 2° Les listes des représentants de l'Etat sont arrêtées, pour les comités locaux, par le préfet désigné par l'arrêté mentionné à l'article R. 2197-3, avec l'accord de l'autorité hiérarchique dont, le cas échéant, ils dépendent.
+
+## Article R2197-11
+
+*En vigueur depuis le 2019-04-01.*
+
+Les listes des représentants des collectivités territoriales, de leurs groupements et de leurs établissements publics, habilités à siéger dans les comités locaux, sont arrêtées par le préfet désigné par l'arrêté mentionné à l'article R. 2197-3, sur proposition des autorités dont ils dépendent.
+
+## Article R2197-12
+
+*En vigueur depuis le 2019-04-01.*
+
+Les listes des organisations professionnelles les plus représentatives appelées à désigner, sur demande des présidents des comités, deux personnalités compétentes pour y siéger en application du 4° de l'article R. 2197-6 et du 3° de l'article R. 2197-7 sont arrêtées : 1° Pour le comité national, par le ministre chargé de l'économie ; 2° Pour les comités locaux, par le préfet désigné par l'arrêté mentionné à l'article R. 2197-3.
+
+## Article R2197-16
+
+*En vigueur depuis le 2019-04-01.*
+
+La saisine d'un comité consultatif de règlement amiable des différends interrompt les délais de recours contentieux pour les marchés qui sont des contrats administratifs jusqu'à la notification de la décision prise par l'acheteur sur l'avis du comité.
+
+## Article R2197-23
+
+*En vigueur depuis le 2019-04-01.*
+
+En cas de différend concernant l'exécution des marchés, les acheteurs et les titulaires peuvent recourir au médiateur des entreprises.Le médiateur des entreprises agit comme tierce partie, sans pouvoir décisionnel, afin d'aider les parties, qui en ont exprimé la volonté, à trouver une solution mutuellement acceptable à leur différend.
+
+## Article R2197-24
+
+*En vigueur depuis le 2019-04-01.*
+
+La saisine du médiateur des entreprises interrompt les délais de recours contentieux pour les marchés qui sont des contrats administratifs.
+
+## Article R2197-25
+
+*En vigueur depuis le 2019-04-01.*
+
+Pour l'Etat, le recours à l'arbitrage dans les cas mentionnés à l'article L. 2197-6 est autorisé par décret pris sur le rapport du ministre compétent et du ministre chargé de l'économie.

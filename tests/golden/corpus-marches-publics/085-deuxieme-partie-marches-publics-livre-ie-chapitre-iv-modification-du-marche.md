@@ -3,7 +3,7 @@
 > **Position dans le Code de la commande publique**  
 > Partie réglementaire › DEUXIÈME PARTIE : MARCHÉS PUBLICS › Livre Ier : DISPOSITIONS GÉNÉRALES › Titre IX : EXÉCUTION DU MARCHÉ › Chapitre IV : MODIFICATION DU MARCHÉ
 
-**10 articles en vigueur** — R2194-1 à R2194-9.
+**10 articles en vigueur** — R2194-1 à R2194-10.
 
 *Source : Code de la commande publique, version consolidée (LEGI, DILA). Licence Ouverte 2.0. Seuls les articles en vigueur figurent ici — aucun article modifié ni abrogé.*
 
@@ -14,12 +14,6 @@
 *En vigueur depuis le 2019-04-01.*
 
 Le marché peut être modifié lorsque les modifications, quel que soit leur montant, ont été prévues dans les documents contractuels initiaux sous la forme de clauses de réexamen, dont des clauses de variation du prix ou d'options claires, précises et sans équivoque.Ces clauses indiquent le champ d'application et la nature des modifications ou options envisageables ainsi que les conditions dans lesquelles il peut en être fait usage.
-
-## Article R2194-10
-
-*En vigueur depuis le 2019-04-01.*
-
-Dans les cas prévus aux articles R. 2194-2 et R. 2194-5, lorsque le marché a été passé selon une procédure formalisée, l'acheteur publie un avis de modification. Cet avis est publié au Journal officiel de l'Union européenne dans les conditions fixées aux articles R. 2131-19 et R. 2131-20, conformément au modèle fixé par le règlement de la Commission européenne établissant les formulaires standards pour la publication d'avis dans le cadre de la passation de marchés.
 
 ## Article R2194-2
 
@@ -68,3 +62,9 @@ Le marché peut être modifié lorsque le montant de la modification est inféri
 *En vigueur depuis le 2019-04-01.*
 
 Lorsque plusieurs modifications successives relevant de l'article R. 2194-8 sont effectuées, l'acheteur prend en compte leur montant cumulé.
+
+## Article R2194-10
+
+*En vigueur depuis le 2019-04-01.*
+
+Dans les cas prévus aux articles R. 2194-2 et R. 2194-5, lorsque le marché a été passé selon une procédure formalisée, l'acheteur publie un avis de modification. Cet avis est publié au Journal officiel de l'Union européenne dans les conditions fixées aux articles R. 2131-19 et R. 2131-20, conformément au modèle fixé par le règlement de la Commission européenne établissant les formulaires standards pour la publication d'avis dans le cadre de la passation de marchés.
