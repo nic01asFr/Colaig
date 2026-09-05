@@ -5059,6 +5059,43 @@ requete. Lui ajouter la question de l'usager, qui ne bouge pas, retire cette sou
 Consequence pour la suite : la dispersion etant retombee a 8 cas, les reglages qu'on ne
 pouvait pas trancher (hybride, voisins, budget) redeviennent mesurables.
 
+### Le corpus etait faux, le corriger n'a rien change a la mesure
+
+Diagnostic des douze cas jamais servis, lus un a un. Trois motifs :
+
+1. **la partie legislative servie a la place de la reglementaire** quand la question
+   porte sur un seuil, un taux, un delai — le chiffre est dans les `R`, le principe
+   dans les `L` (mp-001, mp-103, mp-116) ;
+2. **le bon article du mauvais CCAG** — mp-129 recoit l'article 3 des CCAG Prestations
+   intellectuelles et Marches industriels, jamais celui du CCAG Travaux ;
+3. **le corpus triait ses articles comme des chaines** — `R2194-10` entre `R2194-1` et
+   `R2194-2`, dans 22 des 45 fichiers d'articles du Code.
+
+Le troisieme explique ce qui avait ete mesure trois fois sans etre compris :
+**l'elargissement aux voisins servait des articles arbitraires une fois sur deux.** Il
+sert les positions +/-1 ; depuis R2194-1, il servait R2194-10.
+
+Corpus reordonne, pousse, reindexe (1149 chunks actifs, ordre du Code verifie dans
+`metadata.pkl`). Deux campagnes contre deux :
+
+                             desordonne   ordonne
+    article servi TOUJOURS         94         95
+                  parfois           7          3
+                  jamais           12         15
+    article cite  TOUJOURS         86         84
+    agregat                     93, 87     89, 90
+
+Test apparie contre la campagne precedente : 7 gagnes / 5 perdus, **p = 0,77**.
+
+**Le corpus etait faux, il est desormais juste — et la mesure ne bouge pas.** C'est un
+gain de justesse, pas de performance : un lecteur humain n'est plus trompe, le
+manifeste ne ment plus, et l'elargissement alimente enfin les bons voisins. Rien de
+plus, et il faut le dire ainsi.
+
+Consequence pour l'elargissement : il servait n'importe quoi une fois sur deux, il sert
+maintenant les bons voisins, et rien ne change. Sa peremption est ecrite ; le bruit
+etant descendu a une dizaine de cas, son cas se tranche desormais en deux campagnes.
+
 ### Points ouverts
 
 1. **Douze cas ne sont JAMAIS servis** : mp-001, mp-018, mp-021, mp-032, mp-036,
