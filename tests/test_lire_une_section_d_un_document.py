@@ -113,3 +113,46 @@ def test_l_outil_annonce_la_section():
     section = next(p for p in FETCH_DOCUMENT_DEFINITION.parameters if p.name == "section")
     assert not section.required
     assert "titre" in section.description.lower() or "section" in section.description.lower()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LE MODELE LIT LA REPONSE DE L'OUTIL, PAS SA DESCRIPTION.
+#
+# `section` a ete ajoute, decrit, et transmis au modele — le schema OpenAI le porte.
+# Sur la campagne suivante : 166 appels a `fetch_document`, ZERO avec `section`.
+#
+# Ce que la trace montre en revanche, c'est qu'il REAGIT a `truncated` : sur 202
+# appels, 74 demandent 5 000 caracteres et 13 en demandent 10 000, apres avoir vu la
+# troncature. Il lit donc le resultat et s'y adapte.
+#
+# Une capacite s'annonce donc la ou le besoin se manifeste — dans la reponse tronquee
+# elle-meme — et non seulement dans une description lue une fois, en tete de contexte,
+# parmi vingt autres outils.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_une_reponse_tronquee_dit_ce_qu_elle_cache(handler):
+    lu = json.loads(await handler("096-besoin.md", max_chars=500))
+
+    assert lu["truncated"] is True
+    assert "sections" in lu, "les titres disent ce que le document porte plus loin"
+    assert "Article R2111-8" in lu["sections"]
+
+
+@pytest.mark.asyncio
+async def test_une_reponse_tronquee_dit_comment_obtenir_la_suite(handler):
+    """Augmenter `max_chars` ne sert a rien : c'est toujours la tete qu'on rend."""
+    lu = json.loads(await handler("096-besoin.md", max_chars=500))
+
+    assert "section" in lu.get("indication", "").lower()
+
+
+@pytest.mark.asyncio
+async def test_une_reponse_entiere_ne_s_encombre_pas(handler):
+    """Rien a signaler quand rien ne manque."""
+    lu = json.loads(await handler("096-besoin.md", max_chars=100000))
+
+    assert lu["truncated"] is False
+    assert "sections" not in lu
+    assert "indication" not in lu

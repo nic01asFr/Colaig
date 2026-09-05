@@ -190,12 +190,33 @@ def create_fetch_handler(storage, workspace: WorkspaceConfig | None = None) -> C
                 }, ensure_ascii=False)
 
             truncated = len(content) > max_c
-            return json.dumps({
+            rendu = {
                 "path": path,
                 "content": content[:max_c],
                 "size": len(content_bytes),
                 "truncated": truncated,
-            }, ensure_ascii=False)
+            }
+            if truncated:
+                # LE MODELE LIT LA REPONSE, PAS LA DESCRIPTION DE L'OUTIL.
+                #
+                # `section` a ete ajoute, decrit, et transmis — le schema OpenAI le
+                # porte. Campagne suivante : 166 appels a cet outil, ZERO avec
+                # `section`. Il REAGIT en revanche a `truncated` : sur 202 appels, 74
+                # demandent 5 000 caracteres et 13 en demandent 10 000, apres avoir vu
+                # la troncature. Or augmenter la taille ne sert a rien, puisque c'est
+                # toujours la tete qu'on rend.
+                #
+                # Une capacite s'annonce donc la ou le besoin se manifeste, et non
+                # seulement en tete de contexte, parmi vingt autres outils.
+                _, titres = _extraire_la_section(content, "")
+                rendu["sections"] = titres[:80]
+                rendu["indication"] = (
+                    "Document tronqué : seul le début est rendu, et augmenter "
+                    "max_chars rendra plus de début, pas la suite recherchée. Pour "
+                    "lire un passage précis, rappeler fetch_document avec le "
+                    "paramètre section et l'un des titres listés ci-dessus."
+                )
+            return json.dumps(rendu, ensure_ascii=False)
 
         except Exception as exc:
             return json.dumps({"error": str(exc)}, ensure_ascii=False)
