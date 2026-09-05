@@ -5029,10 +5029,40 @@ a la citation, ou le bruit le noie.
   DECIDENT, ils ne redigent pas ; un plan doit etre reproductible.
 - `COLAIG_SYNTHESISER_TEMPERATURE=0` — 7 des 18 bascules tenaient a la seule redaction.
 
+### Le socle de requete — le seul gain etabli du lot
+
+Il avait d'abord ete pose sur `_execute_rag_search`, que le service n'appelle JAMAIS :
+`execute()` bascule sur `_execute_agentic` des que l'orchestrateur a un client LLM et
+un registre d'outils. Releve sur le journal, 1079 echanges, 17043 passages : 100 % par
+l'outil `search_documents`, 0 % par la recherche du plan. Deux campagnes ont ete
+depensees a mesurer un chemin mort.
+
+Porte dans `create_search_handler`, deux campagnes contre deux, a nombre egal :
+
+                             avant        avec le socle
+    article servi TOUJOURS      70                  94
+                  parfois       17                   7
+                  jamais        26                  12
+    article cite  TOUJOURS      64                  86
+                  parfois       23                   8
+    agregat « cite l'attendu »  76, 75          93, 87
+    bascules entre deux
+      campagnes IDENTIQUES      23 (20 %)        8 (7 %)
+
+Quatre comparaisons croisees, test des signes : p = 0,000 / 0,001 / 0,029 / 0,052.
+
+**Le systeme n'est pas seulement meilleur, il est devenu stable** : « parfois » tombe
+de 17 a 7 sur le service et de 23 a 8 sur la citation. C'etait le diagnostic — la
+recherche heritait de l'instabilite de la reformulation, puisque c'etait sa seule
+requete. Lui ajouter la question de l'usager, qui ne bouge pas, retire cette source.
+
+Consequence pour la suite : la dispersion etant retombee a 8 cas, les reglages qu'on ne
+pouvait pas trancher (hybride, voisins, budget) redeviennent mesurables.
+
 ### Points ouverts
 
-1. **Le socle de requete est deploye, pas encore juge.** Reference a battre, sur deux
-   campagnes a nombre egal : article servi TOUJOURS 73, PARFOIS 14, JAMAIS 26.
+1. **Douze cas ne sont JAMAIS servis** : mp-001, mp-018, mp-021, mp-032, mp-036,
+   mp-039, mp-048, mp-070, mp-103, mp-116, mp-118, mp-129. Aucun n'est diagnostique.
 2. **Neuf cas echouent toujours** : mp-021, mp-037, mp-046, mp-066, mp-070, mp-082,
    mp-103, mp-116, mp-118. Aucun n'a ete diagnostique.
 3. **`000-SOMMAIRE.md` est servi dans 50 a 77 % des questions** sans jamais porter
