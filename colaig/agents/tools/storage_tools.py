@@ -9,9 +9,49 @@ Outils :
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable
 
 from colaig.models import ToolDefinition, ToolParameter, WorkspaceConfig
+
+# Un titre markdown, quel que soit son niveau. Les documents du corpus portent leurs
+# articles en « ## Article R2111-8 » ; d'autres corpus titrent autrement, et le
+# decoupage par titre vaut pour tous.
+_TITRE = re.compile(r"^(#{1,6})\s+(.+?)\s*$", re.M)
+
+
+def _extraire_la_section(contenu: str, demandee: str) -> tuple[str | None, list[str]]:
+    """Rend (la section demandee, la liste des titres du document).
+
+    Le rapprochement est tolerant sur la forme : le modele ecrit « R2111-8 » aussi
+    souvent que « Article R2111-8 ». Il reste EXACT sur le fond — on ne rapproche que
+    par egalite ou par inclusion du titre demande dans le titre reel, jamais par
+    ressemblance approximative, qui rendrait l'article voisin sans le dire.
+
+    La section s'arrete au titre suivant de MEME NIVEAU OU PLUS HAUT : servir la fin du
+    document depuis un titre reviendrait a ne rien cibler.
+    """
+    titres = [(m.start(), len(m.group(1)), m.group(2).strip()) for m in _TITRE.finditer(contenu)]
+    if not titres:
+        return None, []
+
+    voulu = demandee.strip().casefold()
+    trouve = None
+    for i, (debut, niveau, titre) in enumerate(titres):
+        t = titre.casefold()
+        if t == voulu or voulu in t:
+            trouve = (i, debut, niveau)
+            break
+    if trouve is None:
+        return None, [t for _, _, t in titres]
+
+    i, debut, niveau = trouve
+    fin = len(contenu)
+    for suivant_debut, suivant_niveau, _ in titres[i + 1:]:
+        if suivant_niveau <= niveau:
+            fin = suivant_debut
+            break
+    return contenu[debut:fin].rstrip(), [t for _, _, t in titres]
 
 # ---------------------------------------------------------------------------
 # Définitions
@@ -37,6 +77,18 @@ FETCH_DOCUMENT_DEFINITION = ToolDefinition(
             name="max_chars",
             type="integer",
             description="Nombre maximum de caractères à retourner (défaut : 3000).",
+            required=False,
+        ),
+        ToolParameter(
+            name="section",
+            type="string",
+            description=(
+                "Titre de la section à lire, si l'on cherche un passage précis plutôt "
+                "que le début du document. Sans ce paramètre, seuls les premiers "
+                "caractères sont rendus, et un passage situé plus loin reste "
+                "inaccessible. Exemple : 'Article R2111-8'. Si le titre n'existe pas, "
+                "la réponse liste les sections du document."
+            ),
             required=False,
         ),
     ],
@@ -76,12 +128,31 @@ def create_fetch_handler(storage, workspace: WorkspaceConfig | None = None) -> C
     """
     workspace_root = workspace.storage_path if workspace else ""
 
-    async def fetch_handler(path: str, max_chars: int | None = 3000) -> str:
-        """Télécharge et retourne le contenu d'un document.
+    async def fetch_handler(path: str, max_chars: int | None = 3000,
+                            section: str | None = None) -> str:
+        """Télécharge et retourne le contenu d'un document, ou l'une de ses sections.
+
+        POURQUOI `section` (05/09/2026)
+        ---------------------------------
+        Cet outil ne rendait que le DÉBUT du fichier, tronqué à 3000 caractères. Sur le
+        corpus mesuré, 98 documents sur 108 dépassent ce seuil — médiane 9 061
+        caractères, maximum 75 356. Un article situé au milieu d'un document restait
+        donc hors d'atteinte, quelle que soit la valeur de `max_chars`, puisque c'est
+        toujours la tête qu'on rendait.
+
+        Le modèle le savait — la réponse porte `truncated` — et insistait : sur 202
+        appels d'une campagne, 74 demandaient 5 000 caractères et 13 en demandaient
+        10 000. Cela ne l'avançait guère.
+
+        Le cas mp-057 s'expliquait entièrement ainsi : le modèle répondait « le document
+        relatif à la définition du besoin a été identifié dans le sommaire », le
+        demandait, recevait son en-tête, et concluait que l'information n'y figurait
+        pas. Elle y figurait, quelques milliers de caractères plus loin.
 
         Returns:
-            JSON string : {"path": ..., "content": ..., "size": ...}
-            ou {"error": ...} si le fichier n'existe pas.
+            JSON string : {"path": ..., "content": ..., "size": ..., "truncated": ...}
+            ou {"error": ..., "sections": [...]} si la section demandée n'existe pas —
+            dire ce que le document porte évite un second appel à l'aveugle.
         """
         # Résolution du chemin absolu
         if workspace_root and not path.startswith("/"):
@@ -102,6 +173,22 @@ def create_fetch_handler(storage, workspace: WorkspaceConfig | None = None) -> C
                 content = content_bytes.decode("latin-1", errors="replace")
 
             max_c = max_chars if max_chars is not None else 3000
+
+            if section:
+                extrait, titres = _extraire_la_section(content, section)
+                if extrait is None:
+                    return json.dumps({
+                        "error": f"Section introuvable dans {path} : {section}",
+                        "sections": titres[:80],
+                    }, ensure_ascii=False)
+                return json.dumps({
+                    "path": path,
+                    "section": section,
+                    "content": extrait[:max_c],
+                    "size": len(content_bytes),
+                    "truncated": len(extrait) > max_c,
+                }, ensure_ascii=False)
+
             truncated = len(content) > max_c
             return json.dumps({
                 "path": path,
