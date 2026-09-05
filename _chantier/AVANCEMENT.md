@@ -5143,3 +5143,68 @@ L0.2 : 283 commits separent `lot/L1.5b-decoupage-par-article` de
 demande « un lot = une branche = une PR, jamais de gros merge ». La regle n'est pas
 tenue, et la dette grossit a chaque lot. Une PR de 283 commits n'est pas relisible ;
 la resorber demande un arbitrage humain sur la strategie de fusion.
+
+---
+
+## L4.1 — retriever regle, configuration justifiee par les chiffres
+
+**05/09/2026** — branche `lot/L4.1-reglages-du-retriever`. Critere de fin du PLAN :
+« rapport comparatif vs reference, config justifiee par les chiffres ».
+
+Trois reglages tournaient sur l'instance sans preuve. Ils avaient ete compares quand la
+dispersion valait 20 % des cas — aucune de ces comparaisons ne valait. La dispersion
+etant retombee a 7 %, chacun a ete mesure a montage egal, deux campagnes contre deux,
+un seul reglage change a la fois.
+
+### Ce que chaque reglage vaut
+
+| reglage | verdict | chiffres |
+|---|---|---|
+| elargissement aux voisins + budget 20000 | **retire, code compris** | servi 95 → 96, cite 84 → 86 ; p = 1,00 / 0,79 / 1,00 / 1,00 |
+| vivier `k*4` (PLAN : « pool ~20 ») | **non pose** | servi 96 → 99 mais p = 0,73 / 0,73 / 1,00 / 1,00 sur le service ; +0,7 s |
+| recherche hybride BM25 + RRF | **eteinte** | sans elle : agregat 89,91 → 94,97 ; servi 96 → 102 ; cite 86 → 92 |
+
+**L'hybride merite sa nuance.** Tout penche du meme cote — agregat, service, citation —
+mais aucun test ne franchit le seuil : p = 0,36 / 0,10 / 0,61 / 0,18, et l'agregation
+des quatre campagnes en score par cas donne 13 cas ou « sans » fait mieux contre 8 ou
+« avec » fait mieux, p = 0,38. **Cinq cas nets, quand le jeu ne tranche qu'a partir
+d'une douzaine.** On ne peut donc pas prouver que l'eteindre ameliore.
+
+Ce qui decide alors n'est pas la mesure mais le principe 6 : *« Rien n'est active sans
+mesure »*. La charge de la preuve pese sur l'ACTIVATION. Aucune mesure ne montre de
+gain de l'hybride, plusieurs suggerent le contraire : elle reste eteinte. `bm25.pkl`
+demeure sur le stockage, inerte — le rallumer ne demande pas de reindexer.
+
+**Une observation a expliquer**, notee et non elucidee : sans hybride, la latence
+mediane passe de 10,8 a 12,7-14,4 s, alors qu'on a ALLEGE la recherche. Le journal
+donne une piste — 3,7 recherches par question en moyenne contre 2,8 auparavant. Le
+modele relancerait faute d'avoir trouve du premier coup, et finirait par mieux trouver.
+Piste, pas conclusion : les deux montages compares ne different pas que par l'hybride.
+
+### Etat de l'instance a la fin du lot
+
+    COLAIG_CHUNK_STRATEGIE       auto
+    COLAIG_BUDGET_JETONS         6000        (reglable, valeur codee en dur auparavant)
+    COLAIG_HYBRID_SEARCH_ENABLED false
+    COLAIG_ANALYSER_TEMPERATURE      0
+    COLAIG_ORCHESTRATOR_TEMPERATURE  0
+    COLAIG_SYNTHESISER_TEMPERATURE   0
+    (vivier, elargissement : non poses)
+
+    agregat 94, 97 /113 · refus 20, 18 /22 · article servi TOUJOURS 102 · cite 92
+
+### Ce que le lot deplace pour la suite
+
+**Le goulot n'est plus la recherche.** L'article attendu est servi dans 102 cas sur 113
+et cite dans 92 : dix cas ou le passage est donne a lire et n'est pas cite, et neuf ou
+il n'est jamais servi — mp-010, mp-021, mp-032, mp-034, mp-039, mp-057, mp-070,
+mp-103, mp-129.
+
+### Deux gardes ajoutees au harnais
+
+- chaque fichier de mesure porte desormais **son montage** — image du pod et variables
+  `COLAIG_*` relevees sur le deploiement. Onze campagnes avaient du etre reconstituees
+  a la main depuis l'historique du fichier de valeurs Helm.
+- `stabilite_par_cas` **refuse de rendre un chiffre sur un journal tronque**. Il a rendu
+  « toujours 16, jamais 2 » sur 113 cas attendus : une sortie `kubectl` interrompue, et
+  un resultat qui avait l'air d'un resultat.
