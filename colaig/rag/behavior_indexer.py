@@ -22,6 +22,7 @@ import logging
 
 import yaml
 
+from colaig import paths
 from colaig.models import DocumentChunk
 from colaig.rag.faiss_store import FaissStore
 
@@ -62,7 +63,7 @@ class BehaviorIndexer:
             Nombre de behaviors indexés (0 si dossier absent ou vide).
         """
         ws = workspace_path.rstrip("/")
-        behaviors_dir = f"{ws}/.colaig/{_BEHAVIORS_DIR}"
+        behaviors_dir = paths.instance_subdir(ws, _BEHAVIORS_DIR)
 
         try:
             files = await self._storage.list_files(behaviors_dir)
@@ -119,10 +120,10 @@ class BehaviorIndexer:
 
         # Persistance sur le storage
         index_bytes, meta_bytes = store.serialize()
-        indexes_dir = f"{ws}/.colaig/indexes"
+        indexes_dir = paths.indexes_dir(ws)
         await self._storage.mkdir(indexes_dir)
-        await self._storage.upload(f"{indexes_dir}/{_FAISS_NAME}", index_bytes)
-        await self._storage.upload(f"{indexes_dir}/{_META_NAME}", meta_bytes)
+        await self._storage.upload(paths.index_file(ws, _FAISS_NAME), index_bytes)
+        await self._storage.upload(paths.index_file(ws, _META_NAME), meta_bytes)
 
         logger.info(
             "behaviors indexés: %d → %s/%s",

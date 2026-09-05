@@ -1,9 +1,6 @@
 """Tests de BM25Store — index lexical hybride."""
 
-import pickle
-from unittest.mock import MagicMock
 
-import pytest
 
 from colaig.models import DocumentChunk
 from colaig.rag.bm25_store import BM25Store, _tokenize

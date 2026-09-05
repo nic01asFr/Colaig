@@ -26,6 +26,7 @@ from datetime import UTC, datetime
 
 import yaml
 
+from colaig import paths
 from colaig.models import DocumentRecord
 
 logger = logging.getLogger(__name__)
@@ -171,7 +172,7 @@ class ClassificationEngine:
         Returns:
             Nombre de règles activées.
         """
-        rules_path = f"{self._workspace_path}/.colaig/{_RULES_SUBDIR}"
+        rules_path = paths.instance_subdir(self._workspace_path, _RULES_SUBDIR)
         self._rules = []
 
         try:

@@ -1,3 +1,19 @@
+> **ARCHIVE — NE PAS SUIVRE.**
+>
+> Ceci est le `CLAUDE.md` de `colaig-v3` tel qu'il était à l'import du tronc
+> (lot L0.1, 22/08/2026). Il est conservé pour sa description des modules, qui reste
+> utile. **Sa doctrine est périmée** sur au moins deux points, corrigés au lot L0.3 :
+>
+> - « LLM : Albert API uniquement » — faux, le code est multi-provider depuis toujours
+>   (`openai_client`, `azure_client`, `ollama_client`, `provider_registry`), et la cible
+>   de production est SSPCloud.
+> - L'endpoint `https://albert-api.etalab.gouv.fr` (avec un tiret) **ne résout pas**.
+>   L'hôte correct est `https://albert.api.etalab.gouv.fr`.
+>
+> La doctrine en vigueur est celle du `CLAUDE.md` à la racine du dépôt.
+
+---
+
 # COLAIG — Instructions Claude Code
 
 ## Identité du projet

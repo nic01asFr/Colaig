@@ -1,0 +1,58 @@
+[
+ {
+  "bras": "durci",
+  "tirage": 1,
+  "cite_attendu": 0.7615,
+  "fantomes": 6.0,
+  "hors_contexte": 23.0
+ },
+ {
+  "bras": "avant_d50",
+  "tirage": 1,
+  "cite_attendu": 0.8198,
+  "fantomes": 10.0,
+  "hors_contexte": 23.0
+ },
+ {
+  "bras": "durci",
+  "tirage": 2,
+  "cite_attendu": 0.7946,
+  "fantomes": 6.0,
+  "hors_contexte": 24.0
+ },
+ {
+  "bras": "avant_d50",
+  "tirage": 2,
+  "cite_attendu": 0.7748,
+  "fantomes": 11.0,
+  "hors_contexte": 26.0
+ },
+ {
+  "bras": "durci",
+  "tirage": 3,
+  "cite_attendu": 0.7928,
+  "fantomes": 8.0,
+  "hors_contexte": 21.0
+ },
+ {
+  "bras": "avant_d50",
+  "tirage": 3,
+  "cite_attendu": 0.8148,
+  "fantomes": 11.0,
+  "hors_contexte": 26.0
+ },
+ {
+  "bras": "durci",
+  "tirage": 4,
+  "cite_attendu": 0.8125,
+  "fantomes": 11.0,
+  "hors_contexte": 25.0
+ },
+ {
+  "bras": "avant_d50",
+  "tirage": 4,
+  "cite_attendu": 0.8241,
+  "fantomes": 7.0,
+  "hors_contexte": 22.0
+ }
+]

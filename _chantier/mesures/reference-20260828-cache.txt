@@ -1,0 +1,22 @@
+03:05:19
+canari : modeles inchanges
+
+référence du 2026-08-23 — 1021 articles, 135 cas, k=10
+
+   recherche complets              0.929   ≥ 0.88     référence 0.929
+   refus systématique                1.0   ≥ 0.95     référence 1.0
+   cite l'attendu                  0.775   ≥ 0.748    référence 0.79
+   hors contexte                    24.0   ≤ 34       référence 23
+!! fantômes                         15.0   ≤ 13       référence 8
+   montants inventés                 1.0   ≤ 2        référence 0
+   tronquées                         2.0   ≤ 12       référence 0
+   garde-fou rendues               0.808   ≥ 0.78     référence 0.847
+
+RÉGRESSION — la mesure a reculé sous son seuil :
+  fantômes : 15.0 (≤ 13 attendu, référence 8)
+
+Diagnostiquer avec diagnostic_echecs.py et reanalyse_generation.py.
+Ne pas relâcher un seuil sans avoir compris ce qu'il protégeait :
+chaque seuil de reference.json porte son motif.
+SORTIE 1
+03:14:06

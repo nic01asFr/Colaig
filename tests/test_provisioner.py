@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import json
-import os
 import zipfile
 from io import BytesIO
-from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -15,7 +12,6 @@ from fastapi.testclient import TestClient
 
 from colaig.platform.provisioner import ClientProvisioner, _build_env_file
 from colaig.web.routes import create_app
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

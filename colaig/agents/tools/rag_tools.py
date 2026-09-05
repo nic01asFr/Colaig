@@ -44,18 +44,25 @@ SEARCH_DOCUMENTS_DEFINITION = ToolDefinition(
 )
 
 
-def create_search_handler(retriever, workspace_id: str = "", store=None) -> Callable:
+def create_search_handler(retriever, workspace_id: str = "", store=None, bm25_store=None,
+                          question_posee: str = "") -> Callable:
     """Crée un handler async pour l'outil search_documents.
 
     Args:
         retriever: Implémentation de RetrieverProtocol.
         workspace_id: ID du workspace pour le logging (optionnel).
         store: VectorStore spécifique au workspace (optionnel, pour isolation).
+        bm25_store: Index lexical BM25 du workspace (optionnel). Sans lui,
+            `retrieve()` reste purement vectoriel : la fusion RRF n'a pas lieu.
+        question_posee: La question de l'usager, cherchee EN PLUS de ce que le
+            modele demande. Voir la note dans le corps du handler.
 
     Returns:
         Callable async(query, k=5, threshold=0.3) -> str (JSON)
     """
     _store = store  # fermeture sur le store workspace-spécifique
+    _bm25_store = bm25_store  # idem pour l'index lexical (recherche hybride)
+    _question = (question_posee or '').strip()
 
     async def search_handler(
         query: str,
@@ -71,7 +78,34 @@ def create_search_handler(retriever, workspace_id: str = "", store=None) -> Call
         k_val = k if k is not None else 5
         threshold_val = threshold if threshold is not None else 0.3
 
-        results = await retriever.retrieve(query, k=k_val, score_threshold=threshold_val, store=_store)
+        # `bm25_store` n'est passe que s'il existe : `RetrieverProtocol.retrieve`
+        # ne le declare pas, et une implementation conforme au contrat le refuserait.
+        kwargs: dict = dict(k=k_val, score_threshold=threshold_val, store=_store)
+        if _bm25_store is not None:
+            kwargs["bm25_store"] = _bm25_store
+
+        # LA QUESTION POSEE EST TOUJOURS CHERCHEE, EN PLUS DE CE QUE LE MODELE DEMANDE.
+        #
+        # `query` est ecrite par le modele a chaque appel. Tant qu'elle etait la seule,
+        # la recherche heritait de son instabilite : sur six campagnes du service, au
+        # grain du passage, 51 cas voyaient l'article attendu TOUJOURS servi, 9 JAMAIS,
+        # et 53 UNE FOIS SUR DEUX. La question de l'usager, elle, ne bouge pas.
+        #
+        # Elle ne remplace pas la requete du modele — celle-ci porte le vocabulaire du
+        # domaine la ou l'usager emploie le sien — elle lui ajoute un socle.
+        if _question and _question != query:
+            lots = await retriever.retrieve_many([query, _question], **kwargs)
+            resultats, vus = [], set()
+            for lot in lots:
+                for r in lot:
+                    cle = (r.chunk.source_path, r.chunk.position)
+                    if cle in vus:
+                        continue
+                    vus.add(cle)
+                    resultats.append(r)
+            results = resultats
+        else:
+            results = await retriever.retrieve(query, **kwargs)
 
         serialized = []
         for r in results:

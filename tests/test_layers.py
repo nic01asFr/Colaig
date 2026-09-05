@@ -3,8 +3,8 @@
 import pytest
 
 from colaig.context.layers import (
-    build_context,
     _extract_domain,
+    build_context,
     load_conversation_history,
     save_conversation_history,
 )
@@ -99,6 +99,51 @@ class TestExtractDomain:
 
     def test_email_format(self):
         assert _extract_domain("user@example.com") == "example.com"
+
+    def test_la_derivation_du_domaine_est_INDECIDABLE_par_decoupage(self):
+        """La demonstration, plutot que l'affirmation.
+
+        Deux identifiants de STRUCTURE IDENTIQUE — `X.Y-Z-W.gouv.fr` — dont les
+        reponses justes sont opposees :
+
+        | localpart                                | nom                | domaine                       |
+        |------------------------------------------|--------------------|-------------------------------|
+        | `jean.marie-dupont-interieur.gouv.fr`    | jean.marie-dupont  | interieur.gouv.fr             |
+        | `prenom.nom-developpement-durable.gouv.fr` | prenom.nom       | developpement-durable.gouv.fr |
+
+        Aucune regle de decoupage ne peut rendre les deux : couper au dernier tiret
+        reussit la premiere et rate la seconde ; couper au premier tiret apres le point
+        fait l'inverse. Mesure le 24/08/2026.
+
+        La generation deployee a choisi la seconde regle
+        (`Plateforme_colaig/.../docquery_adapted.py`), le tronc la premiere. Chacune est
+        juste sur son cas d'usage et fausse sur l'autre. **Ce n'est pas un defaut a
+        corriger, c'est une ambiguite a lever** — par une liste de domaines connus et un
+        appariement par suffixe le plus long, ce qui est une decision de configuration.
+
+        Ce test epingle le comportement actuel ET la raison de ne pas le « corriger » a
+        l'aveugle. Voir D39 et D41.
+        """
+        # Nom compose : le tronc tombe juste.
+        assert _extract_domain(
+            "@jean.marie-dupont-interieur.gouv.fr:agent.tchap.gouv.fr"
+        ) == "interieur.gouv.fr"
+
+        # Domaine compose : le tronc se trompe, et c'est ASSUME faute de liste.
+        assert _extract_domain(
+            "@prenom.nom-developpement-durable.gouv.fr:agent.dev-durable.tchap.gouv.fr"
+        ) == "durable.gouv.fr", (
+            "si ce test change, c'est qu'une liste de domaines connus a ete introduite : "
+            "mettre a jour D39, D41 et ce test ensemble"
+        )
+
+    def test_un_localpart_opaque_ne_rend_pas_de_domaine_metier(self):
+        """La limite mesuree par la sonde : un tiers des membres observes.
+
+        Aucun decoupage ne les rattachera — on retombe sur le domaine du serveur, ce qui
+        est honnete : c'est tout ce que l'identifiant porte.
+        """
+        assert _extract_domain("@abc123def:agent.tchap.gouv.fr") == "agent.tchap.gouv.fr"
 
     def test_no_colon_no_at(self):
         assert _extract_domain("invalid") == ""

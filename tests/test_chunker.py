@@ -2,7 +2,7 @@
 
 import pytest
 
-from colaig.rag.chunker import Chunker, MIN_CHUNK_SIZE, MAX_CHUNK_SIZE
+from colaig.rag.chunker import MAX_CHUNK_SIZE, MIN_CHUNK_SIZE, Chunker
 
 
 @pytest.fixture

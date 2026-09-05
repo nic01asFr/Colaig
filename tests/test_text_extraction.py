@@ -3,9 +3,7 @@
 import io
 import zipfile
 
-import pytest
-
-from colaig.utils.text import extract_text, is_supported, SUPPORTED_EXTENSIONS
+from colaig.utils.text import extract_text, is_supported
 
 
 class TestIsSupported:
@@ -32,7 +30,7 @@ class TestExtractPlainText:
     """Tests d'extraction pour les fichiers texte brut."""
 
     def test_txt_utf8(self):
-        content = "Bonjour le monde\n\nDeuxième paragraphe.".encode("utf-8")
+        content = "Bonjour le monde\n\nDeuxième paragraphe.".encode()
         result = extract_text(content, "note.txt")
         assert "Bonjour le monde" in result
         assert "Deuxième paragraphe" in result

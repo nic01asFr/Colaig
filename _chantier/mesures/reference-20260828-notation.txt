@@ -1,0 +1,15 @@
+canari : modeles inchanges
+
+référence du 2026-08-23 — 1021 articles, 135 cas, k=10
+
+   recherche complets              0.929   ≥ 0.88     référence 0.929
+   refus systématique                1.0   ≥ 0.95     référence 1.0
+   cite l'attendu                    0.8   ≥ 0.762    référence 0.806
+   hors contexte                    20.0   ≤ 34       référence 23.24
+   fantômes                          8.0   ≤ 16       référence 7.53
+   montants inventés                 0.0   ≤ 3        référence 0.65
+   tronquées                         4.0   ≤ 12       référence 2.35
+   garde-fou rendues               0.846   ≥ 0.78     référence 0.843
+
+Aucune régression.
+SORTIE 0

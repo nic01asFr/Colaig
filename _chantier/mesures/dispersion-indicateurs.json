@@ -1,0 +1,287 @@
+{
+  "observations": [
+    {
+      "refus_systematique": 1.0,
+      "cite_attendu": 0.7768,
+      "garde_fou_rendues": 0.8636,
+      "fantomes": 8,
+      "hors_contexte": 21,
+      "montants_inventes": 0,
+      "tronquees": 3,
+      "_archive": "dispersion-durci-1.json"
+    },
+    {
+      "refus_systematique": 1.0,
+      "cite_attendu": 0.8182,
+      "garde_fou_rendues": 0.8629,
+      "fantomes": 6,
+      "hors_contexte": 20,
+      "montants_inventes": 0,
+      "tronquees": 4,
+      "_archive": "dispersion-durci-10.json"
+    },
+    {
+      "refus_systematique": 1.0,
+      "cite_attendu": 0.7748,
+      "garde_fou_rendues": 0.8249,
+      "fantomes": 7,
+      "hors_contexte": 29,
+      "montants_inventes": 2,
+      "tronquees": 2,
+      "_archive": "dispersion-durci-11.json"
+    },
+    {
+      "refus_systematique": 1.0,
+      "cite_attendu": 0.8091,
+      "garde_fou_rendues": 0.8466,
+      "fantomes": 5,
+      "hors_contexte": 25,
+      "montants_inventes": 1,
+      "tronquees": 3,
+      "_archive": "dispersion-durci-12.json"
+    },
+    {
+      "refus_systematique": 1.0,
+      "cite_attendu": 0.7818,
+      "garde_fou_rendues": 0.8523,
+      "fantomes": 5,
+      "hors_contexte": 21,
+      "montants_inventes": 2,
+      "tronquees": 3,
+      "_archive": "dispersion-durci-2.json"
+    },
+    {
+      "refus_systematique": 1.0,
+      "cite_attendu": 0.7523,
+      "garde_fou_rendues": 0.8457,
+      "fantomes": 8,
+      "hors_contexte": 23,
+      "montants_inventes": 0,
+      "tronquees": 4,
+      "_archive": "dispersion-durci-3.json"
+    },
+    {
+      "refus_systematique": 1.0,
+      "cite_attendu": 0.7876,
+      "garde_fou_rendues": 0.8436,
+      "fantomes": 8,
+      "hors_contexte": 24,
+      "montants_inventes": 1,
+      "tronquees": 0,
+      "_archive": "dispersion-durci-4.json"
+    },
+    {
+      "refus_systematique": 1.0,
+      "cite_attendu": 0.8036,
+      "garde_fou_rendues": 0.8475,
+      "fantomes": 6,
+      "hors_contexte": 23,
+      "montants_inventes": 0,
+      "tronquees": 2,
+      "_archive": "dispersion-durci-5.json"
+    },
+    {
+      "refus_systematique": 1.0,
+      "cite_attendu": 0.7523,
+      "garde_fou_rendues": 0.8908,
+      "fantomes": 6,
+      "hors_contexte": 17,
+      "montants_inventes": 1,
+      "tronquees": 5,
+      "_archive": "dispersion-durci-6.json"
+    },
+    {
+      "refus_systematique": 1.0,
+      "cite_attendu": 0.7909,
+      "garde_fou_rendues": 0.8182,
+      "fantomes": 8,
+      "hors_contexte": 29,
+      "montants_inventes": 0,
+      "tronquees": 3,
+      "_archive": "dispersion-durci-7.json"
+    },
+    {
+      "refus_systematique": 1.0,
+      "cite_attendu": 0.7876,
+      "garde_fou_rendues": 0.8315,
+      "fantomes": 7,
+      "hors_contexte": 25,
+      "montants_inventes": 0,
+      "tronquees": 1,
+      "_archive": "dispersion-durci-8.json"
+    },
+    {
+      "refus_systematique": 1.0,
+      "cite_attendu": 0.7768,
+      "garde_fou_rendues": 0.8757,
+      "fantomes": 6,
+      "hors_contexte": 19,
+      "montants_inventes": 1,
+      "tronquees": 2,
+      "_archive": "dispersion-durci-9.json"
+    }
+  ],
+  "resume": {
+    "refus_systematique": {
+      "nature": "fraction",
+      "n": 12,
+      "observe": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "moyenne": 1.0,
+      "sigma": 0.0,
+      "borne_basse": 1.0,
+      "borne_haute": 1.0,
+      "regle": "moyenne ± 2 sigma"
+    },
+    "cite_attendu": {
+      "nature": "fraction",
+      "n": 12,
+      "observe": [
+        0.7523,
+        0.7523,
+        0.7748,
+        0.7768,
+        0.7768,
+        0.7818,
+        0.7876,
+        0.7876,
+        0.7909,
+        0.8036,
+        0.8091,
+        0.8182
+      ],
+      "moyenne": 0.7843,
+      "sigma": 0.0201,
+      "borne_basse": 0.744,
+      "borne_haute": 0.8246,
+      "regle": "moyenne ± 2 sigma"
+    },
+    "garde_fou_rendues": {
+      "nature": "fraction",
+      "n": 12,
+      "observe": [
+        0.8182,
+        0.8249,
+        0.8315,
+        0.8436,
+        0.8457,
+        0.8466,
+        0.8475,
+        0.8523,
+        0.8629,
+        0.8636,
+        0.8757,
+        0.8908
+      ],
+      "moyenne": 0.8503,
+      "sigma": 0.0208,
+      "borne_basse": 0.8088,
+      "borne_haute": 0.8918,
+      "regle": "moyenne ± 2 sigma"
+    },
+    "fantomes": {
+      "nature": "compte",
+      "n": 12,
+      "observe": [
+        5,
+        5,
+        6,
+        6,
+        6,
+        6,
+        7,
+        7,
+        8,
+        8,
+        8,
+        8
+      ],
+      "moyenne": 6.6667,
+      "sigma": 1.1547,
+      "borne_basse": 3.2026,
+      "borne_haute": 10.1308,
+      "regle": "moyenne ± 3 sigma"
+    },
+    "hors_contexte": {
+      "nature": "compte",
+      "n": 12,
+      "observe": [
+        17,
+        19,
+        20,
+        21,
+        21,
+        23,
+        23,
+        24,
+        25,
+        25,
+        29,
+        29
+      ],
+      "moyenne": 23,
+      "sigma": 3.6927,
+      "borne_basse": 11.9218,
+      "borne_haute": 34.0782,
+      "regle": "moyenne ± 3 sigma"
+    },
+    "montants_inventes": {
+      "nature": "compte",
+      "n": 12,
+      "observe": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2
+      ],
+      "moyenne": 0.6667,
+      "sigma": 0.7785,
+      "borne_basse": -1.6688,
+      "borne_haute": 3.0022,
+      "regle": "moyenne ± 3 sigma"
+    },
+    "tronquees": {
+      "nature": "compte",
+      "n": 12,
+      "observe": [
+        0,
+        1,
+        2,
+        2,
+        2,
+        3,
+        3,
+        3,
+        3,
+        4,
+        4,
+        5
+      ],
+      "moyenne": 2.6667,
+      "sigma": 1.3707,
+      "borne_basse": -1.4454,
+      "borne_haute": 6.7787,
+      "regle": "moyenne ± 3 sigma"
+    }
+  }
+}

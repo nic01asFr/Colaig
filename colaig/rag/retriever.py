@@ -38,6 +38,184 @@ Rédige une réponse documentaire hypothétique (2-3 phrases) comme si tu avais 
 Réponds directement, sans introduction."""
 
 
+
+
+# Le vivier de candidats, en multiple de `k`. Lu a chaque appel pour qu'une campagne de
+# mesure puisse le faire varier sans redemarrer.
+#
+# L4.1 demande « pool ~20 → rerank → 3-5 MESURE ». Le vivier valait `k * 2`, soit 10
+# pour k=5, et il etait CODE EN DUR : la mesure que le lot exige n'etait donc pas
+# executable — on ne compare pas deux valeurs d'un nombre qu'on ne peut pas changer.
+#
+# Ce reglage ne CHOISIT pas la valeur. Le defaut reste 2, comportement inchange. Poser
+# 20 « parce que le plan le dit » serait exactement ce que ce chantier evite : le choix
+# appartient a la mesure contre la reference L1.5.
+#
+# Un vivier plus large ne coute presque rien a FAISS, mais il change ce que voient le
+# RRF, la deduplication, le MMR et le reranker — quatre etages dont aucun n'est
+# lineaire. Trop large, il peut DEGRADER le resultat en noyant les bons candidats sous
+# des voisins mediocres.
+_FACTEUR_DE_VIVIER_DEFAUT = 2
+
+# ELARGISSEMENT AUX VOISINS — ce que le decoupage a separe, la lecture le rejoint.
+#
+# Mesure du 04/09/2026 sur le service : sur les 102 cas dores dont l'article attendu
+# est un numero de code, le FICHIER qui le porte est servi 89 fois, mais 21 reponses
+# ne le citent pas. En les lisant, le motif est constant — le modele cite les articles
+# VOISINS et declare que l'information ne figure pas dans les passages fournis :
+#
+#     attendu R2111-12   servis R2111-15
+#     attendu R2113-6    servis R2113-4
+#     attendu L2113-14   servis L2113-12, L2113-13
+#     attendu R2124-3    servis R2124-4
+#
+# Le decoupage etant PAR ARTICLE, servir le fichier ne sert pas l'article : un fichier
+# en porte des dizaines. La recherche ne part pas ailleurs, elle s'arrete a deux ou
+# trois rangs — et le refus qui suit est CORRECT au vu de ce qui a ete servi.
+#
+# Le rayon coute des passages : a k=5 et rayon 1, on sert jusqu'a 15 passages au lieu
+# de 5. Le budget de jetons s'applique APRES, et tranche.
+_RAYON_DES_VOISINS_DEFAUT = 1
+
+
+# BUDGET DOCUMENTAIRE, EN JETONS. Lu a chaque appel, comme le facteur de vivier.
+#
+# Il valait 6000, CODE EN DUR. La fenetre du modele de chat servi par l'endpoint a ete
+# relevee le 04/09/2026 en poussant une requete jusqu'au refus :
+#
+#     « This model's maximum context length is 131072 tokens »
+#
+# Le budget documentaire consommait donc 4,6 % de ce que le modele accepte — et c'est
+# lui, non la recherche, qui decidait de ce qui etait servi. La comparaison du meme
+# jour le montre : avec l'elargissement aux voisins, le nombre de passages servis n'a
+# pas bouge (mediane 10, moyenne 14,7 contre 14,8), les voisins ayant REMPLACE les
+# documents les plus faibles au lieu de s'y ajouter.
+#
+# Le defaut ne change pas : un contexte long se paie en latence et en attention diluee.
+# C'est la mesure qui choisira la valeur, pas ce commentaire.
+_BUDGET_DE_JETONS_DEFAUT = 6000
+
+
+def _budget_de_jetons() -> int:
+    """Jetons alloues aux passages. Une valeur invalide retombe sur le defaut."""
+    import os
+
+    try:
+        valeur = int(os.environ.get("COLAIG_BUDGET_JETONS", ""))
+    except ValueError:
+        return _BUDGET_DE_JETONS_DEFAUT
+    return valeur if valeur >= 100 else _BUDGET_DE_JETONS_DEFAUT
+
+
+def _elargissement_aux_voisins() -> int:
+    """Rayon d'elargissement, ou 0 si le drapeau est absent."""
+    import os
+
+    if os.environ.get("COLAIG_VOISINS_ENABLED", "").lower() not in ("1", "true", "yes"):
+        return 0
+    try:
+        rayon = int(os.environ.get("COLAIG_VOISINS_RAYON", ""))
+    except ValueError:
+        return _RAYON_DES_VOISINS_DEFAUT
+    return rayon if rayon >= 1 else _RAYON_DES_VOISINS_DEFAUT
+
+
+def _avec_les_voisins(retenus: list, store, rayon: int) -> list:
+    """Insere apres chaque passage retenu ses voisins immediats du MEME document.
+
+    Un voisin complete une reponse, il ne la precede pas : il se place juste apres son
+    ancre, et le classement des passages trouves est inchange.
+
+    `get_all_active_chunks` n'appartient pas a `VectorStoreProtocol`. Un magasin qui ne
+    l'expose pas rend la recherche telle quelle — degradation, pas echec.
+    """
+    inventaire = getattr(store, "get_all_active_chunks", None)
+    if not callable(inventaire):
+        return retenus
+    try:
+        chunks = inventaire()
+    except Exception:  # noqa: BLE001
+        logger.debug("inventaire du magasin indisponible — pas d'elargissement", exc_info=True)
+        return retenus
+
+    par_place: dict[tuple, object] = {(c.source_path, c.position): c for c in chunks}
+    deja = {(r.chunk.source_path, r.chunk.position) for r in retenus}
+
+    elargi: list = []
+    for r in retenus:
+        elargi.append(r)
+        for pas in range(1, rayon + 1):
+            for place in ((r.chunk.source_path, r.chunk.position - pas),
+                          (r.chunk.source_path, r.chunk.position + pas)):
+                voisin = par_place.get(place)
+                if voisin is None or place in deja:
+                    continue
+                deja.add(place)
+                # Le score du voisin est celui de son ancre : il n'a pas ete classe,
+                # il est servi PARCE QUE son ancre l'a ete. Lui inventer un score
+                # propre le ferait remonter ou tomber sans qu'aucune mesure le dise.
+                elargi.append(SearchResult(chunk=voisin, score=r.score, rank=r.rank))
+    if len(elargi) > len(retenus):
+        logger.info("retriever: elargissement aux voisins — %d passages → %d (rayon %d)",
+                    len(retenus), len(elargi), rayon)
+    return elargi
+
+
+def _facteur_de_vivier() -> int:
+    """Multiple de `k` a demander au magasin. Une valeur invalide retombe sur le defaut.
+
+    Un reglage mal saisi ne doit pas priver l'espace de sa recherche : mieux vaut le
+    comportement d'origine qu'un echec au demarrage.
+    """
+    import os
+
+    try:
+        valeur = int(os.environ.get("COLAIG_RETRIEVER_POOL_FACTOR", ""))
+    except ValueError:
+        return _FACTEUR_DE_VIVIER_DEFAUT
+    return valeur if valeur >= 1 else _FACTEUR_DE_VIVIER_DEFAUT
+
+
+def _deduplique_les_passages(candidats: list) -> list:
+    """Retire les passages dont le TEXTE est deja servi, en gardant le mieux classe.
+
+    POURQUOI, MESURE SUR LE CORPUS REEL LE 30/08/2026. L'espace SST contient 60
+    documents dont 18 sont des copies exactes de 12 autres — deux arborescences se
+    recouvrent, et l'un des fichiers s'appelle « … - Copie.odt ». Sur 120 requetes :
+
+        k= 3   requetes touchees 20 %   places evincees 7 %
+        k= 5   requetes touchees 22 %   places evincees 8 %
+        k=10   requetes touchees 32 %   places evincees 9 %
+
+    Une requete sur cinq rendait le meme passage deux fois, au detriment d'un passage
+    qui aurait pu etre pertinent.
+
+    CE QUI EST UN DOUBLON, ET CE QUI N'EN EST PAS. Le meme TEXTE a deux chemins en est
+    un. Deux passages differents du meme document n'en sont pas — un document long et
+    pertinent doit pouvoir repondre deux fois. Une premiere mesure confondait les deux
+    et annoncait 68 % ; elle groupait par document au lieu de comparer les textes.
+
+    La comparaison ignore les blancs : deux copies d'un fichier peuvent differer d'un
+    espace ou d'un retour a la ligne apres conversion, sans que rien ne les distingue
+    a la lecture.
+
+    POURQUOI ICI ET NON A L'INDEXATION. Refuser d'indexer un doublon obligerait
+    l'espace a etre propre. Un espace reel ne l'est pas, et le traverser quand meme est
+    precisement ce que Colaig doit savoir faire : l'utilisateur depose ce qu'il a. On
+    compose avec le desordre plutot que de l'interdire — local, reversible, sans
+    reindexation.
+    """
+    vus: set[str] = set()
+    gardes = []
+    for r in candidats:
+        empreinte = " ".join((getattr(r.chunk, "text", "") or "").split())
+        if empreinte in vus:
+            continue
+        vus.add(empreinte)
+        gardes.append(r)
+    return gardes
+
+
 class Retriever:
     """Service de recherche documentaire hybride.
 
@@ -70,6 +248,61 @@ class Retriever:
         """Configure le VectorStore à utiliser (changement de workspace)."""
         self._store = store
 
+    async def retrieve_many(
+        self,
+        queries: list[str],
+        k: int = 5,
+        score_threshold: float = 0.3,
+        store=None,
+        bm25_store=None,
+    ) -> list[list[SearchResult]]:
+        """Recherche pour PLUSIEURS requêtes, en UNE seule vectorisation.
+
+        POURQUOI (L3.5)
+        ----------------
+        L'Analyseur produit 2 a 3 reformulations d'une meme question, plus des
+        `document_queries`. `PreExecutionBuilder` bouclait dessus en appelant
+        `retrieve()` a chaque fois : deux a six allers-retours reseau par tour, sur le
+        chemin du message, avant que l'utilisateur voie quoi que ce soit.
+
+        `embed_texts` existait deja, et l'indexation s'en servait pour des centaines de
+        chunks. La brique du groupage etait la ; elle n'etait pas employee ici.
+
+        CE QUI EST GROUPE, ET CE QUI NE L'EST PAS
+        -------------------------------------------
+        Seule la VECTORISATION est groupee — c'est le seul aller-retour reseau de
+        l'etape. La recherche FAISS, le RRF et le MMR restent par requete : ils sont
+        locaux, et les grouper ne gagnerait rien tout en changeant les resultats.
+
+        HyDE retombe sur la boucle d'origine : il demande une GENERATION par requete,
+        ce qui releve d'un autre arbitrage. Un test epingle cette limite pour qu'on ne
+        croie pas le gain acquis partout.
+
+        Returns:
+            Une liste de resultats PAR requete, dans l'ordre des requetes.
+        """
+        if not queries:
+            return []
+
+        effective_store = store if store is not None else self._store
+        if effective_store is None or effective_store.count == 0:
+            # Meme court-circuit que `retrieve` : interroger un index vide ne vaut pas
+            # un aller-retour reseau.
+            return [[] for _ in queries]
+
+        if self._hyde_enabled and self._albert_client is not None:
+            return [await self.retrieve(q, k=k, score_threshold=score_threshold,
+                                        store=store, bm25_store=bm25_store)
+                    for q in queries]
+
+        vecteurs = await self._embeddings.embed_texts(queries)
+        return [
+            await self.retrieve(q, k=k, score_threshold=score_threshold,
+                                store=store, bm25_store=bm25_store,
+                                query_embedding=v)
+            for q, v in zip(queries, vecteurs)
+        ]
+
     async def retrieve(
         self,
         query: str,
@@ -77,6 +310,7 @@ class Retriever:
         score_threshold: float = 0.3,
         store=None,
         bm25_store=None,
+        query_embedding: list[float] | None = None,
     ) -> list[SearchResult]:
         """Recherche les documents les plus pertinents.
 
@@ -94,6 +328,9 @@ class Retriever:
             k: Nombre de résultats à retourner.
             score_threshold: Score minimum pour inclure un résultat (sans reranker Albert).
             store: VectorStore spécifique (isolation workspace). Si None, utilise self._store.
+            query_embedding: vecteur déjà calculé. Fourni, l'étape 1 est sautée — c'est
+                ce qui permet à `retrieve_many` de grouper la vectorisation sans
+                dupliquer le reste du pipeline. Aucun appelant existant ne le passe.
             bm25_store: BM25Store spécifique (hybrid search). Si None, désactive BM25.
 
         Returns:
@@ -110,19 +347,43 @@ class Retriever:
             return []
 
         # 1. Embed la query (+ expansion HyDE optionnelle)
-        query_embedding = await self._embeddings.embed_text(query)
-        if self._hyde_enabled and self._albert_client is not None:
-            query_embedding = await self._hyde_expand_query(query, query_embedding)
+        if query_embedding is None:
+            query_embedding = await self._embeddings.embed_text(query)
+            if self._hyde_enabled and self._albert_client is not None:
+                query_embedding = await self._hyde_expand_query(query, query_embedding)
 
         # 2. FAISS search — 2x plus de candidats pour le reranking
-        candidates = effective_store.search(query_embedding, k=k * 2)
+        vivier = k * _facteur_de_vivier()
+        candidates = effective_store.search(query_embedding, k=vivier)
         if not candidates:
             return []
 
         # 3. BM25 + RRF (hybrid search)
+        #
+        # LA FUSION SE JOURNALISE, PARCE QUE SON ABSENCE NE SE VOYAIT PAS.
+        #
+        # `COLAIG_HYBRID_SEARCH_ENABLED` construit l'index BM25, le remplit, l'ecrit
+        # dans `bm25.pkl` et le recharge — mais la fusion n'a lieu que si l'appelant
+        # transmet `bm25_store`. L'orchestrateur ne le transmettait pas : le drapeau
+        # etait actif, l'index present, et la recherche restait purement vectorielle.
+        # Une campagne entiere a conclu « BM25 n'apporte rien » en mesurant deux fois
+        # la meme chose (04/09/2026). Rien, nulle part, ne disait laquelle des deux
+        # recherches tournait.
+        fusion_rrf = False
         if bm25_store is not None and bm25_store.count > 0:
-            bm25_results = bm25_store.search(query, k=k * 2)
-            candidates = _rrf_combine(candidates, bm25_results, k=k * 2, k_constant=self._rrf_k)
+            fusion_rrf = True
+            bm25_results = bm25_store.search(query, k=vivier)
+            avant_fusion = len(candidates)
+            candidates = _rrf_combine(candidates, bm25_results, k=vivier, k_constant=self._rrf_k)
+            logger.info(
+                "retriever: fusion RRF — %d candidats vectoriels + %d lexicaux → %d",
+                avant_fusion, len(bm25_results), len(candidates),
+            )
+
+        # 3b. Le meme passage ne prend pas deux places.
+        # AVANT le MMR : celui-ci reduit le vivier a , donc dedupliquer apres
+        # laisserait un trou la ou l'on veut un passage de plus.
+        candidates = _deduplique_les_passages(candidates)
 
         # 4. MMR reranking
         reranked = _mmr_rerank(candidates, query_embedding, k=k, lambda_param=MMR_LAMBDA)
@@ -132,31 +393,62 @@ class Retriever:
         if self._albert_client is not None and len(reranked) > 1:
             faiss_scores = [round(r.score, 4) for r in reranked[:3]]
             logger.info("retriever: FAISS top scores avant rerank: %s", faiss_scores)
-            reranked = await self._albert_rerank(query, reranked)
-            albert_reranked = True
+            reranked, albert_reranked = await self._albert_rerank(query, reranked)
 
         # 5. Filtrage par score
-        # Threshold adaptatif : HyDE produit des embeddings enrichis → similarités plus élevées
-        # → le seuil par défaut 0.3 peut être trop conservateur. Avec reranker Albert
-        # (BAAI/bge-reranker-v2-m3), les scores sigmoid sont ~0.001-0.005.
+        #
+        # UN SEUIL NE VAUT QUE POUR L'ECHELLE QU'IL FILTRE.
+        #
+        # `score_threshold` est une similarite COSINUS (0,3 par defaut ; les relevés
+        # sur corpus reel donnent ~0,72 en tete). Le score porte par un resultat ne
+        # vient pas toujours de cette echelle :
+        #
+        #   FAISS      cosinus dans [0, 1]
+        #   RRF        1 / (60 + rang) — soit 0,016 AU PREMIER RANG
+        #   reranker   sigmoide ~0,001-0,005 (bge-reranker-v2-m3)
+        #
+        # Filtrer des scores RRF a 0,3 les elimine TOUS, sans erreur ni resultat.
+        # Cela ne se voyait pas parce que `albert_reranked` etait pose a True apres
+        # TOUT appel au reranker, y compris quand celui-ci repondait « je n'existe
+        # pas » — le cas permanent sur SSPCloud. Le seuil tombait a 0,001 et laissait
+        # passer la fusion : la recherche hybride ne fonctionnait en service que par
+        # cet accident, et le filtrage cosinus etait mort partout ailleurs.
+        #
+        # Chaque etage annonce donc desormais son echelle.
         if albert_reranked:
             effective_threshold = 0.001
+        elif fusion_rrf:
+            # Un rang n'est pas une similarite : il n'y a pas de seuil absolu a poser.
+            # C'est `k` qui borne le nombre de passages, comme dans tout classement.
+            effective_threshold = 0.0
         elif self._hyde_enabled and self._albert_client is not None:
             effective_threshold = max(score_threshold - 0.05, 0.0)  # HyDE → seuil légèrement abaissé
         else:
             effective_threshold = score_threshold
         filtered = [r for r in reranked if r.score >= effective_threshold]
 
-        # 6. Budget tokens : éviter de dépasser la fenêtre de contexte Albert
-        # Estimation : 4 chars ≈ 1 token. Budget cible : 6000 tokens pour les documents.
-        TOKEN_BUDGET = 6000
+        # 5b. Elargissement aux voisins (opt-in) — AVANT le budget, qui doit trancher
+        # sur ce qui sera reellement servi.
+        rayon = _elargissement_aux_voisins()
+        if rayon:
+            filtered = _avec_les_voisins(filtered, effective_store, rayon)
+
+        # 6. Budget tokens : éviter de dépasser la fenêtre de contexte du modèle.
+        # Estimation : 4 chars ≈ 1 token.
+        TOKEN_BUDGET = _budget_de_jetons()
         budgeted: list[SearchResult] = []
         token_count = 0
         for r in filtered:
             estimated_tokens = len(r.chunk.text) // 4
             if token_count + estimated_tokens > TOKEN_BUDGET:
-                logger.debug("retriever: budget tokens atteint (%d tokens), %d chunks tronqués",
-                             token_count, len(filtered) - len(budgeted))
+                # EN INFO, PARCE QUE C'EST LUI QUI TRANCHE.
+                #
+                # La comparaison du 04/09/2026 a mesure un elargissement aux voisins
+                # qui ne servait pas un passage de plus : le budget etait sature avant
+                # comme apres, et les voisins REMPLACAIENT au lieu d'ajouter. Rien ne
+                # le disait — cette ligne etait en DEBUG.
+                logger.info("retriever: budget de jetons atteint (%d/%d), %d passages ecartes",
+                            token_count, TOKEN_BUDGET, len(filtered) - len(budgeted))
                 break
             budgeted.append(r)
             token_count += estimated_tokens
@@ -235,15 +527,44 @@ class Retriever:
         self,
         query: str,
         results: list[SearchResult],
-    ) -> list[SearchResult]:
+    ) -> tuple[list[SearchResult], bool]:
         """Reranke les résultats MMR via le cross-encoder Albert.
 
         Remplace les scores FAISS/RRF par les scores du reranker et retrie.
         En cas d'erreur, retourne l'ordre MMR inchangé.
+
+        Returns:
+            (resultats, reranke) — `reranke` dit si les scores portes ont CHANGE
+            d'echelle. L'appelant en depend pour choisir son seuil de filtrage :
+            l'annoncer a tort revient a desactiver le filtrage (voir etape 5).
         """
         try:
             texts = [r.chunk.text for r in results]
             ranked_pairs = await self._albert_client.rerank(query, texts, top_n=len(texts))
+
+            # UN RERANKER ABSENT NE DOIT PAS EFFACER LA RECHERCHE.
+            #
+            # Le contrat est ecrit dans `colaig/integrations/CLAUDE.md` : « rerank
+            # retourne [] si le provider ne supporte pas (404/405) → l'appelant peut
+            # utiliser MMR comme fallback ». L'appelant ne retombait pas : la boucle
+            # ci-dessous ne tournait pas, et l'on rendait une liste VIDE.
+            #
+            # Le `except` n'attrapait rien, une liste vide n'etant pas une erreur.
+            #
+            # `OpenAIClient` — donc SSPCloud, la CIBLE DE PRODUCTION — n'expose pas
+            # d'endpoint de reranking. Sur cette pile, TOUTE recherche documentaire
+            # rendait zero resultat, sans erreur ni avertissement : Colaig repondait de
+            # memoire en paraissant fonctionner. Releve a la premiere question posee a
+            # un corpus reel, le 30/08/2026 :
+            #
+            #     FAISS top scores avant rerank: [0.7188, 0.7188, 0.7188]
+            #     reranker Albert scores: []
+            #     echange … sources=[] confiance=0.00
+            if not ranked_pairs:
+                logger.info("reranking non disponible — ordre MMR conserve (%d résultats)",
+                            len(results))
+                return results, False
+
             logger.info(
                 "reranker Albert scores: %s",
                 [(round(s, 4), results[i].chunk.source_name or results[i].chunk.source_path[:30]) for i, s in ranked_pairs],
@@ -253,10 +574,10 @@ class Retriever:
                 result = results[orig_idx]
                 result.score = score
                 reordered.append(result)
-            return reordered
+            return reordered, True
         except Exception:
             logger.warning("reranking Albert échoué, fallback ordre MMR", exc_info=True)
-            return results
+            return results, False
 
 
 # ── Fonctions utilitaires ────────────────────────────────────────────────────
@@ -334,6 +655,30 @@ def _mmr_rerank(
     if len(candidates) <= 1:
         return candidates
 
+    # PERTINENCE NORMALISÉE — sans quoi λ ne veut rien dire.
+    #
+    # Le score d'un candidat ne vient pas toujours de la même échelle. FAISS rend une
+    # cosinus dans [0, 1] ; RRF rend `1 / (60 + rang)`, soit **0,016 au premier rang**.
+    # Avec λ = 0,7, le terme de pertinence pesait alors 0,011 face à un terme de
+    # diversité allant jusqu'à 0,3 — deux ordres de grandeur d'écart. Après fusion,
+    # MMR ne classait donc plus par pertinence pondérée de diversité : il retenait le
+    # plus dissemblable, la pertinence étant numériquement invisible.
+    #
+    # Mesuré sur les 103 cas dorés porteurs d'articles attendus : `RRF + MMR k=6`
+    # rendait **50/103** là où le dense seul rendait 88/103. Ce n'était pas un mauvais
+    # réglage de λ, c'était une comparaison entre grandeurs incommensurables.
+    #
+    # La normalisation min-max rend `_mmr_rerank` **indifférent à l'échelle** de ce qui
+    # le précède : λ garde le même sens derrière FAISS, derrière RRF, ou derrière tout
+    # autre classement à venir.
+    scores = [c.score for c in candidates]
+    _lo, _hi = min(scores), max(scores)
+    _etendue = _hi - _lo
+    pertinence = {
+        id(c): ((c.score - _lo) / _etendue) if _etendue > 0 else 1.0
+        for c in candidates
+    }
+
     selected: list[SearchResult] = []
     remaining = list(candidates)
 
@@ -349,8 +694,8 @@ def _mmr_rerank(
         best_idx = 0
 
         for i, candidate in enumerate(remaining):
-            # Pertinence : score original (FAISS cosine ou RRF)
-            relevance = candidate.score
+            # Pertinence ramenée dans [0, 1] — voir la note en tête de fonction.
+            relevance = pertinence[id(candidate)]
 
             # Diversité : max similarité cosinus avec les chunks déjà sélectionnés
             max_sim_selected = 0.0

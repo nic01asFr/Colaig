@@ -1,0 +1,18 @@
+référence du 2026-08-23 — 1021 articles, 135 cas, k=10
+
+   recherche complets              0.929   ≥ 0.88     référence 0.929
+   refus systématique                1.0   ≥ 0.95     référence 1.0
+!! cite l'attendu                   0.77   ≥ 0.78     référence 0.823
+   hors contexte                    22.0   ≤ 34       référence 17
+   fantômes                          6.0   ≤ 10       référence 3
+   montants inventés                 0.0   ≤ 2        référence 0
+   tronquées                         0.0   ≤ 12       référence 0
+   garde-fou rendues               0.844   ≥ 0.78     référence 0.847
+
+RÉGRESSION — la mesure a reculé sous son seuil :
+  cite l'attendu : 0.77 (≥ 0.78 attendu, référence 0.823)
+
+Diagnostiquer avec diagnostic_echecs.py et reanalyse_generation.py.
+Ne pas relâcher un seuil sans avoir compris ce qu'il protégeait :
+chaque seuil de reference.json porte son motif.
+SORTIE 1

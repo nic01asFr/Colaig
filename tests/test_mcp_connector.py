@@ -4,22 +4,23 @@ Tests unitaires — MCPConnectorClient (colaig/integrations/mcp_connector.py)
 from __future__ import annotations
 
 import json
-import pytest
+
 import httpx
+import pytest
 import respx
 
-from colaig.models import MCPConnectorConfig
 from colaig.integrations.mcp_connector import (
-    MCPConnectorClient,
-    _parse_tool_definition,
-    _create_tool_handler,
-    _json_type_to_colaig,
-    _extract_mcp_content,
-    _should_expose_tool,
-    _TOOLS_CACHE,
     _INSTRUCTIONS_CACHE,
     _RATE_LIMITER,
+    _TOOLS_CACHE,
+    MCPConnectorClient,
+    _create_tool_handler,
+    _extract_mcp_content,
+    _json_type_to_colaig,
+    _parse_tool_definition,
+    _should_expose_tool,
 )
+from colaig.models import MCPConnectorConfig
 
 
 @pytest.fixture(autouse=True)
@@ -361,10 +362,20 @@ def test_extract_mixed_content():
 
 
 def test_extract_truncation():
+    """La borne porte sur le CONTENU conservé, pas sur la chaîne rendue.
+
+    Le marqueur s'est allongé au lot L3.4 : il annonce désormais le nombre de
+    caractères omis, et dit que ce qu'on lit est un extrait. C'est le point de la
+    troncature structurée — un modèle qui lit un texte s'arrêtant net ne voit pas
+    qu'il manque quelque chose, et répond comme s'il avait tout lu.
+
+    Le contenu retenu, lui, vaut toujours exactement `max_length`.
+    """
     content = [{"type": "text", "text": "x" * 20000}]
     result = _extract_mcp_content(content, max_length=100)
-    assert len(result) <= 150  # 100 + truncation message
-    assert "tronqué" in result
+    garde = result.split("[")[0] + result.rsplit("]", 1)[-1]
+    assert garde.count("x") == 100, "le contenu conservé doit valoir max_length"
+    assert "omis" in result and "extrait" in result
 
 
 def test_extract_resource_content():
@@ -468,13 +479,13 @@ async def test_list_tools_read_only_filters():
 # ── Tests URL validation (SSRF) ────────────────────────────────────────────
 
 def test_validate_blocks_private_ip():
-    from colaig.security.url_validator import validate_navigation_url, URLValidationError
+    from colaig.security.url_validator import URLValidationError, validate_navigation_url
     with pytest.raises(URLValidationError):
         validate_navigation_url("http://169.254.169.254/meta-data/", resolve_dns=False)
 
 
 def test_validate_blocks_localhost():
-    from colaig.security.url_validator import validate_navigation_url, URLValidationError
+    from colaig.security.url_validator import URLValidationError, validate_navigation_url
     with pytest.raises(URLValidationError):
         validate_navigation_url("http://127.0.0.1:8080/admin", resolve_dns=False)
 
@@ -486,7 +497,7 @@ def test_validate_allows_public_url():
 
 
 def test_validate_domain_allowlist():
-    from colaig.security.url_validator import validate_navigation_url, URLValidationError
+    from colaig.security.url_validator import URLValidationError, validate_navigation_url
     # Allowed
     validate_navigation_url(
         "https://demarches-simplifiees.fr/login",
@@ -503,7 +514,7 @@ def test_validate_domain_allowlist():
 
 
 def test_validate_rejects_non_http():
-    from colaig.security.url_validator import validate_navigation_url, URLValidationError
+    from colaig.security.url_validator import URLValidationError, validate_navigation_url
     with pytest.raises(URLValidationError, match="Schéma interdit"):
         validate_navigation_url("ftp://server/file", resolve_dns=False)
 

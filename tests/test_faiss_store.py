@@ -1,13 +1,11 @@
 """Tests pour colaig/rag/faiss_store.py — Index vectoriel FAISS."""
 
-import os
-import pytest
 import numpy as np
+import pytest
 
-from colaig.rag.faiss_store import FaissStore
-from colaig.models import DocumentChunk, SearchResult
 from colaig.exceptions import FaissIndexError, IndexNotFoundError
-
+from colaig.models import DocumentChunk, SearchResult
+from colaig.rag.faiss_store import FaissStore
 
 DIM = 64
 

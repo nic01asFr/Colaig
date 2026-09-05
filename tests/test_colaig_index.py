@@ -1,14 +1,12 @@
 """Tests pour ColaigIndex — source de vérité clés/chemins FAISS."""
 
-import asyncio
 import pickle
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import numpy as np
 import pytest
 
 from colaig.rag.colaig_index import ColaigIndex
-
 
 # ── Clés de registry ──────────────────────────────────────────────────────────
 

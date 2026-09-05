@@ -1,25 +1,38 @@
 """
 Colaig — Fixtures de test partagées
 
-Fournit des mocks et fixtures utilisés par TOUS les tests.
-Chaque agent Claude Code utilise ces fixtures pour ses tests unitaires.
+Point d'entrée **unique** du harnais de test. Les doublures elles-mêmes vivent dans
+`tests/fakes.py` — `FakeStorage`, `FakeMessaging`, `FakeLLM` — et sont réexportées ici
+sous leurs anciens noms (`MockStorage`, `MockAlbertClient`…) pour que les tests
+existants continuent de fonctionner sans modification.
+
+Tout est déterministe et hors ligne : aucune horloge murale, aucun hasard non semé,
+aucun accès réseau.
 """
 
-import pytest
 import asyncio
-from dataclasses import dataclass, field
-from typing import Optional
+import os
 from datetime import datetime
+
+import pytest
 
 from colaig.models import (
     ColaigConfig,
-    WorkspaceConfig,
-    IncomingMessage,
     ConversationType,
     DocumentChunk,
     DocumentRecord,
     DocumentStatus,
+    IncomingMessage,
     StorageFile,
+    WorkspaceConfig,
+)
+from tests.fakes import (  # noqa: F401 - reexportes pour les tests existants
+    FakeLLM,
+    FakeMessaging,
+    FakeStorage,
+    MockAlbertClient,
+    MockStorage,
+    MockWebDAVClient,
 )
 
 
@@ -91,66 +104,6 @@ def test_dm_message() -> IncomingMessage:
     )
 
 
-class MockStorage:
-    """Mock du backend de stockage. Stocke fichiers en mémoire."""
-
-    def __init__(self):
-        self.files: dict[str, bytes] = {}
-        self.metadata: dict[str, StorageFile] = {}
-
-    def add_file(self, path: str, content: bytes, content_type: str = "text/plain"):
-        self.files[path] = content
-        self.metadata[path] = StorageFile(
-            path=path, name=path.split("/")[-1], size=len(content),
-            etag=f'"{hash(content)}"', last_modified=datetime.utcnow(),
-            content_type=content_type,
-        )
-
-    async def list_files(self, path: str, recursive: bool = False) -> list[StorageFile]:
-        prefix = path.rstrip("/") + "/"
-        results = []
-        for p, m in self.metadata.items():
-            if not p.startswith(prefix):
-                continue
-            if not recursive:
-                # Only direct children: relative path should have no "/" (except trailing)
-                relative = p[len(prefix):].rstrip("/")
-                if "/" in relative:
-                    continue
-            results.append(m)
-        return results
-
-    async def download(self, path: str) -> bytes:
-        if path not in self.files:
-            raise FileNotFoundError(f"Storage 404: {path}")
-        return self.files[path]
-
-    async def download_if_changed(self, path: str, known_etag: str) -> Optional[bytes]:
-        meta = self.metadata.get(path)
-        if meta and meta.etag == known_etag:
-            return None
-        return await self.download(path)
-
-    async def upload(self, path: str, content: bytes) -> None:
-        self.add_file(path, content)
-
-    async def mkdir(self, path: str) -> None:
-        self.metadata[path] = StorageFile(path=path, name=path.split("/")[-1], is_directory=True)
-
-    async def exists(self, path: str) -> bool:
-        return path in self.files or path in self.metadata
-
-    async def get_etag(self, path: str) -> Optional[str]:
-        meta = self.metadata.get(path)
-        return meta.etag if meta else None
-
-    async def delete(self, path: str) -> None:
-        self.files.pop(path, None)
-        self.metadata.pop(path, None)
-
-
-# Alias rétrocompatibilité
-MockWebDAVClient = MockStorage
 
 
 @pytest.fixture
@@ -193,66 +146,31 @@ def mock_webdav_with_workspace(mock_storage_with_workspace) -> MockStorage:
     return mock_storage_with_workspace
 
 
-class MockAlbertClient:
-    """Mock du client Albert API.
-
-    Supporte chat(), chat_with_tools(), embed(), embed_batch().
-    Pour chat_with_tools, utilise tool_call_responses si défini,
-    sinon retourne une ChatCompletionResult texte depuis chat_responses.
-    """
-
-    def __init__(self, embedding_dim: int = 384):
-        self.embedding_dim = embedding_dim
-        self.chat_responses = ["D'après les documents, la procédure comporte 3 étapes. [guide.txt]"]
-        self._chat_call_count = 0
-        # Pour chat_with_tools : liste de ChatCompletionResult à retourner séquentiellement
-        self.tool_call_responses: list = []
-        self._tool_call_count = 0
-
-    async def chat(self, messages, model=None, temperature=0.3, max_tokens=2048) -> str:
-        response = self.chat_responses[min(self._chat_call_count, len(self.chat_responses) - 1)]
-        self._chat_call_count += 1
-        return response
-
-    async def chat_stream(self, messages, **kwargs):
-        response = await self.chat(messages, **kwargs)
-        for word in response.split():
-            yield word + " "
-
-    async def chat_with_tools(
-        self,
-        messages,
-        tools,
-        model=None,
-        temperature=0.3,
-        max_tokens=2048,
-        tool_choice="auto",
-    ):
-        from colaig.models import ChatCompletionResult
-        if self.tool_call_responses:
-            idx = min(self._tool_call_count, len(self.tool_call_responses) - 1)
-            result = self.tool_call_responses[idx]
-            self._tool_call_count += 1
-            return result
-        # Fallback : retourne une réponse texte depuis chat_responses
-        text = await self.chat(messages, model, temperature, max_tokens)
-        return ChatCompletionResult(content=text, finish_reason="stop")
-
-    async def embed(self, text: str) -> list[float]:
-        import hashlib, numpy as np
-        h = hashlib.md5(text.encode()).hexdigest()
-        rng = np.random.RandomState(int(h[:8], 16))
-        vec = rng.randn(self.embedding_dim).astype(np.float32)
-        vec = vec / np.linalg.norm(vec)
-        return vec.tolist()
-
-    async def embed_batch(self, texts: list[str], batch_size=32) -> list[list[float]]:
-        return [await self.embed(t) for t in texts]
-
-
 @pytest.fixture
 def mock_albert() -> MockAlbertClient:
     return MockAlbertClient()
+
+
+@pytest.fixture
+def fake_llm() -> FakeLLM:
+    """Doublure LLM déterministe. Nom canonique de `mock_albert` (lot L0.4)."""
+    return FakeLLM()
+
+
+@pytest.fixture
+def fake_storage() -> FakeStorage:
+    """Doublure de stockage déterministe. Nom canonique de `mock_storage` (lot L0.4)."""
+    return FakeStorage()
+
+
+@pytest.fixture
+def fake_messaging() -> FakeMessaging:
+    """Doublure de messagerie déterministe.
+
+    À préférer à un `AsyncMock()` : celui-ci accepte n'importe quel appel et ne
+    vérifie donc rien du contrat `MessagingProtocol`.
+    """
+    return FakeMessaging()
 
 
 @pytest.fixture
@@ -332,3 +250,125 @@ def sample_chunks() -> list[DocumentChunk]:
         DocumentChunk(text="Le formulaire doit être soumis avant le 15 du mois.", source_path="/espace-test/documents/guide.txt", source_name="guide.txt", position=1),
         DocumentChunk(text="Le chef de service valide dans un délai de 5 jours.", source_path="/espace-test/documents/guide.txt", source_name="guide.txt", position=2),
     ]
+
+
+def code_seul(source: str) -> str:
+    """Le code d'un module, sans ses commentaires ni ses docstrings.
+
+    Plusieurs gardes de ce depot cherchent un motif interdit dans les sources —
+    l'ancien marqueur de balisage, une constante de secret. Ces gardes doivent porter
+    sur ce qui S'EXECUTE : un module a le droit de citer dans sa docstring la faille
+    qu'il supprime, et cette trace a de la valeur.
+
+    Filtrer par nom de fichier creerait une derogation ; filtrer les commentaires
+    supprime le besoin d'en avoir une.
+    """
+    import io as _io
+    import tokenize
+
+    # Une docstring est une chaine qui OUVRE une ligne logique : le jeton qui la precede
+    # est un INDENT, un DEDENT, une fin de ligne, ou le debut du fichier.
+    #
+    # Piege mesure le 24/08/2026 : une premiere version n'actualisait pas `precedent`
+    # pour ces jetons-la. Il gardait donc le `:` de la signature, et le test ne
+    # reconnaissait QUE les docstrings de module — jamais celles de fonction. La garde
+    # du marqueur de balisage passait pour une raison partielle.
+    OUVRE_UNE_LIGNE = {
+        tokenize.INDENT, tokenize.DEDENT, tokenize.NEWLINE, tokenize.NL,
+        tokenize.ENCODING,
+    }
+    # LE TEXTE EST PRESERVE : on BLANCHIT commentaires et docstrings sur place, on ne
+    # reconstruit pas depuis les jetons.
+    #
+    # Second piege, mesure le 25/08/2026 : une version anterieure joignait les JETONS
+    # par des sauts de ligne. Elle coupait donc les noms pointes —
+    # `colaig.metrics.quota` devenait sept jetons sur sept lignes — et une garde
+    # cherchant « metrics.quota » ne trouvait plus rien. La garde de L2.2 sur
+    # `.mcp_connectors` etait ainsi ENTIEREMENT INERTE : aucun fichier n'etait examine.
+    #
+    # Un filtre qui denature ce qu'il filtre ne filtre pas.
+    lignes = source.splitlines(keepends=True)
+    a_blanchir = []
+    precedent = tokenize.ENCODING
+    for jeton in tokenize.generate_tokens(_io.StringIO(source).readline):
+        docstring = jeton.type == tokenize.STRING and precedent in OUVRE_UNE_LIGNE
+        if jeton.type == tokenize.COMMENT or docstring:
+            a_blanchir.append((jeton.start, jeton.end))
+        precedent = jeton.type
+
+    for (l1, c1), (l2, c2) in reversed(a_blanchir):
+        if l1 == l2:
+            ligne = lignes[l1 - 1]
+            lignes[l1 - 1] = ligne[:c1] + " " * (c2 - c1) + ligne[c2:]
+        else:
+            lignes[l1 - 1] = lignes[l1 - 1][:c1] + "\n"
+            for i in range(l1, l2 - 1):
+                lignes[i] = "\n"
+            lignes[l2 - 1] = " " * c2 + lignes[l2 - 1][c2:]
+    return "".join(lignes)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def magasin_de_pins_isole(tmp_path_factory):
+    """Le magasin d'épinglage MCP vit dans un dossier temporaire, pas dans le dépôt.
+
+    LE DÉFAUT QUE CETTE FIXTURE FERME
+    -----------------------------------
+    `mcp_pins.CHEMIN_PAR_DEFAUT` vaut `config/mcp_pins.json` — un fichier **suivi par
+    git**. Chaque exécution de la suite y écrivait les empreintes des outils factices, et
+    ces écritures ont fini par être commitées : `test_connector::search` (lot L2.3),
+    puis `commun::search`, `espace-a::search`, `juridique::search`, `rh::search` (L3.4).
+
+    Deux conséquences, toutes deux mesurées :
+
+    1. **Le dépôt portait des données fabriquées** dans un fichier de configuration —
+       de quoi faire croire que ces épinglages étaient réels.
+    2. **L'issue d'un test dépendait des exécutions précédentes.** Un test qui déclare
+       un outil sous une description, puis la change, échouait ou non selon ce qu'une
+       exécution antérieure avait laissé sur le disque. C'est exactement le contraire du
+       contrat de `tests/CLAUDE.md` : « deux exécutions de la suite doivent produire
+       exactement le même résultat, dans le même processus comme dans un autre ».
+
+    Le magasin reste PARTAGÉ sur la session, et c'est voulu : l'épinglage protège d'un
+    contrat qui change entre deux découvertes, et un magasin vidé à chaque test ne
+    pourrait rien épingler du tout.
+    """
+    import colaig.security.mcp_pins as mcp_pins
+    from colaig.integrations import mcp_connector
+
+    ancien = mcp_pins.CHEMIN_PAR_DEFAUT
+    mcp_pins.CHEMIN_PAR_DEFAUT = tmp_path_factory.mktemp("pins") / "mcp_pins.json"
+    mcp_connector._MAGASIN_PINS = None
+    yield
+    mcp_pins.CHEMIN_PAR_DEFAUT = ancien
+    mcp_connector._MAGASIN_PINS = None
+
+
+@pytest.fixture(autouse=True)
+def _drapeaux_neutralises(monkeypatch):
+    """Aucun drapeau de comportement de la machine n'entre dans la suite.
+
+    `tests/CLAUDE.md` pose le contrat : « deux exécutions de la suite doivent produire
+    exactement le même résultat, dans le même processus comme dans un autre ». Une
+    variable d'environnement posée sur le poste viole ce contrat en silence.
+
+    Mesuré le 01/09/2026 : la suite lancée avec `COLAIG_GARDE_FOU_ENABLED=1` — la
+    valeur qu'un déploiement peut porter — donne **trois échecs** que la même suite ne
+    produit pas sans elle. Aucun ne signale un défaut du produit : ce sont des tests
+    dont la réponse factice ne cite aucun article, donc légitimement remplacée par un
+    refus. Mais un développeur qui aurait cette variable dans son shell aurait vu la
+    suite rouge sans comprendre pourquoi, et un correctif inutile serait parti de là.
+
+    SEULS LES `_ENABLED` SONT EFFACÉS, et cette limite est délibérée. Les autres
+    `COLAIG_*` fournissent des ressources — `COLAIG_S3_*`, `COLAIG_WEBDAV_*`,
+    `COLAIG_BASE_URL` — et les effacer empêcherait de faire tourner les contrats de
+    stockage avec de vrais accès, qui n'ont pas d'autre moyen de s'exécuter. Un drapeau
+    choisit un chemin de code ; un identifiant ouvre une porte. On neutralise le
+    premier, jamais le second.
+
+    Un test qui veut un drapeau le pose lui-même : `monkeypatch.setenv` s'applique
+    après cette fixture, donc reste souverain.
+    """
+    for nom in [n for n in os.environ
+                if n.startswith("COLAIG_") and n.endswith("_ENABLED")]:
+        monkeypatch.delenv(nom, raising=False)

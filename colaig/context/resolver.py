@@ -68,12 +68,31 @@ class ContextResolver:
         Returns:
             WorkspaceContext complet.
         """
-        # 1. Chercher dans le cache rapide
-        workspace = self._conversation_mapping.get(message.conversation_id)
+        # 1. LE TTL EST VERIFIE A CHAQUE MESSAGE, pas seulement pour un salon inconnu.
+        #
+        # Cette ligne etait sous le `if workspace is None` : le TTL n'etait donc
+        # consulte que lorsque la conversation etait ABSENTE du cache. Des qu'un salon
+        # avait ete mappe une fois, son WorkspaceConfig etait servi indefiniment — le
+        # TTL n'etait jamais atteint parce que plus personne ne le regardait.
+        #
+        # Observe le 04/09/2026 : le `system_prompt` de l'espace des marches publics a
+        # ete renseigne dans son config.yaml, puis 135 questions posees. ZERO reponse
+        # portait la formule que ce prompt impose, et le journal du pod ne montrait
+        # aucun rafraichissement de cache en 90 minutes.
+        #
+        # Toute configuration d'espace devenait donc inerte apres le premier message —
+        # prompt, max_results, garde_fou_provenance, format_citation — jusqu'au
+        # redemarrage de l'instance. C'est le principe fondateur qui tombait : « un
+        # espace de stockage + un dossier .colaig = une instance Colaig complete » ne
+        # tient que si le dossier est relu.
+        #
+        # Le cout reste borne par le TTL : un scan du storage au plus toutes les
+        # `cache_ttl` secondes, pas a chaque message.
+        await self._ensure_cache_fresh()
 
-        # 2. Si pas en cache, rafraîchir les workspaces
+        # 2. Chercher dans le cache rapide, puis dans la liste rafraichie
+        workspace = self._conversation_mapping.get(message.conversation_id)
         if workspace is None:
-            await self._ensure_cache_fresh()
             workspace = find_workspace_for_conversation(self._workspaces, message.conversation_id)
             if workspace:
                 self._conversation_mapping[message.conversation_id] = workspace

@@ -1,0 +1,1303 @@
+[
+ {
+  "id": "mp-001",
+  "type": "fait",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "L2112-1+R2112-1",
+    "verdict": "etaye",
+    "ancre": false,
+    "motif": "L'extrait confirme explicitement que l'article R2112-1 fixe le seuil à 25 000 euros HT et que l'article L2112-1 prévoit que ce seuil est fixé par voie réglementaire.",
+    "phrase": "Le passage de l'article R2112-1 indique un seuil de 25 000 euros hors taxes pour la conclusion par écrit, mais l'article L2112-1 renvoie à un seuil fixé par voi"
+   }
+  ]
+ },
+ {
+  "id": "mp-002",
+  "type": "fait",
+  "difficulte": "croisee",
+  "verdicts": [
+   {
+    "article": "L2112-1",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite l'article L2112-1 et reproduit exactement la disposition selon laquelle le marché est conclu par écrit si sa valeur estimée atteint ou dépasse un seuil réglementaire.",
+    "phrase": "Le fondement est l’**article L2112-1** du Code de la commande publique, qui dispose que le marché répondant à un besoin dont la valeur estimée est égale ou supé"
+   },
+   {
+    "article": "R2112-1",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait indique explicitement que l'article R2112-1 fixe le seuil à 25 000 euros hors taxes.",
+    "phrase": "Ce seuil réglementaire est fixé par l’**article R2112-1** à 25 000 euros hors taxes."
+   },
+   {
+    "article": "L2112-1",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait stipule que le marché est conclu par écrit lorsque sa valeur est égale ou supérieure au seuil réglementaire, ce qui correspond à l'imposition de la forme écrite sous cette condition.",
+    "phrase": "L’**article L2112-1** impose l'écrit uniquement si le seuil réglementaire est atteint ou dépassé."
+   },
+   {
+    "article": "R2112-1",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait indique explicitement que l'article R2112-1 fixe le seuil à 25 000 euros hors taxes.",
+    "phrase": "L’**article R2112-1** fixe ce seuil à 25 000 € HT."
+   },
+   {
+    "article": "L2112-1+R2112-1",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait indique que la conclusion par écrit est obligatoire pour les marchés dont la valeur est égale ou supérieure au seuil réglementaire, et fixe ce seuil à 25 000 euros HT, ce qui implique que les marchés inférieurs à ce montant ne sont pas soumis à cette obligation.",
+    "phrase": "**Réponse finale :** Non, la formalisation par écrit n'est pas obligatoire au titre de l'article L2112-1 combiné à l'article R2112-1, car le montant (18 000 € H"
+   }
+  ]
+ },
+ {
+  "id": "mp-003",
+  "type": "fait",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "R2122-8+R2122-9-1",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme les montants de 100 000 euros HT mentionnés dans les articles R2122-8 et R2122-9-1, mais il ne contient aucune information indiquant que ces articles ne définissent pas le seuil général de procédure adaptée.",
+    "phrase": "Les articles R2122-8 et R2122-9-1 mentionnent des montants (100 000 euros HT pour les travaux dans le premier cas, et 100 000 euros HT pour les travaux innovant"
+   }
+  ]
+ },
+ {
+  "id": "mp-004",
+  "type": "fait",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "R2161-12+R2161-14+R2161-2+R2161-21+R2161-6+R2161-7",
+    "verdict": "contredit",
+    "ancre": true,
+    "motif": "L'article R2161-2 de l'extrait fixe explicitement un délai unique de trente-cinq jours pour la réception simultanée des candidatures et des offres, ce qui contredit l'affirmation selon laquelle aucun article ne fixe un tel délai.",
+    "phrase": "Les passages fournis distinguent le délai de réception des candidatures (Articles R2161-12, R2161-6, R2161-21) du délai de réception des offres (Articles R2161-"
+   },
+   {
+    "article": "R2161-2+R2161-7",
+    "verdict": "etaye",
+    "ancre": false,
+    "motif": "L'extrait confirme que l'article R2161-2 fixe un délai de 35 jours pour candidatures et offres, et que l'article R2161-7 fixe un délai de 30 jours pour les offres. Il montre également que ces articles sont placés sous le chapitre intitulé 'RÈGLES APPLICABLES AUX PROCÉDURES FORMALISÉES', mais que le texte des articles lui-même ne qualifie pas explicitement le contexte comme 'procédure formalisée standard'.",
+    "phrase": "Les articles R2161-2 et R2161-7 citent des délais distincts (35 jours pour candidatures et offres combinés dans un cas, 30 jours pour les offres dans un autre),"
+   },
+   {
+    "article": "R2161-2",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme l'existence du Chapitre Ier du Titre VI du Livre Ier et l'Article R2161-2 fixant un délai de 35 jours, mais il ne contient aucune recommandation de consulter ce chapitre pour identifier la règle générale applicable à toutes les procédures ou à certaines catégories.",
+    "phrase": "Il est recommandé de consulter l'ensemble du Chapitre Ier du Titre VI du Livre Ier de la Partie réglementaire pour identifier la règle générale applicable à la "
+   }
+  ]
+ },
+ {
+  "id": "mp-005",
+  "type": "procedure",
+  "difficulte": "croisee",
+  "verdicts": [
+   {
+    "article": "L2113-11",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite explicitement l'article L2113-11 et énonce que l'acheteur peut décider de ne pas allotir un marché dans les cas listés, ce qui correspond exactement à l'affirmation.",
+    "phrase": "L'article L2113-11, qui figure dans les passages fournis, énumère les cas où l'acheteur **peut** décider de ne pas allotir un marché."
+   },
+   {
+    "article": "L2113-11",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait se limite à l'article L2113-11 qui énumère les cas de dérogation à l'allotissement, sans mentionner le principe général d'obligation d'allotissement.",
+    "phrase": "Les passages fournis ne contiennent que l'article L2113-11 (cas de dérogation possibles) et ne permettent pas de répondre à la première partie de la question (l"
+   }
+  ]
+ },
+ {
+  "id": "mp-006",
+  "type": "procedure",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "L2124-2+R2124-2+R2124-3",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait confirme explicitement que l'appel d'offres est une procédure sans négociation (article L2124-2) et liste les cas où la procédure avec négociation est autorisée (article R2124-3), étayant ainsi la méthode de consultation décrite.",
+    "phrase": "Pour déterminer si la négociation est autorisée dans une procédure d'appel d'offres, il convient de consulter les articles définissant le champ d'application de"
+   },
+   {
+    "article": "L2124-2+R2124-3",
+    "verdict": "etaye",
+    "ancre": false,
+    "motif": "L'extrait contient explicitement l'article L2124-2 définissant l'appel d'offres et l'article R2124-3 listant les cas de recours à la procédure avec négociation. Il ne contient aucun article interdisant la négociation dans l'appel d'offres ou listant des exceptions à cette interdiction.",
+    "phrase": "Le corpus fourni contient la définition de l'appel d'offres (L2124-2) et les cas de recours à la procédure avec négociation (R2124-3), mais ne contient pas expl"
+   },
+   {
+    "article": "L2124-2",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite textuellement l'article L2124-2 et confirme que l'appel d'offres est la procédure par laquelle l'acheteur choisit l'offre économiquement la plus avantageuse sans négociation.",
+    "phrase": "Cependant, en se basant strictement sur les textes fournis : * L'**article L2124-2** définit l'appel d'offres (ouvert ou restreint) comme la procédure par laque"
+   },
+   {
+    "article": "R2124-2",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait stipule explicitement que l'acheteur choisit librement entre l'appel d'offres ouvert et l'appel d'offres restreint, ce qui correspond exactement à l'affirmation.",
+    "phrase": "* L'**article R2124-2** précise que l'acheteur choisit librement entre l'appel d'offres ouvert et l'appel d'offres restreint."
+   },
+   {
+    "article": "L2124-2+R2124-2",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'article L2124-2 définit explicitement l'appel d'offres comme une procédure choisie « sans négociation », ce qui étaye directement l'affirmation selon laquelle la négociation n'est pas autorisée dans ce cadre.",
+    "phrase": "Par conséquent, selon les articles **L2124-2** et **R2124-2** fournis, la négociation n'est pas autorisée dans le cadre d'un appel d'offres, car cette procédure"
+   }
+  ]
+ },
+ {
+  "id": "mp-007",
+  "type": "procedure",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "L2193-3",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme que le titulaire peut sous-traiter une partie des prestations et que l'acheteur peut exiger l'exécution directe de tâches essentielles, mais il ne mentionne aucune jurisprudence, circulaire de la DAJ, ni les limites spécifiques telles que l'interdiction de sous-traiter l'essentiel du marché.",
+    "phrase": "Pour déterminer si le titulaire peut sous-traiter l'intégralité du marché, il convient de consulter l'article **L2193-3** (qui dispose que le titulaire peut sou"
+   }
+  ]
+ },
+ {
+  "id": "mp-008",
+  "type": "redaction",
+  "difficulte": "croisee",
+  "verdicts": [
+   {
+    "article": "L2161-1+R2123-1+R2161-1",
+    "verdict": "ne_dit_pas_cela",
+    "ancre": false,
+    "motif": "L'extrait ne mentionne ni l'obligation d'allotissement, ni les articles L2161-1 ou R2161-1, ni l'absence de ces articles dans le corpus.",
+    "phrase": "De même, pour l'obligation d'allotissement, bien que l'article R2123-1 mentionne les conditions pour les lots, le corpus ne contient pas l'article général impos"
+   },
+   {
+    "article": "R2122-8+R2123-1",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme le seuil de 100 000 € HT pour les travaux, mais il ne mentionne pas la procédure adaptée ni l'article R2123-1, ni le terme 'procédure sans publicité' utilisé dans l'affirmation.",
+    "phrase": "Une fois ces éléments obtenus, vous pourrez appliquer les règles suivantes (basées sur la logique générale du CCP, mais à vérifier avec les textes complets) : *"
+   },
+   {
+    "article": "R2112-1",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait stipule que le seuil à partir duquel les marchés doivent être conclus par écrit est de 25 000 euros HT, ce qui correspond à l'obligation d'écrit au-delà de ce montant.",
+    "phrase": "* L'écrit est obligatoire au-delà de 25 000 € HT (article R2112-1 fourni)."
+   }
+  ]
+ },
+ {
+  "id": "mp-009",
+  "type": "procedure",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "R2152-1+R2152-2",
+    "verdict": "etaye",
+    "ancre": false,
+    "motif": "L'extrait cite les articles R2152-1 et R2152-2 et détaille effectivement les règles d'élimination et de régularisation des offres en fonction du type de procédure (procédures adaptées, appel d'offres, autres procédures).",
+    "phrase": "Pour déterminer la procédure exacte à suivre (élimination immédiate, possibilité de régularisation, ou distinction selon le type de procédure), il est nécessair"
+   }
+  ]
+ },
+ {
+  "id": "mp-010",
+  "type": "redaction",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "L2111-1",
+    "verdict": "ne_dit_pas_cela",
+    "ancre": false,
+    "motif": "L'extrait cite l'article L2111-1 et son contenu, mais il ne mentionne pas que cet article n'est pas inclus dans les extraits fournis ni qu'il faut consulter d'autres articles du Chapitre Ier du Titre Ier pour déterminer les obligations précises.",
+    "phrase": "Pour déterminer les obligations précises en amont de la consultation (notamment les modalités de la définition du besoin, la prise en compte des objectifs de dé"
+   },
+   {
+    "article": "L2111-1+R2132-1",
+    "verdict": "ne_dit_pas_cela",
+    "ancre": false,
+    "motif": "L'extrait confirme les obligations de précision des besoins et la nature des documents, mais il ne contient aucune information sur l'absence de liste des étapes ou vérifications obligatoires avant cette étape.",
+    "phrase": "Les passages fournis mentionnent que la nature et l'étendue des besoins doivent être déterminées avec précision avant le lancement (Article L2111-1) et que les "
+   }
+  ]
+ },
+ {
+  "id": "mp-011",
+  "type": "fait",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "R2196-1",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite l'article R2196-1 et précise explicitement que la publication est obligatoire pour les marchés dont la valeur est égale ou supérieure à 40 000 euros hors taxes, définissant ainsi le seuil.",
+    "phrase": "Pour déterminer le montant exact à partir duquel la publication des données essentielles est obligatoire, il faut se référer à l'article R2196-1."
+   },
+   {
+    "article": "R2196-1",
+    "verdict": "contredit",
+    "ancre": true,
+    "motif": "L'extrait contient explicitement la phrase indiquant que la publication doit avoir lieu dans les deux mois suivant la notification ou la modification.",
+    "phrase": "L'article R2196-1 mentionne que les données doivent être publiées « dans les deux mois suivant la notification du marché ou sa modification », mais cette phrase"
+   },
+   {
+    "article": "R2196-1",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'article R2196-1 mentionne explicitement le seuil de 40 000 euros hors taxes comme valeur de référence pour la publication des données essentielles.",
+    "phrase": "Le seuil de 40 000 euros hors taxes est mentionné dans l'article R2196-1 tel que fourni."
+   },
+   {
+    "article": "R2196-1",
+    "verdict": "contredit",
+    "ancre": true,
+    "motif": "L'extrait de l'article R2196-1 mentionne explicitement le délai de deux mois pour la publication des données essentielles.",
+    "phrase": "Cependant, le délai de publication (deux mois) n'est pas inclus dans le texte de l'article R2196-1 tel que présenté ci-dessus."
+   },
+   {
+    "article": "R2196-1",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait mentionne explicitement le délai de publication (« dans les deux mois »), mais il ne contient aucune instruction ou recommandation invitant le lecteur à consulter le texte intégral de l'article pour confirmer cette information.",
+    "phrase": "Vous devez consulter le texte intégral de l'article R2196-1 pour confirmer le délai."
+   }
+  ]
+ },
+ {
+  "id": "mp-012",
+  "type": "piege",
+  "difficulte": "negative",
+  "verdicts": [
+   {
+    "article": "R2112-1+R2121-5+R2122-8+R2122-9-1+R2131-12+R2193-10",
+    "verdict": "etaye",
+    "ancre": false,
+    "motif": "L'examen des articles R2112-1, R2121-5, R2122-8, R2122-9-1, R2131-12 et R2193-10 montre qu'aucun d'eux ne définit ou ne mentionne explicitement le seuil de procédure formalisée pour les marchés de travaux.",
+    "phrase": "Le seuil de procédure formalisée pour les marchés de travaux n'est pas mentionné dans les articles R2112-1, R2193-10, R2122-8, R2121-5, R2131-12 ou R2122-9-1 fo"
+   }
+  ]
+ },
+ {
+  "id": "mp-013",
+  "type": "piege",
+  "difficulte": "negative",
+  "verdicts": []
+ },
+ {
+  "id": "mp-014",
+  "type": "piege",
+  "difficulte": "negative",
+  "verdicts": [
+   {
+    "article": "L2152-5+L2152-6+L2193-9+R2152-1+R2152-4+R2152-5",
+    "verdict": "etaye",
+    "ancre": false,
+    "motif": "L'extrait présente les textes de loi et de réglementation (articles L2152-5, L2152-6, L2193-9, R2152-1, R2152-4, R2152-5) qui définissent les conditions du rejet des offres, sans mentionner aucune décision de justice.",
+    "phrase": "Les articles fournis (R2152-4, R2152-5, L2152-6, L2152-5, L2193-9, R2152-1) posent le cadre légal et réglementaire du rejet, mais ne citent pas les décisions de"
+   }
+  ]
+ },
+ {
+  "id": "mp-015",
+  "type": "procedure",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "R2151-2+R2161-7+R2162-50",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait confirme que les délais minimaux sont définis au Chapitre Ier du Titre VI, cite explicitement les articles R2161-7 et R2162-50 pour les procédures concernées, et précise que l'article R2151-2 prévoit une majoration de cinq jours en cas de documents non publiés sur le profil d'acheteur.",
+    "phrase": "Pour déterminer les délais de réception des offres, vous devez consulter les articles définissant les délais minimaux propres à chaque procédure formalisée (gén"
+   },
+   {
+    "article": "R2143-1+R2161-6",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme la présence d'articles sur les délais de candidature (R2143-1 et R2161-6), mais il ne mentionne pas les délais d'offre ni ne précise qu'ils ne sont pas détaillés pour toutes les procédures.",
+    "phrase": "Les passages fournis contiennent des articles sur les délais de *candidature* (R2143-1, R2161-6) et mentionnent les délais d'offre sans les détailler pour toute"
+   }
+  ]
+ },
+ {
+  "id": "mp-016",
+  "type": "procedure",
+  "difficulte": "croisee",
+  "verdicts": [
+   {
+    "article": "L2123-1+L2197-7+R2123-1+R2123-4+R2131-13+R2152-1",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait définit la procédure adaptée (L2123-1, R2123-4) et ses modalités de publicité (R2131-13), mais il ne contient aucune disposition listant les cas de figure ou conditions générales de recours autres que celles citées, ni ne mentionne explicitement une liste exhaustive ou non exhaustive. L'article R2152-1 concerne l'élimination des offres et non le choix de la procédure, et L2197-7 concerne l'arbitrage, ce qui rend l'affirmation sur la liste des cas partiellement étayée par les seuls articles pertinents (L2123-1, R2123-1, R2123-4, R2131-13) qui définissent le cadre sans fournir la liste exhaustive mentionnée dans l'affirmation.",
+    "phrase": "Les articles fournis (L2123-1, R2123-4, R2123-1, R2131-13, R2152-1, L2197-7) définissent ce qu'est une procédure adaptée, ses modalités de choix et de publicité"
+   },
+   {
+    "article": "R2123-1",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait énumère effectivement des cas spécifiques (marchés inférieurs aux seuils, lots d'un marché alloti, services sociaux) pour lesquels l'acheteur peut recourir à une procédure adaptée, ce qui correspond à la mention des cas spécifiques, mais ne fournit pas le texte intégral de l'article R2123-1.",
+    "phrase": "L'article **R2123-1** du Code de la commande publique (qui est partiellement fourni ici) pour les cas spécifiques qu'il énumère."
+   },
+   {
+    "article": "L2123-1",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait définit la procédure adaptée comme une procédure où l'acheteur définit librement les modalités, sous réserve du respect des principes et des dispositions du livre, et précise que cela s'applique sous certaines conditions liées aux seuils et à l'objet du marché.",
+    "phrase": "L'article **L2123-1** (fourni ici) qui pose le principe de libre définition par l'acheteur sous réserve des seuils et de l'objet."
+   },
+   {
+    "article": "L2123-1",
+    "verdict": "ne_dit_pas_cela",
+    "ancre": false,
+    "motif": "L'extrait cite les conditions légales mais ne mentionne pas l'existence ou l'absence de décrets spécifiques dans un corpus.",
+    "phrase": "Les décrets mentionnés à l'article L2123-1, 2° (« dans les conditions fixées par décret en Conseil d'Etat »), qui ne sont pas dans le corpus."
+   },
+   {
+    "article": "R2123-1",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite explicitement l'article R2123-1 et son premier alinéa confirme que l'acheteur peut recourir à une procédure adaptée pour un marché dont la valeur estimée HT est inférieure aux seuils européens.",
+    "phrase": "Note : Les passages fournis permettent d'identifier trois cas précis où le recours est explicitement autorisé par le texte réglementaire cité (R2123-1) : * Marc"
+   },
+   {
+    "article": "R2123-1",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait de l'article R2123-1, 2°, énonce exactement les conditions mentionnées dans l'affirmation : un marché alloti dont le montant total est supérieur aux seuils, avec chaque lot inférieur aux montants spécifiés (80 000 € ou 1 million €) et le cumul de ces lots n'excédant pas 20 % de la valeur totale.",
+    "phrase": "* Lot d'un marché alloti (montant total ≥ seuils formalisés) si la valeur de chaque lot est < 80 000 € HT (fournitures/services) ou < 1 million € HT (travaux) E"
+   },
+   {
+    "article": "R2123-1",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'article R2123-1, 3° de l'extrait autorise explicitement le recours à une procédure adaptée pour les marchés ayant pour objet des services sociaux et autres services spécifiques listés dans un avis annexé, quelle que soit la valeur estimée du besoin.",
+    "phrase": "* Marché ayant pour objet des services sociaux et autres services spécifiques listés dans un avis annexé au code, quelle que soit la valeur (R2123-1, 3°)."
+   }
+  ]
+ },
+ {
+  "id": "mp-017",
+  "type": "fait",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "L2113-10",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite l'article L2113-10 et reproduit textuellement la phrase selon laquelle l'acheteur peut limiter le nombre de lots pour lesquels un même opérateur peut présenter une offre ou se voir attribuer des lots.",
+    "phrase": "**Fondement juridique :** * **Article L2113-10** : Cet article dispose explicitement que « L'acheteur [...] peut limiter le nombre de lots pour lesquels un même"
+   },
+   {
+    "article": "R2113-1",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait stipule que les documents de la consultation doivent préciser les règles applicables dans certains cas, ce qui correspond aux obligations rédactionnelles mentionnées dans l'affirmation.",
+    "phrase": "» * **Article R2113-1** : Cet article précise les obligations rédactionnelles liées à cette possibilité."
+   },
+   {
+    "article": "R2113-1",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait impose de préciser les règles en cas de dépassement du nombre maximal de lots, mais il ne rend pas obligatoire la limitation du nombre de lots lui-même, contrairement à l'affirmation qui présente cette limitation comme une condition déclenchant l'obligation.",
+    "phrase": "» **Distinction obligatoire / recommandé :** * **Obligatoire** : Si vous choisissez de limiter le nombre de lots attribuables, vous **devez** l'indiquer clairem"
+   },
+   {
+    "article": "L2113-10",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme que l'acheteur détermine le nombre, la taille et l'objet des lots, et qu'il peut limiter le nombre de lots attribuables. Cependant, il ne qualifie pas cette détermination d'obligation au sens où l'affirmation l'entend (bien que le contexte législatif l'implique, l'extrait se contente de l'énoncer comme une faculté de détermination sans utiliser le terme 'devoir' ou 'obligatoire' pour cette action spécifique, contrairement à la règle de séparation des lots).",
+    "phrase": "* **Obligatoire** : Vous **devez** déterminer le nombre, la taille et l'objet des lots, et vous **pouvez** limiter le nombre de lots attribuables (Article L2113"
+   }
+  ]
+ },
+ {
+  "id": "mp-018",
+  "type": "redaction",
+  "difficulte": "croisee",
+  "verdicts": [
+   {
+    "article": "L2193-3",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite l'article L2193-3 et énonce explicitement que l'acheteur peut exiger que certaines tâches essentielles soient effectuées directement par le titulaire.",
+    "phrase": "Pour rédiger une clause interdisant la sous-traitance d'une tâche essentielle (comme le pilotage du chantier), il faut se référer à l'article **L2193-3** du Cod"
+   },
+   {
+    "article": "L2193-3+R2193-4+R2193-5",
+    "verdict": "etaye_partiellement",
+    "ancre": false,
+    "motif": "L'extrait contient l'article L2193-3 et l'article R2193-5, ce qui contredit l'affirmation selon laquelle ces articles ne sont pas fournis, mais il ne mentionne pas l'article R2193-4.",
+    "phrase": "Cependant, les passages fournis ne contiennent pas l'article L2193-3 dans son intégralité ni les dispositions réglementaires détaillées (comme le R2193-4 ou R21"
+   }
+  ]
+ },
+ {
+  "id": "mp-019",
+  "type": "piege",
+  "difficulte": "negative",
+  "verdicts": [
+   {
+    "article": "R2143-4",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite explicitement l'article R2143-4 et mentionne le règlement de la Commission européenne établissant le formulaire type pour le document unique de marché européen.",
+    "phrase": "Le **règlement de la Commission européenne** établissant le formulaire type pour le document unique de marché européen, mentionné implicitement à l'**article R2"
+   },
+   {
+    "article": "R2143-4",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme la mention du formulaire et du cadre légal (article R2143-4), mais il ne contient aucune information sur l'absence du formulaire ou de l'URL de téléchargement dans les passages fournis.",
+    "phrase": "Les passages fournis citent l'existence du formulaire et le cadre légal (article R2143-4), mais ne contiennent ni le formulaire lui-même, ni l'URL de télécharge"
+   }
+  ]
+ },
+ {
+  "id": "mp-020",
+  "type": "fait",
+  "difficulte": "croisee",
+  "verdicts": [
+   {
+    "article": "R2122-8+R2122-9-1",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme les montants et le type de procédure (sans publicité ni mise en concurrence) pour les articles R2122-8 et R2122-9-1, mais il ne mentionne pas le seuil général de publicité et mise en concurrence ni les procédures formalisées (appel d'offres simplifié ou restreint) évoquées dans l'affirmation.",
+    "phrase": "Les articles fournis (R2122-8, R2122-9-1, etc.) évoquent des montants spécifiques (60 000 € HT pour les fournitures dans R2122-8, 100 000 € HT pour les marchés "
+   }
+  ]
+ },
+ {
+  "id": "mp-021",
+  "type": "procedure",
+  "difficulte": "croisee",
+  "verdicts": [
+   {
+    "article": "R2191-3",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait énonce explicitement deux conditions cumulatives (montant du marché et délai d'exécution) pour l'accord d'une avance, conformément à l'article R2191-3 mentionné.",
+    "phrase": "Pour déterminer si vous devez verser une avance, vous devez vérifier deux conditions cumulatives issues de l'article **R2191-3** : 1."
+   },
+   {
+    "article": "R2191-3",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait précise les conditions (montant > 50 000 € et délai > 2 mois) pour lesquelles l'acheteur accorde une avance, mais il n'emploie pas le terme obligatoire et ne mentionne pas explicitement l'obligation d'octroi dans les termes de l'affirmation.",
+    "phrase": "Le délai d'exécution est-il supérieur à deux mois ? Si ces deux conditions sont remplies, l'octroi de l'avance est obligatoire selon l'article **R2191-3**."
+   },
+   {
+    "article": "R2191-4",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme que l'acheteur peut prévoir une avance, mais il ne mentionne pas la condition spécifique liée au non-remplissement de deux conditions évoquée dans l'affirmation.",
+    "phrase": "Si l'une des deux conditions n'est pas remplie, l'acheteur peut prévoir le versement d'une avance (article **R2191-4**), mais n'y est pas tenu."
+   },
+   {
+    "article": "R2191-5",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite l'article R2191-5 et énonce exactement que le titulaire du marché peut refuser le versement de l'avance.",
+    "phrase": "De plus, le titulaire peut refuser le versement de l'avance (article **R2191-5**)."
+   },
+   {
+    "article": "R2191-13",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait confirme explicitement que pour un marché à tranches optionnelles, une avance est versée pour chaque tranche affermie, en renvoyant aux conditions prévues, ce qui correspond à l'affirmation.",
+    "phrase": "Pour les marchés à tranches optionnelles, une avance est versée pour chaque tranche affermie dans les conditions prévues (article **R2191-13**)."
+   },
+   {
+    "article": "R2193-19",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait de l'article R2193-19 stipule explicitement que l'avance est versée aux sous-traitants bénéficiaires du paiement direct sur leur demande, à condition que le titulaire remplisse les conditions pour en bénéficier.",
+    "phrase": "Pour les sous-traitants bénéficiaires du paiement direct, une avance est versée sur leur demande si le titulaire remplit les conditions pour en bénéficier (arti"
+   }
+  ]
+ },
+ {
+  "id": "mp-022",
+  "type": "fait",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "R2181-2+R2181-3+R2181-4+R2193-12",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme que les articles R2181-2, R2181-3, R2181-4 et R2193-12 existent et traitent de la notification du rejet et de la date de signature potentielle (R2181-3), mais il ne contient aucune information indiquant que ces articles ne couvrent pas les situations juridiques nécessaires pour déterminer le délai entre la notification et la signature, ni qu'il faut distinguer deux situations non couvertes par ces textes.",
+    "phrase": "Pour déterminer le délai entre la notification du rejet et la signature du marché, il faut distinguer deux situations juridiques différentes qui ne sont pas cou"
+   },
+   {
+    "article": "R2182-1",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait mentionne l'article R. 2182-1 en lien avec la date de signature, mais il ne précise pas que cet article impose un délai minimal entre la notification de l'attribution et la signature, ni qu'il s'agit d'une procédure formalisée.",
+    "phrase": "Cependant, pour les **procédures formalisées**, l'article **R2182-1** (fourni) impose un délai minimal entre la **notification de l'attribution** (et non du rej"
+   },
+   {
+    "article": "R2181-3",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait indique que la date est communiquée dans le respect de l'article R. 2182-1, alors que l'affirmation se termine par « dans le respect de l'article R. » sans préciser le numéro, ce qui constitue un écart de précision.",
+    "phrase": "**Analyse des textes fournis :** * L'article **R2181-3** précise que la notification de rejet doit mentionner la date à compter de laquelle l'acheteur est susce"
+   },
+   {
+    "article": "R2182-1",
+    "verdict": "ne_dit_pas_cela",
+    "ancre": false,
+    "motif": "L'extrait mentionne l'article R. 2182-1 comme référence pour la date de signature, mais ne contient aucune information sur les délais spécifiques de 11 ou 16 jours.",
+    "phrase": "* L'article **R2182-1** fixe un délai minimal de **11 jours** (ou 16 jours sans voie électronique) entre la notification de l'attribution et la signature."
+   },
+   {
+    "article": "R2182-1",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait précise que la date de signature possible doit être communiquée uniquement lorsque la notification de rejet intervient après l'attribution du marché, alors que l'affirmation généralise cette obligation à toute notification de rejet.",
+    "phrase": "Il indique que la notification de rejet doit préciser la date de signature possible en référence au délai de l'article R2182-1."
+   },
+   {
+    "article": "R2182-1",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait mentionne l'article R. 2182-1 et la date de signature, mais ne précise pas le délai exact ni la condition de l'absence de recours.",
+    "phrase": "Si aucun recours n'est formé, l'acheteur doit respecter le délai de l'article **R2182-1** entre la notification de l'attribution (qui peut être concomitante ou "
+   }
+  ]
+ },
+ {
+  "id": "mp-023",
+  "type": "redaction",
+  "difficulte": "croisee",
+  "verdicts": [
+   {
+    "article": "R2112-4+R2191-15",
+    "verdict": "etaye_partiellement",
+    "ancre": false,
+    "motif": "L'extrait confirme que les articles R2112-4 et R2191-15 traitent respectivement des conditions de reconduction et des avances lors de celle-ci, mais il ne mentionne pas explicitement qu'ils permettent de déterminer les droits du titulaire de manière générale ni les conditions de validité au sens large, se limitant à des aspects spécifiques.",
+    "phrase": "Pour déterminer les conditions de validité d'une reconduction annuelle et les droits du titulaire, il faut consulter les articles **R2112-4** et **R2191-15** du"
+   },
+   {
+    "article": "R2112-4",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait contient explicitement l'article R2112-4 et son contenu.",
+    "phrase": "**Correction de l'analyse initiale :** L'article R2112-4 **figure** dans les passages fournis."
+   },
+   {
+    "article": "R2112-4",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme que le titulaire ne peut pas s'opposer à la reconduction tacite, ce qui étaye partiellement l'idée d'un refus impossible, mais il ne contient aucune liste de règles ni de réponse explicite au refus.",
+    "phrase": "Voici les règles à respecter et la réponse concernant le refus du titulaire, fondées sur l'**article R2112-4** : ### 1."
+   },
+   {
+    "article": "R2112-4",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite l'article R2112-4 et stipule explicitement qu'une reconduction est possible à condition que les caractéristiques du marché restent inchangées, ce qui correspond à la condition d'invariance mentionnée dans l'affirmation.",
+    "phrase": "Conditions de la reconduction (Ce que vous devez respecter) Pour prévoir une reconduction annuelle, vous devez respecter les deux conditions cumulatives prévues"
+   },
+   {
+    "article": "R2112-4",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait de l'article R2112-4 énonce explicitement que la reconduction est conditionnée par le maintien des caractéristiques inchangées et la prise en compte de la durée totale lors de la mise en concurrence initiale.",
+    "phrase": "Cette reconduction est subordonnée au respect des conditions prévues à l'article R2112-4 du Code de la commande publique, à savoir que les caractéristiques du m"
+   },
+   {
+    "article": "R2112-4",
+    "verdict": "contredit",
+    "ancre": true,
+    "motif": "L'extrait stipule explicitement que le titulaire ne peut pas s'opposer à la reconduction tacite, contrairement à l'affirmation qui lui reconnaît un droit de refus.",
+    "phrase": "Droit du titulaire de refuser la reconduction Selon l'**article R2112-4**, la reconduction est **tacite** sauf stipulation contraire."
+   },
+   {
+    "article": "R2191-15",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite l'article R2191-15 et reproduit exactement la règle selon laquelle une avance est versée pour chaque reconduction dans les conditions de la sous-section 1.",
+    "phrase": "**Note importante sur les avances :** Si votre marché prévoit des avances, l'**article R2191-15** (qui figure dans les passages fournis) précise que dans le cas"
+   },
+   {
+    "article": "R2112-4",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait stipule explicitement que, sauf stipulation contraire, la reconduction est tacite et que le titulaire ne peut s'y opposer, ce qui correspond à la règle générale visée par l'affirmation.",
+    "phrase": "**Prévoir** dans le marché que la reconduction est tacite et que le titulaire ne peut s'y opposer (conformément à l'article R2112-4)."
+   },
+   {
+    "article": "R2191-15",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme que l'avance est versée pour chaque reconduction, mais il renvoie aux conditions de la sous-section 1 sans préciser explicitement dans cet article que les modalités doivent être prévues à chaque reconduction.",
+    "phrase": "**Prévoir** les modalités de versement de l'avance pour chaque reconduction (conformément à l'article R2191-15)."
+   }
+  ]
+ },
+ {
+  "id": "mp-024",
+  "type": "fait",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "R2131-4",
+    "verdict": "contredit",
+    "ancre": true,
+    "motif": "L'extrait stipule explicitement que la durée maximale de validité des avis mentionnés à l'article R. 2131-4 est de douze mois, ce qui contredit l'affirmation selon laquelle la durée de validité ne serait pas précisée.",
+    "phrase": "L'article R2131-4 mentionne que l'avis de préinformation doit avoir été envoyé pour publication entre trente-cinq jours et douze mois avant l'envoi de l'invitat"
+   },
+   {
+    "article": "R2131-6",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme la durée maximale de douze mois et précise que les avis concernés sont ceux mentionnés à l'article R. 2131-4, mais il ne contient pas la phrase exacte ou l'information explicite que l'article s'applique spécifiquement aux avis mentionnés à l'article R. (sans précision du numéro) telle que formulée dans l'affirmation, qui semble incomplète ou différente.",
+    "phrase": "L'article R2131-6 fixe une durée maximale de validité de douze mois, mais il s'applique spécifiquement aux avis mentionnés à l'article R."
+   },
+   {
+    "article": "R2131-4",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme que les avis mentionnés à l'article R. 2131-4 constituent un appel à la concurrence, mais il ne mentionne pas les avis de préinformation ni leur utilisation dans les procédures restreintes ou avec négociation.",
+    "phrase": "2131-4 qui constituent un appel à la concurrence (avis d'appel à la concurrence), et non aux avis de préinformation utilisés comme tels dans les procédures rest"
+   },
+   {
+    "article": "R2131-4",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait mentionne l'article R. 2131-4 mais ne traite pas des conditions d'utilisation, se limitant à la durée de validité.",
+    "phrase": "Pour trouver la durée de validité d'un avis de préinformation utilisé comme appel à la concurrence, il convient de consulter : - L'article R2131-4 du Code de la"
+   },
+   {
+    "article": "R2131-6",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite explicitement l'article R2131-6 et énonce une disposition générale relative à la durée de validité des avis d'appel à la concurrence.",
+    "phrase": "- Les dispositions générales sur la validité des avis d'appel à la concurrence (potentiellement l'article R2131-6 ou d'autres articles non fournis ici)."
+   }
+  ]
+ },
+ {
+  "id": "mp-025",
+  "type": "procedure",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "R2143-5+R2143-7+R2143-9",
+    "verdict": "ne_dit_pas_cela",
+    "ancre": false,
+    "motif": "L'extrait décrit uniquement les modalités de remplacement des documents justificatifs par une déclaration sous serment ou solennelle ; il ne mentionne ni les pièces à produire, ni les règles de preuve, ni les délais ou étapes procédurales de la demande.",
+    "phrase": "Les passages fournis citent uniquement les pièces à produire *lorsque* la demande est faite (R2143-9, R2143-7) ou les règles de preuve (R2143-5), mais ne précis"
+   }
+  ]
+ },
+ {
+  "id": "mp-026",
+  "type": "procedure",
+  "difficulte": "croisee",
+  "verdicts": [
+   {
+    "article": "R2152-1",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait de l'article R2152-1 stipule explicitement que dans les procédures adaptées sans négociation et les procédures d'appel d'offres, les offres irrégulières sont éliminées.",
+    "phrase": "Les passages fournis contiennent des éléments partiels : * L'**article R2152-1** précise que dans les procédures adaptées sans négociation et les procédures d'a"
+   },
+   {
+    "article": "R2152-2",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait confirme que dans toutes les procédures, l'acheteur peut autoriser la régularisation des offres irrégulières, sous réserve qu'elles ne soient pas anormalement basses et que cette régularisation ne modifie pas leurs caractéristiques substantielles.",
+    "phrase": "* L'**article R2152-2** indique que dans *toutes* les procédures, l'acheteur *peut autoriser* les soumissionnaires à régulariser les offres irrégulières, sous r"
+   },
+   {
+    "article": "R2152-1+R2152-2",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait présente les articles R2152-1 et R2152-2 qui encadrent spécifiquement la procédure de régularisation des offres irrégulières, confirmant ainsi leur rôle de bases réglementaires sur ce point.",
+    "phrase": "Plus spécifiquement, les articles **R2152-1** et **R2152-2** (présents dans votre corpus) sont les bases réglementaires de la régularisation."
+   },
+   {
+    "article": "R2152-2",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait confirme explicitement que dans toutes les procédures, l'acheteur peut autoriser les soumissionnaires à régulariser les offres irrégulières.",
+    "phrase": "**Réponse basée uniquement sur les passages fournis :** Oui, vous pouvez autoriser la régularisation, mais cela dépend de la procédure et de la nature de l'irré"
+   },
+   {
+    "article": "R2152-1",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait stipule explicitement que dans les procédures adaptées sans négociation et les procédures d'appel d'offres, les offres irrégulières sont éliminées.",
+    "phrase": "* **Article R2152-1** : * Dans les **procédures adaptées sans négociation** et les **procédures d'appel d'offres** : Les offres irrégulières sont **éliminées**."
+   },
+   {
+    "article": "R2152-2",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait confirme explicitement que l'acheteur peut autoriser la régularisation des offres irrégulières dans toutes les procédures, sous réserve qu'elles ne soient pas anormalement basses, ce qui étaye l'affirmation selon laquelle cette faculté existe tant que l'offre n'est pas éliminée et n'est pas anormalement basse.",
+    "phrase": "L'article R2152-2 s'applique-t-il ici pour permettre une régularisation avant élimination ? Le texte R2152-2 dit \"Dans toutes les procédures\", ce qui suggère qu"
+   },
+   {
+    "article": "R2152-2",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait confirme explicitement que l'acheteur peut autoriser la régularisation dans toutes les procédures, sous les deux conditions mentionnées dans l'affirmation.",
+    "phrase": "**Conclusion :** Selon l'**article R2152-2**, vous avez la faculté d'autoriser la régularisation dans toutes les procédures, sous réserve que l'offre ne soit pa"
+   },
+   {
+    "article": "R2152-2",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme que la régularisation ne doit pas modifier les caractéristiques substantielles, mais il ne mentionne pas la condition selon laquelle cette faculté doit être exercée avant l'élimination définitive, ni les distinctions entre types de procédures.",
+    "phrase": "Cependant, pour les procédures où les offres irrégulières sont normalement éliminées (procédures adaptées sans négociation, appel d'offres), cette faculté doit "
+   }
+  ]
+ },
+ {
+  "id": "mp-027",
+  "type": "fait",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "L2193-7",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite textuellement l'article L2193-7 et reproduit exactement la phrase de l'affirmation concernant l'obligation de communication du contrat de sous-traitance sur demande de l'acheteur.",
+    "phrase": "**Fondement juridique :** L'**article L2193-7** dispose que « Le soumissionnaire ou le titulaire du marché est tenu de communiquer le contrat de sous-traitance "
+   },
+   {
+    "article": "L2193-7",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite l'article L2193-7 et énonce exactement l'obligation pour le titulaire de communiquer le contrat de sous-traitance à l'acheteur sur demande, ce qui correspond à l'affirmation.",
+    "phrase": "**Rédaction proposée pour la consultation ou l'exécution :** Vous pouvez inclure une clause ou une demande formelle rédigée comme suit : > « Conformément à l'ar"
+   },
+   {
+    "article": "L2193-7",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite explicitement l'article L2193-7 et contient le texte de cet article, confirmant que l'information y figure.",
+    "phrase": "» *Note : Cette information figure dans les passages fournis (Article L2193-7).*"
+   }
+  ]
+ },
+ {
+  "id": "mp-028",
+  "type": "procedure",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "L2193-12",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait reproduit textuellement la phrase de l'affirmation concernant l'obligation du paiement direct dans les cas de procédures collectives.",
+    "phrase": "L'article **L2193-12** dispose que « Le paiement direct est obligatoire même si le titulaire du marché est en état de liquidation judiciaire, de redressement ju"
+   }
+  ]
+ },
+ {
+  "id": "mp-029",
+  "type": "redaction",
+  "difficulte": "croisee",
+  "verdicts": [
+   {
+    "article": "L2113-16",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite explicitement l'article L2113-16 et énonce que la durée d'un marché réservé aux entreprises de l'économie sociale et solidaire ne peut être supérieure à trois ans, ce qui correspond à la durée maximale mentionnée dans l'affirmation.",
+    "phrase": "Pour connaître la durée maximale d'un marché réservé aux entreprises de l'économie sociale et solidaire, vous devez consulter l'article L2113-16 du Code de la c"
+   },
+   {
+    "article": "L2113-16",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait contient explicitement la mention de l'article L2113-16 suivie de son contenu.",
+    "phrase": "L'article **L2113-16** est présent dans les passages fournis."
+   },
+   {
+    "article": "L2113-16",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait contient textuellement la phrase exacte de l'affirmation concernant la durée maximale des marchés réservés.",
+    "phrase": "**Fondement :** * **Article L2113-16** : « La durée d'un marché réservé aux entreprises de l'économie sociale et solidaire ne peut être supérieure à trois ans."
+   },
+   {
+    "article": "L2113-16",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait contient explicitement la phrase exacte stipulant que la durée d'un marché réservé aux entreprises de l'économie sociale et solidaire ne peut être supérieure à trois ans.",
+    "phrase": "Conformément à l'article L2113-16 du Code de la commande publique, la durée d'un marché réservé aux entreprises de l'économie sociale et solidaire ne peut excéd"
+   }
+  ]
+ },
+ {
+  "id": "mp-030",
+  "type": "fait",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "R2162-17",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait indique explicitement que pour l'organisation du concours, l'acheteur fait intervenir un jury selon les modalités de la sous-section 2, ce qui correspond à la référence faite dans l'affirmation.",
+    "phrase": "L'article **R2162-17** (mentionné dans les passages) qui renvoie aux modalités prévues à la **sous-section 2** du chapitre II du titre VI."
+   },
+   {
+    "article": "R2162-20+R2162-21+R2162-22+R2162-23+R2162-24+R2162-26",
+    "verdict": "etaye_partiellement",
+    "ancre": false,
+    "motif": "L'extrait confirme la présence des articles R2162-22, R2162-23, R2162-24 et R2162-26, mais il ne contient aucune information sur l'absence d'autres articles (comme R2162-20 ou R2162-21) ni sur le manque de règles spécifiques (taille du jury, présidence) dans les passages fournis.",
+    "phrase": "Les passages fournis contiennent des articles de cette sous-section (R2162-22, R2162-23, R2162-24, R2162-26), mais il manque les articles définissant la taille "
+   },
+   {
+    "article": "R2171-17",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme que l'article R2171-17 traite des marchés globaux et impose des règles d'indépendance et de qualification pour le jury, mais il ne contient aucune information sur la composition générale des concours ni sur l'absence de définition de celle-ci.",
+    "phrase": "L'article **R2171-17** (mentionné dans les passages) qui traite des marchés globaux et impose une règle similaire (indépendance et qualification), mais ne défin"
+   },
+   {
+    "article": "R2162-22+R2171-17",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait confirme explicitement, dans les articles R2162-22 et R2171-17, que lorsqu'une qualification est exigée, au moins un tiers des membres du jury doit la posséder ou une équivalente.",
+    "phrase": "Si une qualification professionnelle particulière est exigée, au moins un tiers des membres doit la posséder ou une équivalente (Articles **R2162-22** et **R217"
+   },
+   {
+    "article": "R2162-23",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait précise explicitement que pour les concours de l'État, les membres du jury sont désignés par le ministre compétent ou le préfet selon la structure administrative concernée.",
+    "phrase": "* **Inclusion obligatoire de certains membres selon la nature de l'acheteur** : * Pour l'État : désignation par le ministre compétent ou le préfet selon la stru"
+   },
+   {
+    "article": "R2162-24",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait reproduit exactement l'affirmation en précisant que pour les concours des collectivités et groupements (hors établissements sociaux/médico-sociaux et OPH), les membres élus de la commission d'appel d'offres font partie du jury.",
+    "phrase": "(hors établissements sociaux/médico-sociaux et OPH) : les membres élus de la commission d'appel d'offres font partie du jury (Article **R2162-24**)."
+   },
+   {
+    "article": "R2162-26",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait précise que la composition du jury est fixée par la convention pour les groupements autres que ceux mentionnés à l'article L. 1414-3, alors que l'affirmation suggère une application générale ou une confusion entre les deux cas.",
+    "phrase": "1414-3 CGCT), ou la composition est fixée par la convention (Article **R2162-26**)."
+   },
+   {
+    "article": "R2162-23+R2162-24+R2162-26",
+    "verdict": "etaye",
+    "ancre": false,
+    "motif": "L'extrait ne contient aucune disposition générale sur le nombre de membres, le président du jury ou les règles applicables aux autres types d'acheteurs, se limitant uniquement à la désignation des membres du jury pour certains acheteurs spécifiques.",
+    "phrase": "Il manque dans les passages fournis les dispositions générales sur le nombre de membres, le président du jury, et les règles applicables aux autres types d'ache"
+   }
+  ]
+ },
+ {
+  "id": "mp-031",
+  "type": "procedure",
+  "difficulte": "croisee",
+  "verdicts": [
+   {
+    "article": "L2194-1+R2122-11+R2122-3+R2122-7+R2194-6+R2194-7",
+    "verdict": "etaye_partiellement",
+    "ancre": false,
+    "motif": "L'extrait confirme la présence des articles R2194-7, R2122-11, R2122-3 et R2122-7, mais il ne mentionne pas l'article L2194-1 ni l'article R2194-6, et il ne traite pas de la question de l'absence de citation des conditions détaillées.",
+    "phrase": "Les passages fournis contiennent des articles relatifs à la modification du marché (R2194-7, L2194-1, R2194-6) et à la passation sans mise en concurrence (R2122"
+   },
+   {
+    "article": "R2194-1",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait mentionne l'article R2194-1 comme base pour les clauses de réexamen ou options, mais ne détaille pas les conditions générales de modification non substantielle (plafonds, cumul) comme le fait l'affirmation.",
+    "phrase": "Pour trouver les conditions précises de modification d'un marché sans nouvelle mise en concurrence, vous devez consulter les articles réglementaires suivants du"
+   },
+   {
+    "article": "L2194-1+R2194-6+R2194-7",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait définit les conditions d'une modification substantielle (ce qui correspond aux définitions), mais il ne mentionne pas les articles R2194-6 et L2194-1, ni les seuils ou procédures détaillées, rendant la vérification de la partie sur les seuils et procédures impossible sur la base de ce seul texte.",
+    "phrase": "Les articles fournis (R2194-6, R2194-7, L2194-1) posent le principe et les définitions, mais pas les seuils ni les procédures détaillées."
+   }
+  ]
+ },
+ {
+  "id": "mp-032",
+  "type": "fait",
+  "difficulte": "croisee",
+  "verdicts": [
+   {
+    "article": "R2191-7",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait présente le contenu de l'article R2191-7 qui fixe les règles pour déterminer le montant et le taux des avances en fonction de la durée du marché et du statut de l'entreprise, confirmant ainsi que cet article est la référence pour ces éléments.",
+    "phrase": "Pour déterminer le taux d'avance applicable et la base de calcul, vous devez consulter l'**article R2191-7** du Code de la commande publique."
+   },
+   {
+    "article": "R2191-7",
+    "verdict": "contredit",
+    "ancre": true,
+    "motif": "L'extrait contient explicitement le titre de l'article R2191-7 et son contenu intégral.",
+    "phrase": "Les passages fournis ne contiennent pas l'article R2191-7."
+   },
+   {
+    "article": "R2191-10+R2191-11+R2191-17+R2191-3+R2191-7+R2191-8",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait contient effectivement les articles R2191-3, R2191-7, R2191-8, R2191-10, R2191-11 et R2191-17, mais il reproduit le texte intégral de l'article R2191-7, contrairement à l'affirmation qui prétend que son texte n'est pas reproduit.",
+    "phrase": "Ils contiennent uniquement les articles R2191-3, R2191-7 (qui est mentionné dans le titre de section mais dont le texte n'est pas reproduit dans les blocs de te"
+   },
+   {
+    "article": "R2191-7",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait contient explicitement l'article R2191-7 et le texte commence par la phrase indiquée dans l'affirmation.",
+    "phrase": "Le premier bloc de texte commence par : \"Article R2191-7 Lorsque la durée du marché est inférieure ou égale à douze mois...\" Il semble que l'article R2191-7 **s"
+   },
+   {
+    "article": "R2191-7",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'article R2191-7 définit explicitement le montant (taux) de l'avance en fonction de la durée du marché et prévoit des taux minimaux spécifiques selon que le titulaire est une PME, ce qui correspond à la nature de l'acheteur ou du titulaire.",
+    "phrase": "**Réponse :** Le taux de l'avance et sa base de calcul dépendent de la durée du marché et de la nature de l'acheteur ou du titulaire, conformément à l'**article"
+   },
+   {
+    "article": "R2191-7+R2191-8",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'article R2191-8 stipule explicitement que l'acheteur peut porter le montant de l'avance au-delà de 30 % du montant calculé conformément à l'article R. 2191-7.",
+    "phrase": "Dépassement du taux maximal :** Conformément à l'**article R2191-8**, l'acheteur peut porter le montant de l'avance au-delà de 30 % du montant calculé conformém"
+   },
+   {
+    "article": "R2191-10",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite l'article R2191-10 et énonce exactement que les clauses du marché doivent préciser les conditions de versement de l'avance et son taux.",
+    "phrase": "Précision des clauses :** Conformément à l'**article R2191-10**, les clauses du marché doivent préciser les conditions de versement de l'avance ainsi que son ta"
+   }
+  ]
+ },
+ {
+  "id": "mp-033",
+  "type": "fait",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "L2113-2",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait présente explicitement l'article L2113-2 comme contenant la définition d'une centrale d'achat.",
+    "phrase": "Une centrale d'achat est définie à l'**article L2113-2** du Code de la commande publique."
+   }
+  ]
+ },
+ {
+  "id": "mp-034",
+  "type": "redaction",
+  "difficulte": "croisee",
+  "verdicts": [
+   {
+    "article": "R2122-8+R2131-12",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme que le montant de 45 000 € est inférieur au seuil de 90 000 € de l'article R2131-12 et que le seuil de 60 000 € de l'article R2122-8 permet de passer un marché sans publicité. Cependant, l'extrait ne précise pas que le choix entre la procédure adaptée et le marché sans publicité dépend spécifiquement de ce seuil de 60 000 € dans le cas présent, ni qu'il s'agit de la règle exclusive de distinction.",
+    "phrase": "Le montant de 45 000 € HT se situe en dessous du seuil de 90 000 € HT mentionné à l'article R2131-12 pour la publicité, mais la procédure applicable (procédure "
+   },
+   {
+    "article": "R2131-12",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait stipule que pour une valeur estimée inférieure à 90 000 euros hors taxes, les marchés font l'objet d'une publicité, ce qui étaye le lien entre le montant de 45 000 € et l'obligation de publicité.",
+    "phrase": "Publicité (Article R2131-12)** Pour un marché de services de 45 000 € HT, la valeur estimée est inférieure à 90 000 euros hors taxes."
+   },
+   {
+    "article": "R2131-12",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite explicitement l'article R2131-12, 1° et stipule que les modalités de publicité sont librement adaptées en fonction des caractéristiques du marché.",
+    "phrase": "* **Règle :** Selon l'article R2131-12, 1°, les modalités de publicité sont **librement adaptées** en fonction des caractéristiques du marché."
+   },
+   {
+    "article": "R2131-12",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'article R2131-12, 1° prévoit explicitement que pour les marchés inférieurs à 90 000 euros HT, les modalités de publicité sont librement adaptées en fonction de la nature et du montant du marché.",
+    "phrase": "* **Formulation proposée :** « La publicité sera réalisée selon les modalités adaptées à la nature et au montant du marché, conformément à l'article R2131-12, 1"
+   },
+   {
+    "article": "R2191-7",
+    "verdict": "ne_dit_pas_cela",
+    "ancre": false,
+    "motif": "L'extrait mentionne la condition de durée pour le calcul de l'avance mais ne fixe pas la durée du marché à six mois.",
+    "phrase": "Avance (Article R2191-7)** Le marché a une durée de six mois, ce qui est inférieur ou égal à douze mois."
+   },
+   {
+    "article": "R2191-7",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait précise que la fourchette de 5 % à 30 % s'applique spécifiquement lorsque la durée du marché est inférieure ou égale à douze mois, alors que l'affirmation présente cette règle comme générale sans cette restriction.",
+    "phrase": "* **Règle :** Selon l'article R2191-7, premier alinéa, le montant de l'avance est fixé entre **5 % et 30 %** du montant initial toutes taxes comprises (TTC) du "
+   },
+   {
+    "article": "R2191-7",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait précise que le montant est fixé entre 5 % et 30 % uniquement lorsque la durée du marché est inférieure ou égale à douze mois, alors que l'affirmation généralise cette fourchette sans mentionner cette condition restrictive.",
+    "phrase": "* **Formulation proposée :** « Une avance pourra être versée au titulaire, dont le montant sera compris entre 5 % et 30 % du montant initial toutes taxes compri"
+   },
+   {
+    "article": "R2122-8",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait stipule explicitement que l'acheteur peut passer un marché sans publicité ni mise en concurrence préalables pour les services dont la valeur estimée est inférieure à 60 000 euros hors taxes.",
+    "phrase": "Procédure de passation (Publicité et Mise en concurrence)** Les articles fournis mentionnent l'article R2122-8 qui permet de passer un marché sans publicité ni "
+   },
+   {
+    "article": "R2122-8",
+    "verdict": "ne_dit_pas_cela",
+    "ancre": false,
+    "motif": "L'extrait se contente de définir le seuil de valeur et les obligations de choix de l'offre, sans mentionner l'existence ou le contenu de règles générales pour une procédure adaptée en cas de dépassement du seuil.",
+    "phrase": "Il ne fournit pas non plus les règles générales de la \"procédure adaptée\" qui s'appliquent si le seuil de 60 000 € HT a été relevé ou si l'acheteur choisit de n"
+   },
+   {
+    "article": "R2122-8",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait indique que l'article R2122-8 s'applique pour les besoins dont la valeur est inférieure à 60 000 € HT, mais il ne précise pas si cet article s'applique également lorsque la valeur est supérieure ou égale à ce seuil, contrairement à l'affirmation qui suggère une application continue du seuil.",
+    "phrase": "Si le seuil de 60 000 € HT est toujours d'application, l'article R2122-8 s'applique."
+   },
+   {
+    "article": "R2131-12",
+    "verdict": "ne_dit_pas_cela",
+    "ancre": false,
+    "motif": "L'extrait décrit uniquement les conditions de publicité pour les marchés passés selon une procédure adaptée, sans mentionner les cas où cette procédure s'applique ou son caractère subsidiaire.",
+    "phrase": "Sinon, la procédure adaptée (avec publicité librement adaptée selon R2131-12) s'applique."
+   },
+   {
+    "article": "R2122-8",
+    "verdict": "ne_dit_pas_cela",
+    "ancre": false,
+    "motif": "L'extrait fixe des seuils monétaires (60 000 € et 100 000 €) pour l'application de l'article R2122-8, mais il ne mentionne aucune condition ou seuil supplémentaire dont l'application dépendrait pour être confirmée.",
+    "phrase": "R2122-8) dont l'application actuelle ne peut être confirmée sans les seuils en vigueur."
+   }
+  ]
+ },
+ {
+  "id": "mp-035",
+  "type": "piege",
+  "difficulte": "negative",
+  "verdicts": [
+   {
+    "article": "L2171-6+L2172-2+L2194-3+R2131-1+R2131-12+R2171-18",
+    "verdict": "etaye_partiellement",
+    "ancre": false,
+    "motif": "L'extrait confirme la présence des articles L2194-3, L2172-2, R2131-1, R2131-12 et L2171-6, mais il ne permet pas de vérifier que le corpus est limité à ces seuls articles (règle d'exclusivité 'uniquement').",
+    "phrase": "Le corpus fourni contient uniquement des articles relatifs à l'exécution des marchés (L2194-3), aux marchés globaux (R2171-18), aux marchés de décoration (L2172"
+   }
+  ]
+ },
+ {
+  "id": "mp-036",
+  "type": "procedure",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "R2194-1",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'article R2194-1 stipule explicitement que le marché peut être modifié si les modifications ont été prévues dans les documents contractuels initiaux, ce qui correspond exactement à la condition énoncée dans l'affirmation.",
+    "phrase": "Oui, un marché peut être modifié si la modification était prévue au contrat initial, sous réserve que les conditions de l’**article R2194-1** soient respectées."
+   },
+   {
+    "article": "L2194-1",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite l'article L2194-1 et énumère ses points, dont le premier correspond exactement à la citation de l'affirmation.",
+    "phrase": "Cette disposition s'inscrit dans le cadre plus large de l’**article L2194-1**, qui liste les cas de modification sans nouvelle procédure de mise en concurrence,"
+   }
+  ]
+ },
+ {
+  "id": "mp-037",
+  "type": "fait",
+  "difficulte": "croisee",
+  "verdicts": [
+   {
+    "article": "R2191-3",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme que le délai d'exécution doit être supérieur à deux mois pour l'octroi d'une avance, mais il ne répond pas à la question de savoir si ce délai est effectivement supérieur à deux mois dans le cas spécifique concerné, ni ne traite du seuil de montant pour les marchés de travaux de manière générale.",
+    "phrase": "Le délai d'exécution est-il supérieur à deux mois ? Les passages fournis contiennent l'article **R2191-3** qui énonce ces conditions, mais il manque l'article p"
+   },
+   {
+    "article": "R2191-3",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme la teneur de l'article R2191-3 concernant les conditions d'octroi de l'avance, mais il ne mentionne pas explicitement qu'il n'y a pas de distinction entre les types de marchés, ce qui constitue une inférence non présente dans le texte.",
+    "phrase": "Cependant, le passage fourni pour l'article R2191-3 dit : \"L'acheteur accorde une avance au titulaire d'un marché lorsque le montant initial du marché est supér"
+   },
+   {
+    "article": "R2191-3",
+    "verdict": "ne_dit_pas_cela",
+    "ancre": false,
+    "motif": "L'extrait énonce les conditions générales d'octroi d'une avance (montant > 50 000 € HT et délai > 2 mois) mais ne mentionne aucun montant spécifique de 55 000 € HT.",
+    "phrase": "Donc, selon l'article R2191-3 fourni : - Montant : 55 000 € HT > 50 000 € HT."
+   },
+   {
+    "article": "R2191-3",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite explicitement l'article R2191-3 et décrit les conditions d'accord d'une avance, confirmant que l'information figure dans cet article.",
+    "phrase": "**N'avance alors aucun numéro d'article.**\" Mais l'information *figure* dans les passages fournis via l'article R2191-3."
+   },
+   {
+    "article": "R2191-3",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait reproduit textuellement l'affirmation concernant les conditions d'octroi d'une avance selon l'article R2191-3.",
+    "phrase": "Fondement : - **Article R2191-3** : L'acheteur accorde une avance au titulaire d'un marché lorsque le montant initial du marché est supérieur à 50 000 euros hor"
+   },
+   {
+    "article": "R2191-3",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait stipule que l'acheteur accorde une avance lorsque les deux conditions (montant > 50 000 € HT et délai > 2 mois) sont remplies, ce qui correspond à l'obligation mentionnée dans l'affirmation.",
+    "phrase": "Les deux conditions de l'article R2191-3 sont donc réunies, rendant l'avance obligatoire."
+   }
+  ]
+ },
+ {
+  "id": "mp-038",
+  "type": "procedure",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "L2192-12",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite l'article L2192-12 et énonce explicitement que le retard est constitué lorsque le créancier a rempli ses obligations et que le paiement n'est pas versé à l'échéance, ce qui correspond exactement aux conditions mentionnées dans l'affirmation.",
+    "phrase": "Pour déterminer précisément à partir de quand un retard de paiement est constitué, il convient de consulter l'article L2192-12 du Code de la commande publique, "
+   },
+   {
+    "article": "L2192-12",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme la présence de l'article L2192-12, mais il ne mentionne pas l'absence d'un article réglementaire (R) ni ne permet de vérifier cette absence.",
+    "phrase": "Cet article n'est pas inclus dans les extraits réglementaires (R) fournis ci-dessus, mais uniquement l'article législatif L2192-12 qui est présent dans les pass"
+   },
+   {
+    "article": "L2192-12",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait reproduit textuellement la définition du retard de paiement telle qu'énoncée dans l'affirmation.",
+    "phrase": "Cependant, en se basant strictement sur l'article **L2192-12** présent dans les passages fournis : Le retard de paiement est constitué lorsque les sommes dues a"
+   }
+  ]
+ },
+ {
+  "id": "mp-039",
+  "type": "fait",
+  "difficulte": "simple",
+  "verdicts": [
+   {
+    "article": "L2191-4",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme que l'article L2191-4 régit les acomptes, mais il indique que les conditions sont fixées par voie réglementaire plutôt que d'établir directement dans la loi si leur versement est obligatoire ou facultatif.",
+    "phrase": "Pour déterminer si les acomptes sont de droit (obligatoires) ou facultatifs, il faut consulter l'article **L2191-4** de la Partie législative."
+   },
+   {
+    "article": "R2191-20",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme la présence de l'article R2191-20 et de la condition du commencement d'exécution, mais il ne contient aucune information sur l'obligation de croiser les dispositions législatives et réglementaires complètes ni sur la distinction entre obligation et faculté selon la nature du marché.",
+    "phrase": "Cependant, le texte fourni ne contient pas les articles de la Partie réglementaire (Section 2 : Acomptes) qui précisent les conditions d'ouverture de droit (par"
+   },
+   {
+    "article": "R2191-20",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite explicitement l'article R2191-20 et reproduz textuellement la phrase de l'affirmation.",
+    "phrase": "Plus précisément, l'article **R2191-20** (présent dans les passages) stipule : « Les prestations qui ont donné lieu à un commencement d'exécution ouvrent droit "
+   },
+   {
+    "article": "L2191-4",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait de l'article L2191-4 stipule explicitement que les marchés donnent lieu à des versements à titre d'acomptes.",
+    "phrase": "L'article **L2191-4** (présent) dit que les marchés « donnent lieu à des versements..."
+   },
+   {
+    "article": "R2191-20",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait cite l'article R2191-20 et énonce exactement que les prestations ayant donné lieu à un commencement d'exécution ouvrent droit à des acomptes.",
+    "phrase": "L'article **R2191-20** (présent) précise que les prestations ayant donné lieu à un commencement d'exécution « ouvrent droit à des acomptes »."
+   },
+   {
+    "article": "L2191-4",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'article L2191-4 stipule explicitement que les marchés donnent lieu à des acomptes dès que les prestations ont commencé à être exécutées.",
+    "phrase": "**Fondements :** * **Article L2191-4** : Prévoit que les marchés donnent lieu à des acomptes dès le commencement de l'exécution."
+   },
+   {
+    "article": "R2191-20",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait reproduit textuellement la règle selon laquelle les prestations ayant fait l'objet d'un commencement d'exécution ouvrent droit à des acomptes.",
+    "phrase": "* **Article R2191-20** : Confirme que les prestations ayant donné lieu à un commencement d'exécution ouvrent droit à des acomptes."
+   },
+   {
+    "article": "L2191-4+R2191-20",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'extrait présente explicitement les articles L2191-4 et R2191-20 et détaille leur contenu relatif aux acomptes, ce qui étaye l'affirmation selon laquelle ces articles sont présents et établissent le droit concerné.",
+    "phrase": "Les articles L2191-4 et R2191-20, tous deux présents, établissent ce droit.)*"
+   }
+  ]
+ },
+ {
+  "id": "mp-040",
+  "type": "piege",
+  "difficulte": "negative",
+  "verdicts": [
+   {
+    "article": "L2192-12+L2192-13+R2191-3+R2191-7+R2192-16+R2192-21",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme que les articles évoquent les pénalités (R2192-21) et les modalités de paiement (L2192-12, L2192-13, R2192-16), mais il ne mentionne pas explicitement l'absence de fixation d'un taux par défaut ; il indique seulement que le taux des intérêts moratoires est fixé par voie réglementaire (L2192-13), ce qui ne permet pas de conclure à l'absence de taux par défaut dans les articles cités.",
+    "phrase": "Les articles fournis (L2192-13, R2191-7, R2192-21, L2192-12, R2192-16, R2191-3) évoquent l'existence des pénalités, leur obligation de stipulation dans le march"
+   },
+   {
+    "article": "L2192-13",
+    "verdict": "etaye_partiellement",
+    "ancre": true,
+    "motif": "L'extrait confirme que le taux des intérêts moratoires est fixé par voie réglementaire, mais il ne mentionne pas les pénalités de retard ni leur régime juridique distinct.",
+    "phrase": "La **règlementation en vigueur** sur les taux d'intérêt légaux ou moratoires, qui sont fixés par voie réglementaire (comme l'évoque l'article L2192-13 pour les "
+   },
+   {
+    "article": "R2192-21",
+    "verdict": "etaye",
+    "ancre": true,
+    "motif": "L'article R2192-21 stipule explicitement que le marché comporte des stipulations sur les modalités de calcul des pénalités, ce qui implique que le pouvoir adjudicateur doit les prévoir dans le marché.",
+    "phrase": "Notez que l'article R2192-21 impose au pouvoir adjudicateur de prévoir dans le marché les modalités de calcul des pénalités."
+   }
+  ]
+ }
+]

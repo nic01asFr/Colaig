@@ -1,0 +1,1973 @@
+[
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Quelle est la jurisprudence du Conseil d'État concernant le rejet d'une offre anormalement basse dans le cadre des marchés publics ?",
+  "entites": [
+   "action",
+   "juridiction",
+   "sujet"
+  ],
+  "passages": [
+   "Article R2152-4",
+   "Article L2152-6",
+   "Article L2152-5",
+   "Article R2152-5",
+   "Article R2152-3",
+   "Article R2152-1",
+   "Article L2193-9",
+   "Article L2152-1",
+   "Article L2152-3",
+   "Article R2181-2"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1566,
+  "ms_analyse": 5454,
+  "ms_orchestration": 0,
+  "ms_synthese": 3702,
+  "question": "Quelle jurisprudence du Conseil d'État s'applique au rejet d'une offre anormalement basse ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Quelle est la jurisprudence du Conseil d'État concernant le rejet d'une offre anormalement basse dans le cadre des marchés publics ?",
+  "entites": [
+   "domaine",
+   "juridiction",
+   "sujet"
+  ],
+  "passages": [
+   "Article R2152-4",
+   "Article L2152-6",
+   "Article L2152-5",
+   "Article R2152-5",
+   "Article R2152-3",
+   "Article R2152-1",
+   "Article L2193-9",
+   "Article L2152-1",
+   "Article L2152-3",
+   "Article R2181-2"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 808,
+  "ms_analyse": 6421,
+  "ms_orchestration": 0,
+  "ms_synthese": 1594,
+  "question": "Quelle jurisprudence du Conseil d'État s'applique au rejet d'une offre anormalement basse ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Quelle est la jurisprudence du Conseil d'État concernant le rejet d'une offre anormalement basse dans le cadre des marchés publics ?",
+  "entites": [
+   "action",
+   "juridiction",
+   "sujet"
+  ],
+  "passages": [
+   "Article R2152-4",
+   "Article L2152-6",
+   "Article L2152-5",
+   "Article R2152-5",
+   "Article R2152-3",
+   "Article R2152-1",
+   "Article L2193-9",
+   "Article L2152-1",
+   "Article L2152-3",
+   "Article R2181-2"
+  ],
+  "passages_distincts": 10,
+  "etapes": 1,
+  "reponse_caracteres": 1039,
+  "ms_analyse": 3906,
+  "ms_orchestration": 0,
+  "ms_synthese": 1875,
+  "question": "Quelle jurisprudence du Conseil d'État s'applique au rejet d'une offre anormalement basse ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Où télécharger le formulaire DC1 et quel formulaire DC1 spécifique doit être joint à un marché public ?",
+  "entites": [
+   "action",
+   "context",
+   "document_type"
+  ],
+  "passages": [
+   "Article R2143-4",
+   "Article R2143-13",
+   "Article CCAG Travaux 40",
+   "Article R2143-8",
+   "Article Annexe 12 — Signature électronique 6",
+   "Article Annexe 13 — Modèles de garantie 1",
+   "Article Annexe 13 — Modèles de garantie — texte 1",
+   "Article Annexe 12 — Signature électronique 1",
+   "Article R2143-10",
+   "Article R2143-5"
+  ],
+  "passages_distincts": 10,
+  "etapes": 4,
+  "reponse_caracteres": 1506,
+  "ms_analyse": 3641,
+  "ms_orchestration": 0,
+  "ms_synthese": 2233,
+  "question": "Quel formulaire DC1 dois-je joindre et où le télécharger ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Où télécharger le formulaire DC1 pour les marchés publics et quel est son contenu obligatoire ?",
+  "entites": [
+   "action",
+   "document",
+   "domain"
+  ],
+  "passages": [
+   "Article R2143-4",
+   "Article R2143-13",
+   "Article CCAG Travaux 40",
+   "Article R2143-8",
+   "Article Annexe 12 — Signature électronique 6",
+   "Article Annexe 13 — Modèles de garantie 1",
+   "Article Annexe 13 — Modèles de garantie — texte 1",
+   "Article Annexe 12 — Signature électronique 1",
+   "Article R2143-10",
+   "Article R2143-5"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1150,
+  "ms_analyse": 3438,
+  "ms_orchestration": 0,
+  "ms_synthese": 1702,
+  "question": "Quel formulaire DC1 dois-je joindre et où le télécharger ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Où télécharger le formulaire DC1 pour les marchés publics et quel est son contenu obligatoire ?",
+  "entites": [
+   "document",
+   "domain"
+  ],
+  "passages": [
+   "Article R2143-4",
+   "Article R2143-13",
+   "Article CCAG Travaux 40",
+   "Article R2143-8",
+   "Article Annexe 12 — Signature électronique 6",
+   "Article Annexe 13 — Modèles de garantie 1",
+   "Article Annexe 13 — Modèles de garantie — texte 1",
+   "Article Annexe 12 — Signature électronique 1",
+   "Article R2143-10",
+   "Article R2143-5"
+  ],
+  "passages_distincts": 10,
+  "etapes": 4,
+  "reponse_caracteres": 1934,
+  "ms_analyse": 4077,
+  "ms_orchestration": 0,
+  "ms_synthese": 3078,
+  "question": "Quel formulaire DC1 dois-je joindre et où le télécharger ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "action",
+  "sources": 10,
+  "reformulation": "Quelles sont les obligations légales de contenu d'un Cahier des Clauses Techniques Particulières (CCTP) pour un marché de travaux de voirie selon le Code de la commande publique ?",
+  "entites": [
+   "document_type",
+   "domain",
+   "nature"
+  ],
+  "passages": [
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Techniques de l'information — texte 1",
+   "Article CCAG Techniques de l'information 4",
+   "Article CCAG Marchés industriels 2",
+   "Article CCAG Travaux 4",
+   "Article CCAG Prestations intellectuelles 4",
+   "Article CCAG Marchés industriels 4",
+   "Article CCAG Fournitures et services — texte 1",
+   "Article CCAG Fournitures et services 4",
+   "Article CCAG Prestations intellectuelles — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1327,
+  "ms_analyse": 4531,
+  "ms_orchestration": 0,
+  "ms_synthese": 2264,
+  "question": "Rédige-moi le CCTP de mon marché de voirie."
+ },
+ {
+  "needs_rag": true,
+  "intent": "action",
+  "sources": 10,
+  "reformulation": "Quelles sont les obligations légales de contenu d'un CCTP (Cahier des Clauses Techniques Particulières) pour un marché de travaux de voirie selon le Code de la commande publique ?",
+  "entites": [
+   "document_type",
+   "domain",
+   "legal_framework"
+  ],
+  "passages": [
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Techniques de l'information — texte 1",
+   "Article CCAG Techniques de l'information 4",
+   "Article CCAG Marchés industriels 2",
+   "Article CCAG Travaux 4",
+   "Article CCAG Prestations intellectuelles 4",
+   "Article CCAG Marchés industriels 4",
+   "Article CCAG Fournitures et services — texte 1",
+   "Article CCAG Fournitures et services 4",
+   "Article CCAG Prestations intellectuelles — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1270,
+  "ms_analyse": 4530,
+  "ms_orchestration": 0,
+  "ms_synthese": 2204,
+  "question": "Rédige-moi le CCTP de mon marché de voirie."
+ },
+ {
+  "needs_rag": true,
+  "intent": "action",
+  "sources": 10,
+  "reformulation": "Quelles sont les obligations légales de contenu d'un CCTP pour un marché de travaux de voirie selon le Code de la commande publique ?",
+  "entites": [
+   "document_type",
+   "domain",
+   "specific_sector"
+  ],
+  "passages": [
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Techniques de l'information — texte 1",
+   "Article CCAG Techniques de l'information 4",
+   "Article CCAG Marchés industriels 2",
+   "Article CCAG Travaux 4",
+   "Article CCAG Prestations intellectuelles 4",
+   "Article CCAG Marchés industriels 4",
+   "Article CCAG Fournitures et services — texte 1",
+   "Article CCAG Fournitures et services 4",
+   "Article CCAG Prestations intellectuelles — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 5417,
+  "ms_analyse": 4108,
+  "ms_orchestration": 0,
+  "ms_synthese": 8375,
+  "question": "Rédige-moi le CCTP de mon marché de voirie."
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le taux par défaut des pénalités de retard pour un marché de travaux selon le Code de la commande publique ?",
+  "entites": [
+   "sujet",
+   "type_marche",
+   "valeur"
+  ],
+  "passages": [
+   "Article CCAG Marchés industriels 15",
+   "Article CCAG Travaux 19",
+   "Article CCAG Fournitures et services 14",
+   "Article R2192-21",
+   "Article CCAG Maîtrise d'œuvre 16",
+   "Article R2192-31",
+   "Article L2192-13",
+   "Article CCAG Prestations intellectuelles 14",
+   "Article CCAG Techniques de l'information 14",
+   "Article R2192-32"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 786,
+  "ms_analyse": 4938,
+  "ms_orchestration": 0,
+  "ms_synthese": 1577,
+  "question": "Quel est le taux des pénalités de retard applicable par défaut à mon marché de travaux ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le taux par défaut des pénalités de retard pour un marché de travaux selon le Code de la commande publique ?",
+  "entites": [
+   "sujet",
+   "type_marche",
+   "valeur"
+  ],
+  "passages": [
+   "Article CCAG Marchés industriels 15",
+   "Article CCAG Travaux 19",
+   "Article CCAG Fournitures et services 14",
+   "Article R2192-21",
+   "Article CCAG Maîtrise d'œuvre 16",
+   "Article R2192-31",
+   "Article L2192-13",
+   "Article CCAG Prestations intellectuelles 14",
+   "Article CCAG Techniques de l'information 14",
+   "Article R2192-32"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1040,
+  "ms_analyse": 4313,
+  "ms_orchestration": 0,
+  "ms_synthese": 2093,
+  "question": "Quel est le taux des pénalités de retard applicable par défaut à mon marché de travaux ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le taux par défaut des pénalités de retard pour un marché de travaux selon le Code de la commande publique ?",
+  "entites": [
+   "sujet",
+   "type_marche",
+   "valeur"
+  ],
+  "passages": [
+   "Article CCAG Marchés industriels 15",
+   "Article CCAG Travaux 19",
+   "Article CCAG Fournitures et services 14",
+   "Article R2192-21",
+   "Article CCAG Maîtrise d'œuvre 16",
+   "Article R2192-31",
+   "Article L2192-13",
+   "Article CCAG Prestations intellectuelles 14",
+   "Article CCAG Techniques de l'information 14",
+   "Article R2192-32"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1455,
+  "ms_analyse": 3921,
+  "ms_orchestration": 0,
+  "ms_synthese": 2358,
+  "question": "Quel est le taux des pénalités de retard applicable par défaut à mon marché de travaux ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le seuil de montant d'achats annuels déclenchant l'obligation d'élaborer un schéma de promotion des achats responsables ?",
+  "entites": [
+   "concept",
+   "critère",
+   "domaine"
+  ],
+  "passages": [
+   "Article L2111-3",
+   "Article D2111-3",
+   "Article R2142-6",
+   "Article R2113-7",
+   "Article R2122-8",
+   "Article R2142-7",
+   "Article R2124-1",
+   "Article R2196-9",
+   "Article R2121-2",
+   "Article L2124-1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1454,
+  "ms_analyse": 3938,
+  "ms_orchestration": 0,
+  "ms_synthese": 2295,
+  "question": "À partir de quel montant d'achats annuels un acheteur doit-il adopter un schéma de promotion des achats responsables ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le seuil de montant d'achats annuels déclenchant l'obligation d'adopter un schéma de promotion des achats responsables ?",
+  "entites": [
+   "concept",
+   "critère",
+   "domaine"
+  ],
+  "passages": [
+   "Article L2111-3",
+   "Article D2111-3",
+   "Article R2142-6",
+   "Article R2113-7",
+   "Article R2122-8",
+   "Article R2142-7",
+   "Article R2124-1",
+   "Article R2196-9",
+   "Article R2121-2",
+   "Article L2124-1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 769,
+  "ms_analyse": 3828,
+  "ms_orchestration": 0,
+  "ms_synthese": 1327,
+  "question": "À partir de quel montant d'achats annuels un acheteur doit-il adopter un schéma de promotion des achats responsables ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le seuil de montant d'achats annuels déclenchant l'obligation d'adopter un schéma de promotion des achats responsables ?",
+  "entites": [
+   "concept",
+   "critère",
+   "domaine"
+  ],
+  "passages": [
+   "Article L2111-3",
+   "Article D2111-3",
+   "Article R2142-6",
+   "Article R2113-7",
+   "Article R2122-8",
+   "Article R2142-7",
+   "Article R2124-1",
+   "Article R2196-9",
+   "Article R2121-2",
+   "Article L2124-1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 558,
+  "ms_analyse": 4141,
+  "ms_orchestration": 0,
+  "ms_synthese": 1078,
+  "question": "À partir de quel montant d'achats annuels un acheteur doit-il adopter un schéma de promotion des achats responsables ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quelles sont les définitions et références légales des normes et référentiels invoquables dans les spécifications techniques d'un marché public selon le Code de la commande publique ?",
+  "entites": [
+   "action",
+   "concept",
+   "document_type",
+   "domain"
+  ],
+  "passages": [
+   "Article R2111-8",
+   "Article R2111-11",
+   "Article R2111-9",
+   "Article R2111-4",
+   "Article R2111-7",
+   "Article R2111-10",
+   "Article R2111-5",
+   "Article R2112-2",
+   "Article L2111-2",
+   "Article CCAG Travaux 23"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 2604,
+  "ms_analyse": 4264,
+  "ms_orchestration": 0,
+  "ms_synthese": 3704,
+  "question": "Quelle est la définition exacte des normes et référentiels que je peux invoquer dans mes spécifications techniques ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quelles sont les définitions et les références légales des normes et référentiels invoquables dans les spécifications techniques d'un marché public selon le Code de la commande publique ?",
+  "entites": [
+   "concept",
+   "domain",
+   "legal_basis"
+  ],
+  "passages": [
+   "Article R2111-8",
+   "Article R2111-11",
+   "Article R2111-9",
+   "Article R2111-4",
+   "Article R2111-7",
+   "Article R2111-10",
+   "Article R2111-5",
+   "Article R2112-2",
+   "Article L2111-2",
+   "Article CCAG Travaux 23"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 3364,
+  "ms_analyse": 5015,
+  "ms_orchestration": 0,
+  "ms_synthese": 4625,
+  "question": "Quelle est la définition exacte des normes et référentiels que je peux invoquer dans mes spécifications techniques ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quelles sont les définitions et les références légales des normes et référentiels invoquables dans les spécifications techniques d'un marché public selon le Code de la commande publique ?",
+  "entites": [
+   "action",
+   "concept",
+   "document_type",
+   "domain"
+  ],
+  "passages": [
+   "Article R2111-8",
+   "Article R2111-11",
+   "Article R2111-9",
+   "Article R2111-4",
+   "Article R2111-7",
+   "Article R2111-10",
+   "Article R2111-5",
+   "Article R2112-2",
+   "Article L2111-2",
+   "Article CCAG Travaux 23"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 448,
+  "ms_analyse": 4078,
+  "ms_orchestration": 0,
+  "ms_synthese": 952,
+  "question": "Quelle est la définition exacte des normes et référentiels que je peux invoquer dans mes spécifications techniques ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le régime juridique applicable à la révision des prix dans les marchés publics et quelles sont les clauses types recommandées pour le CCAP ?",
+  "entites": [
+   "document_type",
+   "domain",
+   "topic"
+  ],
+  "passages": [
+   "Article CCAG Fournitures et services 10",
+   "Article CCAG Marchés industriels 11",
+   "Article CCAG Techniques de l'information 10",
+   "Article R2112-13",
+   "Article CCAG Prestations intellectuelles 10",
+   "Article CCAG Travaux 9",
+   "Article CCAG Maîtrise d'œuvre 10",
+   "Article R2112-10",
+   "Article CCAG Travaux 13",
+   "Article R2112-8"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 5521,
+  "ms_analyse": 3811,
+  "ms_orchestration": 0,
+  "ms_synthese": 8407,
+  "question": "Quelle formule de révision de prix dois-je écrire dans mon CCAP ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le régime juridique de la révision des prix dans les marchés publics et quelles clauses doivent figurer dans le CCAP selon le Code de la commande publique ?",
+  "entites": [
+   "document_type",
+   "legal_framework",
+   "topic"
+  ],
+  "passages": [
+   "Article CCAG Fournitures et services 10",
+   "Article CCAG Marchés industriels 11",
+   "Article CCAG Techniques de l'information 10",
+   "Article R2112-13",
+   "Article CCAG Prestations intellectuelles 10",
+   "Article CCAG Travaux 9",
+   "Article CCAG Maîtrise d'œuvre 10",
+   "Article R2112-10",
+   "Article CCAG Travaux 13",
+   "Article R2112-8"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1655,
+  "ms_analyse": 4155,
+  "ms_orchestration": 0,
+  "ms_synthese": 2625,
+  "question": "Quelle formule de révision de prix dois-je écrire dans mon CCAP ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le régime juridique de la révision des prix dans les marchés publics et quelles clauses doivent figurer dans le CCAP selon le Code de la commande publique ?",
+  "entites": [
+   "document_type",
+   "legal_framework",
+   "topic"
+  ],
+  "passages": [
+   "Article CCAG Fournitures et services 10",
+   "Article CCAG Marchés industriels 11",
+   "Article CCAG Techniques de l'information 10",
+   "Article R2112-13",
+   "Article CCAG Prestations intellectuelles 10",
+   "Article CCAG Travaux 9",
+   "Article CCAG Maîtrise d'œuvre 10",
+   "Article R2112-10",
+   "Article CCAG Travaux 13",
+   "Article R2112-8"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1979,
+  "ms_analyse": 4171,
+  "ms_orchestration": 0,
+  "ms_synthese": 3125,
+  "question": "Quelle formule de révision de prix dois-je écrire dans mon CCAP ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels indices officiels sont prévus par le Code de la commande publique pour la révision des prix dans les marchés publics ?",
+  "entites": [
+   "domain",
+   "object",
+   "topic"
+  ],
+  "passages": [
+   "Article R2112-13",
+   "Article CCAG Marchés industriels 11",
+   "Article CCAG Fournitures et services 10",
+   "Article CCAG Techniques de l'information 10",
+   "Article R2112-14",
+   "Article CCAG Prestations intellectuelles 10",
+   "Article CCAG Maîtrise d'œuvre 10",
+   "Article R2112-10",
+   "Article R2112-8",
+   "Article R2112-12"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1208,
+  "ms_analyse": 3733,
+  "ms_orchestration": 0,
+  "ms_synthese": 1952,
+  "question": "À quels indices officiels dois-je me référer pour la révision du prix de mon marché ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels indices officiels sont prévus par le Code de la commande publique pour la révision des prix dans les marchés publics ?",
+  "entites": [
+   "domain",
+   "sujet",
+   "élément_recherché"
+  ],
+  "passages": [
+   "Article R2112-13",
+   "Article CCAG Marchés industriels 11",
+   "Article CCAG Fournitures et services 10",
+   "Article CCAG Techniques de l'information 10",
+   "Article R2112-14",
+   "Article CCAG Prestations intellectuelles 10",
+   "Article CCAG Maîtrise d'œuvre 10",
+   "Article R2112-10",
+   "Article R2112-8",
+   "Article R2112-12"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1095,
+  "ms_analyse": 3843,
+  "ms_orchestration": 0,
+  "ms_synthese": 1891,
+  "question": "À quels indices officiels dois-je me référer pour la révision du prix de mon marché ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels indices officiels sont prévus par le Code de la commande publique pour la révision des prix des marchés publics ?",
+  "entites": [
+   "domain",
+   "ressource_cible",
+   "sujet"
+  ],
+  "passages": [
+   "Article R2112-13",
+   "Article CCAG Marchés industriels 11",
+   "Article CCAG Fournitures et services 10",
+   "Article CCAG Techniques de l'information 10",
+   "Article R2112-14",
+   "Article CCAG Prestations intellectuelles 10",
+   "Article CCAG Maîtrise d'œuvre 10",
+   "Article R2112-10",
+   "Article R2112-8",
+   "Article R2112-12"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1056,
+  "ms_analyse": 3920,
+  "ms_orchestration": 0,
+  "ms_synthese": 1797,
+  "question": "À quels indices officiels dois-je me référer pour la révision du prix de mon marché ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le plafond réglementaire d'un marché conclu à prix provisoires ?",
+  "entites": [
+   "concept",
+   "criterion"
+  ],
+  "passages": [
+   "Article R2112-16",
+   "Article R2112-15",
+   "Article R2112-17",
+   "Article R2142-9",
+   "Article R2112-8",
+   "Article R2142-10",
+   "Article R2112-18",
+   "Article R2112-7",
+   "Article L2112-6",
+   "Article R2112-9"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1195,
+  "ms_analyse": 3937,
+  "ms_orchestration": 0,
+  "ms_synthese": 1905,
+  "question": "Quel est le plafond réglementaire d'un marché conclu à prix provisoires ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le montant ou le plafond réglementaire applicable aux marchés publics conclus à prix provisoires ?",
+  "entites": [
+   "concept",
+   "type_de_renseignement"
+  ],
+  "passages": [
+   "Article R2112-16",
+   "Article R2112-15",
+   "Article R2112-17",
+   "Article R2142-9",
+   "Article R2112-8",
+   "Article R2142-10",
+   "Article R2112-18",
+   "Article R2112-7",
+   "Article L2112-6",
+   "Article R2112-9"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1115,
+  "ms_analyse": 3843,
+  "ms_orchestration": 0,
+  "ms_synthese": 1781,
+  "question": "Quel est le plafond réglementaire d'un marché conclu à prix provisoires ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le plafond réglementaire d'un marché conclu à prix provisoires ?",
+  "entites": [
+   "concept",
+   "criterion"
+  ],
+  "passages": [
+   "Article R2112-16",
+   "Article R2112-15",
+   "Article R2112-17",
+   "Article R2142-9",
+   "Article R2112-8",
+   "Article R2142-10",
+   "Article R2112-18",
+   "Article R2112-7",
+   "Article L2112-6",
+   "Article R2112-9"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 617,
+  "ms_analyse": 4500,
+  "ms_orchestration": 0,
+  "ms_synthese": 1266,
+  "question": "Quel est le plafond réglementaire d'un marché conclu à prix provisoires ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels sont les services sociaux et autres services spécifiques énumérés dans le Code de la commande publique pouvant faire l'objet d'une réservation à l'économie sociale et solidaire ?",
+  "entites": [
+   "catégorie_services",
+   "concept",
+   "domain"
+  ],
+  "passages": [
+   "Article L2113-15",
+   "Article R2113-8",
+   "Article R2123-2",
+   "Article R2131-14",
+   "Article L2113-16",
+   "Article L2113-13",
+   "Article R2131-7",
+   "Article R2123-7",
+   "Article L2113-13-1",
+   "Article L2113-12"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 706,
+  "ms_analyse": 3657,
+  "ms_orchestration": 0,
+  "ms_synthese": 1217,
+  "question": "Quels services relèvent des services sociaux et autres services spécifiques que je peux réserver à l'économie sociale et solidaire ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels sont les services sociaux et autres services spécifiques énumérés dans le Code de la commande publique pouvant faire l'objet d'une réservation à l'économie sociale et solidaire ?",
+  "entites": [
+   "catégorie_services",
+   "concept",
+   "domain"
+  ],
+  "passages": [
+   "Article L2113-15",
+   "Article R2113-8",
+   "Article R2123-2",
+   "Article R2131-14",
+   "Article L2113-16",
+   "Article L2113-13",
+   "Article R2131-7",
+   "Article R2123-7",
+   "Article L2113-13-1",
+   "Article L2113-12"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 429,
+  "ms_analyse": 3484,
+  "ms_orchestration": 0,
+  "ms_synthese": 937,
+  "question": "Quels services relèvent des services sociaux et autres services spécifiques que je peux réserver à l'économie sociale et solidaire ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels sont les services sociaux et autres services spécifiques énumérés dans le Code de la commande publique pouvant faire l'objet d'une réservation à l'économie sociale et solidaire ?",
+  "entites": [
+   "base_legale_potentielle",
+   "catégorie_services",
+   "domaine",
+   "sujet"
+  ],
+  "passages": [
+   "Article L2113-15",
+   "Article R2113-8",
+   "Article R2123-2",
+   "Article R2131-14",
+   "Article L2113-16",
+   "Article L2113-13",
+   "Article R2131-7",
+   "Article R2123-7",
+   "Article L2113-13-1",
+   "Article L2113-12"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1722,
+  "ms_analyse": 4092,
+  "ms_orchestration": 0,
+  "ms_synthese": 2704,
+  "question": "Quels services relèvent des services sociaux et autres services spécifiques que je peux réserver à l'économie sociale et solidaire ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le nombre maximal de lots qu'un même opérateur peut se voir attribuer dans un marché public selon le Code de la commande publique ?",
+  "entites": [
+   "acteur",
+   "limite",
+   "sujet"
+  ],
+  "passages": [
+   "Article R2113-1",
+   "Article L2113-10",
+   "Article L2151-1",
+   "Article R2142-8",
+   "Article D2151-7-1",
+   "Article R2142-15",
+   "Article R2142-4",
+   "Article R2142-9",
+   "Article R2142-16",
+   "Article L2113-14"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 2044,
+  "ms_analyse": 4125,
+  "ms_orchestration": 0,
+  "ms_synthese": 3110,
+  "question": "Quel est le nombre maximal de lots qu'un même opérateur peut se voir attribuer selon la réglementation ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Quel est le nombre maximal de lots qu'un même opérateur peut se voir attribuer dans un marché public selon le Code de la commande publique ?",
+  "entites": [
+   "acteur",
+   "limite",
+   "sujet"
+  ],
+  "passages": [
+   "Article R2113-1",
+   "Article L2113-10",
+   "Article L2151-1",
+   "Article R2142-8",
+   "Article D2151-7-1",
+   "Article R2142-15",
+   "Article R2142-4",
+   "Article R2142-9",
+   "Article R2142-16",
+   "Article L2113-14"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1051,
+  "ms_analyse": 4016,
+  "ms_orchestration": 0,
+  "ms_synthese": 1717,
+  "question": "Quel est le nombre maximal de lots qu'un même opérateur peut se voir attribuer selon la réglementation ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le nombre maximal de lots qu'un même opérateur économique peut se voir attribuer dans le cadre d'un marché public selon le Code de la commande publique ?",
+  "entites": [
+   "acteur",
+   "limite",
+   "sujet"
+  ],
+  "passages": [
+   "Article R2113-1",
+   "Article L2113-10",
+   "Article L2151-1",
+   "Article R2142-8",
+   "Article D2151-7-1",
+   "Article R2142-15",
+   "Article R2142-4",
+   "Article R2142-9",
+   "Article R2142-16",
+   "Article L2113-14"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1111,
+  "ms_analyse": 3905,
+  "ms_orchestration": 0,
+  "ms_synthese": 1703,
+  "question": "Quel est le nombre maximal de lots qu'un même opérateur peut se voir attribuer selon la réglementation ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Quels sont les articles du Code de la commande publique régissant la constitution et les obligations des groupements de commandes ?",
+  "entites": [
+   "document_cible",
+   "type_de_marche"
+  ],
+  "passages": [
+   "Article L2113-7",
+   "Article L2113-6",
+   "Article CCAG Fournitures et services 3",
+   "Article R2162-13",
+   "Article R2142-22",
+   "Article CCAG Prestations intellectuelles 3",
+   "Article CCAG Marchés industriels 3",
+   "Article Annexe 7 — Profils d'acheteurs 3",
+   "Article CCAG Fournitures et services 12",
+   "Article Annexe 7 — Profils d'acheteurs 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1931,
+  "ms_analyse": 3545,
+  "ms_orchestration": 0,
+  "ms_synthese": 2907,
+  "question": "Donne-moi le modèle de convention constitutive d'un groupement de commandes."
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Quels sont les articles du Code de la commande publique régissant la constitution et les obligations des groupements de commandes ?",
+  "entites": [
+   "concept",
+   "document_type",
+   "domaine"
+  ],
+  "passages": [
+   "Article L2113-7",
+   "Article L2113-6",
+   "Article CCAG Fournitures et services 3",
+   "Article R2162-13",
+   "Article R2142-22",
+   "Article CCAG Prestations intellectuelles 3",
+   "Article CCAG Marchés industriels 3",
+   "Article Annexe 7 — Profils d'acheteurs 3",
+   "Article CCAG Fournitures et services 12",
+   "Article Annexe 7 — Profils d'acheteurs 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1173,
+  "ms_analyse": 3625,
+  "ms_orchestration": 0,
+  "ms_synthese": 1968,
+  "question": "Donne-moi le modèle de convention constitutive d'un groupement de commandes."
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Quels sont les articles du Code de la commande publique régissant la constitution et les obligations des groupements de commandes ?",
+  "entites": [
+   "concept",
+   "document_type",
+   "domaine"
+  ],
+  "passages": [
+   "Article L2113-7",
+   "Article L2113-6",
+   "Article CCAG Fournitures et services 3",
+   "Article R2162-13",
+   "Article R2142-22",
+   "Article CCAG Prestations intellectuelles 3",
+   "Article CCAG Marchés industriels 3",
+   "Article Annexe 7 — Profils d'acheteurs 3",
+   "Article CCAG Fournitures et services 12",
+   "Article Annexe 7 — Profils d'acheteurs 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1431,
+  "ms_analyse": 4032,
+  "ms_orchestration": 0,
+  "ms_synthese": 2375,
+  "question": "Donne-moi le modèle de convention constitutive d'un groupement de commandes."
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Durée maximale d'une procédure adaptée (marché public)",
+  "entites": [
+   "legal_concept",
+   "procedure_type"
+  ],
+  "passages": [
+   "Article R2131-9",
+   "Article L2123-1",
+   "Article R2123-4",
+   "Article R2131-6",
+   "Article R2162-45",
+   "Article L5",
+   "Article L2112-5",
+   "Article L2125-1",
+   "Article R2143-1",
+   "Article R2181-5"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1538,
+  "ms_analyse": 3578,
+  "ms_orchestration": 0,
+  "ms_synthese": 2093,
+  "question": "Quelle est la durée maximale d'une procédure adaptée ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Durée maximale d'une procédure adaptée (marché public)",
+  "entites": [
+   "legal_concept",
+   "procedure_type"
+  ],
+  "passages": [
+   "Article R2131-9",
+   "Article L2123-1",
+   "Article R2123-4",
+   "Article R2131-6",
+   "Article R2162-45",
+   "Article L5",
+   "Article L2112-5",
+   "Article L2125-1",
+   "Article R2143-1",
+   "Article R2181-5"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1420,
+  "ms_analyse": 3531,
+  "ms_orchestration": 0,
+  "ms_synthese": 2093,
+  "question": "Quelle est la durée maximale d'une procédure adaptée ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Durée maximale d'une procédure adaptée (marché public)",
+  "entites": [
+   "legal_concept",
+   "procedure_type"
+  ],
+  "passages": [
+   "Article R2131-9",
+   "Article L2123-1",
+   "Article R2123-4",
+   "Article R2131-6",
+   "Article R2162-45",
+   "Article L5",
+   "Article L2112-5",
+   "Article L2125-1",
+   "Article R2143-1",
+   "Article R2181-5"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1867,
+  "ms_analyse": 3641,
+  "ms_orchestration": 0,
+  "ms_synthese": 2594,
+  "question": "Quelle est la durée maximale d'une procédure adaptée ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels sont les formalismes de négociation imposés par le Code de la commande publique dans le cadre d'une procédure adaptée ?",
+  "entites": [
+   "code",
+   "procedure",
+   "sujet"
+  ],
+  "passages": [
+   "Article L2124-3",
+   "Article R2161-18",
+   "Article R2123-6",
+   "Article R2161-11",
+   "Article R2161-5",
+   "Article L2123-1",
+   "Article R2123-4",
+   "Article R2161-20",
+   "Article R2161-17",
+   "Article R2161-26"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1526,
+  "ms_analyse": 4186,
+  "ms_orchestration": 0,
+  "ms_synthese": 2375,
+  "question": "Quel formalisme de négociation le code impose-t-il en procédure adaptée ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels sont les formalismes de négociation imposés par le Code de la commande publique dans le cadre d'une procédure adaptée ?",
+  "entites": [
+   "code",
+   "procedure",
+   "sujet"
+  ],
+  "passages": [
+   "Article L2124-3",
+   "Article R2161-18",
+   "Article R2123-6",
+   "Article R2161-11",
+   "Article R2161-5",
+   "Article L2123-1",
+   "Article R2123-4",
+   "Article R2161-20",
+   "Article R2161-17",
+   "Article R2161-26"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1059,
+  "ms_analyse": 4250,
+  "ms_orchestration": 0,
+  "ms_synthese": 1686,
+  "question": "Quel formalisme de négociation le code impose-t-il en procédure adaptée ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels sont les formalismes de négociation imposés par le Code de la commande publique dans le cadre d'une procédure adaptée ?",
+  "entites": [
+   "code",
+   "procedure",
+   "sujet"
+  ],
+  "passages": [
+   "Article L2124-3",
+   "Article R2161-18",
+   "Article R2123-6",
+   "Article R2161-11",
+   "Article R2161-5",
+   "Article L2123-1",
+   "Article R2123-4",
+   "Article R2161-20",
+   "Article R2161-17",
+   "Article R2161-26"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1441,
+  "ms_analyse": 3672,
+  "ms_orchestration": 0,
+  "ms_synthese": 3858,
+  "question": "Quel formalisme de négociation le code impose-t-il en procédure adaptée ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels sont les marchés de services sociaux et autres services spécifiques relevant de la procédure adaptée sans condition de montant selon le Code de la commande publique ?",
+  "entites": [
+   "condition",
+   "domaine",
+   "procedure"
+  ],
+  "passages": [
+   "Article R2131-14",
+   "Article R2123-1",
+   "Article L2123-1",
+   "Article R2123-2",
+   "Article R2131-13",
+   "Article R2123-7",
+   "Article R2131-7",
+   "Article R2123-4",
+   "Article L2113-15",
+   "Article R2122-8"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 626,
+  "ms_analyse": 10047,
+  "ms_orchestration": 0,
+  "ms_synthese": 1952,
+  "question": "Quels marchés relèvent des services sociaux et autres services spécifiques, ceux que je peux passer en procédure adaptée quelle que soit leur valeur ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels services sociaux et autres services spécifiques sont éligibles à la procédure adaptée sans condition de valeur selon le Code de la commande publique ?",
+  "entites": [
+   "condition",
+   "domaine",
+   "procedure"
+  ],
+  "passages": [
+   "Article R2131-14",
+   "Article R2123-1",
+   "Article L2123-1",
+   "Article R2123-2",
+   "Article R2131-13",
+   "Article R2123-7",
+   "Article R2131-7",
+   "Article R2123-4",
+   "Article L2113-15",
+   "Article R2122-8"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1596,
+  "ms_analyse": 6407,
+  "ms_orchestration": 0,
+  "ms_synthese": 4500,
+  "question": "Quels marchés relèvent des services sociaux et autres services spécifiques, ceux que je peux passer en procédure adaptée quelle que soit leur valeur ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quels sont les marchés de services sociaux et autres services spécifiques relevant de la procédure adaptée sans condition de montant selon le Code de la commande publique ?",
+  "entites": [
+   "condition",
+   "domaine",
+   "procedure"
+  ],
+  "passages": [
+   "Article R2131-14",
+   "Article R2123-1",
+   "Article L2123-1",
+   "Article R2123-2",
+   "Article R2131-13",
+   "Article R2123-7",
+   "Article R2131-7",
+   "Article R2123-4",
+   "Article L2113-15",
+   "Article R2122-8"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 609,
+  "ms_analyse": 6671,
+  "ms_orchestration": 0,
+  "ms_synthese": 2467,
+  "question": "Quels marchés relèvent des services sociaux et autres services spécifiques, ceux que je peux passer en procédure adaptée quelle que soit leur valeur ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quelles sont les obligations légales de publicité et de mise en concurrence pour un marché public selon le Code de la commande publique ?",
+  "entites": [
+   "document_type",
+   "domain",
+   "topic"
+  ],
+  "passages": [
+   "Article L2196-2",
+   "Article CCAG Techniques de l'information 28",
+   "Article CCAG Fournitures et services 26",
+   "Article CCAG Prestations intellectuelles 26",
+   "Article R2196-1",
+   "Article R2111-1",
+   "Article L2196-3",
+   "Article CCAG Marchés industriels 5",
+   "Article Annexe 7 — Profils d'acheteurs 1",
+   "Article CCAG Techniques de l'information 5"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 857,
+  "ms_analyse": 5905,
+  "ms_orchestration": 0,
+  "ms_synthese": 3110,
+  "question": "Quelles données essentielles dois-je publier exactement pour mon marché ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quelles sont les obligations légales de publicité et de mise en concurrence pour un marché public selon le Code de la commande publique ?",
+  "entites": [
+   "domain",
+   "source_law",
+   "topic"
+  ],
+  "passages": [
+   "Article L2196-2",
+   "Article CCAG Techniques de l'information 28",
+   "Article CCAG Fournitures et services 26",
+   "Article CCAG Prestations intellectuelles 26",
+   "Article R2196-1",
+   "Article R2111-1",
+   "Article L2196-3",
+   "Article CCAG Marchés industriels 5",
+   "Article Annexe 7 — Profils d'acheteurs 1",
+   "Article CCAG Techniques de l'information 5"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 2676,
+  "ms_analyse": 5563,
+  "ms_orchestration": 0,
+  "ms_synthese": 5858,
+  "question": "Quelles données essentielles dois-je publier exactement pour mon marché ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quelles sont les obligations légales de publicité et de mise en concurrence pour un marché public selon le Code de la commande publique ?",
+  "entites": [
+   "document_type",
+   "domain",
+   "topic"
+  ],
+  "passages": [
+   "Article L2196-2",
+   "Article CCAG Techniques de l'information 28",
+   "Article CCAG Fournitures et services 26",
+   "Article CCAG Prestations intellectuelles 26",
+   "Article R2196-1",
+   "Article R2111-1",
+   "Article L2196-3",
+   "Article CCAG Marchés industriels 5",
+   "Article Annexe 7 — Profils d'acheteurs 1",
+   "Article CCAG Techniques de l'information 5"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1367,
+  "ms_analyse": 4328,
+  "ms_orchestration": 0,
+  "ms_synthese": 2483,
+  "question": "Quelles données essentielles dois-je publier exactement pour mon marché ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le taux par défaut de pénalité de retard fixé par le CCAG Travaux ?",
+  "entites": [
+   "document_reference",
+   "parameter",
+   "topic"
+  ],
+  "passages": [
+   "Article CCAG Marchés industriels 15",
+   "Article CCAG Travaux 19",
+   "Article CCAG Maîtrise d'œuvre 16",
+   "Article R2192-31",
+   "Article CCAG Prestations intellectuelles 14",
+   "Article CCAG Fournitures et services 14",
+   "Article L2192-13",
+   "Article R2192-21",
+   "Article CCAG Techniques de l'information 14",
+   "Article R2192-36"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1366,
+  "ms_analyse": 3875,
+  "ms_orchestration": 0,
+  "ms_synthese": 2703,
+  "question": "Quel taux de pénalité de retard le CCAG Travaux fixe-t-il par défaut ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le taux par défaut de pénalité de retard fixé par le CCAG Travaux ?",
+  "entites": [
+   "attribute",
+   "concept",
+   "document"
+  ],
+  "passages": [
+   "Article CCAG Marchés industriels 15",
+   "Article CCAG Travaux 19",
+   "Article CCAG Maîtrise d'œuvre 16",
+   "Article R2192-31",
+   "Article CCAG Prestations intellectuelles 14",
+   "Article CCAG Fournitures et services 14",
+   "Article L2192-13",
+   "Article R2192-21",
+   "Article CCAG Techniques de l'information 14",
+   "Article R2192-36"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1508,
+  "ms_analyse": 4562,
+  "ms_orchestration": 0,
+  "ms_synthese": 2671,
+  "question": "Quel taux de pénalité de retard le CCAG Travaux fixe-t-il par défaut ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le taux par défaut de pénalité de retard fixé par le CCAG Travaux ?",
+  "entites": [
+   "document_reference",
+   "parameter",
+   "topic"
+  ],
+  "passages": [
+   "Article CCAG Marchés industriels 15",
+   "Article CCAG Travaux 19",
+   "Article CCAG Maîtrise d'œuvre 16",
+   "Article R2192-31",
+   "Article CCAG Prestations intellectuelles 14",
+   "Article CCAG Fournitures et services 14",
+   "Article L2192-13",
+   "Article R2192-21",
+   "Article CCAG Techniques de l'information 14",
+   "Article R2192-36"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 968,
+  "ms_analyse": 3781,
+  "ms_orchestration": 0,
+  "ms_synthese": 2077,
+  "question": "Quel taux de pénalité de retard le CCAG Travaux fixe-t-il par défaut ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel CCAG s'applique aux marchés de travaux de bâtiment ?",
+  "entites": [
+   "document_cible",
+   "secteur",
+   "type_marche"
+  ],
+  "passages": [
+   "Article R2112-2",
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Travaux 1",
+   "Article CCAG Maîtrise d'œuvre 1",
+   "Article CCAG Techniques de l'information 1",
+   "Article CCAG Marchés industriels 1",
+   "Article CCAG Prestations intellectuelles 1",
+   "Article CCAG Travaux 4",
+   "Article CCAG Fournitures et services 1",
+   "Article CCAG Techniques de l'information — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1012,
+  "ms_analyse": 3718,
+  "ms_orchestration": 0,
+  "ms_synthese": 1875,
+  "question": "Quel cahier des clauses techniques générales s'applique à mon marché de travaux de bâtiment ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel CCAG s'applique aux marchés de travaux de bâtiment dans le Code de la commande publique ?",
+  "entites": [
+   "document_cible",
+   "secteur",
+   "type_marche"
+  ],
+  "passages": [
+   "Article R2112-2",
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Travaux 1",
+   "Article CCAG Maîtrise d'œuvre 1",
+   "Article CCAG Techniques de l'information 1",
+   "Article CCAG Marchés industriels 1",
+   "Article CCAG Prestations intellectuelles 1",
+   "Article CCAG Travaux 4",
+   "Article CCAG Fournitures et services 1",
+   "Article CCAG Techniques de l'information — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1099,
+  "ms_analyse": 4016,
+  "ms_orchestration": 0,
+  "ms_synthese": 1891,
+  "question": "Quel cahier des clauses techniques générales s'applique à mon marché de travaux de bâtiment ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel CCAG s'applique aux marchés de travaux de bâtiment ?",
+  "entites": [
+   "document_cible",
+   "secteur",
+   "type_marche"
+  ],
+  "passages": [
+   "Article R2112-2",
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Travaux 1",
+   "Article CCAG Maîtrise d'œuvre 1",
+   "Article CCAG Techniques de l'information 1",
+   "Article CCAG Marchés industriels 1",
+   "Article CCAG Prestations intellectuelles 1",
+   "Article CCAG Travaux 4",
+   "Article CCAG Fournitures et services 1",
+   "Article CCAG Techniques de l'information — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1230,
+  "ms_analyse": 4031,
+  "ms_orchestration": 0,
+  "ms_synthese": 1968,
+  "question": "Quel cahier des clauses techniques générales s'applique à mon marché de travaux de bâtiment ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Définition légale des travaux au sens du Code de la commande publique et liste des activités concernées",
+  "entites": [
+   "code",
+   "concept",
+   "nature"
+  ],
+  "passages": [
+   "Article L2",
+   "Article R2121-5",
+   "Article R2172-1",
+   "Article CCAG Travaux — texte 1",
+   "Article L2193-1",
+   "Article L2112-3",
+   "Article CCAG Travaux 2",
+   "Article CCAG Travaux 1",
+   "Article L4",
+   "Article L2111-2"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 679,
+  "ms_analyse": 3797,
+  "ms_orchestration": 0,
+  "ms_synthese": 1233,
+  "question": "Quelle est la liste des activités qui sont des travaux au sens du code de la commande publique ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Définition légale des travaux au sens du Code de la commande publique et liste des activités concernées",
+  "entites": [
+   "code",
+   "concept",
+   "nature"
+  ],
+  "passages": [
+   "Article L2",
+   "Article R2121-5",
+   "Article R2172-1",
+   "Article CCAG Travaux — texte 1",
+   "Article L2193-1",
+   "Article L2112-3",
+   "Article CCAG Travaux 2",
+   "Article CCAG Travaux 1",
+   "Article L4",
+   "Article L2111-2"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 799,
+  "ms_analyse": 3514,
+  "ms_orchestration": 0,
+  "ms_synthese": 1407,
+  "question": "Quelle est la liste des activités qui sont des travaux au sens du code de la commande publique ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "search",
+  "sources": 10,
+  "reformulation": "Définition légale des travaux au sens du Code de la commande publique : liste des activités classées comme travaux",
+  "entites": [
+   "category",
+   "code",
+   "concept"
+  ],
+  "passages": [
+   "Article L2",
+   "Article R2121-5",
+   "Article R2172-1",
+   "Article CCAG Travaux — texte 1",
+   "Article L2193-1",
+   "Article L2112-3",
+   "Article CCAG Travaux 2",
+   "Article CCAG Travaux 1",
+   "Article L4",
+   "Article L2111-2"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 661,
+  "ms_analyse": 3670,
+  "ms_orchestration": 0,
+  "ms_synthese": 1266,
+  "question": "Quelle est la liste des activités qui sont des travaux au sens du code de la commande publique ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel CCAG s'applique par défaut si aucun CCAG n'est désigné dans les documents particuliers du marché ?",
+  "entites": [
+   "condition",
+   "sujet"
+  ],
+  "passages": [
+   "Article CCAG Marchés industriels 1",
+   "Article CCAG Fournitures et services 1",
+   "Article CCAG Travaux 1",
+   "Article CCAG Prestations intellectuelles 1",
+   "Article CCAG Techniques de l'information 1",
+   "Article CCAG Maîtrise d'œuvre 1",
+   "Article CCAG Fournitures et services — texte 1",
+   "Article CCAG Prestations intellectuelles — texte 1",
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Marchés industriels — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1076,
+  "ms_analyse": 4766,
+  "ms_orchestration": 0,
+  "ms_synthese": 1858,
+  "question": "Quel CCAG s'applique à mon marché si je n'en désigne aucun dans mes documents particuliers ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel CCAG s'applique par défaut si aucun CCAG n'est désigné dans les documents particuliers d'un marché public ?",
+  "entites": [
+   "condition",
+   "domaine",
+   "sujet"
+  ],
+  "passages": [
+   "Article CCAG Marchés industriels 1",
+   "Article CCAG Fournitures et services 1",
+   "Article CCAG Travaux 1",
+   "Article CCAG Prestations intellectuelles 1",
+   "Article CCAG Techniques de l'information 1",
+   "Article CCAG Maîtrise d'œuvre 1",
+   "Article CCAG Fournitures et services — texte 1",
+   "Article CCAG Prestations intellectuelles — texte 1",
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Marchés industriels — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1243,
+  "ms_analyse": 4171,
+  "ms_orchestration": 0,
+  "ms_synthese": 2000,
+  "question": "Quel CCAG s'applique à mon marché si je n'en désigne aucun dans mes documents particuliers ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le CCAG (Cahier des Clauses Administratives Générales) applicable par défaut à un marché public si aucune disposition particulière ne le désigne dans les documents du marché ?",
+  "entites": [
+   "condition",
+   "domaine",
+   "sujet"
+  ],
+  "passages": [
+   "Article CCAG Marchés industriels 1",
+   "Article CCAG Fournitures et services 1",
+   "Article CCAG Travaux 1",
+   "Article CCAG Prestations intellectuelles 1",
+   "Article CCAG Techniques de l'information 1",
+   "Article CCAG Maîtrise d'œuvre 1",
+   "Article CCAG Fournitures et services — texte 1",
+   "Article CCAG Prestations intellectuelles — texte 1",
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Marchés industriels — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1053,
+  "ms_analyse": 4344,
+  "ms_orchestration": 0,
+  "ms_synthese": 1921,
+  "question": "Quel CCAG s'applique à mon marché si je n'en désigne aucun dans mes documents particuliers ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Le Code de la commande publique permet-il de combiner les CCAG Travaux et CCAG Prestations intellectuelles dans un seul marché public ?",
+  "entites": [
+   "context",
+   "documents"
+  ],
+  "passages": [
+   "Article CCAG Prestations intellectuelles 1",
+   "Article CCAG Prestations intellectuelles — texte 1",
+   "Article CCAG Travaux 1",
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Marchés industriels 1",
+   "Article CCAG Techniques de l'information 1",
+   "Article CCAG Maîtrise d'œuvre 1",
+   "Article CCAG Fournitures et services 1",
+   "Article CCAG Techniques de l'information — texte 1",
+   "Article CCAG Fournitures et services — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 847,
+  "ms_analyse": 4641,
+  "ms_orchestration": 0,
+  "ms_synthese": 1608,
+  "question": "Puis-je me référer à la fois au CCAG Travaux et au CCAG Prestations intellectuelles dans un même marché ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Est-il permis de combiner des prestations de travaux et des prestations intellectuelles dans un seul marché public en se référant simultanément au CCAG Travaux et au CCAG Prestations intellectuelles ?",
+  "entites": [
+   "context",
+   "documents"
+  ],
+  "passages": [
+   "Article CCAG Prestations intellectuelles 1",
+   "Article CCAG Prestations intellectuelles — texte 1",
+   "Article CCAG Travaux 1",
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Marchés industriels 1",
+   "Article CCAG Techniques de l'information 1",
+   "Article CCAG Maîtrise d'œuvre 1",
+   "Article CCAG Fournitures et services 1",
+   "Article CCAG Techniques de l'information — texte 1",
+   "Article CCAG Fournitures et services — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1636,
+  "ms_analyse": 4983,
+  "ms_orchestration": 0,
+  "ms_synthese": 2641,
+  "question": "Puis-je me référer à la fois au CCAG Travaux et au CCAG Prestations intellectuelles dans un même marché ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Le Code de la commande publique permet-il de combiner des prestations de travaux et des prestations intellectuelles dans un seul marché public, et quelles sont les règles de rattachement aux CCAG applicables ?",
+  "entites": [
+   "context",
+   "documents"
+  ],
+  "passages": [
+   "Article CCAG Prestations intellectuelles 1",
+   "Article CCAG Prestations intellectuelles — texte 1",
+   "Article CCAG Travaux 1",
+   "Article CCAG Travaux — texte 1",
+   "Article CCAG Marchés industriels 1",
+   "Article CCAG Techniques de l'information 1",
+   "Article CCAG Maîtrise d'œuvre 1",
+   "Article CCAG Fournitures et services 1",
+   "Article CCAG Techniques de l'information — texte 1",
+   "Article CCAG Fournitures et services — texte 1"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1379,
+  "ms_analyse": 4625,
+  "ms_orchestration": 0,
+  "ms_synthese": 2328,
+  "question": "Puis-je me référer à la fois au CCAG Travaux et au CCAG Prestations intellectuelles dans un même marché ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le montant ou le pourcentage de la retenue de garantie applicable aux marchés de travaux selon le Code de la commande publique ?",
+  "entites": [
+   "concept",
+   "source_légale",
+   "type_marche"
+  ],
+  "passages": [
+   "Article R2191-33",
+   "Article R2191-34",
+   "Article R2191-21",
+   "Article R2191-32",
+   "Article L2191-7",
+   "Article R2191-35",
+   "Article R2191-38",
+   "Article R2191-36",
+   "Article R2191-44",
+   "Article R2191-40"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 2421,
+  "ms_analyse": 4828,
+  "ms_orchestration": 0,
+  "ms_synthese": 3796,
+  "question": "Quel est le montant de la retenue de garantie applicable à mon marché de travaux ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le montant ou le pourcentage de la retenue de garantie applicable aux marchés de travaux selon le Code de la commande publique ?",
+  "entites": [
+   "concept",
+   "source_légale",
+   "type_marche"
+  ],
+  "passages": [
+   "Article R2191-33",
+   "Article R2191-34",
+   "Article R2191-21",
+   "Article R2191-32",
+   "Article L2191-7",
+   "Article R2191-35",
+   "Article R2191-38",
+   "Article R2191-36",
+   "Article R2191-44",
+   "Article R2191-40"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 894,
+  "ms_analyse": 4342,
+  "ms_orchestration": 0,
+  "ms_synthese": 1718,
+  "question": "Quel est le montant de la retenue de garantie applicable à mon marché de travaux ?"
+ },
+ {
+  "needs_rag": true,
+  "intent": "question",
+  "sources": 10,
+  "reformulation": "Quel est le montant ou le pourcentage de la retenue de garantie applicable aux marchés de travaux selon le Code de la commande publique ?",
+  "entites": [
+   "concept",
+   "source_légale",
+   "type_marche"
+  ],
+  "passages": [
+   "Article R2191-33",
+   "Article R2191-34",
+   "Article R2191-21",
+   "Article R2191-32",
+   "Article L2191-7",
+   "Article R2191-35",
+   "Article R2191-38",
+   "Article R2191-36",
+   "Article R2191-44",
+   "Article R2191-40"
+  ],
+  "passages_distincts": 10,
+  "etapes": 2,
+  "reponse_caracteres": 1891,
+  "ms_analyse": 4311,
+  "ms_orchestration": 0,
+  "ms_synthese": 3000,
+  "question": "Quel est le montant de la retenue de garantie applicable à mon marché de travaux ?"
+ }
+]

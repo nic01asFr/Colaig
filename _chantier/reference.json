@@ -1,0 +1,666 @@
+{
+  "_pourquoi": [
+    "La reference L1.5 vivait dans des documents Markdown. Un chiffre ecrit dans un",
+    "document ne bloque rien : il se lit apres coup, quand la degradation est deja",
+    "livree. Ce fichier en fait une CONTRAINTE VERIFIABLE.",
+    "",
+    "Chaque seuil porte son motif. Un seuil sans motif se relache au premier echec,",
+    "parce que personne ne sait plus ce qu'il protegeait."
+  ],
+  "_mesure_le": "2026-08-23",
+  "_configuration": {
+    "corpus": "code de la commande publique 2e partie livre Ier + titre preliminaire, six CCAG, annexes 2/7/12/13",
+    "articles": 1021,
+    "_articles_corrige": [
+      "1026 etait faux, et ne l'a jamais ete. Le corpus a compte 699, puis 755, puis 1021",
+      "articles ; jamais 1026. Le chiffre a ete ecrit ici et repete cinq fois dans",
+      "DECISIONS.md sans qu'aucune source ne le porte : le sommaire genere par le",
+      "constructeur dit 1021 depuis le commit 8e8a86d.",
+      "",
+      "AUCUN SEUIL N'EN DEPEND — c'est un champ descriptif. Mais une reference dont la",
+      "description est fausse est exactement ce que ce chantier traque : le jour ou",
+      "quelqu'un verifie la reproductibilite du corpus, il cherche 1026 articles et",
+      "conclut a une derive qui n'existe pas.",
+      "",
+      "Corrige le 24/08/2026, au lot L2.1, en verifiant si le passage au balisage",
+      "invalidait la reference."
+    ],
+    "jeu_dore": 135,
+    "cas_negatifs": 22,
+    "k": 10,
+    "variante": "durci",
+    "raisonnement": false,
+    "modele": "qwen3-6-35b-moe"
+  },
+  "recherche": {
+    "complets_sur_attendus": {
+      "valeur": 0.929,
+      "minimum": 0.88,
+      "_motif": [
+        "105 cas sur 113 dont tous les articles attendus remontent. La marge de 5 points",
+        "absorbe le remplacement de quelques cas dores ; en dessous, c'est le moteur ou le",
+        "corpus qui a bouge, et il faut le savoir avant que la generation ne le masque."
+      ]
+    }
+  },
+  "generation": {
+    "refus_systematique": {
+      "valeur": 1.0,
+      "minimum": 0.95,
+      "_tirages": 17,
+      "_observe": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "_sigma": 0.0,
+      "_regle": "plancher fixe, sigma nul",
+      "_motif": [
+        "Sur cas negatif, la reponse dit-elle que l'information manque ?",
+        "",
+        "SIGMA = 0 SUR DIX-SEPT TIRAGES. Ce n'est pas un artefact de faible echantillon : le",
+        "protocole de refus est le seul comportement du systeme qui ne varie pas d'une",
+        "execution a l'autre. Le seuil de 0,95 laisse une marge qu'aucune observation n'a",
+        "jamais entamee — c'est voulu : un refus qui cesse d'etre systematique est une",
+        "degradation grave, et le seuil doit se declencher avant qu'elle devienne courante.",
+        "",
+        "CONSOLIDE LE 28/08/2026 SUR DIX-SEPT OBSERVATIONS de la meme condition :",
+        "douze tirages du harnais de dispersion et cinq passages de la porte. Les deux",
+        "chemins mesurent la meme chose ; les separer n'avait pas lieu d'etre."
+      ]
+    },
+    "cite_attendu": {
+      "valeur": 0.806,
+      "minimum": 0.762,
+      "_tirages": 12,
+      "_observe": [
+        0.7706,
+        0.7706,
+        0.7946,
+        0.7946,
+        0.8018,
+        0.8053,
+        0.8091,
+        0.8142,
+        0.8182,
+        0.8214,
+        0.8273,
+        0.8455
+      ],
+      "_sigma": 0.0219,
+      "_regle": "moyenne - 2 sigma",
+      "_motif": [
+        "L'article attendu est-il cite ? Au moins un des attendus suffit.",
+        "",
+        "REBASE LE 28/08/2026 APRES CORRECTION DE LA NOTATION, sur douze archives rescorees",
+        "SANS AUCUNE GENERATION — les reponses etaient stockees.",
+        "",
+        "LE DEFAUT CORRIGE. Onze cas positifs sur 113 attendent une reference CCAG ou",
+        "d'annexe (« CCAG Travaux 4 »), que `articles_cites` ne peut PAS produire : il ne",
+        "connait que L/R/D + chiffres. Le plafond de cet indicateur n'etait donc pas 1.0",
+        "mais 0.903, et une reponse juste — « CCAG Travaux, Article 4.1 [Document 1] » —",
+        "etait comptee fausse.",
+        "",
+        "La reconnaissance est dans la NOTATION, pas dans l'extracteur : elargir",
+        "`articles_cites` a « Article 4 » creerait des faux positifs partout, y compris sur",
+        "la detection de fantomes.",
+        "",
+        "EFFET MESURE sur les douze memes archives : 0,784 -> 0,806, soit +0,022. La valeur",
+        "precedente (0,782 sur dix-sept observations) decrivait l'ancienne notation et n'est",
+        "plus comparable — les cinq passages de porte qui la completaient ne sont pas",
+        "archives, donc non rescorables. n passe de 17 a 12, au-dessus du plancher de 10."
+      ]
+    },
+    "hors_contexte_max": {
+      "valeur": 23.24,
+      "maximum": 34,
+      "_tirages": 17,
+      "_observe": [
+        17,
+        19,
+        20,
+        21,
+        21,
+        22,
+        23,
+        23,
+        23,
+        23,
+        24,
+        24,
+        25,
+        25,
+        27,
+        29,
+        29
+      ],
+      "_sigma": 3.2313,
+      "_regle": "plafond ancre sur l'etat degrade connu (k=6), non recalcule",
+      "_motif": [
+        "Articles reels cites hors des passages fournis — le modele puise dans sa memoire.",
+        "",
+        "REBASE LE 28/08/2026 SUR QUINZE TIRAGES de la meme condition.",
+        "",
+        "Le rebasage precedent, sur quatre tirages, a tenu quelques heures : le passage",
+        "suivant de la porte a rendu 15 fantomes pour un plafond de 13. Quatre tirages",
+        "estiment mal une dispersion — c'est un PLANCHER, pas une garantie.",
+        "",
+        "LE PLAFOND RESTE 34, ET CE N'EST PAS UN OUBLI. Il est ancre sur le niveau mesure",
+        "a k=6, soit l'etat degrade connu : y revenir signifierait avoir perdu le benefice",
+        "de D33. Un plafond ancre sur un ETAT identifie vaut mieux qu'un plafond",
+        "statistique, quand cet etat existe.",
+        "",
+        "A titre indicatif, moyenne + 3 sigma vaudrait 28,2 ; le maximum observe est 25.",
+        "",
+        "CONSOLIDE LE 28/08/2026 SUR DIX-SEPT OBSERVATIONS de la meme condition :",
+        "douze tirages du harnais de dispersion et cinq passages de la porte. Les deux",
+        "chemins mesurent la meme chose ; les separer n'avait pas lieu d'etre.",
+        "",
+        "CONFIRMATION INDEPENDANTE : moyenne + 3 sigma vaut 32,9 sur dix-sept observations,",
+        "pour un plafond fixe a 34 par ancrage sur l'etat degrade a k=6. Deux raisonnements",
+        "sans rapport convergent a un point pres."
+      ]
+    },
+    "fantomes_max": {
+      "valeur": 7.53,
+      "maximum": 16,
+      "_tirages": 17,
+      "_observe": [
+        5,
+        5,
+        6,
+        6,
+        6,
+        6,
+        6,
+        7,
+        7,
+        8,
+        8,
+        8,
+        8,
+        8,
+        8,
+        11,
+        15
+      ],
+      "_sigma": 2.4269,
+      "_regle": "moyenne + 3 sigma",
+      "_motif": [
+        "Articles cites qui n'existent nulle part. Rare et grave : une reference fausse",
+        "sous une forme juste ne se voit pas a la lecture.",
+        "",
+        "REBASE LE 28/08/2026 SUR QUINZE TIRAGES de la meme condition.",
+        "",
+        "Le rebasage precedent, sur quatre tirages, a tenu quelques heures : le passage",
+        "suivant de la porte a rendu 15 fantomes pour un plafond de 13. Quatre tirages",
+        "estiment mal une dispersion — c'est un PLANCHER, pas une garantie.",
+        "",
+        "REGLE : moyenne + 3 sigma, et non deux. MESURE : a deux sigma (13,2), UNE",
+        "observation sur quinze passe au-dessus. A trois sigma (15,9), aucune.",
+        "",
+        "POURQUOI L'ASYMETRIE AVEC cite_attendu : c'est un COMPTE, pas une fraction. Sa",
+        "dispersion suit un Poisson — sigma observe 2,62 pour un sigma theorique de 2,83",
+        "a moyenne 8 — donc une queue DROITE qu'une regle symetrique a deux sigma",
+        "sous-couvre. Un plafond franchi une fois sur quinze sur du code sain serait un",
+        "generateur de fausses alertes, et une alerte qu'on apprend a ignorer ne protege",
+        "plus rien.",
+        "",
+        "CONSOLIDE LE 28/08/2026 SUR DIX-SEPT OBSERVATIONS de la meme condition :",
+        "douze tirages du harnais de dispersion et cinq passages de la porte. Les deux",
+        "chemins mesurent la meme chose ; les separer n'avait pas lieu d'etre.",
+        "",
+        "LE PLAFOND DE 16 EST CONFIRME : moyenne + 3 sigma vaut 14,8, le maximum observe 15.",
+        "Douze tirages consecutifs du harnais plafonnaient pourtant a 8 — les valeurs de queue",
+        "(11 et 15) sont venues des passages de porte. FONDER CE SEUIL SUR CES DOUZE TIRAGES",
+        "AURAIT DONNE 10, ET IL AURAIT ETE FRANCHI."
+      ]
+    },
+    "montants_inventes_max": {
+      "valeur": 0.65,
+      "maximum": 3,
+      "_tirages": 17,
+      "_observe": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2
+      ],
+      "_sigma": 0.7019,
+      "_regle": "moyenne + 3 sigma",
+      "_motif": [
+        "Sommes en euros absentes des passages fournis.",
+        "",
+        "LA VALEUR DE REFERENCE ETAIT 0, ET C'ETAIT FAUX. Elle affirmait que le systeme",
+        "n'invente jamais de montant. Mesure sur dix-sept tirages : 0,65 par execution en",
+        "moyenne, jusqu'a 2. Ce zero venait d'un tirage unique — meme defaut que celui",
+        "corrige la veille sur cite_attendu, mais portant cette fois sur une propriete du",
+        "PRODUIT et non sur un seuil.",
+        "",
+        "Le plafond passe de 2 a 3 : moyenne + 3 sigma vaut 2,75 et le maximum observe est 2.",
+        "Un plafond de 2 serait franchi au premier tirage de queue.",
+        "",
+        "C'EST L'INDICATEUR LE PLUS GRAVE DES SEPT. Sur un corpus juridique, un montant",
+        "fabrique produit une procedure irreguliere, et rien dans la reponse ne le signale.",
+        "",
+        "CONSOLIDE LE 28/08/2026 SUR DIX-SEPT OBSERVATIONS de la meme condition :",
+        "douze tirages du harnais de dispersion et cinq passages de la porte. Les deux",
+        "chemins mesurent la meme chose ; les separer n'avait pas lieu d'etre."
+      ]
+    },
+    "tronquees_max": {
+      "valeur": 2.35,
+      "maximum": 12,
+      "_tirages": 17,
+      "_observe": [
+        0,
+        0,
+        0,
+        1,
+        2,
+        2,
+        2,
+        2,
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+        4,
+        4,
+        5
+      ],
+      "_sigma": 1.4552,
+      "_regle": "plafond conserve, non resserre",
+      "_motif": [
+        "Reponses coupees avant leur fin, ecartees du comptage des citations.",
+        "",
+        "LA VALEUR DE REFERENCE ETAIT 0, ET C'ETAIT FAUX : 2,35 en moyenne, jusqu'a 5. Meme",
+        "defaut que montants_inventes — un zero pose sur un tirage.",
+        "",
+        "LE PLAFOND DE 12 EST CONSERVE, non resserre. Moyenne + 3 sigma vaudrait 6,7, mais une",
+        "reponse tronquee depend de max_tokens, dont ce chantier a mesure qu'il decide de tout :",
+        "a 2048 jetons la reponse est tronquee, a 900 elle est vide. Le plafond garde donc une",
+        "marge face a un reglage qui n'est pas du bruit.",
+        "",
+        "CONSOLIDE LE 28/08/2026 SUR DIX-SEPT OBSERVATIONS de la meme condition :",
+        "douze tirages du harnais de dispersion et cinq passages de la porte. Les deux",
+        "chemins mesurent la meme chose ; les separer n'avait pas lieu d'etre."
+      ]
+    },
+    "garde_fou_rendues": {
+      "valeur": 0.843,
+      "minimum": 0.78,
+      "_tirages": 17,
+      "_observe": [
+        0.808,
+        0.812,
+        0.818,
+        0.8182,
+        0.8249,
+        0.8315,
+        0.8436,
+        0.844,
+        0.8457,
+        0.8466,
+        0.8475,
+        0.849,
+        0.8523,
+        0.8629,
+        0.8636,
+        0.8757,
+        0.8908
+      ],
+      "_sigma": 0.0227,
+      "_regle": "plancher conserve, non resserre",
+      "_motif": [
+        "Part des reponses rendues telles quelles par le garde-fou de provenance.",
+        "",
+        "LE SEUIL N'EST PAS RESSERRE, ET C'EST DELIBERE. Moyenne - 2 sigma vaudrait 0,798 et",
+        "le minimum observe est 0,808 : resserrer donnerait une marge de 0,010 sur un",
+        "indicateur dont on vient de mesurer que dix-sept tirages peuvent manquer la queue.",
+        "Les fantomes l'ont montre le jour meme : douze tirages consecutifs plafonnaient a 8,",
+        "le maximum reel atteint 15.",
+        "",
+        "Un seuil qu'on resserre parce qu'on a des chiffres est un seuil qu'on rouvrira au",
+        "premier tirage de queue.",
+        "",
+        "CONSOLIDE LE 28/08/2026 SUR DIX-SEPT OBSERVATIONS de la meme condition :",
+        "douze tirages du harnais de dispersion et cinq passages de la porte. Les deux",
+        "chemins mesurent la meme chose ; les separer n'avait pas lieu d'etre."
+      ]
+    },
+    "cite_attendu_complet": {
+      "valeur": 0.775,
+      "minimum": 0.725,
+      "_tirages": 12,
+      "_observe": [
+        0.7339,
+        0.7339,
+        0.7589,
+        0.7679,
+        0.7748,
+        0.7788,
+        0.7788,
+        0.7818,
+        0.7818,
+        0.7857,
+        0.8091,
+        0.8182
+      ],
+      "_sigma": 0.0251,
+      "_regle": "moyenne - 2 sigma",
+      "_motif": [
+        "TOUS les articles attendus sont-ils cites, et pas seulement l'un d'eux ?",
+        "",
+        "INDICATEUR AJOUTE LE 28/08/2026, a cote et NON a la place.",
+        "",
+        "POURQUOI. Onze cas attendent plusieurs articles et la notation historique accepte",
+        "l'un d'eux. `mp-002` dit pourtant dans sa propre justification : « la reponse exige",
+        "l'article legislatif ET l'article reglementaire. Un moteur qui ne remonte que",
+        "L2112-1 ne peut pas donner le montant. » La metrique etait donc plus indulgente que",
+        "le jeu dore lui-meme.",
+        "",
+        "POURQUOI LE JEU DORE N'EST PAS MODIFIE. Y inscrire l'exigence reviendrait a encoder",
+        "MON interpretation de onze justifications — sept la disent explicitement, quatre",
+        "l'impliquent. Les deux lectures sont rendues cote a cote, et l'arbitrage de",
+        "promouvoir la stricte reste humain (CLAUDE.md §4.8, §5).",
+        "",
+        "COUT MESURE de l'exigence : 0,806 -> 0,775, soit 0,031. Quand Colaig cite un des",
+        "articles attendus, il les cite donc PRESQUE TOUJOURS TOUS — le defaut d'indulgence",
+        "etait reel et petit."
+      ]
+    }
+  },
+  "verificateur_fidelite": {
+    "faux_negatifs_max": {
+      "valeur": 0.0,
+      "maximum": 0.1,
+      "_motif": [
+        "Sur 30 couples fideles par construction, aucun verdict negatif. Un verificateur",
+        "qui accuse a tort serait ignore, et tout ce qu'il protege avec lui."
+      ]
+    },
+    "detection_derives": {
+      "valeur": 0.827,
+      "minimum": 0.75,
+      "_motif": [
+        "86 derives detectees sur 104 fabriquees. Il voit ce qu'on ajoute (100 %) et non",
+        "ce qu'on retire (50 %) : le taux global masque cet ecart, que D32 documente."
+      ]
+    }
+  },
+  "_variance_observee": {
+    "_pourquoi": [
+      "Les seuils avaient ete poses au jugement. Un replicat complet, execute le meme jour",
+      "sur le meme corpus et le meme jeu dore, donne le bruit reel — ce qui les fonde ou",
+      "les infirme.",
+      "",
+      "Un seuil pose au jugement se defend mal le jour ou il echoue : on le relache. Un",
+      "seuil adosse a une variance mesuree se defend."
+    ],
+    "_replicat_du": "2026-08-23",
+    "recherche_complets": {
+      "reference": 0.929,
+      "replicat": 0.929,
+      "ecart": 0.0,
+      "_note": "la recherche est deterministe : meme corpus, memes embeddings, meme resultat"
+    },
+    "refus_systematique": {
+      "reference": 1.0,
+      "replicat": 1.0,
+      "ecart": 0.0
+    },
+    "cite_attendu": {
+      "reference": 0.836,
+      "replicat": 0.835,
+      "ecart": 0.001
+    },
+    "hors_contexte": {
+      "reference": 24,
+      "replicat": 26,
+      "ecart": 2
+    },
+    "fantomes": {
+      "reference": 5,
+      "replicat": 8,
+      "ecart": 3
+    },
+    "montants_inventes": {
+      "reference": 0,
+      "replicat": 1,
+      "ecart": 1
+    },
+    "tronquees": {
+      "reference": 3,
+      "replicat": 4,
+      "ecart": 1
+    },
+    "garde_fou_rendues": {
+      "reference": 0.847,
+      "replicat": 0.823,
+      "ecart": 0.024
+    },
+    "_lecture": [
+      "La generation varie meme a temperature 0,1 : trois fantomes d'ecart, deux citations",
+      "hors contexte, et surtout 2,4 points sur le taux de reponses rendues sans reserve.",
+      "",
+      "Les seuils tiennent : le plus serre — garde_fou_rendues, minimum 0,78 — garde environ",
+      "quatre points de marge au-dela de la variance mesuree. Le plus lache — tronquees,",
+      "maximum 12 pour une valeur de 3 — protege contre un rallumage du raisonnement, pas",
+      "contre du bruit.",
+      "",
+      "UN SEUL REPLICAT NE FAIT PAS UNE VARIANCE. Ces ecarts sont un ordre de grandeur, pas",
+      "un intervalle de confiance. Si une porte echoue de peu, le rejouer avant de conclure."
+    ],
+    "_LIMITE_DE_CE_BLOC": [
+      "DEUX TIRAGES NE PEUVENT PAS ESTIMER UNE DISPERSION.",
+      "",
+      "Ce bloc compare une reference et UN replicat. Deux tirages peuvent tomber",
+      "proches par chance : c'est ce qui s'est produit sur cite_attendu, ou l'ecart",
+      "de 0,001 a fait croire a un indicateur quasi deterministe.",
+      "",
+      "Quatre tirages du 28/08 donnent sigma = 0,021 et une etendue de 0,051 — soit",
+      "cinquante fois cet ecart. Le meme bloc montrait pourtant deja fantomes 5 -> 8,",
+      "donc une dispersion reelle : le signal etait la, il n'a pas ete lu.",
+      "",
+      "CONSEQUENCE : c'est ce 0,001 qui a rendu credible, le 27/08, un rebasage de la",
+      "reference sur UN SEUL tirage. Si la variance vaut 0,001, un tirage suffit. Elle",
+      "ne la valait pas.",
+      "",
+      "Ce bloc est conserve comme trace, il ne fonde plus aucun seuil."
+    ]
+  },
+  "_bascule_prompt_production": {
+    "_pourquoi": [
+      "Jusqu'au 24/08/2026, le harnais assemblait ses passages lui-meme avec",
+      "'\n\n---\n\n'.join(...) et n'appelait jamais generator.py. La reference mesurait",
+      "donc le modele, le corpus et la recherche -- PAS l'assemblage de prompt livre a",
+      "l'utilisateur. Aucun des sept seuils ne gardait ce dernier.",
+      "",
+      "Trouve au lot L2.1 en verifiant si le passage au balisage <untrusted> invalidait",
+      "la reference. Il ne l'invalidait pas, et c'etait le probleme.",
+      "",
+      "reference_generation.py passe desormais par Generator._build_messages -- le point",
+      "de couture qui separe l'assemblage du prompt du client HTTP, pour que le harnais",
+      "garde la main sur max_tokens et enable_thinking, dont ce chantier a mesure qu'ils",
+      "decident de tout."
+    ],
+    "_mesure_le": "2026-08-24",
+    "_ce_qui_change_dans_le_prompt": [
+      "Les documents passent du message UTILISATEUR au message SYSTEME.",
+      "Ils sont balises <untrusted source=... nature=...> au lieu d'etre separes par ---.",
+      "La consigne de non-execution accompagne le bloc.",
+      "Le message utilisateur ne porte plus que la question."
+    ],
+    "_resultat": "les sept seuils tiennent",
+    "valeurs_ancien_prompt": {
+      "cite_attendu": 0.836,
+      "hors_contexte": 24,
+      "fantomes": 5,
+      "tronquees": 3,
+      "jugeables": 110
+    },
+    "_lecture": [
+      "Deux indicateurs s'ameliorent : zero reponse tronquee contre trois, et 20",
+      "citations hors contexte contre 24.",
+      "",
+      "cite_attendu passe de 0,836 a 0,805, mais les denominateurs different : 91 sur",
+      "113 cas jugeables contre 92 sur 110. Les trois cas de plus sont ceux qui",
+      "n'etaient pas jugeables faute d'avoir ete tronques. En valeur absolue, 91",
+      "reponses correctes contre 92, sur trois tentatives de plus abouties.",
+      "",
+      "UN SEUL PASSAGE. Ces valeurs remplacent les precedentes parce que le harnais",
+      "mesure desormais autre chose, pas parce qu'elles seraient mieux etablies. Le",
+      "replicat de _variance_observee porte encore sur l'ancien prompt.",
+      "",
+      "garde_fou_rendues N'A PAS ete remesure : il vient d'une analyse distincte."
+    ]
+  },
+  "_durcissement_de_la_consigne": {
+    "_pourquoi": [
+      "La suite adversariale (D50) a fait ajouter une phrase a CONSIGNE, qui vise",
+      "explicitement l'appel d'outil. CONSIGNE est dans le prompt de PRODUCTION : un",
+      "durcissement qui degraderait les reponses legitimes ne serait pas un progres.",
+      "",
+      "Verification faite dans la foulee, meme configuration : 135 cas, k=10, durci,",
+      "sans raisonnement."
+    ],
+    "_mesure_le": "2026-08-25",
+    "_resultat": "aucune degradation — les sept seuils tiennent",
+    "valeurs_avant_durcissement": {
+      "cite_attendu": 0.805,
+      "hors_contexte": 20,
+      "fantomes": 8
+    },
+    "_lecture": [
+      "Trois indicateurs s'ameliorent : fantomes 8 -> 3, hors contexte 20 -> 17,",
+      "cite_attendu 0,805 -> 0,823.",
+      "",
+      "CETTE AMELIORATION N'EST PAS ETABLIE. Un seul passage, et la variance mesuree",
+      "le 23/08 donnait deja trois fantomes d'ecart entre deux replicats du MEME",
+      "prompt. Ce qui est etabli, c'est l'ABSENCE DE DEGRADATION — et c'etait la",
+      "question posee.",
+      "",
+      "Une amelioration revendiquee sur un tirage serait exactement l'erreur que D49",
+      "a commise dans l'autre sens."
+    ]
+  },
+  "_dispersion_2026_08_28": {
+    "_pourquoi": [
+      "La porte de regression est passee au rouge le 27/08 sans qu'aucun code du",
+      "chemin de generation n'ait bouge — rag/generator.py est inchange depuis L2.1.",
+      "La question etait : le durcissement D50 coute-t-il quelque chose, ou la valeur",
+      "de reference a-t-elle ete posee sur un tirage haut ?",
+      "",
+      "Un seul bras n'y repond pas. Quatre tirages par bras, ALTERNES pour qu'une",
+      "derive de l'endpoint ne soit pas imputee au bras mesure en second."
+    ],
+    "_mesure_le": "2026-08-28",
+    "_harnais": "_chantier/scripts/dispersion_consigne.py",
+    "_donnees": "_chantier/mesures/dispersion-consigne.json",
+    "bras_durci": {
+      "_quoi": "CONSIGNE actuelle — l'etat livre",
+      "cite_attendu": [
+        0.7615,
+        0.7946,
+        0.7928,
+        0.8125
+      ],
+      "moyenne": 0.7903,
+      "sigma": 0.0212,
+      "fantomes": [
+        6,
+        6,
+        8,
+        11
+      ],
+      "hors_contexte": [
+        23,
+        24,
+        21,
+        25
+      ]
+    },
+    "bras_avant_d50": {
+      "_quoi": "CONSIGNE sans la phrase ajoutee par D50",
+      "cite_attendu": [
+        0.8198,
+        0.7748,
+        0.8148,
+        0.8241
+      ],
+      "moyenne": 0.8084,
+      "sigma": 0.0227,
+      "fantomes": [
+        10,
+        11,
+        11,
+        7
+      ],
+      "hors_contexte": [
+        23,
+        26,
+        26,
+        22
+      ]
+    },
+    "_conclusion": [
+      "Ecart des moyennes -0,018, pour une etendue intra-bras de 0,051 : les deux",
+      "bras se recouvrent largement.",
+      "",
+      "D50 N'A PAS DE COUT ETABLI sur la fidelite de citation. Son benefice mesure",
+      "est ailleurs : 4/21 -> 1/21 attaques abouties sur la suite adversariale.",
+      "D50 EST DONC CONSERVE.",
+      "",
+      "Symetriquement, son benefice sur les fantomes N'EST PAS ETABLI non plus :",
+      "6-6-8-11 contre 10-11-11-7, distributions confondues. Une separation nette",
+      "avait ete annoncee sur les trois premiers tirages ; le quatrieme l'a defaite.",
+      "C'est precisement pourquoi on ne conclut pas sur trois points."
+    ],
+    "_regles_qui_en_decoulent": [
+      "1. Aucune valeur de ce fichier n'est mise a jour sur moins de QUATRE tirages.",
+      "2. Une dispersion se remesure AVEC SA CONDITION. Un chiffre de variance",
+      "   herite d'une autre configuration, ou estime sur deux tirages, est pire",
+      "   qu'absent : il autorise a conclure sur un tirage.",
+      "3. Chaque bloc porte le nombre de tirages qui le fonde — champ `_tirages`."
+    ],
+    "_dette_de_harnais": [
+      "Chaque tirage recalcule 1156 embeddings (1021 articles + 135 questions) alors",
+      "que ni le corpus ni les questions ne changent : seule la generation est",
+      "stochastique. Sur cette campagne de huit tirages, ~20 minutes perdues sur 72.",
+      "",
+      "Un cache indexe sur l'empreinte du corpus ramenerait un tirage de 9 a 6",
+      "minutes. Non fait pendant la campagne : modifier le harnais en cours de mesure",
+      "aurait invalide les tirages deja obtenus."
+    ]
+  }
+}

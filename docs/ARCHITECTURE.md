@@ -484,7 +484,7 @@ Le pipeline RAG est le moteur de recherche documentaire :
 Albert est le LLM souverain développé par le Lab IA d'Etalab (DINUM).
 
 ```yaml
-Endpoint : https://albert-api.etalab.gouv.fr
+Endpoint : https://albert.api.etalab.gouv.fr
 Auth : API Key par structure
 
 Modèles :
@@ -663,7 +663,7 @@ Le génie de l'architecture Colaig réside dans les capacités émergentes par c
 
 ---
 
-# PARTIE 7 : INTÉGRATIONS AVANCÉES (CEREMA)
+# PARTIE 7 : INTÉGRATIONS AVANCÉES
 
 ## 7.1 Colaig + Colette (RAG Multimodal)
 
@@ -745,7 +745,7 @@ Focus :
 
 1. **Provider-Agnostic** : Colaig est aveugle au provider. Toute I/O passe par des interfaces abstraites (StorageProtocol, MessagingProtocol). Changer de backend = changer une variable d'environnement, pas du code.
 
-2. **Souveraineté LLM** : Albert API exclusivement pour le LLM. Les backends de stockage (Bigfolder, etc.) peuvent utiliser d'autres services en interne — c'est leur affaire, pas celle de Colaig.
+2. **Souveraineté LLM** : le LLM est un provider **choisi par l'exploitant**, jamais imposé par le code. `LLM_BACKEND` accepte `albert`, `openai`, `azure` et `ollama` ; `provider_registry.py` connaît en outre Mistral, Groq, Together et tout endpoint OpenAI-compatible. La cible de production est **SSPCloud** (`https://llm.lab.sspcloud.fr/api`) ; **Albert API est un provider parmi d'autres**, pas une exclusivité. La souveraineté est une contrainte de déploiement — elle se fait respecter par `platform_policy.allowed_llm_endpoints`, pas en câblant un fournisseur dans le code. Les backends de stockage peuvent utiliser d'autres services en interne — c'est leur affaire, pas celle de Colaig.
 
 3. **Zero Database** : Colaig n'utilise aucune base de données propre. La persistence passe par le StorageProtocol.
 

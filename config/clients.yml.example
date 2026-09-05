@@ -20,9 +20,32 @@
 #   allowed_storage_backends: [webdav, bigfolder, msgraph]
 #   # Endpoints LLM autorisés — comparaison préfixe (vide = tous)
 #   allowed_llm_endpoints:
-#     - https://albert-api.etalab.gouv.fr
+#     - https://albert.api.etalab.gouv.fr
 #   # Modes auth MCP autorisés (vide = tous)
 #   allowed_mcp_auth_modes: [token, oidc]
+#
+#   # ── Serveurs MCP montables ────────────────────────────────────────────────
+#   # ⚠️ CE CHAMP NE SUIT PAS LA CONVENTION CI-DESSUS.
+#   #    absent ou []  → AUCUN serveur MCP n'est monté
+#   #    ["*"]         → tous, explicitement
+#   #    ["https://…"] → ceux-là (comparaison sur l'autorité + le chemin, ancrée)
+#   #
+#   # Pourquoi : les autres champs bornent ce que VOUS déclarez. Celui-ci borne ce que
+#   # l'utilisateur final écrit dans le `.colaig/config.yaml` de son espace — et un
+#   # serveur MCP monté, c'est Colaig qui appelle ses outils avec vos identifiants.
+#   # « Absent = tout autorisé » y rouvrirait le trou que le lot L2.2 ferme.
+#   allowed_mcp_servers:
+#     - https://mcp.interieur.gouv.fr
+#
+# ── Épinglage des contrats d'outils (lot L2.3, automatique) ──────────────────
+# Rien à déclarer ici. Colaig retient dans `config/mcp_pins.json` le nom, la
+# description et le schéma d'entrée de chaque outil à sa PREMIÈRE rencontre, puis
+# désactive tout outil dont ce contrat change — un serveur admis peut se faire
+# accepter avec un outil anodin, puis en modifier la description.
+#
+# Ce fichier doit être INSCRIPTIBLE : sinon les contrats ne survivent pas au
+# redémarrage et aucune mutation n'est jamais détectée. Le journal le dit.
+# Un changement légitime se ré-épingle en retirant l'entrée du magasin.
 #   # true = 401 si pas de token (désactive le chatbot public)
 #   enforce_mcp_auth: false
 

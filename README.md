@@ -112,7 +112,7 @@ python -m colaig.main
 ## Tests
 
 ```bash
-pytest -q --ignore=tests/test_live.py   # ~1500 tests, hors smoke reseau
+pytest -q   # 1778 tests, 110 skip, 33 s hors ligne
 ruff check colaig
 ```
 

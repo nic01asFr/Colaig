@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import asyncio
-import pytest
-import numpy as np
 
+import numpy as np
+import pytest
+
+from colaig.models import DocumentChunk
 from colaig.rag.faiss_store import FaissStore
 from colaig.rag.index_registry import FaissIndexRegistry
-from colaig.models import DocumentChunk
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 

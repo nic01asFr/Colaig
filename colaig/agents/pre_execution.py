@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
+from colaig import paths
 from colaig.agents.profile_service import ProfileService
 from colaig.models import (
     BehaviorConfig,
@@ -277,32 +278,46 @@ class PreExecutionBuilder:
         results: dict = {"chunks": [], "docs": [], "skills": [], "history": []}
 
         # Chunks RAG (chunks.faiss)
+        #
+        # `retrieve_many` groupe la VECTORISATION des reformulations en un seul
+        # aller-retour (L3.5). L'Analyseur en produit deux a trois, et chacune coutait
+        # auparavant son propre appel reseau — sur le chemin du message, avant que
+        # l'utilisateur voie quoi que ce soit.
+        #
+        # Une exception ne fait plus tomber qu'une reformulation : elle faisait deja
+        # ainsi dans la boucle d'origine, et ce comportement est conserve.
         if self._retriever and search_directives.chunk_queries:
             seen_paths: set[str] = set()
-            for query in search_directives.chunk_queries:
-                try:
-                    found = await self._retriever.retrieve(query=query, k=5, score_threshold=0.3)
-                    for r in found:
-                        path = getattr(getattr(r, "chunk", None), "source_path", "")
-                        if path not in seen_paths:
-                            seen_paths.add(path)
-                            results["chunks"].append(r)
-                except Exception as e:
-                    logger.warning("retrieve chunks (query_len=%d): %s", len(query), e)
+            try:
+                trouves = await self._retriever.retrieve_many(
+                    search_directives.chunk_queries, k=5, score_threshold=0.3)
+            except Exception as e:
+                logger.warning("retrieve chunks (%d requêtes) : %s",
+                               len(search_directives.chunk_queries), e)
+                trouves = []
+            for found in trouves:
+                for r in found:
+                    path = getattr(getattr(r, "chunk", None), "source_path", "")
+                    if path not in seen_paths:
+                        seen_paths.add(path)
+                        results["chunks"].append(r)
 
         # Documents (document_queries identiques à chunks pour l'instant)
         if self._retriever and search_directives.document_queries:
             seen_paths_doc: set[str] = set()
-            for query in search_directives.document_queries:
-                try:
-                    found = await self._retriever.retrieve(query=query, k=3, score_threshold=0.4)
-                    for r in found:
-                        path = getattr(getattr(r, "chunk", None), "source_path", "")
-                        if path not in seen_paths_doc:
-                            seen_paths_doc.add(path)
-                            results["docs"].append(r)
-                except Exception as e:
-                    logger.debug("retrieve docs (query_len=%d): %s", len(query), e)
+            try:
+                trouves_doc = await self._retriever.retrieve_many(
+                    search_directives.document_queries, k=3, score_threshold=0.4)
+            except Exception as e:
+                logger.debug("retrieve docs (%d requêtes) : %s",
+                             len(search_directives.document_queries), e)
+                trouves_doc = []
+            for found in trouves_doc:
+                for r in found:
+                    path = getattr(getattr(r, "chunk", None), "source_path", "")
+                    if path not in seen_paths_doc:
+                        seen_paths_doc.add(path)
+                        results["docs"].append(r)
 
         # Skills sélectionnés (déjà chargés dans pre_exec — pas de nouvel appel)
         if search_directives.skill_queries:
@@ -341,7 +356,7 @@ class PreExecutionBuilder:
         behavior: BehaviorConfig | None,
     ) -> tuple[list[dict], list[float]]:
         """Lazy-load skills pertinents via skills.faiss ou fallback liste complète."""
-        skills_dir = f"{workspace_path}/.colaig/skills"
+        skills_dir = paths.skills_dir(workspace_path)
         selected_names: list[str] = []
         selected_scores: list[float] = []
 
@@ -395,7 +410,7 @@ class PreExecutionBuilder:
         selected_skills: list[dict] = []
         for name in selected_names[:5]:
             try:
-                content = await self._storage.download(f"{skills_dir}/{name}.md")
+                content = await self._storage.download(f"{skills_dir}{name}.md")
                 selected_skills.append({"name": name, "content": content.decode("utf-8")})
             except Exception:
                 pass

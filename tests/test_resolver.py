@@ -5,10 +5,9 @@ import pytest
 from colaig.context.resolver import ContextResolver
 from colaig.models import (
     ContextMode,
-    IncomingMessage,
     ConversationType,
+    IncomingMessage,
     StorageFile,
-    WorkspaceConfig,
 )
 
 

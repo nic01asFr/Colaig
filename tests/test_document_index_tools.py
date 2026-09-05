@@ -8,19 +8,19 @@ Couvre :
 """
 
 import json
-import pytest
 from datetime import datetime
 
-from colaig.agents.tools.document_index_tools import (
-    SEARCH_DOCUMENT_INDEX_DEFINITION,
-    LIST_DOCUMENT_INDEX_DEFINITION,
-    GET_DOCUMENT_METADATA_DEFINITION,
-    create_search_document_index_handler,
-    create_list_document_index_handler,
-    create_get_document_metadata_handler,
-)
-from colaig.models import DocumentRecord, DocumentStatus, DocumentIndexSearchResult
+import pytest
 
+from colaig.agents.tools.document_index_tools import (
+    GET_DOCUMENT_METADATA_DEFINITION,
+    LIST_DOCUMENT_INDEX_DEFINITION,
+    SEARCH_DOCUMENT_INDEX_DEFINITION,
+    create_get_document_metadata_handler,
+    create_list_document_index_handler,
+    create_search_document_index_handler,
+)
+from colaig.models import DocumentIndexSearchResult, DocumentRecord, DocumentStatus
 
 WORKSPACE = "/espace-test/"
 

@@ -14,13 +14,19 @@ Stockage : JSON via StorageProtocol, chemin .colaig/conversations/{id}.json
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import math
 import re
 from datetime import datetime
 
+from colaig import paths
+
 logger = logging.getLogger(__name__)
+
+# Au-dela, les verrous des conversations inactives sont relaches.
+_MAX_VERROUS = 256
 
 # Toujours inclure les N derniers messages pour le contexte récent
 ALWAYS_INCLUDE_RECENT = 3
@@ -68,6 +74,8 @@ class ConversationMemory:
         self._embedding_service = embedding_service
         self._max_stored = max_stored
         self._max_retrieved = max_retrieved
+        # Un verrou PAR CONVERSATION — voir `save_turn`.
+        self._verrous: dict[str, asyncio.Lock] = {}
 
     # ------------------------------------------------------------------
     # API publique
@@ -78,6 +86,7 @@ class ConversationMemory:
         conversation_id: str,
         current_query: str,
         max_messages: int | None = None,
+        query_embedding: list[float] | None = None,
     ) -> list[dict]:
         """Charge l'historique contextuellement pertinent.
 
@@ -96,6 +105,14 @@ class ConversationMemory:
             conversation_id: Identifiant de la conversation.
             current_query: Requête courante (pour la recherche sémantique).
             max_messages: Nombre max de messages à retourner (défaut : max_retrieved).
+            query_embedding: Vecteur de `current_query`, s'il est DÉJÀ calculé.
+                `PreExecutionBuilder` vectorise le message pour choisir le behavior,
+                les skills et la mémoire utilisateur ; sans ce paramètre, cette méthode
+                vectorisait LE MÊME TEXTE une seconde fois. Deux allers-retours réseau
+                pour un texte, sur le chemin d'un message reçu — donc avant que
+                l'utilisateur voie quoi que ce soit.
+                Et un embedding n'est pas déterministe (2,6e-04 mesurés au 28/08) : le
+                même texte pouvait produire deux vecteurs différents dans un seul tour.
 
         Returns:
             Liste de messages triés chronologiquement.
@@ -121,7 +138,8 @@ class ConversationMemory:
 
         # Récupération sémantique si embedding disponible et requête non vide
         if self._embedding_service and current_query.strip():
-            selected = await self._semantic_select(older, current_query, remaining_slots)
+            selected = await self._semantic_select(older, current_query,
+                                                   remaining_slots, query_embedding)
         else:
             # Pas d'embedding : derniers N messages des anciens
             selected = older[-remaining_slots:]
@@ -158,15 +176,50 @@ class ConversationMemory:
             {"role": "assistant", "content": assistant_response, "ts": now_ts},
         ]
 
-        # Reconstituer depuis l'historique complet pour ne pas perdre l'historique tronqué
-        full_history = await self._load_full_history(workspace_path, conversation_id)
-        updated = full_history + new_messages
+        # LECTURE-MODIFICATION-ÉCRITURE, sous verrou (L2.6).
+        #
+        # Sans lui, deux tours simultanés dans la même conversation chargent tous deux
+        # le même historique, ajoutent chacun le leur, et le second écrase : **un tour
+        # disparaît**. Deux messages envoyés coup sur coup y suffisent.
+        #
+        # Le verrou est PAR CONVERSATION : un verrou global ferait qu'une conversation
+        # lente retienne toutes les autres — ce qui échangerait une perte de données
+        # contre une panne de débit.
+        #
+        # Il vit ICI et non dans le gestionnaire de messages, parce que c'est ici qu'est
+        # la course : le planificateur de tâches appelle aussi `save_turn`.
+        #
+        # LIMITE ASSUMÉE — le verrou est propre au PROCESSUS. Le déploiement Helm pose
+        # `replicaCount: 1`, donc il suffit aujourd'hui. À deux répliques, la course
+        # reviendrait **sans que rien ne le signale** : il faudrait alors un contrôle
+        # optimiste par etag (`StorageProtocol.get_etag` existe) plutôt qu'un verrou.
+        # TODO-HAUTE : si `replicaCount` passe à plus de 1, ce verrou ne protège plus.
+        cle = f"{workspace_path}::{conversation_id}"
+        verrou = self._verrous.get(cle)
+        if verrou is None:
+            verrou = self._verrous.setdefault(cle, asyncio.Lock())
 
-        # Tronquer aux max_stored derniers messages
-        if len(updated) > self._max_stored:
-            updated = updated[-self._max_stored:]
+        async with verrou:
+            # Reconstituer depuis l'historique complet pour ne pas perdre l'historique
+            # tronqué
+            full_history = await self._load_full_history(workspace_path, conversation_id)
+            updated = full_history + new_messages
 
-        await self._save_full_history(workspace_path, conversation_id, updated)
+            # Tronquer aux max_stored derniers messages
+            if len(updated) > self._max_stored:
+                updated = updated[-self._max_stored:]
+
+            await self._save_full_history(workspace_path, conversation_id, updated)
+
+        # Les verrous des conversations inactives sont relâchés : un dictionnaire qui ne
+        # se vide jamais est une fuite lente sur une instance qui sert des milliers de
+        # salons. On ne retire QUE les verrous libres — jamais un verrou derrière lequel
+        # quelqu'un attend.
+        if len(self._verrous) > _MAX_VERROUS:
+            for autre, v in list(self._verrous.items()):
+                if autre != cle and not v.locked():
+                    del self._verrous[autre]
+
         return updated
 
     # ------------------------------------------------------------------
@@ -177,7 +230,7 @@ class ConversationMemory:
         if not workspace_path:
             return []
         safe_id = _sanitize_id(conversation_id)
-        history_path = f"{workspace_path.rstrip('/')}/.colaig/conversations/{safe_id}.json"
+        history_path = paths.conversation_file(workspace_path, safe_id)
         try:
             content = await self._storage.download(history_path)
             data = json.loads(content.decode("utf-8"))
@@ -194,7 +247,7 @@ class ConversationMemory:
         if not workspace_path:
             return
         safe_id = _sanitize_id(conversation_id)
-        conv_dir = f"{workspace_path.rstrip('/')}/.colaig/conversations/"
+        conv_dir = paths.conversations_dir(workspace_path)
         history_path = f"{conv_dir}{safe_id}.json"
         try:
             await self._storage.mkdir(conv_dir)
@@ -204,7 +257,8 @@ class ConversationMemory:
             logger.exception("impossible de sauvegarder l'historique: %s", history_path)
 
     async def _semantic_select(
-        self, candidates: list[dict], query: str, k: int
+        self, candidates: list[dict], query: str, k: int,
+        query_embedding: list[float] | None = None,
     ) -> list[dict]:
         """Sélectionne les k messages les plus proches de la requête.
 
@@ -214,11 +268,14 @@ class ConversationMemory:
 
         Graceful degradation : si l'embedding échoue → last-k candidats.
         """
-        try:
-            query_vec = await self._embedding_service.embed_text(query)
-        except Exception:
-            logger.warning("embedding échoué pour requête, fallback last-k")
-            return candidates[-k:]
+        if query_embedding is not None:
+            query_vec = query_embedding
+        else:
+            try:
+                query_vec = await self._embedding_service.embed_text(query)
+            except Exception:
+                logger.warning("embedding échoué pour requête, fallback last-k")
+                return candidates[-k:]
 
         texts = [f"{msg.get('role', '')}: {msg.get('content', '')}" for msg in candidates]
         try:

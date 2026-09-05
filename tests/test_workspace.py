@@ -3,10 +3,10 @@
 import pytest
 
 from colaig.context.workspace import (
-    load_workspace,
-    list_workspaces,
-    find_workspace_for_conversation,
     create_default_workspace,
+    find_workspace_for_conversation,
+    list_workspaces,
+    load_workspace,
 )
 from colaig.exceptions import WorkspaceConfigError
 

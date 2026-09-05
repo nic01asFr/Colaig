@@ -11,25 +11,22 @@ Couvre :
 - Onboarding handlers : commandes "colaig créer" / "colaig lier"
 """
 
-import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import yaml
 
+from colaig.context.resolver import ContextResolver
 from colaig.context.workspace import (
     _slugify,
-    _workspace_to_dict,
     add_conversation_to_workspace,
     create_workspace,
     remove_conversation_from_workspace,
     update_workspace_config,
 )
-from colaig.context.resolver import ContextResolver
 from colaig.exceptions import WorkspaceConfigError
-from colaig.models import ContextMode, ConversationType, IncomingMessage, WorkspaceConfig
 from colaig.messaging.handlers import MessageHandler
-
+from colaig.models import ConversationType, IncomingMessage, WorkspaceConfig
 
 # =============================================================================
 # Fixtures
@@ -448,8 +445,13 @@ class TestOnboarding:
 
     async def test_link_command_existing_workspace(self, mock_storage, resolver):
         # Créer un workspace d'abord
+        # `owners` explicite : depuis L2.1d, rattacher un salon a un espace exige d'y
+        # etre declare. L'appariement salon -> espace EST la frontiere d'acces du chemin
+        # conversationnel ; sans garde, deux messages depuis n'importe quel salon
+        # ouvraient n'importe quel corpus. Ce test decrivait l'ancien comportement.
         ws = await create_workspace(mock_storage, "/juridique/", "Juridique",
-                                    workspace_id="juridique")
+                                    workspace_id="juridique",
+                                    owners=["@user:tchap.gouv.fr"])
         await resolver.register_workspace(ws)
 
         handler, messaging = make_handler(mock_storage, resolver)

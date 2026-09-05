@@ -28,7 +28,7 @@ complète. Aucune modification de `protocols.py` sans arbitrage.
 | ID | Lot | Dépend | Critère de fin |
 |---|---|---|---|
 | L0.1 | Assainissement dépôt : import v3, `main`, suppression `;C`, `secrets/`, `.gitignore` durci | — | `git status` propre, `pytest` au même niveau qu'avant |
-| L0.2 | `paths.py` source unique + `legacy_albert_path()` | L0.1 | `grep -rn '\.colaig\|\.albert' colaig/ --include=*.py \| grep -v paths.py` **vide** |
+| L0.2 | `paths.py` source unique + `legacy_albert_path()` | L0.1 | `pytest tests/test_paths_source_unique.py` vert — critère vérifié par AST, le grep d'origine étant inapplicable (voir docstring du test) |
 | L0.3 | Doctrine corrigée dans `CLAUDE.md` (multi-provider, SSPCloud) | L0.1 | zéro contradiction code/doc, revue humaine |
 | L0.4 | Harnais de test : `FakeStorage`, `FakeMessaging`, `FakeLLM` déterministes, `conftest` unifié | L0.1 | suite complète hors ligne < 60 s |
 
@@ -65,21 +65,30 @@ complète. Aucune modification de `protocols.py` sans arbitrage.
 | L3.1 | Scoring de binding 6 niveaux + auto-bind à l'invitation ; vérité dans `config.yaml` | L0.2 | `test_workspace_binding.py` de PROD passe sur le tronc |
 | L3.2 | Fils Matrix + **mention native `m.mentions`** + registre des `thread_root` suivis | L1.2 | un fil ouvert sur une réponse du bot est suivi sans nouvelle mention |
 | L3.3 | Réactions 👍👎🔄➕ ; ➕ réécrit sur `StorageProtocol` ; feedback persisté ; pose auto de 👍👎 | L3.2 | ➕ écrit dans `.colaig/notes.md` ; feedback survit au redémarrage |
-| L3.4 | Client MCP (registre, transport, cache, compaction, timeout 20 s) ; `cache_scope`→`cacheScope`, honorer `ttlMs` | L1.3, L2.2, L2.3 | `test_mcp_datagouv.py` passe + test `cacheScope` |
-| L3.5 | Filtrage d'outils 2 niveaux **fusionné dans PreExecution** | L3.4 | **1 seul `embed()` par tour**, vérifié par compteur |
+| L3.4 | Client MCP (registre, transport, cache, compaction, timeout 20 s) ; `cacheScope` + `ttlMs` honorés — **⚠️ `cache_scope`→`cacheScope` N'EST PAS un renommage, voir D54** | L1.3, L2.2, L2.3 | ✅ 29/08/2026 |
+| L3.5 | Aucun texte vectorisé deux fois par tour — **⚠️ « 1 seul `embed()` » est inatteignable : l'Analyseur sépare message et reformulations ; les 2 niveaux de filtrage ne se recouvrent pas et le niveau 2 doit rester tardif (L2.5c)** | L3.4 | ✅ 29/08/2026 |
 | L3.6 | Chart Helm Onyxia + `sspcloud.py` (auto-découverte clé, rôle `edit`) | L0.1 | `helm install` → pod qui répond `/ready` |
-| L3.7 | Pièces jointes + commandes réduites (`!aide !space !index !classer !skills`) | L1.2 | une PJ est classée dans le bon dossier |
+| L3.7 | Pièces jointes + commandes réduites (`!aide !space !index !classer !skills`) — toutes en lecture | L1.2 | ✅ 28-29/08/2026 |
 
 ## Phase 4 — Qualité perçue · 3 agents · **mesurée contre L1.5**
 
-| ID | Lot | Dépend | Critère de fin |
-|---|---|---|---|
-| L4.1 | Retriever réglé : **HyDE off par défaut**, pool ~20→rerank→3-5 mesuré, seuil adaptatif μ−2σ en option | L1.5, H2 | rapport comparatif vs référence, config justifiée par les chiffres |
-| L4.2 | PreExecution bout en bout (1 embed, multi-source) | L3.5 | trace : 1 embed, 1 aller-retour storage par source |
-| L4.3 | ProgressReporter câblé Matrix | L3.2 | 5 messages d'étape sur une requête à 3 outils |
-| L4.4 | Synthèse conditionnelle (seulement si ≥ 1 outil exécuté) | L4.3 | 1 appel LLM sur « bonjour », N+1 sur requête outillée |
-| L4.5 | TaskExecutor câblé — **supprime le timeout global de 75 s** | L0.4 | 2 conversations simultanées ne se bloquent pas ; ordre respecté dans une conversation |
-| L4.6 | Mémoire conversationnelle + utilisateur activées | L1.5 | gain mesuré sur les cas multi-tours |
+> **RELU CONTRE LE CODE LE 30/08/2026, ET LARGEMENT PÉRIMÉ.** Les énoncés ci-dessous
+> décrivent un état du dépôt antérieur aux phases 0 à 3. Quatre des six lots vivent
+> derrière `COLAIG_AGENTS_ENABLED`, qui **n'est pas posé** — et la mesure du 30/08 dit
+> de ne pas le poser : le pipeline agent cite mieux (2 fantômes contre 9) mais **refuse
+> moins bien** (18/22 contre 22/22).
+>
+> **Seuls L4.1 et L4.6 portent sur ce qui tourne.** Le reste est bloqué sur un
+> arbitrage — réparer le pipeline agent, ou l'abandonner — pas sur du travail.
+
+| ID | Lot | Dépend | Critère de fin | État vérifié le 30/08 |
+|---|---|---|---|---|
+| L4.1 | Retriever réglé : **HyDE off par défaut**, pool ~20→rerank→3-5 mesuré, seuil adaptatif μ−2σ en option | L1.5, H2 | rapport comparatif vs référence, config justifiée par les chiffres | **partiellement fait.** HyDE est déjà `False` par défaut. Le vivier vaut `k*2`, soit **10** pour k=5 — pas ~20. Le seuil adaptatif μ−2σ **n'existe pas**. C'est le seul lot pleinement actionnable. |
+| L4.2 | PreExecution bout en bout (1 embed, multi-source) | L3.5 | trace : 1 embed, 1 aller-retour storage par source | **codé et câblé, dormant.** `PreExecutionBuilder` existe et est monté — sous `agents_enabled ET agents_phase6_enabled`, aucun des deux posé. |
+| L4.3 | ProgressReporter câblé Matrix | L3.2 | 5 messages d'étape sur une requête à 3 outils | **câblé, mais inatteignable.** Instancié dans `_handle_phase2` — la branche agent. En production, aucun message d'étape. |
+| L4.4 | Synthèse conditionnelle (seulement si ≥ 1 outil exécuté) | L4.3 | 1 appel LLM sur « bonjour », N+1 sur requête outillée | **partiel, branche agent.** Le Synthétiseur teste `other_tool_results`, mais rien ne s'exécute sans les agents. |
+| L4.5 | TaskExecutor câblé — **supprime le timeout global de 75 s** | L0.4 | 2 conversations simultanées ne se bloquent pas ; ordre respecté dans une conversation | **prémisse expirée.** Le timeout de 75 s **n'existe plus**. Le `TaskExecutor` n'est câblé nulle part. Le lot garde un objet — la concurrence entre conversations — mais plus sa justification. |
+| L4.6 | Mémoire conversationnelle + utilisateur activées | L1.5 | gain mesuré sur les cas multi-tours | **à moitié fait.** `UserMemory` est monté **sans condition**. La mémoire de conversation est active — et était **rabotée à six échanges** jusqu'au correctif du 30/08 au soir. Ce qui manque n'est pas l'activation : c'est le gain mesuré, et aucune mesure antérieure ne vaut. |
 
 ## Phase 5 — Capacités · 3 agents
 
@@ -90,7 +99,7 @@ complète. Aucune modification de `protocols.py` sans arbitrage.
 | L5.3 | Bus d'événements asyncio + taxonomie 25 types | L0.4 | `DOCUMENT_UPDATED` émis et reçu |
 | L5.4 | Webhooks refondés : sortant sur événements + HMAC ; entrant → tool MCP `colaig_notify` | L5.3, L5.1 | `webhook_service.py` et `webhook_handler.py` supprimés |
 | L5.5 | Retrait des behaviors JSON, migration vers skills (script, pas suppression sèche) | L4.2 | zéro référence `behavior` dans `colaig/` |
-| L5.6 | Web externalisé sur `webtools` MCP ; conserver la logique de fraîcheur | L3.4 | `!explorer_lien` sans Chromium dans l'image |
+| L5.6 | Sources synchronisées (**D11**) + web externalisé sur `webtools` MCP ; conserver la logique de fraîcheur | L3.4, **L1.5** | `!explorer_lien` sans Chromium dans l'image |
 
 ## Phase 6 — Écosystème · 3 agents
 

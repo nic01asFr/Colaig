@@ -14,6 +14,7 @@ import json
 import logging
 from datetime import datetime
 
+from colaig import paths
 from colaig.models import (
     ContextAnchor,
     ConversationTrame,
@@ -52,7 +53,7 @@ class TrameManager:
         Returns:
             ConversationTrame chargée ou initialisée à vide.
         """
-        path = f"{workspace_path.rstrip('/')}/.colaig/conversations/{conv_id}_trame.json"
+        path = paths.trame_file(workspace_path, conv_id)
         try:
             data = await self._storage.download(path)
             trame = self._deserialize(json.loads(data.decode("utf-8")))
@@ -165,7 +166,7 @@ class TrameManager:
             logger.debug("trame non persistée (storage_readonly=True) conv=%s", trame.conv_id)
             return
 
-        path = f"{workspace_path.rstrip('/')}/.colaig/conversations/{trame.conv_id}_trame.json"
+        path = paths.trame_file(workspace_path, trame.conv_id)
         data = json.dumps(self._serialize(trame), ensure_ascii=False, indent=2).encode("utf-8")
         try:
             await self._storage.upload(path, data)

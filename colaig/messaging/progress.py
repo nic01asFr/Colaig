@@ -146,3 +146,43 @@ class ProgressReporter:
             await self._messaging.send(self._conv_id, text)
         except Exception:
             logger.debug("ProgressReporter.report_tool_use: échec envoi (ignoré)")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Distinguer un accusé d'avancement d'une réponse
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def est_message_de_progression(texte: str) -> bool:
+    """Ce texte est-il un accusé d'avancement plutôt qu'une réponse ?
+
+    `report()` transforme le template avant de l'envoyer : il retire le markdown
+    quand le canal n'en fait pas, et tronque au-delà de `max_length`. Comparer au
+    template brut laisserait donc passer l'accusé pour une réponse sur un canal en
+    texte simple — le défaut serait juste déplacé.
+
+    On compare donc les deux formes, dépouillées de leur markdown.
+    """
+    if not texte:
+        return False
+    def _nu(t: str) -> str:
+        return t.replace("**", "").replace("*", "").replace("_", "").strip()
+    return _nu(texte) in {_nu(m) for m in _PHASE_MESSAGES.values()}
+
+
+def reponse_finale(messages: list[str]) -> str:
+    """La réponse parmi tout ce qui a été envoyé pendant un traitement.
+
+    Observé le 02/09/2026 : `MessageHandler.process()` rendait `captured[0]`. En
+    Phase 1 un seul message part, le premier EST la réponse. En Phase 2 le
+    `ProgressReporter` envoie d'abord « *Analyse de votre demande...* » — et
+    l'endpoint d'intégration rendait cet accusé, faisant croire que le pipeline ne
+    répond pas alors qu'il avait tout fait.
+
+    Si TOUT est accusé — pipeline interrompu — on rend le dernier plutôt que le
+    vide : cela dit au moins où le traitement s'est arrêté.
+    """
+    if not messages:
+        return ""
+    utiles = [m for m in messages if not est_message_de_progression(m)]
+    return utiles[-1] if utiles else messages[-1]

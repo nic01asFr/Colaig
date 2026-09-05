@@ -1,0 +1,13 @@
+{
+  "cas": 102,
+  "tirages": 1,
+  "lignes": [
+    {
+      "archive": "reponses-durci-k10-sansraisonnement-qwen3-embedding-8b-20260830.json",
+      "succes": 94,
+      "refus_justifie": 3,
+      "refus_injustifie": 5,
+      "autre": 0
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+corpus complet : 2128 articles · 1058 d'un AUTRE régime
+  tirage 1 sur corpus complet…
+  tirage 2 sur corpus complet…
+  tirage 3 sur corpus complet…
+  regime-complet-1.json       43/113 réponses citant un autre régime
+  regime-complet-2.json       43/113 réponses citant un autre régime
+  regime-complet-3.json       48/113 réponses citant un autre régime
+
+3 tirages · corpus COMPLET
+  régime incorrect : moyenne 39.5%  min 38.1%  max 42.5%
+
+  mesure du 23/08 sur corpus entier : 22 % · sur corpus restreint : 0 %
+
+  mp-003 cite ['R2322-14', 'R2322-16']
+     R2322-14 relève de « 2e partie · Livre III »
+     R2322-16 relève de « 2e partie · Livre III »
+
+  mp-004 cite ['R2361-14', 'R2361-8']
+     R2361-14 relève de « 2e partie · Livre III »
+     R2361-8 relève de « 2e partie · Livre III »
+
+  mp-007 cite ['L2393-1', 'L2393-12']
+     L2393-1 relève de « 2e partie · Livre III »
+     L2393-12 relève de « 2e partie · Livre III »
+
+  mp-015 cite ['R2361-3']
+     R2361-3 relève de « 2e partie · Livre III »
+
+  mp-016 cite ['R2323-1']
+     R2323-1 relève de « 2e partie · Livre III »
+SORTIE 0

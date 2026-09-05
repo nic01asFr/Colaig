@@ -1,0 +1,14 @@
+6 tirages par bras · variante durci · k=10
+  durci      tirage 1 : cite 0.7768  fantômes 8  hors contexte 21
+  durci      tirage 2 : cite 0.7818  fantômes 5  hors contexte 21
+  durci      tirage 3 : cite 0.7523  fantômes 8  hors contexte 23
+  durci      tirage 4 : cite 0.7876  fantômes 8  hors contexte 24
+  durci      tirage 5 : cite 0.8036  fantômes 6  hors contexte 23
+  durci      tirage 6 : cite 0.7523  fantômes 6  hors contexte 17
+
+BRAS DURCI
+  cite_attendu     moyenne 0.7757  min 0.7523  max 0.8036  étendue 0.0513
+  fantomes         moyenne 6.8333  min 5.0000  max 8.0000  étendue 3.0000
+  hors_contexte    moyenne 21.5000  min 17.0000  max 24.0000  étendue 7.0000
+
+SORTIE 0

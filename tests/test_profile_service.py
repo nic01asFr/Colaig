@@ -1,8 +1,9 @@
 """Tests — agents/profile_service.py (Phase 6)"""
 
+from unittest.mock import AsyncMock
+
 import pytest
 import yaml
-from unittest.mock import AsyncMock
 
 from colaig.agents.profile_service import ProfileService
 from colaig.models import (

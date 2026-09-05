@@ -1,0 +1,233 @@
+# Colaig — instance d'essai `colaig-test`, namespace `user-nic01asfr` (SSP Cloud).
+#
+# POURQUOI CE FICHIER EXISTE
+# ----------------------------
+# Le 30/08/2026, la configuration de cette instance n'existait NULLE PART hors du
+# cluster : elle avait ete posee par `kubectl set env` / `set image`, jamais reportee
+# dans la release. Les valeurs enregistrees disaient `storage.backend: local` quand
+# l'instance tournait sur S3, et ne mentionnaient ni le modele d'OCR, ni la dimension
+# des embeddings, ni l'auto-decouverte.
+#
+# Consequence directe : `helm upgrade --reuse-values` aurait rebascule le stockage sur
+# `local` — la ou vivent le corpus et l'index — et eteint l'OCR au passage. Une
+# instance dont la configuration n'est ecrite nulle part ne peut etre ni remontee, ni
+# comparee, ni auditee.
+#
+# `tests/test_chart_decrit_l_instance.py` verifie que le rendu de ce fichier reproduit
+# ce que le deploiement porte reellement. Tant que ce test passe,
+# `helm upgrade -f values-colaig-test.yaml` est inoffensif : il reecrit ce qui est deja
+# la.
+#
+# CE QUI N'EST PAS ICI, ET NE DOIT JAMAIS Y ETRE
+# ------------------------------------------------
+# Aucune cle. Les identifiants S3 et la cle LLM viennent du Secret `colaig-test`, monte
+# par `envFrom`. Le depot est public ; un secret commite ne se rattrape pas par une
+# suppression.
+#
+#     helm upgrade colaig-test deploy/helm/colaig -n user-nic01asfr \
+#       -f deploy/helm/colaig/values-colaig-test.yaml
+
+image:
+  repository: ghcr.io/nic01asfr/colaig
+  tag: tronc-2d62c00
+
+# `Recreate` + volume persistant : les deux sont lies. Voir le commentaire de
+# `strategy` dans le template — deux pods ne peuvent pas se partager le magasin de
+# cles Matrix.
+persistence:
+  enabled: true
+  size: 5Gi
+  storageClass: rook-ceph-block
+
+llm:
+  backend: openai
+  apiUrl: https://llm.lab.sspcloud.fr/api
+  # Le Secret `colaig-test` porte LLM_API_KEY et les identifiants S3.
+  existingSecret: colaig-test
+  modelChat: qwen3-6-35b-moe
+  modelEmbed: qwen3-embedding-8b
+  modelOcr: chandra-ocr-2
+  # 4096 : dimension servie par `qwen3-embedding-8b`, relevee sur l'endpoint le
+  # 30/08/2026. Le catalogue de SSPCloud ne propose pas `bge-m3`.
+  embeddingDim: 4096
+  # Les embeddings viennent de l'endpoint, pas d'un modele local dans le pod.
+  localEmbeddings: false
+
+storage:
+  backend: s3
+  s3:
+    endpointUrl: https://minio.lab.sspcloud.fr
+    bucket: colaig
+    region: us-east-1
+    # VIDE, ET CE N'EST PAS UN OUBLI. `_full_key()` prefixe TOUS les chemins :
+    # avec `prefix: colaig` — le defaut du chart — `/colaig-mesure-sst/...`
+    # deviendrait `colaig/colaig-mesure-sst/...`, et le corpus comme l'index
+    # disparaitraient de la vue de Colaig, qui verrait un espace vide sans la
+    # moindre erreur. Le deploiement en service ne pose pas S3_PREFIX ; ce fichier
+    # doit dire la meme chose.
+    prefix: ""
+    # accessKey / secretKey / sessionToken : dans le Secret, jamais ici.
+    # Le chart n'ecrit S3_ACCESS_KEY que s'il est renseigne — le rendre vide
+    # ECRASERAIT la valeur du Secret, `env` primant sur `envFrom`.
+
+autoDiscover:
+  enabled: true
+  intervalSeconds: 120
+
+messaging:
+  backend: matrix
+
+extraEnv:
+  # PIPELINE AGENT — Analyseur, Orchestrateur, Synthetiseur, et la memoire de
+  # conversation qui vient avec.
+  #
+  # Active le 01/09/2026, apres avoir leve ce qui l'en empechait : les deux agents
+  # appelaient des modeles Mistral que l'endpoint SSPCloud ne sert pas. Le pipeline
+  # ne pouvait donc pas fonctionner en service, et rien ne le disait — la mesure ne
+  # le voyait pas, son harnais construisant les agents sans preciser de modele.
+  #
+  # Il reste global a l'instance : contrairement au garde-fou, la decision n'est pas
+  # encore portee par l'espace. A faire si deux espaces d'une meme instance doivent
+  # differer.
+  COLAIG_AGENTS_ENABLED: "1"
+  # TEMPERATURE DU SYNTHETISEUR — alignee sur celle a laquelle le coeur est mesure.
+  #
+  # Le defaut du code est 0.3, alors que la reference genere a 0.1. Les deux systemes
+  # n'etaient donc pas compares a conditions egales, et l'ecart observe sur le refus
+  # etait en partie mecanique : a 0.3 le pipeline refusait deux essais sur trois puis
+  # repondait au troisieme — inconstance, pas incomprehension. Mesure du 02/09/2026 :
+  # zero cas ou il manque le refus sur les trois essais.
+  #
+  # Sur du droit, la constance prime sur le naturel de la redaction. A remesurer : si
+  # l'inconstance ne cede pas, la cause est ailleurs et ce reglage doit repartir.
+  # Passee de 0,3 a 0,1 le 02/09, puis a 0 le 05/09. Le commentaire d'alors disait :
+  # « A remesurer : si l'inconstance ne cede pas, la cause est ailleurs et ce reglage
+  # doit repartir. » Elle n'a pas cede — et on sait maintenant d'ou elle vient.
+  #
+  # Sur les 18 cas qui basculent entre deux campagnes identiques (Analyseur et
+  # Orchestrateur deja a 0), l'attribution est mesurable en comparant les passages
+  # SERVIS de part et d'autre :
+  #
+  #   11  la recherche a servi autre chose
+  #    7  MEME passage servi, redaction differente   <- le Synthetiseur
+  #
+  # Sept bascules sur dix-huit tiennent donc a la seule redaction. Sur du droit, la
+  # constance prime sur le naturel : la meme question, avec les memes passages, doit
+  # rendre la meme citation.
+  COLAIG_SYNTHESISER_TEMPERATURE: "0"
+  # LA DISPERSION ETAIT PLUS GRANDE QUE TOUT CE QU'ON COMPARAIT.
+  #
+  # Deux campagnes du 05/09/2026, MONTAGE STRICTEMENT IDENTIQUE, sans redeploiement
+  # entre les deux :
+  #
+  #   cite l'attendu        68/113   puis   75/113
+  #   article attendu servi 75/113   puis   84/113
+  #
+  # Sept et neuf points d'ecart pour zero changement. Or les ecarts qu'on cherchait a
+  # trancher — recherche hybride, elargissement aux voisins, budget documentaire —
+  # valaient trois a dix points. Aucune de ces comparaisons, faite a une repetition,
+  # ne dit quoi que ce soit.
+  #
+  # La source n'est pas un reglage oublie : l'Analyseur et l'Orchestrateur etaient
+  # deja a 0,1. Mais ce sont EUX qui ecrivent les requetes de recherche — mediane 2
+  # par question, moyenne 2,8 — et une reformulation tiree autrement ramene d'autres
+  # passages. Ce que « l'article est servi » mesure inclut donc le tirage.
+  #
+  # A 0, le decodage devient glouton. Ce n'est pas un determinisme parfait — le
+  # batching cote serveur en laisse — mais c'est ce qui est atteignable ici.
+  #
+  # CE N'EST PAS QU'UN REGLAGE DE MESURE. L'Analyseur et l'Orchestrateur DECIDENT
+  # (quelles requetes, quels outils) ; ils ne redigent pas. Un plan doit etre
+  # reproductible : la meme question posee deux fois ne doit pas chercher ailleurs.
+  COLAIG_ANALYSER_TEMPERATURE: "0"
+  COLAIG_ORCHESTRATOR_TEMPERATURE: "0"
+  # LES MODELES DES AGENTS, POSES PLUTOT QUE DEDUITS.
+  #
+  # Le Synthetiseur passe par `albert_model_medium` et la contextualisation par
+  # `albert_model_light`, la ou l'Analyseur, l'Orchestrateur et le coeur RAG utilisent
+  # `albert_model_chat`. Ces trois reglages valaient en dur des modeles Mistral que
+  # l'endpoint SSPCloud ne sert pas : le pipeline aurait analyse, orchestre, puis
+  # echoue au moment de rediger.
+  #
+  # Ils retombent desormais sur le modele de chat configure, donc convergent — mais
+  # PAR REPLI, ce qui ne se voit nulle part. Les poser rend la decision lisible, et
+  # `test_chart_decrit_l_instance` la protege : personne ne les fera diverger sans
+  # que le test le dise.
+  #
+  # S'ils doivent un jour differer — un modele plus leger pour l'analyse, qui consomme
+  # 62 % du temps du pipeline — ce sera une decision mesuree, ecrite ici.
+  # DECOUPAGE PAR ARTICLE — le reglage qui decide de la couverture.
+  #
+  # Mesure sur le service, 04/09/2026, causes eliminees une a une :
+  #
+  #   fenetre k=5 sans prompt    refus  5/22   cite l'attendu 53/113
+  #   fenetre k=5 avec prompt    refus 20/22   cite l'attendu 52/113
+  #   article k=5 avec prompt    refus 22/22   cite l'attendu 97/113
+  #
+  # Le prompt explique tout le refus et RIEN de la couverture. Le k n'explique rien
+  # (97/113 a k=5 comme a k=10), la memoire non plus. Restent 45 points imputables au
+  # seul decoupage.
+  #
+  # « auto » detecte par document : par article si le texte en porte, fenetre sinon.
+  # CHANGER CE REGLAGE IMPOSE DE REINDEXER — l'index existant suit l'ancien decoupage.
+  # RECHERCHE HYBRIDE — BM25 lexical fusionne au vectoriel par RRF.
+  #
+  # Mesure du 04/09/2026 sur le service : sur 113 cas positifs, le fichier portant
+  # l'article attendu n'est PAS SERVI dans 37 cas. Le modele ne peut donc pas le
+  # citer — on ne le lui donne jamais. Et sur les 37, aucun article voisin n'etait
+  # servi non plus : la recherche ne rate pas de peu, elle part ailleurs.
+  #
+  # BM25 capture les correspondances EXACTES de termes — numeros d'article, sigles,
+  # noms propres — la ou les embeddings les manquent. C'est precisement le mode
+  # d'echec observe. La fusion RRF ne remplace pas le vectoriel : elle additionne
+  # les rangs des deux, un passage present dans les deux index remontant plus haut.
+  #
+  # ACTIVER IMPOSE DE REINDEXER : le bm25.pkl n'existe pas dans l'index actuel,
+  # construit sans lui.
+  COLAIG_HYBRID_SEARCH_ENABLED: "true"
+  # ELARGISSEMENT AUX VOISINS — ce que le decoupage a separe, la lecture le rejoint.
+  #
+  # Mesure du 04/09/2026 sur le service, au grain du PASSAGE (le journal porte
+  # desormais la section de chaque passage servi, et non plus le seul nom de
+  # fichier — au grain du fichier, cette mesure surestimait le service de 21 cas) :
+  #
+  #   article attendu servi        79/113
+  #   article attendu NON servi    34/113
+  #     dont son FICHIER etait servi   21   <-- la recherche s'arrete a quelques rangs
+  #
+  # Vingt et un cas sur trente-quatre ne sont pas des recherches qui partent
+  # ailleurs : le bon document est trouve, et c'est l'article VOISIN qui est servi.
+  # Le modele le dit lui-meme — il cite R2111-15 et declare que l'information ne
+  # figure pas dans les passages fournis, alors qu'on attendait R2111-12.
+  #
+  # Rayon 1 : un article et ses deux voisins immediats dans le meme document. Le
+  # budget de jetons tranche apres. NE DEMANDE PAS DE REINDEXATION — l'elargissement
+  # se fait a la lecture, sur l'index existant.
+  #
+  # PEREMPTION : si la campagne comparative ne montre pas de gain, ce reglage part
+  # au meme lot que la mesure qui l'a introduit.
+  COLAIG_VOISINS_ENABLED: "true"
+  COLAIG_VOISINS_RAYON: "1"
+  # BUDGET DOCUMENTAIRE. Il valait 6000 jetons, code en dur, et c'est LUI qui
+  # tranchait : avec l'elargissement aux voisins, le nombre de passages servis n'a
+  # pas bouge (mediane 10, moyenne 14,7 contre 14,8) — les voisins ont REMPLACE les
+  # documents les plus faibles au lieu de s'y ajouter. Treize cas ont ainsi perdu
+  # leur document quand sept en gagnaient un.
+  #
+  # La fenetre du modele a ete RELEVEE sur l'endpoint le 04/09/2026, en poussant une
+  # requete jusqu'au refus : « maximum context length is 131072 tokens ». Le budget
+  # en consommait 4,6 %.
+  #
+  # 20000 : trois fois le defaut, 15 % de la fenetre. Assez pour que les voisins
+  # s'ajoutent au lieu de remplacer, sans diluer l'attention sur cent passages. La
+  # valeur suivante, s'il en faut une, sera choisie par la mesure.
+  COLAIG_BUDGET_JETONS: "20000"
+  COLAIG_CHUNK_STRATEGIE: auto
+  ALBERT_MODEL_MEDIUM: qwen3-6-35b-moe
+  ALBERT_MODEL_LIGHT: qwen3-6-35b-moe
+  MATRIX_HOMESERVER: https://matrix.agent.dev-durable.tchap.gouv.fr
+  MATRIX_USERNAME: "@colaig.assistant-developpement-durable.gouv.fr:agent.dev-durable.tchap.gouv.fr"
+
+ingress:
+  enabled: true
+  hostname: user-nic01asfr-colaig-test.user.lab.sspcloud.fr

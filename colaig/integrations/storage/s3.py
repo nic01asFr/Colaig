@@ -95,6 +95,24 @@ class S3Storage:
             return f"{self._prefix}/{p}"
         return p
 
+    def _prefixe_de_dossier(self, path: str) -> str:
+        """Le prefixe S3 qui designe le CONTENU d'un dossier.
+
+        Les appelants ecrivaient `_full_key(path) + "/"`, ce qui est faux aux deux
+        bouts quand `path` designe la racine :
+
+        - **sans prefixe configure**, `_full_key("/")` rend `""` — correct, la racine
+          n'a pas de cle — et l'on interrogeait donc `"/"`. Aucune cle S3 ne commence
+          par un slash : un seau de 63 objets rendait une racine VIDE, sans erreur.
+          `load_all_workspaces` et la boucle de decouverte concluaient donc qu'il n'y
+          avait aucun espace. Releve le 29/08/2026.
+        - **avec un prefixe**, `_full_key("/")` rend deja `"colaig/"`, et l'on
+          interrogeait `"colaig//"` — qui ne correspond a rien non plus.
+
+        Le prefixe du contenu de la racine est la chaine vide, ou le prefixe configure.
+        """
+        return (self._full_key(path).rstrip("/") + "/").lstrip("/")
+
     def _strip_prefix(self, key: str) -> str:
         """Retire le préfixe d'une clé S3 pour obtenir le chemin Colaig."""
         if self._prefix and key.startswith(f"{self._prefix}/"):
@@ -106,7 +124,7 @@ class S3Storage:
 
     async def list_files(self, path: str, recursive: bool = False) -> list[StorageFile]:
         """Liste les objets S3 à un préfixe donné."""
-        prefix = self._full_key(path) + "/"
+        prefix = self._prefixe_de_dossier(path)
 
         def _list():
             client = self._get_client()
@@ -206,7 +224,13 @@ class S3Storage:
 
     async def mkdir(self, path: str) -> None:
         """Crée un 'dossier' S3 (objet vide avec slash terminal)."""
-        key = self._full_key(path) + "/"
+        key = self._prefixe_de_dossier(path)
+
+        # La racine du seau n'est pas un dossier a creer : elle existe des que le seau
+        # existe. L'ancien calcul y posait un objet dont la cle etait un simple slash —
+        # un dechet que les listings suivants rendaient comme une entree sans nom.
+        if not key:
+            return
 
         def _mkdir():
             client = self._get_client()
@@ -225,6 +249,28 @@ class S3Storage:
         def _head():
             client = self._get_client()
             _, botocore_exc = _require_boto3()
+
+            # LA RACINE DU SEAU, quand aucun prefixe n'est configure.
+            #
+            # `_full_key("/")` rend une chaine vide — c'est correct, la racine n'a pas
+            # de cle — mais `head_object(Key="")` est refuse par boto3 AVANT tout appel
+            # reseau, par une `ParamValidationError` qu'aucune des gardes ci-dessous
+            # n'attrape. Elle remontait donc jusqu'a l'appelant.
+            #
+            # La sonde de disponibilite appelle exactement cela, et le pod ne devenait
+            # jamais pret. Releve le 29/08/2026 en branchant le seau MinIO de SSPCloud.
+            #
+            # Le repli par prefixe n'aurait pas sauve le cas : il aurait interroge le
+            # prefixe "/", qui ne designe rien, et un seau VIDE aurait repondu que sa
+            # racine n'existe pas. Or la racine d'un seau joignable existe toujours —
+            # c'est le seau lui-meme, et c'est ce que `head_bucket` demande.
+            if not key:
+                try:
+                    client.head_bucket(Bucket=self._bucket)
+                    return True
+                except Exception:  # noqa: BLE001
+                    return False
+
             # Essayer d'abord comme objet exact
             try:
                 client.head_object(Bucket=self._bucket, Key=key)

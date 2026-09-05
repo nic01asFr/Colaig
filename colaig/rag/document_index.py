@@ -10,7 +10,7 @@ Responsabilités :
 - Permettre la recherche vectorielle et les requêtes structurées
 
 Implémente DocumentIndexProtocol.
-Dépend de : FaissStore, EmbeddingServiceProtocol, AlbertClientProtocol, StorageProtocol.
+Dépend de : FaissStore, EmbeddingServiceProtocol, LLMClientProtocol, StorageProtocol.
 
 Structure sur le storage :
     {workspace}/.colaig/indexes/documents/
@@ -28,6 +28,7 @@ import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from colaig import paths
 from colaig.exceptions import DocumentAnalysisError
 from colaig.models import (
     ColaigConfig,
@@ -37,6 +38,7 @@ from colaig.models import (
 )
 from colaig.rag.classifier import ClassificationEngine
 from colaig.rag.faiss_store import FaissStore
+from colaig.security.wrap import CONSIGNE, baliser
 from colaig.utils.text import extract_text, is_supported
 
 logger = logging.getLogger(__name__)
@@ -67,7 +69,7 @@ class DocumentIndex:
     Args:
         storage: Backend de stockage (StorageProtocol).
         embedding_service: Service d'embeddings (EmbeddingServiceProtocol).
-        albert: Client Albert API (AlbertClientProtocol).
+        albert: Client Albert API (LLMClientProtocol).
         config: Configuration globale (optionnel).
         index_cache_ttl: Durée de vie du cache en mémoire (secondes).
     """
@@ -115,7 +117,7 @@ class DocumentIndex:
             if not is_supported(f.name):
                 continue
             # Ignorer les fichiers dans .colaig/
-            if "/.colaig/" in f.path:
+            if paths.is_instance_path(f.path):
                 continue
 
             current_paths.add(f.path)
@@ -467,7 +469,7 @@ class DocumentIndex:
         import yaml as _yaml
 
         from colaig.models import DocumentMapConfig, VocabularyConfig, WorkspaceProfile
-        profile_path = f"{workspace_path.rstrip('/')}/.colaig/profile/identity.yaml"
+        profile_path = paths.identity_file(workspace_path)
         try:
             raw = await self._storage.download(profile_path)
             data = _yaml.safe_load(raw.decode("utf-8"))
@@ -669,7 +671,11 @@ class DocumentIndex:
             f'  "virtual_path": "chemin de classement suggéré (ex: /Factures/EDF/2024/) ou null",\n'
             f'  "virtual_filename": "nom normalisé suggéré (ex: 2024-01_EDF_125€.pdf) ou null"\n'
             f'}}\n\n'
-            f"Document ({filename}) :\n{text}"
+            # Balisage (L2.1). Le nom de fichier entrait aussi brut : c'est le déposant
+            # qui le choisit, et ce prompt classe le document et en extrait des entités
+            # qui alimenteront ensuite d'autres prompts.
+            + baliser(text, source=filename, nature="document")
+            + f"\n\n{CONSIGNE}"
         )
 
         try:
@@ -703,7 +709,7 @@ def _norm(workspace_path: str) -> str:
 
 def _remote_dir(workspace_path: str) -> str:
     """Chemin du dossier documents dans le storage."""
-    return f"{workspace_path.rstrip('/')}/.colaig/indexes/{_DOCUMENTS_SUBDIR}"
+    return paths.index_file(workspace_path, _DOCUMENTS_SUBDIR)
 
 
 def _checksum(content: bytes) -> str:

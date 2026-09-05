@@ -2,17 +2,17 @@
 Tests Phase 4 — Nouveaux modèles (AgentDirectives, AgentContext, ContextCard, etc.)
 """
 
-import pytest
 from dataclasses import asdict
 
+import pytest
+
+from colaig.exceptions import AnalysisError, MCPError, OrchestrationError, SynthesisError
 from colaig.models import (
-    AgentDirectives,
     AgentContext,
+    AgentDirectives,
     Attachment,
     ContextCard,
-    ContextMode,
     ExecutionPlan,
-    ExecutionStep,
     GeneratedResponse,
     IncomingMessage,
     Intent,
@@ -20,7 +20,6 @@ from colaig.models import (
     PipelinePhase,
     WorkspaceConfig,
 )
-from colaig.exceptions import AnalysisError, OrchestrationError, SynthesisError, MCPError
 
 
 class TestPipelinePhase:

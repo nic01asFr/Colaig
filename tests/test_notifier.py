@@ -3,11 +3,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from colaig.models import DocumentChunk, UpdateSummary
-from colaig.rag.notifier import format_notification, _extract_descriptions
-
+from colaig.rag.notifier import _extract_descriptions, format_notification
 
 # ---------------------------------------------------------------------------
 # Fixtures

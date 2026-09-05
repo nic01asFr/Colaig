@@ -1,0 +1,12 @@
+{
+  "datagouv::get_dataservice_info": "5cf2fe739b1a3e0ee33a4aafb9d3ffe274b14f41b395adfaaf4af27bb17ae2f4",
+  "datagouv::get_dataservice_openapi_spec": "e21a0e3c2d70d764d7f40e3a828e7d4c3b680f019de9d1e52e9d91939c17ba28",
+  "datagouv::get_dataset_info": "c754a1d1e5921ae44596929d306485fd748443eb7424c006ab3448f264133719",
+  "datagouv::get_metrics": "5df8cfc842db1258596e6b24e6c4329614fbe088d6f679375bb2ebd6f0afd883",
+  "datagouv::get_resource_info": "7ebb661438acc5f5fdeb877a4637c6a21215aa4b7829b55b9f5d0a42f4fc9682",
+  "datagouv::list_dataset_resources": "68cd1fa824ae44bc4c7877ee57c9c7f007bc7fb40ccba2a2fc10a2aad25a58b2",
+  "datagouv::query_resource_data": "d05a0a32d7c874b6dd85300abe4fd1aebe1d7ec6fd12d5bfcda8b578f9dc7a57",
+  "datagouv::search_dataservices": "4c213741ded87ec216c9af300821bd8465c59944697be8cdaf2bd174861af337",
+  "datagouv::search_datasets": "d5ed141f7b933376ce16c39cdfafc0eb469606e13d44282a8043c83403783574",
+  "datagouv::search_organizations": "0c2085870b8580eece302271f676db5fcbcd67167fcfe4eb6b043ecf78f1685a"
+}

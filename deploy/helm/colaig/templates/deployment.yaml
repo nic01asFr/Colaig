@@ -6,6 +6,20 @@ metadata:
     {{- include "colaig.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  # DEUX INSTANCES NE PEUVENT PAS SE PARTAGER LE MAGASIN DE CLES MATRIX.
+  #
+  # `RollingUpdate` — le defaut — demarre le nouveau pod AVANT d'arreter l'ancien.
+  # Tant que chaque pod avait son propre `emptyDir`, cela n'avait aucun effet ; le
+  # 30/08/2026, en montant un volume partage pour l'etat de session, on a rendu cette
+  # strategie fausse. Deux clients Matrix ecrivaient alors le meme magasin Olm avec le
+  # meme `device_id` — corruption possible du magasin, reponses dupliquees pendant le
+  # recouvrement. Le correctif d'un defaut avait cree la condition d'un second.
+  #
+  # `Recreate` arrete l'ancien pod avant de demarrer le nouveau. Le prix est une
+  # coupure de quelques secondes a chaque deploiement ; le volume est en RWO, donc de
+  # toute facon un seul pod peut le monter en ecriture.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "colaig.selectorLabels" . | nindent 6 }}
@@ -32,8 +46,11 @@ spec:
             - name: http
               containerPort: 8000
           envFrom:
+            # Le secret fourni par l'operateur s'il existe, sinon celui du chart.
+            # Voir l'en-tete de `secret.yaml` : passer une cle par `--set` la persiste
+            # dans le cluster, relisible par `helm get values`.
             - secretRef:
-                name: {{ include "colaig.fullname" . }}
+                name: {{ .Values.llm.existingSecret | default (include "colaig.fullname" .) }}
           env:
             - name: STORAGE_BACKEND
               value: {{ .Values.storage.backend | quote }}
@@ -62,32 +79,81 @@ spec:
             {{- if eq .Values.storage.backend "s3" }}
             - name: S3_ENDPOINT_URL
               value: {{ .Values.storage.s3.endpointUrl | quote }}
+            # UNE VALEUR VIDE ECRASERAIT LE SECRET.
+            #
+            # Les identifiants arrivent normalement par `envFrom: secretRef`. Or dans
+            # Kubernetes une entree `env` PRIME sur `envFrom` : rendre
+            # `S3_ACCESS_KEY: ""` parce que la valeur n'a pas ete renseignee effacait
+            # la cle du secret, et l'acces au stockage tombait — sans que rien dans les
+            # valeurs ne paraisse fautif.
+            #
+            # On n'ecrit donc que ce qu'on nous a effectivement donne.
+            {{- if .Values.storage.s3.accessKey }}
             - name: S3_ACCESS_KEY
               value: {{ .Values.storage.s3.accessKey | quote }}
+            {{- end }}
             - name: S3_BUCKET_NAME
               value: {{ .Values.storage.s3.bucket | quote }}
+            {{- if .Values.storage.s3.prefix }}
             - name: S3_PREFIX
               value: {{ .Values.storage.s3.prefix | quote }}
+            {{- end }}
             - name: S3_REGION
               value: {{ .Values.storage.s3.region | quote }}
+            {{- end }}
+            {{- if .Values.llm.modelOcr }}
+            - name: LLM_MODEL_OCR
+              value: {{ .Values.llm.modelOcr | quote }}
+            - name: ALBERT_MODEL_OCR
+              value: {{ .Values.llm.modelOcr | quote }}
+            {{- end }}
+            {{- if .Values.llm.embeddingDim }}
+            # La dimension des vecteurs. Elle etait codee en dur en huit endroits avant
+            # le 30/08 ; un endpoint qui sert du 4096 la ou l'on attendait du 1024
+            # produisait un index inutilisable sans le moindre message.
+            - name: COLAIG_EMBEDDING_DIM
+              value: {{ .Values.llm.embeddingDim | quote }}
+            {{- end }}
+            {{- if .Values.autoDiscover.enabled }}
+            - name: COLAIG_AUTO_DISCOVER_ENABLED
+              value: "true"
+            - name: COLAIG_AUTO_DISCOVER_INTERVAL
+              value: {{ .Values.autoDiscover.intervalSeconds | quote }}
             {{- end }}
             - name: COLAIG_WEB_PORT
               value: "8000"
             - name: COLAIG_DATA_DIR
               value: /app/data
+            # Le dossier local de Colaig — jeton de session Matrix et magasin de cles
+            # E2E — DANS le volume monte. Sans cette variable il retombe sur
+            # `~/.colaig/`, soit `/root/.colaig/`, que rien ne persiste : chaque
+            # redemarrage donnait alors a Colaig une nouvelle identite d'appareil et
+            # lui faisait perdre toutes ses cles Megolm. Releve le 30/08/2026 dans les
+            # journaux : ~450 « message non dechiffre », dont Colaig etait l'expediteur.
+            - name: COLAIG_LOCAL_HOME
+              value: /app/data/.colaig
             {{- range $k, $v := .Values.extraEnv }}
             - name: {{ $k }}
               value: {{ $v | quote }}
             {{- end }}
+          # DISPONIBILITE — `/ready` teste le stockage ET le LLM, et rend 503 quand
+          # l'un manque. Les deux sondes interrogeaient `/health`, qui rend
+          # `{"status": "ok"}` INCONDITIONNELLEMENT : une sonde qui ne peut pas echouer
+          # laisse Kubernetes envoyer du trafic a un pod dont les dependances sont
+          # tombees, et l'utilisateur recoit des erreurs d'un pod cru sain.
           readinessProbe:
             httpGet:
-              path: /health
+              path: /ready
               port: http
             initialDelaySeconds: 10
             periodSeconds: 10
+          # VIE — `/live` dit seulement que le processus tourne, et c'est voulu.
+          # Redemarrer un pod parce que le LLM distant est tombe ne repare rien : cela
+          # le fait redemarrer en boucle. La vie et la disponibilite ne posent pas la
+          # meme question.
           livenessProbe:
             httpGet:
-              path: /health
+              path: /live
               port: http
             initialDelaySeconds: 30
             periodSeconds: 30

@@ -2,16 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
-import json
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 
-from colaig.context.user_memory import UserMemory, MemoryFact, _safe_user_id, _auto_tag
-from colaig.rag.index_registry import FaissIndexRegistry
+from colaig.context.user_memory import MemoryFact, UserMemory, _auto_tag, _safe_user_id
 from colaig.rag.faiss_store import FaissStore
-from colaig.models import SearchResult
-
+from colaig.rag.index_registry import FaissIndexRegistry
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -132,6 +129,7 @@ async def test_read_returns_facts_from_registry():
 async def test_read_loads_store_from_storage():
     """Si absent du registry, tente de charger depuis le storage."""
     import numpy as np
+
     from colaig.rag.faiss_store import FaissStore
 
     store = FaissStore(dimension=DIM)

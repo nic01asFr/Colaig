@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+import os
 import signal
 from pathlib import Path
 
@@ -17,7 +18,7 @@ from colaig.config import load_config
 
 # Context & Generator
 from colaig.context.resolver import ContextResolver
-from colaig.exceptions import StorageError
+from colaig.exceptions import StorageAuthError, StorageError
 from colaig.messaging.handlers import MessageHandler
 from colaig.models import ColaigConfig
 from colaig.rag.behavior_indexer import BehaviorIndexer
@@ -38,6 +39,7 @@ from colaig.web.routes import create_app
 logger = logging.getLogger(__name__)
 
 # Suivi d'usage LLM par tenant — process-global (zéro-DB, reconstructible au restart).
+from colaig import paths
 from colaig.metrics import UsageTracker
 
 _USAGE_TRACKER = UsageTracker()
@@ -210,9 +212,22 @@ def create_llm_client(config: ColaigConfig, client_id: str = ""):
     LLM_BACKEND=ollama          → OllamaClient — Ollama local autohébergé
 
     Returns:
-        Instance implémentant LLMClientProtocol (= AlbertClientProtocol).
+        Instance implémentant LLMClientProtocol.
     """
     backend = (config.llm_backend or "albert").lower()
+
+    # Colaig ne restreint aucun endpoint LLM par défaut (décision D9) : la
+    # souveraineté est portée par `platform_policy.allowed_llm_endpoints`, décidée par
+    # l'exploitant. Le contrepoids de ce choix est la visibilité — l'endpoint
+    # réellement joint est tracé au démarrage, sans quoi personne ne sait où partent
+    # les conversations.
+    _endpoint = {
+        "albert": config.albert_api_url,
+        "openai": config.llm_api_url or "https://api.openai.com",
+        "azure": f"https://{config.llm_azure_resource}.openai.azure.com",
+        "ollama": config.llm_api_url or "http://localhost:11434",
+    }.get(backend, "?")
+    logger.info("LLM : backend=%s endpoint=%s", backend, _endpoint)
 
     if backend == "albert":
         from colaig.integrations.albert import AlbertClient
@@ -227,6 +242,9 @@ def create_llm_client(config: ColaigConfig, client_id: str = ""):
             model_chat=config.llm_model_chat or "gpt-4o",
             model_embed=config.llm_model_embed or "text-embedding-3-small",
             backend_name="OpenAI",
+            enable_thinking=config.llm_enable_thinking,
+            model_ocr=config.llm_model_ocr,
+            usage_tracker=_USAGE_TRACKER, client_id="",
         )
 
     elif backend == "azure":
@@ -237,6 +255,7 @@ def create_llm_client(config: ColaigConfig, client_id: str = ""):
             deployment_chat=config.llm_azure_deployment_chat,
             deployment_embed=config.llm_azure_deployment_embed,
             api_version=config.llm_azure_api_version,
+            usage_tracker=_USAGE_TRACKER, client_id="",
         )
 
     elif backend == "ollama":
@@ -245,6 +264,7 @@ def create_llm_client(config: ColaigConfig, client_id: str = ""):
             base_url=config.llm_api_url or "http://localhost:11434",
             model_chat=config.llm_model_chat or "llama3.2",
             model_embed=config.llm_model_embed or "nomic-embed-text",
+            usage_tracker=_USAGE_TRACKER, client_id="",
         )
 
     else:
@@ -420,6 +440,7 @@ def create_llm_for_client(cc, default_config: ColaigConfig):
             model_chat=cc.llm_model_chat or "gpt-4o",
             model_embed=cc.llm_model_embed or "text-embedding-3-small",
             backend_name=f"OpenAI[{cc.client_id}]",
+            usage_tracker=_USAGE_TRACKER, client_id=cc.client_id,
         )
 
     elif backend == "azure":
@@ -430,6 +451,7 @@ def create_llm_for_client(cc, default_config: ColaigConfig):
             deployment_chat=cc.llm_azure_deployment_chat,
             deployment_embed=cc.llm_azure_deployment_embed,
             api_version=cc.llm_azure_api_version,
+            usage_tracker=_USAGE_TRACKER, client_id=cc.client_id,
         )
 
     elif backend == "ollama":
@@ -438,6 +460,7 @@ def create_llm_for_client(cc, default_config: ColaigConfig):
             base_url=cc.llm_api_url or "http://localhost:11434",
             model_chat=cc.llm_model_chat or "llama3.2",
             model_embed=cc.llm_model_embed or "nomic-embed-text",
+            usage_tracker=_USAGE_TRACKER, client_id=cc.client_id,
         )
 
     else:
@@ -463,10 +486,11 @@ async def run_client_stack(cc, config: ColaigConfig, shutdown_event: asyncio.Eve
     albert = create_llm_for_client(cc, config)
     messaging = messaging_instance if messaging_instance is not None else create_messaging_for_client(cc)
 
-    chunker = Chunker(chunk_size=config.chunk_size, chunk_overlap=config.chunk_overlap)
+    chunker = Chunker(chunk_size=config.chunk_size, chunk_overlap=config.chunk_overlap,
+                      strategie=config.chunk_strategie)
     _embed_ns = _embedding_namespace(cc.llm_api_key or config.albert_api_key, cc.llm_model_embed or config.albert_model_embed)
-    embedding_service = EmbeddingService(albert, dimension=1024, cache_namespace=_embed_ns, local_fallback=config.local_embeddings)
-    faiss_store = FaissStore(dimension=1024)
+    embedding_service = EmbeddingService(albert, dimension=config.embedding_dimension, cache_namespace=_embed_ns, local_fallback=config.local_embeddings)
+    faiss_store = FaissStore(dimension=config.embedding_dimension)
 
     retriever = Retriever(
         embedding_service=embedding_service,
@@ -497,7 +521,7 @@ async def run_client_stack(cc, config: ColaigConfig, shutdown_event: asyncio.Eve
         registry=index_registry,
         albert_client=albert,
         light_model=getattr(config, "albert_model_light", None),
-        dimension=1024,
+        dimension=config.embedding_dimension,
     )
 
     from colaig.rag.federation_service import FederationService
@@ -560,6 +584,7 @@ async def run_client_stack(cc, config: ColaigConfig, shutdown_event: asyncio.Eve
             index_registry=index_registry,
             workspace_directory=workspace_directory,
             admin_user_ids=config.admin_user_ids,
+            retrait_outils_hors_plan=config.retrait_outils_hors_plan,
         )
         trame_manager = TrameManager(storage=storage)
 
@@ -691,7 +716,7 @@ async def run_indexation_loop(
                 ws_indexer = workspace_indexers.get(ws.workspace_id)
                 if ws_indexer is None:
                     from colaig.rag.bm25_store import BM25Store
-                    ws_store = FaissStore(dimension=1024)
+                    ws_store = FaissStore(dimension=embedding_service.dimension)
                     ws_bm25 = BM25Store() if workspace_bm25_stores is not None else None
                     # Charger le vocabulaire métier depuis identity.yaml (graceful)
                     _ws_vocabulary: list[str] = []
@@ -718,13 +743,27 @@ async def run_indexation_loop(
                         workspace_vocabulary=_ws_vocabulary or None,
                     )
                     # Charger l'index persisté si disponible.
-                    # Si l'index n'existe pas encore en storage, initial_indexation est
-                    # probablement en cours pour ce workspace → skip ce cycle pour éviter
-                    # une double indexation OCR concurrente.
+                    #
+                    # UN INDEX ABSENT N'EST PAS UNE RAISON DE SAUTER L'ESPACE.
+                    #
+                    # Ce bloc sautait tout workspace sans index en storage, au motif que
+                    # « initial_indexation est probablement en cours ». Mais cette boucle
+                    # attend `initial_done` avant son premier cycle : quand elle arrive
+                    # ici, l'indexation initiale est terminée par construction. Le motif
+                    # ne pouvait donc jamais être vrai là où il était invoqué.
+                    #
+                    # Sans conséquence pour un espace présent au démarrage — il avait
+                    # déjà son index. Fatal pour un espace DÉCOUVERT À CHAUD : aucune
+                    # initial_indexation ne viendra pour lui, et le saut se répétait à
+                    # chaque cycle. Observé le 01/09/2026 sur `colaig-test` : un espace
+                    # de 108 documents découvert, puis muet quarante minutes durant,
+                    # sans une ligne de journal — le message était en `debug`.
                     loaded = await ws_indexer.load_from_storage(ws.index_path)
                     if not loaded:
-                        logger.debug("run_indexation_loop: index %s absent du storage, skip (initial_indexation en cours ?)", ws.workspace_id)
-                        continue
+                        logger.info(
+                            "run_indexation_loop: %s n'a pas encore d'index — "
+                            "première indexation complète", ws.workspace_id,
+                        )
                     workspace_stores[ws.workspace_id] = ws_store
                     if workspace_bm25_stores is not None and ws_bm25 is not None:
                         workspace_bm25_stores[ws.workspace_id] = ws_bm25
@@ -847,10 +886,10 @@ async def run_workspace_discovery_loop(
                     continue
 
                 # Opt-out explicite par dossier
-                if await storage.exists(f"{entry_path}/.colaig-ignore"):
+                if await storage.exists(paths.ignore_file(entry_path)):
                     continue
 
-                config_path = f"{entry_path}/.colaig/config.yaml"
+                config_path = paths.config_file(entry_path)
 
                 try:
                     if await storage.exists(config_path):
@@ -877,10 +916,37 @@ async def run_workspace_discovery_loop(
                                 entry_path, ws.workspace_id,
                             )
                 except (StorageError, _WorkspaceConfigError) as exc:
-                    logger.warning(
-                        "scaffold ignoré définitivement pour %s (%s: %s)",
-                        entry_path, type(exc).__name__, exc,
-                    )
+                    # Distinguer le manque de DROITS du reste, parce que l'un se corrige
+                    # et l'autre se diagnostique.
+                    #
+                    # Le cas courant : le collègue a partagé son dossier avec Colaig en
+                    # LECTURE SEULE. Colaig ne peut alors pas créer `.colaig/` — donc ni
+                    # index, ni historique, ni mémoire — et abandonne le dossier
+                    # définitivement. Le comportement est le bon ; le message ne l'était
+                    # pas : « WorkspaceConfigError: … WebDAV 403 » ne dit ni la cause ni
+                    # le geste, et l'exploitant reste devant un espace qui n'apparaît
+                    # jamais sans savoir pourquoi.
+                    #
+                    # `create_workspace` EMBALLE l'erreur de droits dans un
+                    # `WorkspaceConfigError` — la distinction ne survit que par le
+                    # chaînage `from e`, d'où la lecture de `__cause__`.
+                    if isinstance(exc, StorageAuthError) or isinstance(
+                        exc.__cause__, StorageAuthError
+                    ):
+                        logger.warning(
+                            "espace ignoré définitivement : %s — Colaig n'a que la "
+                            "LECTURE sur ce dossier et ne peut pas y créer son dossier "
+                            "d'instance %s. Accordez-lui l'ÉCRITURE sur ce partage, ou "
+                            "déposez un fichier %s pour assumer l'exclusion. "
+                            "Détail : %s",
+                            entry_path, paths.colaig_dir(entry_path),
+                            paths.ignore_file(entry_path), exc,
+                        )
+                    else:
+                        logger.warning(
+                            "scaffold ignoré définitivement pour %s (%s: %s)",
+                            entry_path, type(exc).__name__, exc,
+                        )
                     _perm_skip.add(entry_path)
                 except Exception:
                     logger.warning(
@@ -897,11 +963,45 @@ async def run_workspace_discovery_loop(
             pass
 
 
+def hote_ecoute_web() -> str:
+    """Interface d'écoute du serveur web — fermée par défaut.
+
+    POURQUOI CE N'EST PAS `0.0.0.0` EN DUR
+    ----------------------------------------
+    Sans `COLAIG_PLATFORM_API_KEY`, `_is_authenticated` rend `True` pour tout le monde
+    (D45) : la surface web entière est servie. Combiné à une écoute sur `0.0.0.0`, le
+    défaut n'était pas « ouvert en développement » mais **ouvert partout** — y compris
+    sur une installation Helm par défaut, où `platformApiKey` vaut `""`.
+
+    La garde d'authentification n'est pas fermée ici : cela casserait les déploiements
+    auto-hébergés qui s'en passent délibérément. **C'est le sens de l'échec qui change** —
+    mal configuré doit vouloir dire inaccessible, pas ouvert.
+
+    `COLAIG_WEB_HOST` reste une sortie explicite, pour le cas légitime d'un mandataire
+    inverse qui porte lui-même l'authentification. Ce n'est pas le motif dénoncé en D44 :
+    ces gardes-là ont un défaut **ouvert**, celui-ci a un défaut **fermé**. Une variable
+    oubliée n'y donne rien, et ouvrir redevient un acte.
+    """
+    explicite = os.environ.get("COLAIG_WEB_HOST", "").strip()
+    if explicite:
+        return explicite
+    if os.environ.get("COLAIG_PLATFORM_API_KEY", "").strip():
+        return "0.0.0.0"
+    logger.warning(
+        "serveur web restreint à 127.0.0.1 : COLAIG_PLATFORM_API_KEY n'est pas "
+        "définie, et sans elle toute la surface web est servie sans authentification. "
+        "Posez cette clé pour écouter largement, ou déclarez COLAIG_WEB_HOST si un "
+        "mandataire inverse porte déjà l'authentification."
+    )
+    return "127.0.0.1"
+
+
 async def run_web_server(app, port: int) -> None:
     """Lance le serveur web FastAPI avec uvicorn."""
     import uvicorn
 
-    config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="warning", log_config=None)
+    config = uvicorn.Config(app, host=hote_ecoute_web(), port=port,
+                            log_level="warning", log_config=None)
     server = uvicorn.Server(config)
     await server.serve()
 
@@ -933,7 +1033,7 @@ async def initial_indexation(
             continue
         try:
             from colaig.rag.bm25_store import BM25Store
-            ws_store = FaissStore(dimension=1024)
+            ws_store = FaissStore(dimension=embedding_service.dimension)
             ws_bm25 = BM25Store() if workspace_bm25_stores is not None else None
 
             # Charger le vocabulaire métier depuis identity.yaml (graceful)
@@ -1033,6 +1133,7 @@ async def main() -> None:
     config = load_config()
     setup_logging(config.log_level)
 
+
     # Quotas journaliers par tenant (0 = illimité) — enforcement dans les clients LLM.
     _USAGE_TRACKER.set_limits(config.daily_request_limit, config.daily_token_limit)
 
@@ -1119,13 +1220,14 @@ async def main() -> None:
     chunker = Chunker(
         chunk_size=config.chunk_size,
         chunk_overlap=config.chunk_overlap,
+        strategie=config.chunk_strategie,
     )
 
     _embed_ns = _embedding_namespace(config.albert_api_key, config.albert_model_embed)
-    embedding_service = EmbeddingService(albert, dimension=1024, cache_namespace=_embed_ns, local_fallback=config.local_embeddings)
+    embedding_service = EmbeddingService(albert, dimension=config.embedding_dimension, cache_namespace=_embed_ns, local_fallback=config.local_embeddings)
 
     # Store partagé — utilisé uniquement par le web admin / MCP pour reindex manuel
-    faiss_store = FaissStore(dimension=1024)
+    faiss_store = FaissStore(dimension=config.embedding_dimension)
 
     retriever = Retriever(
         embedding_service=embedding_service,
@@ -1171,7 +1273,7 @@ async def main() -> None:
         registry=index_registry,
         albert_client=albert,
         light_model=getattr(config, "albert_model_light", None),
-        dimension=1024,
+        dimension=config.embedding_dimension,
     )
 
     from colaig.rag.federation_service import FederationService
@@ -1260,6 +1362,7 @@ async def main() -> None:
             index_registry=index_registry,
             workspace_directory=workspace_directory,
             admin_user_ids=config.admin_user_ids,
+            retrait_outils_hors_plan=config.retrait_outils_hors_plan,
         )
 
         if config.agents_phase6_enabled:

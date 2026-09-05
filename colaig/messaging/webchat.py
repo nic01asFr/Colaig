@@ -43,8 +43,8 @@ class WebChatMessaging:
         self._connections: dict[str, list] = defaultdict(list)
         logger.info("WebChatMessaging actif (MESSAGING_BACKEND=webchat)")
 
-    def on_message(self, handler: Callable) -> None:
-        self._handler = handler
+    def on_message(self, callback: Callable) -> None:
+        self._handler = callback
 
     async def connect(self) -> None:
         pass

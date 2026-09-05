@@ -1,11 +1,11 @@
 """Tests — messaging/progress.py (Phase 6)"""
 
-import pytest
 from unittest.mock import AsyncMock
 
-from colaig.messaging.progress import ProgressReporter, resolve_channel
-from colaig.models import ChannelFormat, ConversationType
+import pytest
 
+from colaig.messaging.progress import ProgressReporter, resolve_channel
+from colaig.models import ChannelFormat
 
 # =============================================================================
 # resolve_channel

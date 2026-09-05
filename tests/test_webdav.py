@@ -1,11 +1,10 @@
 """Tests pour colaig/integrations/storage/webdav.py — Client WebDAV."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-import httpx
-from unittest.mock import AsyncMock, patch, MagicMock
 
 from colaig.integrations.storage.webdav import WebDAVStorage, _parse_propfind
-from colaig.exceptions import StorageFileNotFoundError, StorageAuthError, StorageError
 
 
 @pytest.fixture

@@ -1,0 +1,44 @@
+[
+ {
+  "bras": "durci",
+  "tirage": 1,
+  "cite_attendu": 0.7768,
+  "fantomes": 8.0,
+  "hors_contexte": 21.0
+ },
+ {
+  "bras": "durci",
+  "tirage": 2,
+  "cite_attendu": 0.7818,
+  "fantomes": 5.0,
+  "hors_contexte": 21.0
+ },
+ {
+  "bras": "durci",
+  "tirage": 3,
+  "cite_attendu": 0.7523,
+  "fantomes": 8.0,
+  "hors_contexte": 23.0
+ },
+ {
+  "bras": "durci",
+  "tirage": 4,
+  "cite_attendu": 0.7876,
+  "fantomes": 8.0,
+  "hors_contexte": 24.0
+ },
+ {
+  "bras": "durci",
+  "tirage": 5,
+  "cite_attendu": 0.8036,
+  "fantomes": 6.0,
+  "hors_contexte": 23.0
+ },
+ {
+  "bras": "durci",
+  "tirage": 6,
+  "cite_attendu": 0.7523,
+  "fantomes": 6.0,
+  "hors_contexte": 17.0
+ }
+]

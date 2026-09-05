@@ -37,6 +37,34 @@ def _admin_key() -> str:
     return os.environ.get("COLAIG_PLATFORM_API_KEY", "")
 
 
+def _session_secret_pour_test() -> str:
+    """Secret de signature des cookies de session.
+
+    `COLAIG_PLATFORM_API_KEY` porte TROIS roles a la fois — mot de passe du tableau de
+    bord, jeton Bearer des routes plateforme, et secret de signature. Les deux premiers
+    circulent (formulaire, en-tete HTTP), le troisieme ne doit jamais circuler. Cumuler
+    le premier et le troisieme signifie que qui connait le mot de passe peut forger un
+    cookie.
+    # TODO-HAUTE : separer les trois roles. Ce n'est pas fait ici parce que cela change
+    # la configuration attendue au deploiement, donc releve d'un arbitrage (D45).
+
+    Le repli, lui, est corrige : il etait la chaine litterale
+    `colaig-dev-secret-change-in-production`, ECRITE DANS UN DEPOT PUBLIC — n'importe qui
+    pouvait donc signer un cookie portant `admin=1`. Sans cle, tout est deja ouvert
+    aujourd'hui (D44) ; mais le jour ou cette echappatoire sera fermee, la constante
+    rouvrirait seule ce que l'on croirait avoir verrouille.
+
+    Le repli est desormais tire au hasard, par processus. Consequence assumee : sans cle
+    configuree, les sessions ne survivent pas a un redemarrage — sans portee dans un mode
+    ou rien n'est garde.
+    """
+    cle = _admin_key()
+    if cle:
+        return cle
+    import secrets
+    return secrets.token_urlsafe(32)
+
+
 def _is_authenticated(request: Request) -> bool:
     """Vérifie si la session courante est authentifiée en tant qu'admin."""
     key = _admin_key()
@@ -187,7 +215,7 @@ def create_app(
     discovery_fn=None,        # async callable() — déclenche une re-découverte de workspaces
     clients_yml_path=None,    # str|Path — chemin vers clients.yml (active POST /api/platform/provision)
     messaging=None,           # MessagingProtocol (si WebChatMessaging → monte /chat/*)
-    llm_client=None,          # AlbertClientProtocol — readiness probe LLM (/ready)
+    llm_client=None,          # LLMClientProtocol — readiness probe LLM (/ready)
     usage_tracker=None,       # UsageTracker — métriques tokens/requêtes par tenant
 ) -> FastAPI:
     """Crée l'application FastAPI admin.
@@ -215,7 +243,7 @@ def create_app(
     app = FastAPI(title="Colaig Admin", version="0.1.0", lifespan=_lifespan)
 
     # Session middleware (cookie signé) — clé = PLATFORM_API_KEY ou fallback dev
-    _session_secret = _admin_key() or "colaig-dev-secret-change-in-production"
+    _session_secret = _session_secret_pour_test()
     app.add_middleware(SessionMiddleware, secret_key=_session_secret, session_cookie="colaig_session", https_only=False)
 
     # Request-ID / W3C Trace Context — corrélation des logs de bout en bout.
@@ -382,8 +410,15 @@ def create_app(
         return _templates.TemplateResponse(request, "dashboard.html", ctx)
 
     @app.get("/workspaces", response_class=JSONResponse)
-    async def list_workspaces():
+    async def list_workspaces(request: Request):
         """Liste des workspaces en JSON."""
+        # GARDE ADMIN — meme session que le tableau de bord qui appelle cette API.
+        #
+        # `_require_admin` ne gardait que les deux pages HTML ; les API qu'elles
+        # utilisent etaient ouvertes, sur un serveur qui ecoute sur 0.0.0.0. Or le
+        # rattachement d'une conversation EST la frontiere d'acces (L2.1d) : la meme
+        # chaine que celle fermee cote Matrix s'ouvrait ici sans invitation. Voir D44.
+        _require_admin(request)
         workspaces = resolver.workspaces if resolver else []
         return [
             {
@@ -397,8 +432,15 @@ def create_app(
         ]
 
     @app.get("/workspaces/{workspace_id}", response_class=JSONResponse)
-    async def get_workspace(workspace_id: str):
+    async def get_workspace(request: Request, workspace_id: str):
         """Détail d'un workspace."""
+        # GARDE ADMIN — meme session que le tableau de bord qui appelle cette API.
+        #
+        # `_require_admin` ne gardait que les deux pages HTML ; les API qu'elles
+        # utilisent etaient ouvertes, sur un serveur qui ecoute sur 0.0.0.0. Or le
+        # rattachement d'une conversation EST la frontiere d'acces (L2.1d) : la meme
+        # chaine que celle fermee cote Matrix s'ouvrait ici sans invitation. Voir D44.
+        _require_admin(request)
         workspaces = resolver.workspaces if resolver else []
         for ws in workspaces:
             if ws.workspace_id == workspace_id:
@@ -417,13 +459,20 @@ def create_app(
         return JSONResponse(status_code=404, content={"error": "workspace introuvable"})
 
     @app.post("/workspaces/{workspace_id}/reindex", response_class=JSONResponse)
-    async def reindex_workspace(workspace_id: str, force: bool = False):
+    async def reindex_workspace(request: Request, workspace_id: str, force: bool = False):
         """Force la ré-indexation d'un workspace.
 
         Args:
             force: Si True, réinitialise l'index avant de ré-indexer (full rebuild).
                    Si False (défaut), ré-indexe uniquement les documents modifiés.
         """
+        # GARDE ADMIN — meme session que le tableau de bord qui appelle cette API.
+        #
+        # `_require_admin` ne gardait que les deux pages HTML ; les API qu'elles
+        # utilisent etaient ouvertes, sur un serveur qui ecoute sur 0.0.0.0. Or le
+        # rattachement d'une conversation EST la frontiere d'acces (L2.1d) : la meme
+        # chaine que celle fermee cote Matrix s'ouvrait ici sans invitation. Voir D44.
+        _require_admin(request)
         ws_indexers = workspace_indexers or {}
         ws_indexer = ws_indexers.get(workspace_id) or indexer
 
@@ -446,8 +495,15 @@ def create_app(
         return JSONResponse(status_code=404, content={"error": "workspace introuvable"})
 
     @app.get("/workspaces/{workspace_id}/index-status", response_class=JSONResponse)
-    async def index_status(workspace_id: str):
+    async def index_status(request: Request, workspace_id: str):
         """Retourne l'état courant de l'index d'un workspace."""
+        # GARDE ADMIN — meme session que le tableau de bord qui appelle cette API.
+        #
+        # `_require_admin` ne gardait que les deux pages HTML ; les API qu'elles
+        # utilisent etaient ouvertes, sur un serveur qui ecoute sur 0.0.0.0. Or le
+        # rattachement d'une conversation EST la frontiere d'acces (L2.1d) : la meme
+        # chaine que celle fermee cote Matrix s'ouvrait ici sans invitation. Voir D44.
+        _require_admin(request)
         ws_indexers = workspace_indexers or {}
         ws_indexer = ws_indexers.get(workspace_id) or (
             indexer if indexer else None
@@ -459,12 +515,19 @@ def create_app(
     # ── CRUD workspaces ───────────────────────────────────────────────────────
 
     @app.post("/workspaces", response_class=JSONResponse, status_code=201)
-    async def create_workspace_endpoint(body: CreateWorkspaceRequest):
+    async def create_workspace_endpoint(request: Request, body: CreateWorkspaceRequest):
         """Crée un workspace avec scaffold .colaig/ complet.
 
         Idempotent : si le workspace existe déjà (config.yaml présent),
         retourne la configuration existante avec status 200.
         """
+        # GARDE ADMIN — meme session que le tableau de bord qui appelle cette API.
+        #
+        # `_require_admin` ne gardait que les deux pages HTML ; les API qu'elles
+        # utilisent etaient ouvertes, sur un serveur qui ecoute sur 0.0.0.0. Or le
+        # rattachement d'une conversation EST la frontiere d'acces (L2.1d) : la meme
+        # chaine que celle fermee cote Matrix s'ouvrait ici sans invitation. Voir D44.
+        _require_admin(request)
         if not storage:
             raise HTTPException(status_code=503, detail="storage non disponible")
 
@@ -500,8 +563,15 @@ def create_app(
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.post("/workspaces/{workspace_id}/conversations", response_class=JSONResponse)
-    async def link_conversation(workspace_id: str, body: LinkConversationRequest):
+    async def link_conversation(request: Request, workspace_id: str, body: LinkConversationRequest):
         """Lie un salon/conversation à un workspace existant."""
+        # GARDE ADMIN — meme session que le tableau de bord qui appelle cette API.
+        #
+        # `_require_admin` ne gardait que les deux pages HTML ; les API qu'elles
+        # utilisent etaient ouvertes, sur un serveur qui ecoute sur 0.0.0.0. Or le
+        # rattachement d'une conversation EST la frontiere d'acces (L2.1d) : la meme
+        # chaine que celle fermee cote Matrix s'ouvrait ici sans invitation. Voir D44.
+        _require_admin(request)
         if not storage:
             raise HTTPException(status_code=503, detail="storage non disponible")
 
@@ -530,8 +600,15 @@ def create_app(
 
     @app.delete("/workspaces/{workspace_id}/conversations/{conversation_id}",
                 response_class=JSONResponse)
-    async def unlink_conversation(workspace_id: str, conversation_id: str):
+    async def unlink_conversation(request: Request, workspace_id: str, conversation_id: str):
         """Délie un salon/conversation d'un workspace."""
+        # GARDE ADMIN — meme session que le tableau de bord qui appelle cette API.
+        #
+        # `_require_admin` ne gardait que les deux pages HTML ; les API qu'elles
+        # utilisent etaient ouvertes, sur un serveur qui ecoute sur 0.0.0.0. Or le
+        # rattachement d'une conversation EST la frontiere d'acces (L2.1d) : la meme
+        # chaine que celle fermee cote Matrix s'ouvrait ici sans invitation. Voir D44.
+        _require_admin(request)
         if not storage:
             raise HTTPException(status_code=503, detail="storage non disponible")
 
@@ -559,8 +636,15 @@ def create_app(
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.put("/workspaces/{workspace_id}", response_class=JSONResponse)
-    async def update_workspace(workspace_id: str, body: UpdateWorkspaceRequest):
+    async def update_workspace(request: Request, workspace_id: str, body: UpdateWorkspaceRequest):
         """Met à jour la configuration d'un workspace existant."""
+        # GARDE ADMIN — meme session que le tableau de bord qui appelle cette API.
+        #
+        # `_require_admin` ne gardait que les deux pages HTML ; les API qu'elles
+        # utilisent etaient ouvertes, sur un serveur qui ecoute sur 0.0.0.0. Or le
+        # rattachement d'une conversation EST la frontiere d'acces (L2.1d) : la meme
+        # chaine que celle fermee cote Matrix s'ouvrait ici sans invitation. Voir D44.
+        _require_admin(request)
         if not storage:
             raise HTTPException(status_code=503, detail="storage non disponible")
 
@@ -793,7 +877,7 @@ def create_app(
                 zip_bytes = _provisioner.build_selfhosted_package(
                     client_id=client_id,
                     base_url=base_url,
-                    albert_api_url=os.environ.get("ALBERT_API_URL", "https://albert-api.etalab.gouv.fr"),
+                    albert_api_url=os.environ.get("ALBERT_API_URL", "https://albert.api.etalab.gouv.fr"),
                     albert_api_key=os.environ.get("ALBERT_API_KEY", ""),
                     albert_model_chat=os.environ.get("ALBERT_MODEL_CHAT", "openai/gpt-oss-120b"),
                     albert_model_embed=os.environ.get("ALBERT_MODEL_EMBED", "BAAI/bge-m3"),

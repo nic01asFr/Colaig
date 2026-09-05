@@ -2,28 +2,27 @@
 Tests — Agent Orchestrateur
 """
 
-import pytest
-
 from unittest.mock import AsyncMock
 
+import pytest
+
+from colaig.agents.context_builder import build_tool_registry
+from colaig.agents.orchestrator import Orchestrator
 from colaig.models import (
     AgentDirectives,
     ChatCompletionResult,
     ContextMode,
+    DocumentChunk,
     Intent,
     IntentType,
     PreExecutionCard,
     SearchDirectives,
     SearchResult,
-    DocumentChunk,
     ToolCall,
     WorkspaceConfig,
     WorkspaceContext,
 )
-from colaig.agents.orchestrator import Orchestrator
-from colaig.agents.tool_registry import ToolRegistry
-from colaig.agents.context_builder import build_tool_registry
-from tests.conftest import MockStorage, MockAlbertClient
+from tests.conftest import MockAlbertClient, MockStorage
 
 
 class MockRetriever:
@@ -162,7 +161,10 @@ class TestOrchestratorExecution:
         orch = Orchestrator(storage, MockRetriever())
         plan = await orch.execute(intent, context)
 
-        fetch_step = plan.steps[0]
+        # D68 : la recherche precede desormais TOUTE etape, y compris quand
+        # l'Analyseur a juge qu'elle etait inutile. Ce test porte sur l'etape
+        # suivante, pas sur sa position : on la designe par son type.
+        fetch_step = next(e for e in plan.steps if e.step_type == "storage_fetch")
         assert fetch_step.step_type == "storage_fetch"
         assert fetch_step.status == "done"
         assert fetch_step.result["fetched"][0]["status"] == "found"
@@ -182,7 +184,10 @@ class TestOrchestratorExecution:
         orch = Orchestrator(MockStorage(), MockRetriever())
         plan = await orch.execute(intent, context)
 
-        fetch_step = plan.steps[0]
+        # D68 : la recherche precede desormais TOUTE etape, y compris quand
+        # l'Analyseur a juge qu'elle etait inutile. Ce test porte sur l'etape
+        # suivante, pas sur sa position : on la designe par son type.
+        fetch_step = next(e for e in plan.steps if e.step_type == "storage_fetch")
         assert fetch_step.result["fetched"][0]["status"] == "not_found"
 
 
@@ -276,9 +281,9 @@ class TestOrchestratorMCPToolPlaceholder:
         orch = Orchestrator(MockStorage(), MockRetriever())
         plan = await orch.execute(intent, context)
 
-        assert len(plan.steps) == 1
-        assert plan.steps[0].step_type == "mcp_tool"
-        assert plan.steps[0].result["status"] == "not_implemented"
+        # D68 : une etape `rag_search` precede desormais l'etape MCP.
+        mcp = next(e for e in plan.steps if e.step_type == "mcp_tool")
+        assert mcp.result["status"] == "not_implemented"
 
     @pytest.mark.asyncio
     async def test_execution_time_measured(self, context, sample_results):

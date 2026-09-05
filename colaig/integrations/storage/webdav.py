@@ -75,7 +75,26 @@ class WebDAVStorage:
             return path
         from colaig.security.path_validator import validate_storage_path
         path = validate_storage_path(path, allow_dotcolaig=True, context="webdav")
-        return f"{self._base_url}/{path.lstrip('/')}"
+
+        # UN NOM DE FICHIER N'EST PAS UNE URL.
+        #
+        # Le chemin arrive ici sous sa forme LOGIQUE — produit par `paths.py`, ou rendu
+        # par `_parse_propfind`, qui applique `unquote()` sur le `href`. Le recoller tel
+        # quel dans une URL cassait l'aller-retour :
+        #
+        #   « note #2.pdf » etait liste correctement, puis redemande avec un « # » qui
+        #   ouvre un FRAGMENT — le serveur ne recevait que « note » et rendait 404.
+        #
+        # Idem pour « ? », qui ouvre une chaine de requete, et « % », qui amorce une
+        # sequence d'echappement. Ces trois-la ne changent pas les octets du chemin :
+        # ils changent la GRAMMAIRE de l'URL, donc ce que le serveur croit qu'on lui
+        # demande. C'est pourquoi le defaut ne se voit qu'avec un vrai nom de fichier,
+        # ecrit par un humain — accents et espaces, eux, passaient deja.
+        #
+        # `safe="/"` : les separateurs restent des separateurs. Les encoder
+        # transformerait une arborescence en un seul nom de fichier.
+        from urllib.parse import quote
+        return f"{self._base_url}/{quote(path.lstrip('/'), safe='/')}"
 
     async def _request_with_retry(
         self,

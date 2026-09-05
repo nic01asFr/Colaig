@@ -8,15 +8,12 @@ chaque opération sans appel réseau réel.
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from colaig.exceptions import StorageAuthError, StorageError, StorageFileNotFoundError
-from colaig.integrations.storage.msgraph import MicrosoftGraphStorage, _GRAPH_BASE
-from colaig.models import StorageFile
-
+from colaig.integrations.storage.msgraph import _GRAPH_BASE, MicrosoftGraphStorage
 
 # =============================================================================
 # Fixtures

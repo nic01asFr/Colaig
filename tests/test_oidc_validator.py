@@ -1,7 +1,5 @@
 """Tests pour OIDCValidator — validation JWT RS256 via JWKS."""
 
-import asyncio
-import json
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -9,7 +7,6 @@ import pytest
 
 from colaig.auth.oidc_validator import OIDCValidationError, OIDCValidator
 from colaig.auth.tokens import TokenContext
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -332,13 +329,13 @@ class TestPlatformPolicy:
             "platform_policy:\n"
             "  allowed_storage_backends: [webdav, bigfolder]\n"
             "  allowed_llm_endpoints:\n"
-            "    - https://albert-api.etalab.gouv.fr\n"
+            "    - https://albert.api.etalab.gouv.fr\n"
             "  allowed_mcp_auth_modes: [token, oidc]\n"
             "  enforce_mcp_auth: true\n"
         )
         policy = load_platform_policy(yml)
         assert policy.allowed_storage_backends == ["webdav", "bigfolder"]
-        assert policy.allowed_llm_endpoints == ["https://albert-api.etalab.gouv.fr"]
+        assert policy.allowed_llm_endpoints == ["https://albert.api.etalab.gouv.fr"]
         assert policy.allowed_mcp_auth_modes == ["token", "oidc"]
         assert policy.enforce_mcp_auth is True
 
@@ -379,7 +376,7 @@ class TestPlatformPolicy:
         from colaig.models import ColaigConfig, PlatformPolicy
 
         policy = PlatformPolicy(
-            allowed_llm_endpoints=["https://albert-api.etalab.gouv.fr"]
+            allowed_llm_endpoints=["https://albert.api.etalab.gouv.fr"]
         )
         config = ColaigConfig(albert_api_url="https://api.openai.com")
 
@@ -391,9 +388,9 @@ class TestPlatformPolicy:
         from colaig.models import ColaigConfig, PlatformPolicy
 
         policy = PlatformPolicy(
-            allowed_llm_endpoints=["https://albert-api.etalab.gouv.fr"]
+            allowed_llm_endpoints=["https://albert.api.etalab.gouv.fr"]
         )
-        config = ColaigConfig(albert_api_url="https://albert-api.etalab.gouv.fr/v1")
+        config = ColaigConfig(albert_api_url="https://albert.api.etalab.gouv.fr/v1")
         # Préfixe match → OK
         validate_client_against_policy("client-ok", config, policy)
 

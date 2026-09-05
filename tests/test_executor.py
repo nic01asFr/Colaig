@@ -1,10 +1,48 @@
 """Tests — tasks/executor.py (Phase 6)"""
 
 import asyncio
+
 import pytest
 
-from colaig.tasks.executor import TaskExecutor
 from colaig.models import TaskHandle
+from colaig.tasks.executor import TaskExecutor
+
+
+async def attendre(condition, delai_max: float = 5.0) -> None:
+    """Attend qu'une condition soit vraie, plutôt qu'une durée d'horloge.
+
+    POURQUOI CE HELPER EXISTE
+    --------------------------
+    Ces tests dormaient un temps fixe — `await asyncio.sleep(0.15)` — puis vérifiaient
+    que le travail était fait.
+
+    Ce qui a été OBSERVÉ, le 24/08/2026 : `test_sequential_within_conversation` a échoué
+    une fois en suite complète, sur une exécution à 93 s au lieu de 30, concomitante
+    d'une mesure LLM en tâche de fond. Il a repassé isolément immédiatement après.
+
+    Ce qui n'a PAS été établi : la cause. Quatre tentatives de reproduction — le test
+    seul sous charge processeur, la suite complète deux fois à vitesse normale, la suite
+    complète sous forte charge à 79 s — sont toutes vertes. L'explication « la boucle
+    d'événements n'a pas rendu la main assez vite » est **plausible et non démontrée**,
+    et elle est écrite ici comme telle.
+
+    Pourquoi corriger quand même. Un test qui échoue une fois sur vingt sans qu'on sache
+    pourquoi est le pire cas : on finit par accuser la CI plutôt que le code, et le jour
+    où un vrai défaut s'y ajoute, personne ne le voit. C'est mot pour mot ce que
+    `tests/CLAUDE.md` interdit.
+
+    Attendre une **condition** plutôt qu'une durée retire la question : le test converge,
+    ou il échoue au bout d'un délai franchement dimensionné — et cet échec-là voudra dire
+    quelque chose.
+    """
+    echeance = asyncio.get_running_loop().time() + delai_max
+    while not condition():
+        if asyncio.get_running_loop().time() > echeance:
+            raise AssertionError(
+                f"condition non atteinte en {delai_max} s — ce n'est pas de la lenteur, "
+                "c'est un défaut"
+            )
+        await asyncio.sleep(0.005)
 
 
 class TestTaskExecutor:
@@ -35,8 +73,7 @@ class TestTaskExecutor:
             results.append(result)
 
         handle = await executor.submit(work(), "task-1", "conv-1", on_complete=on_complete)
-        # Attendre que la tâche se termine
-        await asyncio.sleep(0.05)
+        await attendre(lambda: handle.status == "done")
         assert results == ["résultat"]
         assert handle.status == "done"
 
@@ -52,7 +89,7 @@ class TestTaskExecutor:
             errors.append(exc)
 
         handle = await executor.submit(work(), "task-1", "conv-1", on_error=on_error)
-        await asyncio.sleep(0.05)
+        await attendre(lambda: handle.status == "error")
         assert len(errors) == 1
         assert isinstance(errors[0], ValueError)
         assert handle.status == "error"
@@ -68,12 +105,13 @@ class TestTaskExecutor:
                 order.append(value)
             return work()
 
-        handle1 = await executor.submit(await make_work(1, 0.02), "t1", "conv-A")
-        handle2 = await executor.submit(await make_work(2, 0.01), "t2", "conv-A")
-        handle3 = await executor.submit(await make_work(3, 0.0), "t3", "conv-A")
+        await executor.submit(await make_work(1, 0.02), "t1", "conv-A")
+        await executor.submit(await make_work(2, 0.01), "t2", "conv-A")
+        await executor.submit(await make_work(3, 0.0), "t3", "conv-A")
 
-        await asyncio.sleep(0.15)
-        # Mêmes conv → séquentiels
+        # Les temporisations sont décroissantes A DESSEIN : sans séquencement, la
+        # troisième tâche finirait la première et l'ordre serait [3, 2, 1].
+        await attendre(lambda: len(order) == 3)
         assert order == [1, 2, 3]
 
     @pytest.mark.asyncio
@@ -90,9 +128,12 @@ class TestTaskExecutor:
         await executor.submit(await make_work("conv-A", 0.05), "t1", "conv-A")
         await executor.submit(await make_work("conv-B", 0.05), "t2", "conv-B")
 
-        await asyncio.sleep(0.02)
-        # Les deux doivent avoir démarré (parallèles)
-        assert len(started) == 2
+        # Les deux démarrent AVANT que l'une des deux ne se termine : c'est ce qui
+        # distingue le parallélisme d'un simple enchaînement rapide. Chaque tâche dort
+        # 0,05 s après avoir signalé son démarrage — si le séquencement s'appliquait
+        # entre conversations, `started` n'en contiendrait qu'une pendant ce temps.
+        await attendre(lambda: len(started) == 2)
+        assert set(started) == {"conv-A", "conv-B"}
 
     @pytest.mark.asyncio
     async def test_multiple_tasks_same_conv(self):
@@ -110,7 +151,7 @@ class TestTaskExecutor:
             h = await executor.submit(await make_work(i), f"t{i}", "conv-1")
             handles.append(h)
 
-        await asyncio.sleep(0.1)
+        await attendre(lambda: all(h.status == "done" for h in handles))
         assert len(done) == 5
         assert all(h.status == "done" for h in handles)
 
@@ -122,7 +163,7 @@ class TestTaskExecutor:
             return 42
 
         handle = await executor.submit(work(), "task-1", "conv-1")
-        await asyncio.sleep(0.05)
+        await attendre(lambda: handle.status == "done")
         assert handle.status == "done"
 
     @pytest.mark.asyncio

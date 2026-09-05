@@ -225,7 +225,7 @@ class ClientProvisioner:
         self,
         client_id: str,
         base_url: str = "",
-        albert_api_url: str = "https://albert-api.etalab.gouv.fr",
+        albert_api_url: str = "https://albert.api.etalab.gouv.fr",
         albert_api_key: str = "",
         albert_model_chat: str = "openai/gpt-oss-120b",
         albert_model_embed: str = "BAAI/bge-m3",

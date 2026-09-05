@@ -3,8 +3,12 @@ Tests — Agent Analyseur
 """
 
 import json
+
 import pytest
 
+from colaig.agents.analyser import GREETING_PATTERNS, Analyser
+from colaig.agents.tool_registry import ToolRegistry
+from colaig.exceptions import AnalysisError
 from colaig.models import (
     ChatCompletionResult,
     ContextMode,
@@ -12,16 +16,12 @@ from colaig.models import (
     IncomingMessage,
     IntentType,
     PreExecutionCard,
-    SearchDirectives,
     ToolCall,
     ToolDefinition,
     ToolParameter,
     WorkspaceConfig,
     WorkspaceContext,
 )
-from colaig.agents.analyser import Analyser, GREETING_PATTERNS
-from colaig.agents.tool_registry import ToolRegistry
-from colaig.exceptions import AnalysisError
 from tests.conftest import MockAlbertClient, MockStorage
 
 

@@ -45,6 +45,32 @@ from colaig.models import (
     ToolResult,
     WorkspaceContext,
 )
+from colaig.security.actions import est_destructif
+from colaig.security.confirmation import attentes_en_cours
+from colaig.security.mcp_policy import connecteurs_autorises, politique_instance
+from colaig.security.wrap import CONSIGNE, baliser, formater_skills
+
+
+def _annotations(entry) -> dict:
+    """Les annotations MCP d'un outil, quand il en porte.
+
+    Un outil integre n'en a pas : `est_destructif` le classe alors par son nom.
+    """
+    if not entry:
+        return {}
+    return getattr(entry[0], "annotations", None) or {}
+
+
+def _connecteurs(workspace):
+    """Les serveurs MCP de cet espace QUE LA POLITIQUE D'INSTANCE ADMET.
+
+    `mcp_connectors` vient du `config.yaml` de l'espace : qui y ecrit branche un
+    serveur distant dont Colaig appellerait les outils. Le montage releve d'une
+    decision d'instance, jamais d'espace (L2.2).
+    """
+    return connecteurs_autorises(
+        getattr(workspace, "mcp_connectors", None), politique_instance()
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +88,20 @@ Requête : {query}
 """
 
 
+def _sans_doublon(resultats: list) -> list:
+    """Un meme passage servi par deux requetes ne prend pas deux places."""
+    vus: set = set()
+    gardes = []
+    for r in resultats:
+        chunk = getattr(r, "chunk", None)
+        cle = (getattr(chunk, "source_path", ""), getattr(chunk, "position", -1))
+        if cle in vus:
+            continue
+        vus.add(cle)
+        gardes.append(r)
+    return gardes
+
+
 class Orchestrator:
     """Agent Orchestrateur — boucle agentique ou coordination déterministe.
 
@@ -71,7 +111,7 @@ class Orchestrator:
     Args:
         storage: Backend de stockage (StorageProtocol).
         retriever: Service de recherche RAG (RetrieverProtocol).
-        albert: Client Albert API (AlbertClientProtocol) — requis pour mode agentique.
+        albert: Client Albert API (LLMClientProtocol) — requis pour mode agentique.
         tool_registry: Registre des outils (ToolRegistry) — requis pour mode agentique.
         max_iterations: Nombre max d'itérations de la boucle agentique (défaut : 5).
         temperature: Température LLM pour l'orchestrateur agentique.
@@ -95,6 +135,7 @@ class Orchestrator:
         index_registry=None,           # FaissIndexRegistry — auto-discovery intra-fédération
         workspace_directory=None,      # WorkspaceDirectory — routage sémantique cross-workspace
         admin_user_ids=None,           # list[str] — users autorisés à administrer en DM (réflexif)
+        retrait_outils_hors_plan: bool = True,  # L2.5b — voir `_filter_registry_for_intent`
     ) -> None:
         self._storage = storage
         self._retriever = retriever
@@ -111,6 +152,47 @@ class Orchestrator:
         self._index_registry = index_registry          # FaissIndexRegistry | None
         self._workspace_directory = workspace_directory  # WorkspaceDirectory | None
         self._admin_user_ids = admin_user_ids or []      # administration réflexive (DM admin)
+        self._retrait_outils_hors_plan = retrait_outils_hors_plan
+
+    def _index_de_l_espace(self, context) -> tuple:
+        """Rend (index vectoriel, index lexical) de l'espace courant, ou (None, None).
+
+        POURQUOI CETTE METHODE
+        ----------------------
+        Deux chemins cherchent dans le corpus : la recherche du plan
+        (`_execute_rag_search`) et l'outil `search_documents` que le modele appelle
+        lui-meme. Le premier passait le store vectoriel et oubliait l'index lexical ;
+        le second oubliait les deux moities de la question. `retrieve()` n'active la
+        fusion RRF que si `bm25_store` lui parvient : `COLAIG_HYBRID_SEARCH_ENABLED`
+        etait donc sans effet sur le pipeline agent, index BM25 construit et persiste
+        compris.
+
+        Les deux chemins passent desormais par ici — un seul endroit a corriger la
+        prochaine fois.
+        """
+        ws = getattr(context, "workspace", None)
+        if ws is None:
+            return None, None
+        vectoriel = (self._workspace_stores or {}).get(ws.workspace_id)
+        lexical = (self._bm25_stores or {}).get(ws.workspace_id)
+        return vectoriel, lexical
+
+    def _handler_de_recherche(self, context, question_posee: str = ""):
+        """Handler `search_documents` lie aux index de l'espace, ou None.
+
+        C'EST LE SEUL CHEMIN EMPRUNTE EN SERVICE. `execute()` bascule sur
+        `_execute_agentic` des que l'orchestrateur a un client LLM et un registre
+        d'outils — le cas de l'instance — et `_execute_rag_search` n'y est jamais
+        appele. Releve sur le journal du service le 05/09/2026, 1079 echanges :
+        17043 passages servis, dont 17043 par cet outil et zero par la recherche du
+        plan. Toute correction de la recherche doit passer ici.
+        """
+        vectoriel, lexical = self._index_de_l_espace(context)
+        if vectoriel is None:
+            return None
+        from colaig.agents.tools.rag_tools import create_search_handler
+        return create_search_handler(self._retriever, store=vectoriel, bm25_store=lexical,
+                                     question_posee=question_posee)
 
     @property
     def is_agentic(self) -> bool:
@@ -169,6 +251,9 @@ class Orchestrator:
             self._storage,
             context.workspace,
             "orchestrator",
+            # Le prompt de l espace accompagne celui du role : ses regles — dont
+            # le protocole de refus — vivent la, et se perdaient (30/08/2026).
+            prompt_espace=context.system_prompt,
             directives=intent.orchestrator_directives,
             selected_skills=pre_exec.selected_skills if pre_exec else None,
         )
@@ -187,22 +272,29 @@ class Orchestrator:
         else:
             available_tools = self._tool_registry.filter_by_names(agent_ctx.available_tools)
 
-        # Navigation contextuelle post-Intent : second filtrage basé sur l'intention analysée
-        # Réduit le ToolRegistry au sous-ensemble pertinent (Principe 1 — Couche 1)
-        available_tools = self._filter_registry_for_intent(available_tools, intent)
+        # LE FILTRE PAR INTENTION EST APPLIQUE PLUS BAS, APRES TOUS LES `register`.
+        #
+        # Il était appelé ici, au milieu de la construction du catalogue — donc **avant**
+        # six enregistrements qui lui échappaient : le handler de recherche isolé,
+        # `ask_workspace`, `find_workspace`, `create_background_task`, les outils
+        # d'administration et les outils MCP.
+        #
+        # Mesuré (L2.5c) : en mode PERSONAL, avec `needs_tools=False`, le modèle recevait
+        # `create_background_task` — un destructif, qui fait exécuter une requête plus
+        # tard, sans témoin. La garde de L2.5b portait sur un état intermédiaire qui
+        # n'était plus celui qu'on transmettait.
+        #
+        # Le cas s'aggrave au lot L3.4 : un outil MCP sans annotation compte pour
+        # destructif (spécification MCP), et ils sont enregistrés dynamiquement.
 
-        # Isolation workspace : remplacer search_documents par un handler lié au store du workspace
-        if self._workspace_stores and context.workspace:
-            ws_store = self._workspace_stores.get(context.workspace.workspace_id)
-            if ws_store is not None and available_tools.get("search_documents"):
-                from colaig.agents.tools.rag_tools import (
-                    SEARCH_DOCUMENTS_DEFINITION,
-                    create_search_handler,
-                )
-                available_tools.register(
-                    SEARCH_DOCUMENTS_DEFINITION,
-                    create_search_handler(self._retriever, store=ws_store),
-                )
+        # Isolation workspace : remplacer search_documents par un handler lié aux
+        # index de l'espace — vectoriel ET lexical (voir `_index_de_l_espace`).
+        if available_tools.get("search_documents"):
+            handler = self._handler_de_recherche(
+                context, question_posee=getattr(intent, "query_posee", "") or "")
+            if handler is not None:
+                from colaig.agents.tools.rag_tools import SEARCH_DOCUMENTS_DEFINITION
+                available_tools.register(SEARCH_DOCUMENTS_DEFINITION, handler)
 
         # Délégation inter-workspace : injecter ask_workspace avec le user_id courant.
         # Mode PERSONAL : l'agent DM peut interroger tous les workspaces accessibles.
@@ -211,7 +303,7 @@ class Orchestrator:
         _ws_has_connectors = (
             context.mode == ContextMode.ASSISTANT
             and context.workspace is not None
-            and bool(context.workspace.mcp_connectors)
+            and bool(_connecteurs(context.workspace))
         )
         if (
             (context.mode == ContextMode.PERSONAL or _ws_has_connectors)
@@ -313,10 +405,10 @@ class Orchestrator:
         _mcp_instructions: list[str] = []
         if (
             context.workspace is not None
-            and context.workspace.mcp_connectors
+            and _connecteurs(context.workspace)
         ):
             from colaig.integrations.mcp_connector import MCPConnectorClient
-            for connector in context.workspace.mcp_connectors:
+            for connector in _connecteurs(context.workspace):
                 if not connector.enabled or not connector.expose_tools:
                     continue
                 try:
@@ -328,7 +420,8 @@ class Orchestrator:
                     instructions = await client.get_server_instructions()
                     if instructions:
                         _mcp_instructions.append(
-                            f"### {connector.name}\n{instructions.strip()}"
+                            baliser(instructions.strip(), source=connector.name,
+                                    nature="serveur-mcp")
                         )
                 except Exception:
                     logger.warning(
@@ -336,12 +429,27 @@ class Orchestrator:
                         connector.name, exc_info=True,
                     )
 
-        # C4 — Injecter les instructions des serveurs MCP dans le system prompt de l'agent
+        # C4 — Indications des serveurs MCP connectés.
+        #
+        # Ce texte vient du champ `instructions` du handshake MCP, donc d'un TIERS
+        # RÉSEAU. Il était concaténé au message system sous le titre « Instructions des
+        # serveurs MCP connectés » : un serveur distant obtenait ainsi l'autorité du
+        # système, sans qu'aucune balise ne signale son origine. Le principe 4 de
+        # `CLAUDE.md` ne souffre pas d'exception pour MCP — il le nomme explicitement.
+        #
+        # Le texte reste transmis, car il porte une information utile (ce que le serveur
+        # sait faire), mais comme DONNÉE : balisé, et sous un titre qui ne lui confère
+        # plus le statut d'instruction (L2.1).
         if _mcp_instructions and agent_ctx is not None:
             agent_ctx.system_prompt += (
-                "\n\n## Instructions des serveurs MCP connectés\n"
+                "\n\n## Indications fournies par les serveurs MCP connectés\n"
+                + CONSIGNE + "\n\n"
                 + "\n\n".join(_mcp_instructions)
             )
+
+        # Navigation contextuelle post-Intent (Principe 1 — Couche 1), appliquée ICI :
+        # le catalogue est complet, et c'est celui-ci qui part au modèle.
+        available_tools = self._filter_registry_for_intent(available_tools, intent)
 
         tool_schemas = available_tools.list_openai_schemas()
 
@@ -445,8 +553,16 @@ class Orchestrator:
                     },
                 })
 
-                # Message de résultat
-                content = tool_result.result if tool_result.success else f"Erreur : {tool_result.error}"
+                # Message de résultat.
+                #
+                # Point de passage central : TOUS les résultats transitent ici — MCP
+                # externes, stockage, RAG, skills, délégation. Ils y entraient bruts, et
+                # un `role: "tool"` se lit comme une observation du système alors que
+                # c'est la parole d'un tiers. Baliser ici couvre les cinq familles d'un
+                # coup, à un seul endroit (L2.1).
+                brut = (tool_result.result if tool_result.success
+                        else f"Erreur : {tool_result.error}")
+                content = baliser(str(brut), source=tool_call.tool_name, nature="outil")
                 tool_results_messages.append({
                     "role": "tool",
                     "tool_call_id": tool_call.call_id or f"call_{len(plan.steps)}",
@@ -476,10 +592,38 @@ class Orchestrator:
         Appelé après le filtrage large de PreExecutionBuilder (pré-intent).
 
         Règles appliquées :
+        - orchestrator_directives.tools_to_use spécifié → restreindre à cette liste
+        - needs_tools=False → retirer tous les outils DESTRUCTIFS (L2.5b, voir ci-dessous)
         - needs_rag=False → retirer tous les outils de recherche documentaire
         - IntentType.SUMMARY → garder fetch_document + summarize_text uniquement
-        - orchestrator_directives.tools_to_use spécifié → restreindre à cette liste
         - assess_completion toujours conservé (méta-outil de contrôle de boucle)
+
+        POURQUOI `needs_tools` EST HONORÉ ICI (L2.5b)
+        -----------------------------------------------
+        L2.5 a mesuré que la consigne ne suffit pas : 1/21 attaques aboutissent encore
+        après durcissement, et celle qui résiste passe 3 tirages sur 3 alors que la
+        consigne **nomme sa technique**. Nommer une technique ne la défait pas.
+
+        L'Analyseur produit déjà `needs_tools` — il a jugé si un outil est nécessaire.
+        Cette fonction honorait `needs_rag` et `tools_to_use`, et **jamais**
+        `needs_tools` : une question documentaire ordinaire arrivait donc au modèle avec
+        `create_document`, `manage_workspace_owners` et `report_to_user` au menu, alors
+        que l'Analyseur venait de décider qu'aucun outil n'était requis.
+
+        **On ne résiste pas à la tentation d'un outil absent.**
+
+        La classification destructif/lecteur vient de `security/actions.py` (L2.4a) et
+        n'est PAS réécrite ici — un filtre portant sa propre liste divergerait, comme la
+        fédération l'a fait avec sa seconde liste noire SSRF, plus faible de six
+        contournements (L2.6f). Un test de contrat refuse toute seconde classification.
+
+        Les lecteurs restent : sans eux, une question documentaire n'obtient plus de
+        réponse, et une garde qui casse l'usage se fait retirer.
+
+        Cette garde **ne remplace pas** la confirmation de L2.4. Elle réduit la surface
+        AVANT l'appel ; L2.4 suspend l'appel qui subsiste. Un `needs_tools=True` obtenu
+        par une consigne injectée fait revenir le catalogue — c'est alors L2.4 qui
+        décide.
 
         Args:
             available_tools: ToolRegistry après filtrage pré-intent.
@@ -504,9 +648,31 @@ class Orchestrator:
 
         remove: set[str] = set()
 
-        # Pas de RAG nécessaire → retirer tous les outils de recherche
-        if not intent.needs_rag:
-            remove.update(SEARCH_TOOLS)
+        # L'Analyseur n'a prévu aucun outil → ne transmettre aucun destructif.
+        # Le flag `retrait_outils_hors_plan` diverge du défaut en vigueur dans
+        # `config.py`, où tous les `COLAIG_*_ENABLED` défaillent à OFF. C'est le bon
+        # sens pour un ajout de fonction ; celui-ci est une RESTRICTION, dont le sens
+        # sûr est l'inverse. L2.2 a pris la même liberté pour la liste blanche MCP.
+        if self._retrait_outils_hors_plan and not intent.needs_tools:
+            from colaig.security.actions import est_destructif
+            remove.update(
+                n for n in available_tools.names()
+                if n not in ALWAYS_KEEP and est_destructif(n)
+            )
+
+        # LES OUTILS DE RECHERCHE RESTENT TOUJOURS DISPONIBLES (D68).
+        #
+        # On retirait ici SEARCH_TOOLS quand `needs_rag` valait faux. L'Analyseur
+        # decidait donc si le corpus valait d'etre consulte SANS L'AVOIR CONSULTE —
+        # une prediction la ou un fait est disponible.
+        #
+        # La porte ne protegeait rien : mesure du 30/08/2026 sur la pile de
+        # production, 1,6 ms de recherche mediane et 0 ms d'embedding en cache,
+        # contre ~1000 ms de generation. Elle coutait en revanche des refus — 4,9 %
+        # des cas refusent alors que le passage etait disponible.
+        #
+        # `needs_rag` reste produit et journalise : il devient une OBSERVATION de
+        # l'Analyseur, plus une decision.
 
         # Résumé → fetch + summarize suffisent, pas besoin d'exploration indexée
         if intent.intent_type == IntentType.SUMMARY:
@@ -583,10 +749,15 @@ class Orchestrator:
 
         # Ajouter les skills du workspace si présents
         if agent_ctx.skills:
-            skills_text = "\n\nRessources disponibles (workspace) :\n"
-            for skill in agent_ctx.skills[:3]:  # Max 3 skills pour token budget
-                skills_text += f"\n### {skill['name']}\n{skill['content'][:500]}\n"
-            system += skills_text
+            # Deuxième mise en forme des skills du dépôt — l'orchestrateur en prenait
+            # trois, tronqués à 500 caractères pour le budget de jetons ; le
+            # synthétiseur les prenait tous, entiers. Les deux formes subsistent, mais
+            # le balisage n'est plus écrit deux fois (L2.1).
+            system += (
+                "\n\nRessources disponibles (déposées sur l'espace) :\n"
+                + CONSIGNE + "\n\n"
+                + formater_skills(agent_ctx.skills[:3], taille_max=500)
+            )
 
         # Couche 0 — Artefacts déjà connus (Principe 0 : éviter les re-retrievals)
         # Les ContextAnchors de la trame signalent les documents trouvés aux tours précédents
@@ -639,7 +810,7 @@ class Orchestrator:
             defn = entry[0]
             if defn.category == "mcp_external" and context.workspace:
                 # Déterminer le session_id selon le scope configuré
-                for connector in (context.workspace.mcp_connectors or []):
+                for connector in _connecteurs(context.workspace):
                     if tool_call.tool_name.startswith(f"{connector.name}__"):
                         if connector.session_scope == "conversation":
                             tool_call.arguments["_session_id"] = getattr(
@@ -648,6 +819,44 @@ class Orchestrator:
                         elif connector.session_scope == "user":
                             tool_call.arguments["_session_id"] = context.user_id or ""
                         break
+
+        # ── CONFIRMATION D'UN APPEL DESTRUCTIF (L2.4b) ──────────────────────
+        #
+        # La menace n'est pas la presence de l'outil, c'est son appel NON VOULU —
+        # declenche par une consigne deposee dans un document. La decision se prend
+        # donc par APPEL, pas par instance (D47).
+        #
+        # L'appel est suspendu et rendu a l'utilisateur. La reponse est reconnue
+        # MECANIQUEMENT dans `handlers.py` : aucun modele ne decide de ce qui vaut
+        # confirmation, sinon l'attaquant fabriquerait la sienne.
+        if est_destructif(tool_call.tool_name, _annotations(entry)):
+            conversation = getattr(context, "conversation_id", "") or ""
+            # Un accord deja donne laisse passer — a usage unique, borne a cet outil et
+            # a ce salon. Sans cela l'utilisateur bouclerait : il confirme, reformule,
+            # on suspend a nouveau.
+            if attentes_en_cours().consommer_accord(conversation, tool_call.tool_name):
+                logger.info(
+                    "outil destructif execute sur accord : %s (conversation %s)",
+                    tool_call.tool_name, conversation,
+                )
+                return await available_tools.execute(tool_call)
+
+            question = attentes_en_cours().poser(
+                conversation, tool_call.tool_name, tool_call.arguments,
+            )
+            logger.info(
+                "outil destructif suspendu : %s (conversation %s)",
+                tool_call.tool_name, conversation,
+            )
+            return ToolResult(
+                tool_name=tool_call.tool_name,
+                success=False,
+                error=(
+                    "action suspendue : elle modifie quelque chose et attend l'accord "
+                    "explicite de l'utilisateur. NE PAS reessayer, NE PAS contourner "
+                    "par un autre outil. " + question
+                ),
+            )
 
         tool_result = await available_tools.execute(tool_call)
 
@@ -694,6 +903,9 @@ class Orchestrator:
             self._storage,
             context.workspace,
             "orchestrator",
+            # Le prompt de l espace accompagne celui du role : ses regles — dont
+            # le protocole de refus — vivent la, et se perdaient (30/08/2026).
+            prompt_espace=context.system_prompt,
             directives=intent.orchestrator_directives,
         )
 
@@ -727,15 +939,17 @@ class Orchestrator:
         if intent.intent_type == IntentType.GREETING and not intent.needs_rag:
             return steps
 
-        if intent.needs_rag:
-            strategy = ""
-            if intent.orchestrator_directives:
-                strategy = intent.orchestrator_directives.search_strategy
-            steps.append(ExecutionStep(
-                step_type="rag_search",
-                description="Recherche documentaire RAG",
-                params={"query": intent.query_reformulated or "", "strategy": strategy},
-            ))
+        # CHERCHER TOUJOURS (D68) — la salutation pure est deja sortie ci-dessus.
+        # Le resultat de la recherche est un meilleur guide que la prediction qui
+        # la precedait : c'est un fait observe, pas un pari.
+        strategy = ""
+        if intent.orchestrator_directives:
+            strategy = intent.orchestrator_directives.search_strategy
+        steps.append(ExecutionStep(
+            step_type="rag_search",
+            description="Recherche documentaire RAG",
+            params={"query": intent.query_reformulated or "", "strategy": strategy},
+        ))
 
         if intent.orchestrator_directives:
             resources = intent.orchestrator_directives.resources_to_target
@@ -787,13 +1001,38 @@ class Orchestrator:
         k = context.workspace.max_results if context.workspace else 5
         threshold = context.workspace.similarity_threshold if context.workspace else 0.3
 
-        retrieve_kwargs: dict = dict(query=query, k=k, score_threshold=threshold)
-        # Isolation par workspace : utiliser le store spécifique si disponible
-        if self._workspace_stores and context.workspace:
-            ws_store = self._workspace_stores.get(context.workspace.workspace_id)
-            if ws_store is not None:
-                retrieve_kwargs["store"] = ws_store
-        results = await self._retriever.retrieve(**retrieve_kwargs)
+        # LA QUESTION POSEE EST TOUJOURS L'UNE DES REQUETES.
+        #
+        # `query` vient de `intent.query_reformulated` — une chaine ECRITE PAR LE LLM a
+        # chaque tour. Tant qu'elle etait la seule, la recherche heritait entierement de
+        # l'instabilite du modele qui la formulait. Six campagnes du 04-05/09/2026 sur
+        # le service, jugees au grain du passage :
+        #
+        #     article attendu TOUJOURS servi   51
+        #     servi PARFOIS                    53      <-- un cas sur deux
+        #     JAMAIS servi                      9
+        #
+        # Le probleme n'etait pas que la recherche ne trouve pas, c'est qu'elle trouvait
+        # une fois sur deux. La question de l'usager, elle, ne servait JAMAIS de requete.
+        #
+        # Le socle s'ajoute a la reformulation, il ne la remplace pas : celle-ci apporte
+        # le vocabulaire du domaine la ou l'usager emploie le sien.
+        posee = (getattr(plan.intent, "query_posee", "") or "").strip()
+        requetes = [query] + ([posee] if posee and posee != query else [])
+
+        vectoriel, lexical = self._index_de_l_espace(context)
+        kwargs: dict = dict(k=k, score_threshold=threshold)
+        if vectoriel is not None:
+            kwargs["store"] = vectoriel
+        if lexical is not None:
+            kwargs["bm25_store"] = lexical
+
+        if len(requetes) == 1:
+            results = await self._retriever.retrieve(requetes[0], **kwargs)
+        else:
+            # `retrieve_many` groupe la VECTORISATION : deux requetes, un aller-retour.
+            trouves = await self._retriever.retrieve_many(requetes, **kwargs)
+            results = _sans_doublon([r for lot in trouves for r in lot])
         plan.search_results.extend(results)
         step.result = {
             "count": len(results),

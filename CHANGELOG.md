@@ -39,4 +39,4 @@ multi-tenant, déployable en un container (ou sur Onyxia/SSP Cloud).
 - 7 backends storage, 4 familles LLM (fallback), 3 canaux messaging.
 - Mémoire conversationnelle + par utilisateur, tâches autonomes, fédération.
 
-[1.0.0]: https://github.com/CEREMA/colaig/releases/tag/v1.0.0
+[1.0.0]: https://github.com/<organisation>/colaig/releases/tag/v1.0.0

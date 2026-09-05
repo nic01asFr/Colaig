@@ -1,7 +1,6 @@
 """Tests de ChunkContextualizer — contextualisation LLM des chunks à l'indexation."""
 
 from unittest.mock import AsyncMock, MagicMock
-from dataclasses import replace
 
 import pytest
 

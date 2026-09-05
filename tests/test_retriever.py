@@ -1,13 +1,11 @@
 """Tests pour colaig/rag/retriever.py — Recherche hybride."""
 
-import pytest
 import numpy as np
 
-from colaig.rag.retriever import Retriever, _mmr_rerank
-from colaig.rag.faiss_store import FaissStore
-from colaig.rag.embeddings import EmbeddingService
 from colaig.models import DocumentChunk, SearchResult
-
+from colaig.rag.embeddings import EmbeddingService
+from colaig.rag.faiss_store import FaissStore
+from colaig.rag.retriever import Retriever, _mmr_rerank
 
 DIM = 64
 

@@ -1,0 +1,29 @@
+
+========================================================================
+LA TRAME RESOUT-ELLE UNE QUESTION ELLIPTIQUE ?
+========================================================================
+
+explicite    : sujet retrouve 8/8 — 100.0% (sigma 0.0%)
+sans_trame   : sujet retrouve 0/8 — 0.0% (sigma 0.0%)
+ref_seule    : sujet retrouve 0/8 — 0.0% (sigma 0.0%)
+avec_trame   : sujet retrouve 8/8 — 100.0% (sigma 0.0%)
+
+Apport de la trame : +100.0%
+
+VERDICT : la trame RESOUT l'ellipse. Elle porte une valeur
+mesurable, a mettre en regard du canal d'injection qu'elle
+ouvre (D52 : 0/8 -> 8/8).
+
+ISSUE 2 DE D52 — ancres reduites a leur reference, sans texte libre :
+  La continuite NE TIENT PAS. C'est le texte libre qui porte
+  le sens : l'issue 2 couterait le benefice de la trame.
+
+Reformulations observees :
+  explicite    Quel est le seuil de montant en dessous duquel la publicité et la mise en concur
+  explicite    Quel est le seuil de valeur en deçà duquel les marchés publics de travaux sont d
+  sans_trame   Quelles sont les dispositions légales et contractuelles relatives aux travaux da
+  sans_trame   Quelles sont les règles applicables aux travaux dans le cadre des marchés public
+  ref_seule    Quelles sont les règles applicables aux travaux dans le cadre des marchés public
+  ref_seule    Quelles sont les règles applicables aux travaux dans le cadre des marchés public
+  avec_trame   Quels sont les seuils de procédure et les règles de publicité pour les marchés d
+  avec_trame   Quels sont les seuils de dispense de publicité et de mise en concurrence pour le

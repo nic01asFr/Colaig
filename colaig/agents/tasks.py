@@ -30,6 +30,7 @@ import secrets
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 
+from colaig import paths
 from colaig.exceptions import StorageFileNotFoundError
 
 logger = logging.getLogger(__name__)
@@ -225,29 +226,29 @@ def is_due(task: TaskDefinition) -> bool:
 
 
 def task_file_path(workspace_path: str, task_id: str) -> str:
-    return f"{workspace_path.rstrip('/')}/.colaig/tasks/{task_id}.json"
+    return paths.task_file(workspace_path, task_id)
 
 
 def session_file_path(workspace_path: str, task_id: str) -> str:
-    return f"{workspace_path.rstrip('/')}/.colaig/tasks/{task_id}/current/session.json"
+    return paths.task_current_file(workspace_path, task_id, "session.json")
 
 
 def plan_file_path(workspace_path: str, task_id: str) -> str:
-    return f"{workspace_path.rstrip('/')}/.colaig/tasks/{task_id}/current/plan.json"
+    return paths.task_current_file(workspace_path, task_id, "plan.json")
 
 
 def subtask_file_path(workspace_path: str, task_id: str, subtask_id: str) -> str:
-    return f"{workspace_path.rstrip('/')}/.colaig/tasks/{task_id}/current/subtasks/{subtask_id}.json"
+    return paths.task_subtask_file(workspace_path, task_id, subtask_id)
 
 
 def run_summary_path(workspace_path: str, task_id: str, run_ts: str) -> str:
     safe = _safe_ts(run_ts)
-    return f"{workspace_path.rstrip('/')}/.colaig/tasks/{task_id}/runs/{safe}/summary.json"
+    return paths.task_run_file(workspace_path, task_id, safe, "summary.json")
 
 
 def run_plan_path(workspace_path: str, task_id: str, run_ts: str) -> str:
     safe = _safe_ts(run_ts)
-    return f"{workspace_path.rstrip('/')}/.colaig/tasks/{task_id}/runs/{safe}/plan.json"
+    return paths.task_run_file(workspace_path, task_id, safe, "plan.json")
 
 
 # =============================================================================
@@ -286,7 +287,7 @@ async def list_tasks(storage, workspace_path: str) -> list[TaskDefinition]:
     Returns:
         Liste de TaskDefinition triée par created_at (plus récent en premier).
     """
-    tasks_dir = f"{workspace_path.rstrip('/')}/.colaig/tasks/"
+    tasks_dir = paths.tasks_dir(workspace_path)
     tasks = []
     try:
         files = await storage.list_files(tasks_dir, recursive=False)

@@ -135,7 +135,17 @@ class IncomingMessage:
     timestamp: datetime = field(default_factory=datetime.utcnow)
     display_name: str = ""       # Nom affiché de l'auteur
     is_reply: bool = False       # Est-ce une réponse à un message
-    reply_to: str = ""           # ID du message auquel on répond (thread)
+    reply_to: str = ""           # ID du message auquel on répond (citation)
+    # Racine du FIL, si le message en fait partie. Vide sinon.
+    #
+    # Distinct de `reply_to`, et la distinction compte : une réponse riche
+    # (`m.in_reply_to`) est une CITATION — on répond à un message précis, dans le flux
+    # du salon. Un fil (`rel_type: m.thread`) est une CONVERSATION SÉPARÉE, qui a sa
+    # propre continuité. Les confondre ferait suivre comme un fil toute réponse citée,
+    # et l'assistant s'inviterait dans des échanges qui ne le concernent pas.
+    #
+    # Le nom reste provider-agnostic : Slack a la même notion sous `thread_ts`.
+    thread_root: str = ""
     platform: str = ""           # Plateforme source (matrix, slack, webchat, mcp)
     attachments: list[Attachment] = field(default_factory=list)
 
@@ -158,6 +168,27 @@ class IncomingMessage:
     @property
     def reply_to_event_id(self) -> str:
         return self.reply_to
+
+
+@dataclass
+class Reaction:
+    """Réaction posée par un tiers sur un message que Colaig a émis.
+
+    Colaig pose lui-même les réactions proposées sous chacune de ses réponses, pour que
+    répondre coûte un seul geste plutôt qu'une recherche dans un sélecteur d'emoji.
+    D'où la règle que le canal applique avant de construire cet objet : **les réactions
+    de Colaig lui-même n'en produisent pas**. Elles sont là par construction ; seul
+    l'ajout d'un tiers porte un signal.
+
+    `horodatage` vient du serveur (`server_timestamp`), jamais de l'horloge locale :
+    c'est une donnée de l'événement, ce qui la rend reproductible en test.
+    """
+    user_id: str                 # Qui a réagi
+    conversation_id: str         # Où
+    message_id: str              # Le message annoté — l'un des NÔTRES
+    emoji: str                   # La clé de l'annotation (`key` dans la spec Matrix)
+    reaction_id: str = ""        # L'événement de réaction lui-même, pour dédoublonner
+    horodatage: int = 0          # Millisecondes serveur
 
 
 # =============================================================================
@@ -373,6 +404,16 @@ class WorkspaceConfig:
     similarity_threshold: float = 0.3
     max_results: int = 5
     priority_documents: list[str] = field(default_factory=list)
+
+    # Garde-fou de provenance (D19) — INACTIF par defaut, et par espace.
+    # Il juge une reponse a l'aune des articles qu'elle cite. Sur un fonds RH ou
+    # une FAQ, aucune reponse n'en cite : actif partout, il les remplacerait toutes
+    # par un refus. Le critere est une propriete du corpus, pas du produit.
+    garde_fou_provenance: bool = False
+    # Grammaire de citation du corpus — noms de `verification_citations.FORMATS_CONNUS`.
+    # Vide = les numeros du Code seuls. « clause » ajoute « 4.1 », que les CCAG
+    # emploient et qui designe ailleurs un taux ou une version.
+    format_citation: list[str] = field(default_factory=list)
 
     # Capacités (Couche 2)
     tools_enabled: list[str] = field(default_factory=list)
@@ -659,6 +700,18 @@ class Intent:
     """
     intent_type: IntentType
     query_reformulated: str = ""   # Question reformulée pour la recherche RAG
+    # LA QUESTION TELLE QU'ELLE A ETE POSEE.
+    #
+    # `query_reformulated` est ECRITE PAR LE LLM a chaque tour. Tant qu'elle etait la
+    # seule requete, la recherche heritait entierement de l'instabilite du modele qui
+    # la formulait : six campagnes du 04-05/09/2026 sur le service donnent, au grain
+    # du passage, 51 cas ou l'article attendu est TOUJOURS servi, 9 ou il ne l'est
+    # JAMAIS, et 53 ou il l'est UNE FOIS SUR DEUX.
+    #
+    # Ce champ porte le socle qui, lui, ne bouge pas d'un tour a l'autre. Il ne
+    # remplace pas la reformulation — celle-ci apporte le vocabulaire du domaine la
+    # ou l'usager emploie le sien — il s'y ajoute.
+    query_posee: str = ""
     entities: dict = field(default_factory=dict)  # Entités extraites (dates, noms, etc.)
     needs_rag: bool = True         # L'orchestrateur doit-il chercher dans les docs ?
     needs_tools: bool = False      # L'orchestrateur doit-il utiliser des outils MCP ?
@@ -1198,11 +1251,20 @@ class PlatformPolicy:
 
     Listes vides = aucune contrainte (tout autorisé).
     """
+    # Serveurs MCP autorises a etre montes (ex: ["https://mcp.interieur.gouv.fr"])
+    #
+    # ATTENTION — ce champ NE SUIT PAS la convention des autres : absent ou vide veut
+    # dire AUCUN, pas TOUS. Les autres bornent ce que l'operateur declare lui-meme ;
+    # celui-ci borne ce que l'utilisateur final ecrit dans son espace, et « absent =
+    # tout autorise » y reproduirait le trou que le lot L2.2 ferme. `["*"]` autorise
+    # tout, explicitement. Voir `colaig/security/mcp_policy.py`.
+    allowed_mcp_servers: list = field(default_factory=list)
+
     # Backends storage autorisés (ex: ["webdav", "bigfolder", "msgraph"])
     # Vide → tout backend autorisé
     allowed_storage_backends: list = field(default_factory=list)
 
-    # URL LLM autorisées (ex: ["https://albert-api.etalab.gouv.fr"])
+    # URL LLM autorisées (ex: ["https://albert.api.etalab.gouv.fr"])
     # Comparaison préfixe — vide → tout endpoint autorisé
     allowed_llm_endpoints: list = field(default_factory=list)
 
@@ -1234,7 +1296,7 @@ class ColaigConfig:
     matrix_password: str = ""
 
     # === LLM : Albert API (défaut souverain) ===
-    albert_api_url: str = "https://albert-api.etalab.gouv.fr"
+    albert_api_url: str = "https://albert.api.etalab.gouv.fr"
     albert_api_key: str = ""
     albert_model_chat: str = "openai/gpt-oss-120b"
     albert_model_embed: str = "BAAI/bge-m3"
@@ -1334,6 +1396,12 @@ class ColaigConfig:
     default_max_results: int = 5
     chunk_size: int = 800
     chunk_overlap: int = 100
+    # « fenetre » (defaut) | « article » | « auto ».
+    #
+    # Mesure sur le service, 04/09/2026 : 45 points de couverture separent la fenetre
+    # (52/113) de l'article (97/113), toutes autres causes eliminees. Le defaut ne
+    # bouge pas — changer le decoupage impose de reindexer — mais il se declare.
+    chunk_strategie: str = "fenetre"
 
     # Polling
     index_refresh_interval_seconds: int = 300  # 5 minutes
@@ -1378,6 +1446,17 @@ class ColaigConfig:
     hyde_query_weight: float = 0.5           # Poids embedding HyDE dans la combinaison (0→1)
     rrf_k_constant: int = 60                 # Constante k du Reciprocal Rank Fusion
     local_embeddings: bool = False           # Fallback embeddings local (SentenceTransformer)
+    # Dimension des vecteurs. DOIT correspondre au modele d'embedding : elle etait
+    # codee en dur a 1024 dans main.py, et tout modele d'une autre taille faisait
+    # echouer l'indexation sur une AssertionError NUE, levee par FAISS.
+    embedding_dimension: int = 1024
+    # Jetons de raisonnement. DESACTIVES par defaut : un modele qui reflechit mieux
+    # mais ne repond pas vaut moins qu'un modele qui repond (releve le 30/08/2026,
+    # « reponse vide, budget de tokens epuise »).
+    llm_enable_thinking: bool = False
+    # Modele d'OCR du fournisseur generique. VIDE PAR DEFAUT : sans lui, la capacite
+    # « ocr » doit rester absente plutot qu'annoncee et defaillante.
+    llm_model_ocr: str = ""
     auto_specialize_enabled: bool = False    # Dériver persona/vocabulaire depuis le corpus (opt-in)
     auto_specialize_apply: bool = False      # Écrire la config dérivée (sinon dry-run = knowledge.json seul)
     daily_request_limit: int = 0             # Quota journalier requêtes LLM par tenant (0 = illimité)
@@ -1395,6 +1474,13 @@ class ColaigConfig:
     base_url: str = ""                  # URL publique de l'instance (ex: https://colaig.org.fr)
                                         # Utilisée pour générer les configs MCP clients
     mcp_auth_enabled: bool = False      # Activer l'auth token sur /mcp (false = pass-through)
+    retrait_outils_hors_plan: bool = True
+                                        # L2.5b — quand l'Analyseur pose needs_tools=False,
+                                        # ne transmettre AUCUN outil destructif au modèle.
+                                        # Défaut ACTIF, à rebours des autres flags : c'est
+                                        # une restriction, dont le sens sûr est l'inverse
+                                        # d'un ajout de fonction. COLAIG_RETRAIT_OUTILS_
+                                        # HORS_PLAN=0 pour revenir en arrière.
     admin_user_ids: list = field(default_factory=list)
                                         # user_ids avec rôle admin (ex: ["@alice:tchap.fr"])
                                         # Miroir de COLAIG_ADMIN_USER_IDS — utilisé pour

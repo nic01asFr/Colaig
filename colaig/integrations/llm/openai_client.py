@@ -2,14 +2,14 @@
 Colaig — OpenAIClient
 
 Client LLM générique pour tout endpoint OpenAI-compatible.
-Implémente LLMClientProtocol (alias AlbertClientProtocol).
+Implémente LLMClientProtocol (alias LLMClientProtocol).
 
 Compatible avec :
     OpenAI           → base_url="https://api.openai.com"
     Mistral AI       → base_url="https://api.mistral.ai"
     Groq             → base_url="https://api.groq.com/openai"
     Together AI      → base_url="https://api.together.xyz"
-    Albert API       → base_url="https://albert-api.etalab.gouv.fr"
+    Albert API       → base_url="https://albert.api.etalab.gouv.fr"
     Tout endpoint OpenAI-compat (LM Studio, vLLM...)
 
 Dépendance : httpx (déjà dans le projet)
@@ -18,6 +18,7 @@ Dépendance : httpx (déjà dans le projet)
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 import random
 import time
@@ -26,10 +27,26 @@ from collections.abc import AsyncIterator
 import httpx
 
 from colaig.exceptions import LLMError, LLMRateLimitError, LLMUnavailableError
+# Le convertisseur PDF vers PNG est deja ecrit et eprouve dans `albert.py`. Une
+# seconde copie divergerait au premier correctif — ce depot a paye cinq fois la
+# copie d'un motif.
+from colaig.integrations.albert import _pdf_pages_to_png
 from colaig.integrations.llm.utils import normalize_tool_call_id as _normalize_id
+from colaig.metrics.quota import enregistrer_usage, verifier_quota
 from colaig.models import ChatCompletionResult, ToolCall
+from colaig.utils.reponses_llm import extraire_contenu
 
 logger = logging.getLogger(__name__)
+
+# Budget de tokens d'une requete de transcription OCR, et nombre de reprises admises
+# quand une page le depasse.
+#
+# Ni l'un ni l'autre n'est une limite du modele : le catalogue de SSPCloud, interroge
+# le 30/08/2026, n'en publie aucune pour `chandra-ocr-2`. Ce sont un budget de requete
+# et un garde-fou de boucle — c'est la REPRISE qui rend la valeur exacte non critique,
+# et c'est pour cela qu'on n'a pas eu a en inventer une (CLAUDE.md racine §4.8).
+_OCR_MAX_TOKENS = 4096
+_OCR_MAX_REPRISES = 4
 
 
 def _backoff_delay(attempt: int) -> float:
@@ -78,8 +95,27 @@ class OpenAIClient:
         embed_max_concurrent: int = 4,
         chat_max_concurrent: int = 4,
         bg_chat_max_concurrent: int = 3,
+        usage_tracker=None,   # UsageTracker | None — quota et comptage par tenant (L2.6)
+        client_id: str = "",  # tenant, pour le quota
+        enable_thinking: bool = False,  # jetons de raisonnement — voir _kwargs_modele
+        model_ocr: str = "",            # vide = capacité `ocr` honnêtement absente
     ) -> None:
         self._api_key = api_key
+        self._enable_thinking = enable_thinking
+        self._model_ocr = model_ocr
+
+        # SANS MODELE, LA CAPACITE EST HONNETEMENT ABSENTE.
+        #
+        # `supporte(client, "ocr")` teste `callable(getattr(client, "ocr", None))`.
+        # Laisser la methode en place sans modele annoncerait donc une capacite qui
+        # echouerait au premier appel — et l'indexeur, qui interroge `supporte()` AVANT
+        # d'appeler, cesserait de sauter proprement le document.
+        #
+        # Ce serait la treizieme « capacite declaree qui ne fait rien » de ce depot, et
+        # la premiere introduite en croyant en corriger une. `self.ocr = None` le dit a
+        # `supporte()` dans son propre langage.
+        if not model_ocr:
+            self.ocr = None
         self._base_url = base_url.rstrip("/")
         self._model_chat = model_chat
         self._model_embed = model_embed
@@ -91,6 +127,8 @@ class OpenAIClient:
         self._embed_semaphore = asyncio.Semaphore(embed_max_concurrent)
         self._chat_semaphore = asyncio.Semaphore(chat_max_concurrent)
         self._bg_chat_semaphore = asyncio.Semaphore(bg_chat_max_concurrent)
+        self._usage_tracker = usage_tracker
+        self._client_id = client_id
 
     async def _get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
@@ -102,6 +140,44 @@ class OpenAIClient:
                 follow_redirects=True,
             )
         return self._client
+
+    async def ping(self, timeout: float = 5.0) -> bool:
+        """Sonde de disponibilité : l'endpoint répond-il ? Sans consommer de jetons.
+
+        POURQUOI CETTE MÉTHODE MANQUAIT, ET CE QUE CELA COÛTAIT
+        ---------------------------------------------------------
+        `/ready` interroge le client ainsi :
+
+            ping = getattr(llm_client, "ping", None)
+            checks["llm"] = "ok" if (ping and await ping()) else "unavailable"
+
+        Un client SANS `ping` tombe dans la branche `else` — indistinguable d'un
+        endpoint en panne. Or `ping()` n'existait que sur `AlbertClient`, alors que la
+        cible de production est un endpoint OpenAI-compatible (`CLAUDE.md` §3).
+
+        Mesuré le 29/08/2026 sur un déploiement réel : `/ready` rendait 503 avec
+        `llm: unavailable`, tandis que le même pod recevait **HTTP 200** en interrogeant
+        l'endpoint directement. Le pod ne devenait jamais prêt, et Kubernetes ne lui
+        envoyait aucun trafic — indéfiniment.
+
+        Le défaut était invisible tant que le chart sondait `/health`, qui rend 200 sans
+        rien vérifier. Une sonde qui ne peut pas échouer ne cache pas que les pannes :
+        elle cache aussi ses propres trous.
+
+        TOUT STATUT < 500 VAUT DISPONIBLE. Un 401 prouve qu'un serveur est là et répond
+        — c'est la joignabilité qu'on mesure, pas l'autorisation. Sortir le pod du
+        service pour une clé expirée traiterait par le redémarrage un problème que le
+        redémarrage ne répare pas.
+
+        NE LÈVE JAMAIS : une sonde qui lève transforme une dépendance lente en pod
+        redémarré en boucle.
+        """
+        try:
+            client = await self._get_client()
+            resp = await client.get(f"{self._base_url}/v1/models", timeout=timeout)
+            return resp.status_code < 500
+        except Exception:  # noqa: BLE001 — une sonde ne doit jamais lever
+            return False
 
     async def close(self) -> None:
         """Ferme le client HTTP."""
@@ -156,6 +232,272 @@ class OpenAIClient:
 
         raise LLMUnavailableError(f"{self._backend} indisponible après {self._max_retries} retries: {last_error}")
 
+    def _kwargs_modele(self) -> dict:
+        """Le paramètre qui décide si le modèle réfléchit à voix haute.
+
+        UN MODELE A RAISONNEMENT PEUT CONSOMMER TOUT LE BUDGET AVANT DE REPONDRE. Le
+        serveur rend alors `content` vide, et l'appel echoue :
+
+            réponse vide, budget de tokens épuisé (max_tokens=2048)
+
+        Releve le 30/08/2026, a la premiere question posee a un vrai corpus : cinq
+        passages de contexte ont suffi a epuiser le budget de `qwen3-6-35b-moe`.
+
+        LE DEPOT CONNAISSAIT DEJA CE PIEGE — mais seulement dans son harnais de mesure.
+        Tous les scripts de `_chantier/scripts/` passent ce parametre, l'un d'eux avec
+        ce commentaire : « SANS CECI, LA MESURE EST VIDE ». Il n'apparaissait nulle part
+        dans `colaig/` : les mesures portaient donc sur une configuration que le produit
+        n'avait pas.
+
+        Le defaut est DESACTIVE : un modele qui reflechit mieux mais ne repond pas vaut
+        moins qu'un modele qui repond. `COLAIG_LLM_THINKING=true` rouvre le reglage pour
+        une instance dont le budget le permet — et l'on n'envoie alors RIEN, laissant le
+        defaut du fournisseur decider.
+        """
+        if self._enable_thinking:
+            return {}
+        return {"chat_template_kwargs": {"enable_thinking": False}}
+
+    # ── OCR ───────────────────────────────────────────────────────────
+
+    async def ocr(
+        self,
+        content: bytes,
+        filename: str,
+        model: str | None = None,
+        dpi: int = 150,
+        prompt: str = "",
+    ) -> str:
+        """Extrait le texte d'un PDF scanné ou d'une image, par vision multimodale.
+
+        POURQUOI CETTE METHODE EXISTE. `AlbertClient` savait faire l'OCR ; ce client,
+        non — et c'est lui qui tourne en production. Sur les 59 documents du corpus
+        depose le 30/08/2026, **sept restaient invisibles**, avec ce message a chaque
+        indexation :
+
+            document non indexe (document sans texte natif —
+            le backend LLM (OpenAIClient) ne fournit pas la capacite « ocr »)
+
+        Le message etait juste, et le catalogue de SSPCloud contient `chandra-ocr-2`.
+        La capacite existait des deux cotes ; rien ne les reliait.
+
+        UNE REQUETE PAR PAGE. Un PDF entier en un seul appel expire : c'est ce qu'Albert
+        avait deja constate (504 sur `/v1/ocr-beta`), et la page-par-page est ce qui l'a
+        resolu. On reprend sa methode plutot que d'en inventer une seconde.
+
+        Args:
+            content: contenu binaire du document.
+            filename: nom du fichier — decide du traitement (PDF ou image).
+            model: modele de vision ; par defaut celui de la configuration.
+            dpi: resolution de rendu des pages PDF.
+            prompt: consigne d'extraction ; une consigne par defaut sinon.
+
+        Returns:
+            Le texte extrait, en Markdown, pages concatenees.
+
+        Raises:
+            LLMUnavailableError: si un PDF ne peut pas etre converti en images.
+        """
+        modele = model or self._model_ocr
+        consigne = prompt or (
+            "Extrais tout le texte de cette page de document en Markdown. "
+            "Préserve la structure (titres, listes, tableaux). "
+            "Ne génère rien d'autre que le texte extrait."
+        )
+
+        if filename.lower().endswith(".pdf"):
+            pages = _pdf_pages_to_png(content, dpi=dpi)
+            if not pages:
+                # RENDRE UNE CHAINE VIDE SERAIT PIRE QUE D'ECHOUER : le document serait
+                # indexe sans contenu, occuperait une place, et repondrait du vide a une
+                # question. L'indexeur sait traiter une erreur ; il ne sait pas deviner
+                # qu'un texte vide n'est pas un texte.
+                raise LLMUnavailableError(
+                    f"OCR impossible pour {filename} : conversion PDF→image en échec "
+                    f"(pymupdf absent ?)"
+                )
+        else:
+            pages = [content]
+
+        textes: list[str] = []
+        for numero, page in enumerate(pages, start=1):
+            texte = await self._ocr_une_page(page, consigne, modele, filename, numero)
+            if texte and texte.strip():
+                textes.append(texte.strip())
+
+        return "\n\n".join(textes)
+
+    async def _ocr_une_page(
+        self,
+        page: bytes,
+        consigne: str,
+        modele: str,
+        filename: str,
+        numero: int,
+    ) -> str:
+        """Transcrit une page, en la REPRENANT si le budget de tokens l'a coupee.
+
+        LE DEFAUT RELEVE LE 30/08/2026, dans les journaux d'une indexation reelle :
+
+            OpenAI : reponse tronquee (max_tokens=4096 atteint, 4130 caracteres)
+            OCR reussi pour /colaig-mesure-sst/debriefing.pdf (38916 caracteres)
+
+        « OCR reussi » suivait immediatement la troncature. Le document entrait dans
+        l'index **ampute de ce qui depassait le budget**, sans que rien ne le distingue
+        d'un document complet. Une question portant sur la fin d'une page recevait un
+        refus — ou, plus trompeur, une reponse partielle donnee pour entiere.
+
+        POURQUOI ON N'AUGMENTE PAS SIMPLEMENT max_tokens. Le catalogue de SSPCloud,
+        interroge le 30/08/2026, ne publie pour `chandra-ocr-2` ni fenetre de contexte
+        ni limite de sortie. Choisir 16384 serait inventer une donnee plausible, ce que
+        le CLAUDE.md racine interdit (§4.8) — et une page plus dense franchirait la
+        nouvelle limite comme elle a franchi l'ancienne.
+
+        La reprise, elle, n'a besoin de connaitre aucune limite : on redonne au modele
+        l'image et ce qu'il a deja transcrit, et on lui demande la suite. C'est la
+        methode que le decoupage page-par-page appliquait deja au document ; on
+        l'applique maintenant a la page.
+
+        `_OCR_MAX_REPRISES` n'est pas une limite du modele : c'est un garde-fou de
+        boucle. Quand il est atteint, le document est **nomme** dans le journal — ce
+        qui manquait a l'avertissement d'origine, noye dans le flot de soixante
+        fichiers indexes d'affilee.
+        """
+        b64 = base64.b64encode(page).decode("ascii")
+        page_utilisateur = {"role": "user", "content": [
+            {"type": "text", "text": consigne},
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
+        ]}
+
+        morceaux: list[str] = []
+        messages = [page_utilisateur]
+
+        for tour in range(_OCR_MAX_REPRISES + 1):
+            morceau, tronquee = await self._transcrire(messages, modele)
+            morceau = morceau.strip()
+
+            if tour and morceau and self._repete_le_deja_transcrit(morceau, morceaux):
+                # LE MODELE RECOMMENCE LA PAGE AU LIEU DE LA CONTINUER.
+                #
+                # Mesure contre chandra-ocr-2 le 30/08/2026, budget abaisse pour
+                # forcer la troncature sur une page de 3646 caracteres :
+                #
+                #     1772 -> 2453 -> 2453 -> 1772 -> 2453   total 10907
+                #
+                # Concatener cela mettait la page TRIPLEE dans l'index. C'est pire
+                # que la troncature d'origine : celle-la perdait du texte, celle-ci
+                # en invente, et un chunk duplique remonte plusieurs fois dans une
+                # recherche en evincant des passages pertinents.
+                #
+                # C'est comprehensible : un modele de vision regarde l'image
+                # ENTIERE a chaque appel, et « poursuis ou tu t'arretes » n'est pas
+                # un ordre qu'il honore de facon fiable.
+                logger.warning(
+                    "OCR incomplet : %s page %d — la reprise repete le texte deja "
+                    "transcrit au lieu de le poursuivre ; le document est indexe "
+                    "ampute de sa fin plutot que duplique",
+                    filename, numero,
+                )
+                return "\n".join(morceaux)
+
+            if morceau:
+                morceaux.append(morceau)
+            if not tronquee:
+                if tour:
+                    # « ACHEVEE » N'EST VRAI QUE SI LA REPRISE A RENDU QUELQUE CHOSE.
+                    #
+                    # Releve en production le 30/08/2026 : le journal annoncait
+                    # « reprise et achevee en 2 tours » pour debriefing.pdf, et le
+                    # document rendait exactement le meme nombre de caracteres
+                    # qu'avant le correctif — 43592, au caractere pres. Le modele,
+                    # invite a poursuivre, avait repondu du VIDE, et la page restait
+                    # amputee. Le message declarait un travail non fait ; c'est le
+                    # motif meme que ce lot corrigeait ailleurs.
+                    if morceau:
+                        logger.info(
+                            "OCR : %s page %d reprise et achevee en %d tour(s), "
+                            "%d caracteres recuperes",
+                            filename, numero, tour + 1, len(morceau),
+                        )
+                    else:
+                        logger.warning(
+                            "OCR : %s page %d — la reprise n'a rien rendu ; la page "
+                            "reste amputee de sa fin",
+                            filename, numero,
+                        )
+                return "\n".join(morceaux)
+
+
+            logger.info(
+                "OCR : %s page %d depasse le budget de tokens, reprise %d/%d",
+                filename, numero, tour + 1, _OCR_MAX_REPRISES,
+            )
+
+            # On remontre l'image ET le deja-transcrit : sans lui, le modele
+            # recommencerait la page a coup sur.
+            messages = [
+                page_utilisateur,
+                {"role": "assistant", "content": "\n".join(morceaux)},
+                {"role": "user", "content": "Poursuis la transcription exactement la "
+                                            "ou elle s'arrete, sans rien repeter."},
+            ]
+
+        logger.warning(
+            "OCR incomplet : %s page %d — la transcription depasse encore le budget "
+            "apres %d reprises ; le document est indexe ampute de sa fin",
+            filename, numero, _OCR_MAX_REPRISES,
+        )
+        return "\n".join(morceaux)
+
+    @staticmethod
+    def _repete_le_deja_transcrit(morceau: str, morceaux: list[str]) -> bool:
+        """Une reprise qui n'apporte rien de neuf.
+
+        Deux formes observees : le morceau est identique a l'un des precedents, ou il
+        est entierement CONTENU dans ce qui a deja ete transcrit. Les deux signifient
+        la meme chose — le modele relit la page au lieu de la poursuivre — et les deux
+        dupliqueraient du texte dans l'index.
+
+        La comparaison ignore les espaces : un modele qui « recommence » ne recompose
+        pas sa mise en forme au caractere pres.
+        """
+        if not morceaux:
+            return False
+        norme = " ".join(morceau.split())
+        if not norme:
+            return False
+        deja = " ".join("\n".join(morceaux).split())
+        return norme in deja
+
+    async def _transcrire(self, messages: list[dict], modele: str) -> tuple[str, bool]:
+        """Un appel de transcription. Rend le texte ET s'il a ete coupe.
+
+        `chat()` ne peut pas servir ici : il rend une chaine, donc l'appelant ne peut
+        pas savoir que `finish_reason` valait « length ». C'est exactement cette
+        information qui manquait au moment ou l'OCR declarait la page reussie.
+        """
+        verifier_quota(self._usage_tracker, self._client_id)
+        url = f"{self._base_url}/v1/chat/completions"
+        payload = {
+            "model": modele,
+            "messages": messages,
+            "temperature": 0.0,
+            "max_tokens": _OCR_MAX_TOKENS,
+            **self._kwargs_modele(),
+        }
+        async with self._bg_chat_semaphore:
+            reponse = await self._request_with_retry(url, payload, self._chat_timeout)
+        donnees = reponse.json()
+        enregistrer_usage(self._usage_tracker, self._client_id, donnees)
+
+        try:
+            choix = donnees["choices"][0]
+            contenu = choix["message"].get("content") or ""
+        except (KeyError, IndexError, TypeError) as e:
+            raise LLMError(f"Reponse {self._backend} inattendue : {e}") from e
+
+        return contenu, choix.get("finish_reason") == "length"
+
     # ── Chat ──────────────────────────────────────────────────────────
 
     async def chat(
@@ -167,6 +509,9 @@ class OpenAIClient:
         priority: str = "user",
     ) -> str:
         """Appel chat completions. Retourne le texte de la réponse."""
+        # Quota du tenant — point de passage unique (L2.6). Il n'existait que
+        # dans albert.py, donc PAS sur le fournisseur de production.
+        verifier_quota(self._usage_tracker, self._client_id)
         sem = self._chat_semaphore if priority == "user" else self._bg_chat_semaphore
         url = f"{self._base_url}/v1/chat/completions"
         payload = {
@@ -174,13 +519,13 @@ class OpenAIClient:
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
+            **self._kwargs_modele(),
         }
         async with sem:
             response = await self._request_with_retry(url, payload, self._chat_timeout)
-        try:
-            return response.json()["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, ValueError) as e:
-            raise LLMError(f"Réponse {self._backend} inattendue: {e}") from e
+            _donnees = response.json()
+            enregistrer_usage(self._usage_tracker, self._client_id, _donnees)
+            return extraire_contenu(_donnees, self._backend, max_tokens)
 
     async def chat_stream(
         self,
@@ -191,6 +536,9 @@ class OpenAIClient:
         priority: str = "user",
     ) -> AsyncIterator[str]:
         """Appel chat completions en streaming (SSE)."""
+        # Quota du tenant — point de passage unique (L2.6). Il n'existait que
+        # dans albert.py, donc PAS sur le fournisseur de production.
+        verifier_quota(self._usage_tracker, self._client_id)
         sem = self._chat_semaphore if priority == "user" else self._bg_chat_semaphore
         url = f"{self._base_url}/v1/chat/completions"
         payload = {
@@ -199,6 +547,7 @@ class OpenAIClient:
             "temperature": temperature,
             "max_tokens": max_tokens,
             "stream": True,
+            **self._kwargs_modele(),
         }
         client = await self._get_client()
         async with sem:
@@ -233,6 +582,9 @@ class OpenAIClient:
         priority: str = "user",
     ) -> ChatCompletionResult:
         """Chat completions avec tool calling (format OpenAI). Retourne ChatCompletionResult."""
+        # Quota du tenant — point de passage unique (L2.6). Il n'existait que
+        # dans albert.py, donc PAS sur le fournisseur de production.
+        verifier_quota(self._usage_tracker, self._client_id)
         sem = self._chat_semaphore if priority == "user" else self._bg_chat_semaphore
         url = f"{self._base_url}/v1/chat/completions"
         payload = {
@@ -242,6 +594,7 @@ class OpenAIClient:
             "tool_choice": tool_choice,
             "temperature": temperature,
             "max_tokens": max_tokens,
+            **self._kwargs_modele(),
         }
         async with sem:
             response = await self._request_with_retry(url, payload, self._chat_timeout)

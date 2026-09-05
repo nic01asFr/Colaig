@@ -1,0 +1,39 @@
+6 archive(s) disponible(s), plancher 12
+  tirage supplémentaire 7
+  tirage supplémentaire 8
+  tirage supplémentaire 9
+  tirage supplémentaire 10
+  tirage supplémentaire 11
+  tirage supplémentaire 12
+  dispersion-durci-1.json : refus_systematique=1.0  cite_attendu=0.7768  garde_fou_rendues=0.8636  fantomes=8  hors_contexte=21  montants_inventes=0  tronquees=3
+  dispersion-durci-10.json : refus_systematique=1.0  cite_attendu=0.8182  garde_fou_rendues=0.8629  fantomes=6  hors_contexte=20  montants_inventes=0  tronquees=4
+  dispersion-durci-11.json : refus_systematique=1.0  cite_attendu=0.7748  garde_fou_rendues=0.8249  fantomes=7  hors_contexte=29  montants_inventes=2  tronquees=2
+  dispersion-durci-12.json : refus_systematique=1.0  cite_attendu=0.8091  garde_fou_rendues=0.8466  fantomes=5  hors_contexte=25  montants_inventes=1  tronquees=3
+  dispersion-durci-2.json : refus_systematique=1.0  cite_attendu=0.7818  garde_fou_rendues=0.8523  fantomes=5  hors_contexte=21  montants_inventes=2  tronquees=3
+  dispersion-durci-3.json : refus_systematique=1.0  cite_attendu=0.7523  garde_fou_rendues=0.8457  fantomes=8  hors_contexte=23  montants_inventes=0  tronquees=4
+  dispersion-durci-4.json : refus_systematique=1.0  cite_attendu=0.7876  garde_fou_rendues=0.8436  fantomes=8  hors_contexte=24  montants_inventes=1  tronquees=0
+  dispersion-durci-5.json : refus_systematique=1.0  cite_attendu=0.8036  garde_fou_rendues=0.8475  fantomes=6  hors_contexte=23  montants_inventes=0  tronquees=2
+  dispersion-durci-6.json : refus_systematique=1.0  cite_attendu=0.7523  garde_fou_rendues=0.8908  fantomes=6  hors_contexte=17  montants_inventes=1  tronquees=5
+  dispersion-durci-7.json : refus_systematique=1.0  cite_attendu=0.7909  garde_fou_rendues=0.8182  fantomes=8  hors_contexte=29  montants_inventes=0  tronquees=3
+  dispersion-durci-8.json : refus_systematique=1.0  cite_attendu=0.7876  garde_fou_rendues=0.8315  fantomes=7  hors_contexte=25  montants_inventes=0  tronquees=1
+  dispersion-durci-9.json : refus_systematique=1.0  cite_attendu=0.7768  garde_fou_rendues=0.8757  fantomes=6  hors_contexte=19  montants_inventes=1  tronquees=2
+
+écrit : C:\Users\Omen\Desktop\LAVAL\Github Repositories\Colaig 220826\_chantier\mesures\dispersion-indicateurs.json
+
+12 tirages
+
+refus_systematique   fraction n=12  moyenne   1.0000  sigma  0.0000  min 1.0  max 1.0
+                              borne basse 1.0000 · borne haute 1.0000  (2 sigma)
+cite_attendu         fraction n=12  moyenne   0.7843  sigma  0.0201  min 0.7523  max 0.8182
+                              borne basse 0.7440 · borne haute 0.8246  (2 sigma)
+garde_fou_rendues    fraction n=12  moyenne   0.8503  sigma  0.0208  min 0.8182  max 0.8908
+                              borne basse 0.8088 · borne haute 0.8918  (2 sigma)
+fantomes             compte   n=12  moyenne   6.6667  sigma  1.1547  min 5  max 8
+                              borne basse 3.2026 · borne haute 10.1308  (3 sigma)
+hors_contexte        compte   n=12  moyenne  23.0000  sigma  3.6927  min 17  max 29
+                              borne basse 11.9218 · borne haute 34.0782  (3 sigma)
+montants_inventes    compte   n=12  moyenne   0.6667  sigma  0.7785  min 0  max 2
+                              borne basse -1.6688 · borne haute 3.0022  (3 sigma)
+tronquees            compte   n=12  moyenne   2.6667  sigma  1.3707  min 0  max 5
+                              borne basse -1.4454 · borne haute 6.7787  (3 sigma)
+SORTIE 0

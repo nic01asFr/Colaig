@@ -20,8 +20,10 @@ from typing import Any
 
 import yaml
 
+from colaig import paths
 from colaig.exceptions import WorkspaceConfigError
 from colaig.models import WorkspaceConfig
+from colaig.rag.verification_citations import FORMATS_CONNUS
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +35,10 @@ async def _ensure_scaffold(storage, workspace_path: str) -> None:
     """
     base = workspace_path.rstrip("/")
     for subdir in (
-        f"{base}/.colaig/",
-        f"{base}/.colaig/indexes/",
-        f"{base}/.colaig/conversations/",
-        f"{base}/.colaig/tasks/",
+        paths.colaig_dir(base),
+        paths.indexes_dir(base),
+        paths.conversations_dir(base),
+        paths.tasks_dir(base),
     ):
         try:
             await storage.mkdir(subdir)
@@ -67,7 +69,7 @@ async def load_workspace(storage, workspace_path: str, repair: bool = False) -> 
     # Normaliser : toujours exactement une trailing slash
     workspace_path = workspace_path.rstrip("/") + "/"
     base = workspace_path.rstrip("/")
-    config_path = f"{base}/.colaig/config.yaml"
+    config_path = paths.config_file(base)
 
     data: dict | None = None
     load_error: str = ""
@@ -93,7 +95,7 @@ async def load_workspace(storage, workspace_path: str, repair: bool = False) -> 
             workspace_id=_slugify(folder_name),
             name=folder_name,
             storage_path=workspace_path,
-            index_path=f"{base}/.colaig/indexes/",
+            index_path=paths.indexes_dir(base),
         )
         try:
             await _ensure_scaffold(storage, workspace_path)
@@ -146,6 +148,18 @@ async def load_workspace(storage, workspace_path: str, repair: bool = False) -> 
             except Exception:
                 logger.warning("workspace: mcp_connector invalide ignoré: %s", mc.get("name", "?"))
 
+    # Le format de citation vient de `config.yaml`, donc d'un contenu que Colaig ne
+    # controle pas. Un nom absent de `FORMATS_CONNUS` leverait un KeyError a CHAQUE
+    # generation : une faute de frappe rendrait l'espace muet. On filtre, et on le dit.
+    declares = data.get("format_citation", []) or []
+    if not isinstance(declares, list):
+        logger.warning("workspace: format_citation doit etre une liste, ignore: %r", declares)
+        declares = []
+    format_citation = [f for f in declares if f in FORMATS_CONNUS]
+    if len(format_citation) != len(declares):
+        logger.warning("workspace: format_citation inconnu(s) ignore(s): %s",
+                       [f for f in declares if f not in FORMATS_CONNUS])
+
     return WorkspaceConfig(
         workspace_id=workspace_id,
         name=data.get("name", workspace_id),
@@ -162,9 +176,11 @@ async def load_workspace(storage, workspace_path: str, repair: bool = False) -> 
         similarity_threshold=data.get("similarity_threshold", 0.3),
         max_results=data.get("max_results", 5),
         priority_documents=data.get("priority_documents", []),
+        garde_fou_provenance=bool(data.get("garde_fou_provenance", False)),
+        format_citation=format_citation,
         tools_enabled=data.get("tools_enabled", []),
         storage_readonly=data.get("storage_readonly", False),
-        index_path=f"{base}/.colaig/indexes/",
+        index_path=paths.indexes_dir(base),
         proactive_notifications=data.get("proactive_notifications", False),
         notification_channels=data.get("notification_channels", []),
         public=data.get("public", False),
@@ -195,7 +211,7 @@ async def list_workspaces(storage) -> list[WorkspaceConfig]:
         if not entry.is_directory:
             continue
         # Vérifier si ce dossier a un .colaig/config.yaml
-        config_path = f"{entry.path.rstrip('/')}/.colaig/config.yaml"
+        config_path = paths.config_file(entry.path)
         try:
             exists = await storage.exists(config_path)
             if not exists:
@@ -342,7 +358,7 @@ def _workspace_to_dict(ws: WorkspaceConfig) -> dict:
 
 async def _save_workspace_config(storage, workspace_path: str, ws: WorkspaceConfig) -> None:
     """Sérialise et sauvegarde le config.yaml d'un workspace."""
-    config_path = f"{workspace_path.rstrip('/')}/.colaig/config.yaml"
+    config_path = paths.config_file(workspace_path)
     content = yaml.dump(
         _workspace_to_dict(ws),
         allow_unicode=True,
@@ -392,7 +408,7 @@ async def create_workspace(
     wid = workspace_id or _slugify(name) or _slugify(storage_path.strip("/").split("/")[-1])
 
     # Idempotent : si déjà configuré, retourner l'existant
-    config_path = f"{storage_path.rstrip('/')}/.colaig/config.yaml"
+    config_path = paths.config_file(storage_path)
     try:
         if await storage.exists(config_path):
             logger.info("workspace déjà existant, chargement: %s", storage_path)
@@ -411,14 +427,14 @@ async def create_workspace(
         tone=tone,
         language=language,
         rag_enabled=rag_enabled,
-        index_path=f"{storage_path.rstrip('/')}/.colaig/indexes/",
+        index_path=paths.indexes_dir(storage_path),
     )
 
     try:
         # Scaffold : dossiers .colaig/
-        await storage.mkdir(f"{storage_path.rstrip('/')}/.colaig/")
-        await storage.mkdir(f"{storage_path.rstrip('/')}/.colaig/indexes/")
-        await storage.mkdir(f"{storage_path.rstrip('/')}/.colaig/conversations/")
+        await storage.mkdir(paths.colaig_dir(storage_path))
+        await storage.mkdir(paths.indexes_dir(storage_path))
+        await storage.mkdir(paths.conversations_dir(storage_path))
 
         # Écriture du config.yaml
         await _save_workspace_config(storage, storage_path, ws)
@@ -568,7 +584,7 @@ async def get_or_create_personal_workspace(storage, user_id: str) -> WorkspaceCo
     storage_path = f"/{safe}/"
 
     # Idempotent : charger si déjà existant
-    config_path = f"/{safe}/.colaig/config.yaml"
+    config_path = paths.config_file(f"/{safe}")
     try:
         if await storage.exists(config_path):
             return await load_workspace(storage, storage_path)
@@ -584,7 +600,7 @@ async def get_or_create_personal_workspace(storage, user_id: str) -> WorkspaceCo
         user_ids=[user_id],
         rag_enabled=False,
         storage_readonly=False,
-        index_path=f"/{safe}/.colaig/indexes/",
+        index_path=paths.indexes_dir(f"/{safe}"),
     )
 
     try:

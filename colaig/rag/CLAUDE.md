@@ -8,9 +8,15 @@
 
 Le module RAG est **indépendant du contexte Tchap**. Il travaille avec des fichiers texte (input), des embeddings vectoriels (traitement), et des résultats de recherche (output). Il ne sait RIEN de Matrix, des salons, ou des utilisateurs.
 
-## colaig_index.py — Source de vérité des clés et chemins FAISS
+## colaig_index.py — Source de vérité des clés FAISS
 
-Source de vérité unique pour **toutes** les clés du `FaissIndexRegistry` et les chemins de persistance des index FAISS. Aucune instance requise — méthodes statiques uniquement.
+Source de vérité unique pour **toutes** les clés du `FaissIndexRegistry`. Aucune instance requise — méthodes statiques uniquement.
+
+> **Depuis L0.2 :** les *chemins* de persistance ne sont plus construits ici. Toutes les
+> méthodes `*_paths()` délèguent à `colaig.paths`, source unique des chemins `.colaig/`
+> pour l'ensemble du projet. Les valeurs de retour sont inchangées — l'API publique
+> décrite ci-dessous reste valable. Ce qui change : un chemin `.colaig/` ne se construit
+> plus nulle part ailleurs que dans `colaig/paths.py`, et un test de contrat le vérifie.
 
 ```python
 from colaig.rag.colaig_index import ColaigIndex
@@ -176,7 +182,7 @@ ctx = ChunkContextualizer(llm_client, model="mistralai/Ministral-3-8B-Instruct-2
 enriched = await ctx.enrich_batch(
     chunks,
     workspace_name="Marchés publics",
-    workspace_description="Procédures administratives CEREMA",
+    workspace_description="Procédures administratives de l'espace",
     workspace_system_prompt="Tu es un expert en marchés publics...",
 )
 # → list[DocumentChunk] avec contextual_prefix rempli
@@ -203,7 +209,7 @@ COLAIG_CONTEXTUAL_MODEL=mistralai/Ministral-3-8B-Instruct-2512  # vide = albert_
 - Chunk min 50 chars, max 2000 chars
 
 ## embeddings.py
-- Utilise `AlbertClientProtocol`, cache dict `{hash(text): embedding}`
+- Utilise `LLMClientProtocol`, cache dict `{hash(text): embedding}`
 - **Toujours normaliser L2** les vecteurs
 - Fallback `SentenceTransformer("BAAI/bge-m3")` si Albert down
 

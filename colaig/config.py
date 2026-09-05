@@ -75,6 +75,42 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
+def endpoint_autorise(url: str, autorises: list) -> bool:
+    """L'URL appartient-elle à l'un des endpoints autorisés par la policy plateforme ?
+
+    **Ne pas remplacer par `url.startswith(autorise)`.** C'était l'implémentation
+    jusqu'au lot L0.3b, et elle laissait passer un domaine attaquant :
+
+        "https://llm.lab.sspcloud.fr.attaquant.example/v1"
+            .startswith("https://llm.lab.sspcloud.fr")   →  True
+
+    `allowed_llm_endpoints` est le seul levier par lequel un opérateur de plateforme
+    fait respecter la souveraineté du LLM. Un contrôle contournable par l'ajout d'un
+    suffixe au nom de domaine ne vaut rien.
+
+    La comparaison porte donc sur :
+      - le schéma et l'autorité (hôte + port), **à l'identique**, insensibles à la casse ;
+      - le chemin, sur une **frontière de segment** : `/api` autorise `/api/v1` mais
+        pas `/apiv2`.
+    """
+    from urllib.parse import urlsplit
+
+    cible = urlsplit(url.strip())
+    for brut in autorises:
+        ref = urlsplit(str(brut).strip())
+        if cible.scheme.lower() != ref.scheme.lower():
+            continue
+        if cible.netloc.lower() != ref.netloc.lower():
+            continue
+        chemin_ref = ref.path.rstrip("/")
+        chemin_cible = cible.path.rstrip("/")
+        if not chemin_ref:
+            return True
+        if chemin_cible == chemin_ref or chemin_cible.startswith(chemin_ref + "/"):
+            return True
+    return False
+
+
 def load_platform_policy(clients_yaml_path: Path | None = None) -> PlatformPolicy:
     """Charge la politique plateforme depuis clients.yml (section platform_policy).
 
@@ -94,6 +130,7 @@ def load_platform_policy(clients_yaml_path: Path | None = None) -> PlatformPolic
     if not policy_data:
         return PlatformPolicy()
     return PlatformPolicy(
+        allowed_mcp_servers=policy_data.get("allowed_mcp_servers", []),
         allowed_storage_backends=policy_data.get("allowed_storage_backends", []),
         allowed_llm_endpoints=policy_data.get("allowed_llm_endpoints", []),
         allowed_mcp_auth_modes=policy_data.get("allowed_mcp_auth_modes", []),
@@ -127,7 +164,7 @@ def validate_client_against_policy(client_id: str, client_config: ColaigConfig, 
         )
 
     if policy.allowed_llm_endpoints and client_config.albert_api_url:
-        if not any(client_config.albert_api_url.startswith(ep) for ep in policy.allowed_llm_endpoints):
+        if not endpoint_autorise(client_config.albert_api_url, policy.allowed_llm_endpoints):
             raise ValueError(
                 f"Client '{client_id}': endpoint LLM '{client_config.albert_api_url}' "
                 f"non autorisé par la policy plateforme "
@@ -173,7 +210,7 @@ def validate_client_config_against_policy(
     # LLM endpoint (hérite de la config globale si pas d'override)
     effective_llm_url = cc.llm_api_url or global_config.albert_api_url
     if policy.allowed_llm_endpoints and effective_llm_url:
-        if not any(effective_llm_url.startswith(ep) for ep in policy.allowed_llm_endpoints):
+        if not endpoint_autorise(effective_llm_url, policy.allowed_llm_endpoints):
             raise ValueError(
                 f"Client '{client_id}': endpoint LLM '{effective_llm_url}' "
                 f"non autorisé par la policy plateforme "
@@ -217,6 +254,26 @@ def load_config(yaml_path: Path | None = None) -> ColaigConfig:
     context = yml.get("context", {})
 
     # Étape 3 : construire la config — env > yaml > defaults
+    # LE MODELE DE REPLI DES AGENTS SUIT CELUI QUI EST CONFIGURE.
+    #
+    # `albert_model_light` (Analyseur) et `albert_model_medium` (Synthetiseur) portaient
+    # en dur « mistralai/Ministral-3-8B » et « mistralai/Mistral-Small-3.2-24B ». Le
+    # chart ne pose ni l'un ni l'autre, et l'endpoint de production ne sert AUCUN
+    # Mistral : verifie le 01/09/2026 sur SSPCloud, qui expose chandra-ocr-2,
+    # gemma4-26b-moe, qwen3-6-35b-moe, qwen3-8-27b, qwen3-cursor, qwen3-embedding-8b,
+    # qwen3-vl.
+    #
+    # Activer le pipeline aurait donc appele, a chaque question, deux modeles
+    # inexistants. Il n'a jamais pu fonctionner en service — et la mesure ne pouvait
+    # pas le dire : `reference_pipeline.py` construit ses agents SANS passer `model=`,
+    # donc le client choisit le sien.
+    #
+    # Un nom de modele d'un fournisseur particulier n'a pas sa place dans un defaut :
+    # c'est un residu de la doctrine « Albert uniquement » que `CLAUDE.md` signale.
+    _modele_de_chat = (_env("LLM_MODEL_CHAT")
+                       or _env("ALBERT_MODEL_CHAT")
+                       or "openai/gpt-oss-120b")
+
     return ColaigConfig(
         # Backends (choix du provider)
         storage_backend=_env("STORAGE_BACKEND", "webdav"),
@@ -311,6 +368,20 @@ def load_config(yaml_path: Path | None = None) -> ColaigConfig:
             "COLAIG_CHUNK_SIZE",
             rag.get("chunk_size", 800),
         ),
+        # STRATEGIE DE DECOUPAGE — elle decide de la couverture, pas du confort.
+        #
+        # Mesure sur le service, 04/09/2026, causes eliminees une a une : le prompt
+        # explique tout le refus (5 -> 20 sur 22) et RIEN de la couverture (53 -> 52).
+        # Le k n'explique rien — 97/113 a k=5 comme a k=10. La memoire non plus. Reste
+        # le decoupage : 45 points de couverture entre la fenetre (52/113) et l'article
+        # (97/113).
+        #
+        # Une valeur inconnue retombe sur le defaut : elle vient d'un environnement ou
+        # d'un fichier, et `chunk_document` ne connait que trois stratégies — une faute
+        # de frappe y produirait un decoupage indefini sans que personne le sache.
+        chunk_strategie=(_env("COLAIG_CHUNK_STRATEGIE", "fenetre")
+                         if _env("COLAIG_CHUNK_STRATEGIE", "fenetre")
+                         in ("fenetre", "article", "auto") else "fenetre"),
         chunk_overlap=_env_int(
             "COLAIG_CHUNK_OVERLAP",
             rag.get("chunk_overlap", 100),
@@ -342,8 +413,8 @@ def load_config(yaml_path: Path | None = None) -> ColaigConfig:
         document_index_cache_ttl=_env_int("COLAIG_DOCUMENT_INDEX_CACHE_TTL", 300),
         document_index_ai_analysis=_env("COLAIG_DOCUMENT_INDEX_AI_ANALYSIS", "true").lower() not in ("0", "false", "no"),
         # Phase 6 : modèles multi-niveaux + TaskExecutor
-        albert_model_light=_env("ALBERT_MODEL_LIGHT", "mistralai/Ministral-3-8B-Instruct-2512"),
-        albert_model_medium=_env("ALBERT_MODEL_MEDIUM", "mistralai/Mistral-Small-3.2-24B-Instruct-2506"),
+        albert_model_light=_env("ALBERT_MODEL_LIGHT") or _modele_de_chat,
+        albert_model_medium=_env("ALBERT_MODEL_MEDIUM") or _modele_de_chat,
         task_executor_max_concurrent=_env_int("TASK_EXECUTOR_MAX_CONCURRENT", 20),
         task_executor_queue_ttl=_env_int("TASK_EXECUTOR_QUEUE_TTL", 1800),
         agents_phase6_enabled=_env("COLAIG_AGENTS_PHASE6_ENABLED", "").lower() in ("1", "true", "yes"),
@@ -360,6 +431,9 @@ def load_config(yaml_path: Path | None = None) -> ColaigConfig:
         # Authentification MCP par token
         base_url=_env("COLAIG_BASE_URL", ""),
         mcp_auth_enabled=_env("COLAIG_MCP_AUTH_ENABLED", "").lower() in ("1", "true", "yes"),
+        # Défaut "1" — voir `models.py`. Une restriction se désactive explicitement.
+        retrait_outils_hors_plan=_env("COLAIG_RETRAIT_OUTILS_HORS_PLAN", "1").lower()
+        not in ("0", "false", "no"),
         admin_user_ids=[u.strip() for u in _env("COLAIG_ADMIN_USER_IDS", "").split(",") if u.strip()],
         default_workspace_id=_env("COLAIG_DEFAULT_WORKSPACE_ID", ""),
         # OIDC SSO (auth MCP enterprise)
@@ -375,6 +449,9 @@ def load_config(yaml_path: Path | None = None) -> ColaigConfig:
         hyde_query_weight=_env_float("COLAIG_HYDE_QUERY_WEIGHT", 0.5),
         rrf_k_constant=_env_int("COLAIG_RRF_K_CONSTANT", 60),
         local_embeddings=_env("COLAIG_LOCAL_EMBEDDINGS", "").lower() in ("1", "true", "yes"),
+        embedding_dimension=_env_int("COLAIG_EMBEDDING_DIM", 1024),
+        llm_enable_thinking=_env("COLAIG_LLM_THINKING", "").lower() in ("1", "true", "yes"),
+        llm_model_ocr=_env("LLM_MODEL_OCR"),
         auto_specialize_enabled=_env("COLAIG_AUTO_SPECIALIZE_ENABLED", "").lower() in ("1", "true", "yes"),
         auto_specialize_apply=_env("COLAIG_AUTO_SPECIALIZE_APPLY", "").lower() in ("1", "true", "yes"),
         daily_request_limit=_env_int("COLAIG_DAILY_REQUEST_LIMIT", 0),

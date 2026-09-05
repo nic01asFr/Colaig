@@ -34,6 +34,7 @@ from datetime import UTC, datetime
 from mcp import types as mcp_types
 from mcp.server.fastmcp import Context, FastMCP
 
+from colaig import paths
 from colaig.context.workspace import (
     add_conversation_to_workspace,
     create_workspace,
@@ -46,6 +47,7 @@ from colaig.models import (
     IncomingMessage,
 )
 from colaig.rag.document_index import _parse_json_from_response
+from colaig.security.wrap import CONSIGNE, baliser
 
 logger = logging.getLogger(__name__)
 
@@ -953,7 +955,7 @@ class ColaigMCPServer:
                 # Dernier run archivé
                 last_summary = None
                 try:
-                    run_dir = f"{task.workspace_path.rstrip('/')}/.colaig/tasks/{task_id}/runs/"
+                    run_dir = paths.task_runs_dir(task.workspace_path, task_id)
                     run_entries = await storage.list_files(run_dir, recursive=False)
                     run_dirs = sorted(
                         [e for e in run_entries if e.is_directory],
@@ -1002,7 +1004,7 @@ class ColaigMCPServer:
 
             runs = []
             try:
-                run_dir = f"{task.workspace_path.rstrip('/')}/.colaig/tasks/{task_id}/runs/"
+                run_dir = paths.task_runs_dir(task.workspace_path, task_id)
                 run_entries = await storage.list_files(run_dir, recursive=False)
                 run_dirs = sorted(
                     [e for e in run_entries if e.is_directory],
@@ -1765,7 +1767,7 @@ class ColaigMCPServer:
                         "description": "Albert API (Etalab/DINUM — recommandé pour l'administration française)",
                         "fields": ["api_url", "api_key", "model_chat", "model_embed"],
                         "example": {
-                            "api_url": "https://albert-api.etalab.gouv.fr",
+                            "api_url": "https://albert.api.etalab.gouv.fr",
                             "api_key": "sk-xxx",
                             "model_chat": "openai/gpt-oss-120b",
                             "model_embed": "BAAI/bge-m3",
@@ -2269,7 +2271,7 @@ def _get_llm_schema(backend: str) -> dict | None:
         "albert": {
             "type": "object",
             "properties": {
-                "api_url": {"type": "string", "description": "URL Albert API (ex: https://albert-api.etalab.gouv.fr)"},
+                "api_url": {"type": "string", "description": "URL Albert API (ex: https://albert.api.etalab.gouv.fr)"},
                 "api_key": {"type": "string", "description": "Clé API Albert"},
                 "model_chat": {"type": "string", "description": "Modèle de chat (ex: openai/gpt-oss-120b)"},
                 "model_embed": {"type": "string", "description": "Modèle d'embeddings (ex: BAAI/bge-m3)"},
@@ -2414,7 +2416,7 @@ def _onboarding_text_instructions(config_store) -> str:
                 "albert": {
                     "description": "Albert API — Etalab/DINUM (recommandé pour l'administration française)",
                     "fields": {
-                        "api_url": "URL (ex: https://albert-api.etalab.gouv.fr)",
+                        "api_url": "URL (ex: https://albert.api.etalab.gouv.fr)",
                         "api_key": "Clé API Albert",
                         "model_chat": "Modèle chat (optionnel, ex: openai/gpt-oss-120b)",
                         "model_embed": "Modèle embeddings (optionnel, ex: BAAI/bge-m3)",
@@ -2486,10 +2488,14 @@ async def _try_sampling_analysis(mcp: FastMCP, content: bytes, filename: str) ->
     if not text.strip():
         return None
 
+    # Balisage (L2.1). Ce prompt part vers le LLM du CLIENT MCP, pas le nôtre : le
+    # contenu sort de notre périmètre, raison de plus pour qu'il parte déclaré comme
+    # donnée et non comme consigne.
     prompt = (
         f"Analyse ce document et retourne UNIQUEMENT un JSON valide selon ce schéma :\n"
         f"{_ANALYSIS_SCHEMA}\n\n"
-        f"Document ({filename}) :\n{text[:4000]}"
+        f"{CONSIGNE}\n\n"
+        + baliser(text[:4000], source=filename, nature="document")
     )
 
     try:

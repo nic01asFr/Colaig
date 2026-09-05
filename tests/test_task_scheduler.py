@@ -10,14 +10,14 @@ Couvre :
     - run_background_session() : cycle de vie complet avec mocks
 """
 
-import asyncio
 import json
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from colaig.agents.task_scheduler import _check_session_timeout, _deliver_result
 from colaig.agents.tasks import (
     TaskDefinition,
     TaskSessionState,
@@ -28,7 +28,6 @@ from colaig.agents.tasks import (
     session_file_path,
     task_file_path,
 )
-from colaig.agents.task_scheduler import _deliver_result, _check_session_timeout
 from colaig.agents.tools.task_tools import (
     create_document_handler,
     create_report_to_user_handler,
@@ -37,7 +36,6 @@ from colaig.agents.tools.task_tools import (
     create_update_plan_handler,
 )
 from tests.conftest import MockStorage
-
 
 # =============================================================================
 # Fixtures
@@ -90,14 +88,36 @@ class TestDeliverResult:
 
     @pytest.mark.asyncio
     async def test_document_delivery(self):
-        task = _make_task(delivery_type="document", delivery_target="/espace-rh/rapport.md")
+        task = _make_task(delivery_type="document",
+                          delivery_target="/alice_tchap_fr/rapport.md")
         storage = MockStorage()
 
         await _deliver_result(task, "Contenu du rapport.", messaging=None, storage=storage)
 
-        assert "/espace-rh/rapport.md" in storage.files
-        content = storage.files["/espace-rh/rapport.md"].decode("utf-8")
+        assert "/alice_tchap_fr/rapport.md" in storage.files
+        content = storage.files["/alice_tchap_fr/rapport.md"].decode("utf-8")
         assert "Contenu du rapport." in content
+
+    @pytest.mark.asyncio
+    async def test_document_delivery_hors_espace_refusee(self):
+        """Une tache ne livre pas hors de son espace.
+
+        Ce test livrait auparavant dans `/espace-rh/` depuis une tache vivant dans
+        `/alice_tchap_fr/`, et passait. C'est la garde qui manquait : Colaig ecrit avec
+        SES identifiants, jamais avec ceux du demandeur. Livrer dans un espace tiers
+        contourne donc le partage de stockage — le demandeur obtient une ecriture la ou
+        il n'a peut-etre aucun droit.
+
+        Le confinement existait dans `WorkspaceACL.validate_delivery_target` et n'etait
+        branche que sur le chemin MCP.
+        """
+        task = _make_task(delivery_type="document",
+                          delivery_target="/espace-rh/rapport.md")
+        storage = MockStorage()
+
+        await _deliver_result(task, "Contenu.", messaging=None, storage=storage)
+
+        assert storage.files == {}, "la livraison hors espace doit etre refusee"
 
     @pytest.mark.asyncio
     async def test_empty_response_skipped(self):
@@ -330,6 +350,7 @@ class TestRunBackgroundSession:
     async def test_session_marks_running_then_done(self):
         """La tâche passe RUNNING → archived après une session once."""
         from unittest.mock import patch
+
         from colaig.agents.task_scheduler import run_background_session
         from colaig.models import GeneratedResponse
 
@@ -385,6 +406,7 @@ class TestRunBackgroundSession:
     async def test_recurring_task_gets_next_run_at(self):
         """Tâche interval : status=pending + next_run_at recalculé."""
         from unittest.mock import patch
+
         from colaig.agents.task_scheduler import run_background_session
         from colaig.models import GeneratedResponse
 
@@ -434,13 +456,14 @@ class TestRunBackgroundSession:
         assert reloaded.next_run_at is not None
         next_dt = datetime.fromisoformat(reloaded.next_run_at)
         if next_dt.tzinfo is None:
-            next_dt = next_dt.replace(tzinfo=timezone.utc)
-        assert next_dt > datetime.now(timezone.utc)
+            next_dt = next_dt.replace(tzinfo=UTC)
+        assert next_dt > datetime.now(UTC)
 
     @pytest.mark.asyncio
     async def test_failed_session_notifies_user(self):
         """Un pipeline qui lève une exception notifie le user via messaging."""
         from unittest.mock import patch
+
         from colaig.agents.task_scheduler import run_background_session
 
         storage = MockStorage()
@@ -536,12 +559,12 @@ class TestCheckSessionTimeout:
         # Session avec heartbeat vieux de 2h — écriture directe pour bypass save_session_state()
         # (save_session_state écrase last_heartbeat avec _now_iso())
         import json as _json
-        old_hb = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+        old_hb = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
         session_data = {
             "task_id": task.task_id,
             "conversation_id": "task_old_conv",
             "status": "running",
-            "started_at": (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat(),
+            "started_at": (datetime.now(UTC) - timedelta(hours=3)).isoformat(),
             "last_heartbeat": old_hb,
             "current_step": 0,
             "current_step_description": "",
@@ -585,8 +608,8 @@ class TestCheckSessionTimeout:
             "task_id": task.task_id,
             "conversation_id": "task_old_once",
             "status": "running",
-            "started_at": (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat(),
-            "last_heartbeat": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(),
+            "started_at": (datetime.now(UTC) - timedelta(hours=3)).isoformat(),
+            "last_heartbeat": (datetime.now(UTC) - timedelta(hours=2)).isoformat(),
             "current_step": 0,
             "current_step_description": "",
             "subtasks_done": 0,
@@ -682,8 +705,8 @@ class TestPauseAndAskUser:
     @pytest.mark.asyncio
     async def test_pause_sends_question_and_sets_waiting(self):
         """pause_and_ask_user envoie la question et passe task + session en waiting_for_user."""
-        from colaig.agents.tools.task_tools import create_pause_handler
         from colaig.agents.tasks import load_session_state
+        from colaig.agents.tools.task_tools import create_pause_handler
 
         storage = MockStorage()
         task = _make_task(delivery_type="messaging", delivery_target="!dm_alice:tchap.fr")
@@ -751,9 +774,10 @@ class TestHandleWaitingTaskReply:
     async def test_dm_reply_injects_into_waiting_task(self):
         """Un DM reçu pendant waiting_for_user est injecté dans session.pending_user_reply."""
         from unittest.mock import patch
-        from colaig.models import IncomingMessage, ConversationType, ContextMode
+
         from colaig.agents.tasks import load_session_state, load_task
         from colaig.messaging.handlers import MessageHandler
+        from colaig.models import ContextMode, ConversationType, IncomingMessage
 
         storage = MockStorage()
         task = _make_task(schedule_type="once", schedule_value="")
@@ -822,8 +846,9 @@ class TestHandleWaitingTaskReply:
     async def test_no_waiting_task_returns_false(self):
         """Sans tâche waiting_for_user, la méthode retourne False."""
         from unittest.mock import patch
-        from colaig.models import IncomingMessage, ConversationType
+
         from colaig.messaging.handlers import MessageHandler
+        from colaig.models import ConversationType, IncomingMessage
 
         storage = MockStorage()
         mock_personal_ws = MagicMock()
@@ -861,9 +886,9 @@ class TestRunBackgroundSessionResume:
     async def test_resume_uses_existing_conversation_id(self):
         """Reprise avec pending_user_reply → réutilise conversation_id existant."""
         from unittest.mock import patch
+
         from colaig.agents.task_scheduler import run_background_session
         from colaig.models import GeneratedResponse
-        from colaig.agents.tasks import load_session_state
 
         storage = MockStorage()
         task = _make_task(schedule_type="once", schedule_value="")

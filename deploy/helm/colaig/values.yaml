@@ -2,7 +2,10 @@
 # Surchargez via le formulaire Onyxia (values.schema.json) ou -f values.yaml.
 
 image:
-  repository: ghcr.io/cerema/colaig
+  # A RENSEIGNER : le registre ou l'image est publiee.
+  # Aucune valeur par defaut n'est posee ici — une organisation devinee
+  # produirait un `ImagePullBackOff` que personne ne saurait lire.
+  repository: ""
   tag: latest
   pullPolicy: IfNotPresent
 
@@ -21,16 +24,31 @@ ingress:
 # --- LLM (OpenAI-compatible) ---
 # SSP Cloud : LLM Open WebUI, API OpenAI-compatible sous /openai
 #   backend: openai
-#   apiUrl:  https://llm.lab.sspcloud.fr/openai
+#   apiUrl:  https://llm.lab.sspcloud.fr/api
 #   apiKey:  <votre token SSP Cloud LLM>
 llm:
   backend: openai                                  # openai | albert
-  apiUrl: https://llm.lab.sspcloud.fr/openai
+  # Base SANS /v1 : le client ajoute /v1/chat/completions lui-meme.
+  # Verifie le 29/08/2026 — /openai ne correspondait ni au profil Onyxia
+  # ni aux mesures de la journee.
+  apiUrl: https://llm.lab.sspcloud.fr/api
   apiKey: ""                                        # -> Secret
+  # Nom d'un Secret Kubernetes EXISTANT portant LLM_API_KEY.
+  # Renseigne, le chart ne cree aucun secret : la cle ne transite pas
+  # par les valeurs Helm, qui sont conservees en clair dans le cluster.
+  existingSecret: ""
   modelChat: ""                                     # ex: mistral-small ; vide = defaut serveur
   modelEmbed: ""                                    # endpoint embeddings OpenAI-compatible si dispo
   # Si le LLM n'expose pas d'embeddings, activer le fallback local (bge-m3 dans le pod) :
   localEmbeddings: true
+  # Modele d'OCR. Sans lui la capacite est honnetement ABSENTE : `supporte()`
+  # teste la presence de la methode, donc l'annoncer sans modele ferait echouer
+  # l'indexation a chaud au lieu de sauter proprement le document.
+  modelOcr: ""          # ex: chandra-ocr-2
+  # Dimension des vecteurs servis par le modele d'embeddings. Un endpoint qui
+  # sert du 4096 la ou l'on attend du 1024 produit un index inutilisable, sans
+  # message. Laisser vide pour le defaut du code.
+  embeddingDim: ""      # ex: 4096 pour qwen3-embedding-8b
 
 # --- Storage S3 / MinIO (SSP Cloud injecte des credentials STS temporaires) ---
 storage:
@@ -43,6 +61,11 @@ storage:
     bucket: ""             # ex: <votre-bucket>
     prefix: colaig
     region: us-east-1
+
+# --- Decouverte automatique des espaces ---
+autoDiscover:
+  enabled: false
+  intervalSeconds: 120
 
 # --- Messaging ---
 messaging:
@@ -62,7 +85,17 @@ resources:
     cpu: "2"
     memory: 4Gi
 
-# Volume de cache local ephemere (FAISS reconstruit au restart)
+# Volume local. Il ne contient PAS que du cache.
+#
+# L'index FAISS s'y reconstruit au demarrage — c'est ce que decrivait le
+# commentaire d'origine, et c'etait exact pour lui. Mais le jeton de session
+# Matrix et le magasin de cles E2E y vivent aussi (COLAIG_LOCAL_HOME), et ceux-la
+# ne se reconstruisent pas : les perdre donne a Colaig une nouvelle identite
+# d'appareil a chaque redemarrage, et rend illisible tout l'historique chiffre,
+# y compris ses propres reponses.
+#
+# `enabled: false` reste le defaut — un deploiement d'essai n'a pas a reclamer un
+# volume. Mais toute instance qui parle dans des salons chiffres doit l'activer.
 persistence:
   enabled: false
   size: 5Gi
@@ -73,3 +106,13 @@ securityContext: {}
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# Passerelle IA d'Onyxia. Rempli AUTOMATIQUEMENT par le formulaire de
+# lancement depuis votre session OIDC et votre profil personnalisable.
+# Sert de repli quand `llm.apiKey` est vide.
+ai:
+  enabled: false
+  activeProvider:
+    apiBase: ""
+    apiKey: ""
+    selectedModel: ""

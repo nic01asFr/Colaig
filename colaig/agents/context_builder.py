@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 
+from colaig import paths
 from colaig.agents.tool_registry import ToolRegistry
 from colaig.models import AgentContext, AgentDirectives, WorkspaceConfig
 
@@ -63,6 +64,106 @@ Ta mission :
 - Respecter le ton et le format demandés
 - Être factuel : ne jamais inventer d'information absente des sources\
 """
+
+# LA CONVENTION DE CITATION EST SEPAREE DU PROMPT DE ROLE.
+#
+# Elle y etait fondue — « Citer les documents sources entre crochets [nom_fichier.ext] »
+# — et se retrouvait donc accolee aux regles de l'espace, qui en prescrivent souvent une
+# autre. Mesure du 31/08/2026 sur le corpus marches publics, dont la regle 1 dit « Cite
+# l'article, toujours » : somme de citer des noms de fichiers ET des numeros d'article,
+# le modele a produit QUATRE grammaires incompatibles dans une meme campagne —
+#
+#     ['service-public.fr']
+#     ['087-...-section-1-avances-l-article-r2191-10.md']   nom de fichier + article
+#     ['Nom de la Marque/Modele']                            un espace reserve
+#     ['Doc 1, 1.1', 'Doc 1, 1.2', ...]                      douze fois, grammaire inventee
+#
+# Ne pouvant satisfaire les deux ordres, il en a invente un troisieme.
+#
+# `context_builder` enoncait deja la regle — « l'espace vient en dernier, ses regles
+# doivent l'emporter » — sans la tenir : VENIR EN DERNIER NE SUFFIT PAS A L'EMPORTER,
+# il faut que l'autre se taise.
+CONVENTION_DE_CITATION_PAR_DEFAUT = (
+    "- Citer les documents sources entre crochets [nom_fichier.ext]"
+)
+
+
+def bloc_de_directives(directives, calibrage: str = "") -> str:
+    """Met en forme les directives de l'Analyseur — en disant ce qu'elles sont.
+
+    CE QU'ELLES ETAIENT, ET CE QUE CELA COUTAIT
+
+    Elles etaient ajoutees APRES le prompt de l'espace, sous un titre « ## Directives »
+    et une puce « Instructions : … ». Deux problemes, et le second est le vrai :
+
+    1. Elles avaient le DERNIER MOT, donc apres le protocole de refus de l'espace.
+       C'est la symetrie exacte du defaut de citation corrige le 31/08 — la, l'espace
+       venait en dernier sans l'emporter ; ici, les directives l'emportaient en venant
+       en dernier. LA POSITION NE FAIT PAS L'AUTORITE.
+
+    2. `instructions` est du TEXTE LIBRE produit par l'Analyseur, et l'Analyseur
+       s'execute AVANT la recherche documentaire. Il ne peut donc pas savoir si une
+       reponse existe : ses consignes presupposent toujours qu'il y en a une —
+       « explique la procedure », « liste les etapes ». Lues comme un ordre, elles
+       poussent a produire une reponse la ou il faudrait se taire.
+
+    Mesure du 31/08 : le coeur refuse 22/22, le pipeline 18/21 avec 3 intermittents,
+    alors meme que ses deux deficits de citation etaient fermes.
+
+    CE QUE LE BLOC DIT MAINTENANT
+
+    Qu'il decrit la FORME d'une reponse, si l'on en donne une ; qu'il a ete ecrit AVANT
+    la recherche ; et qu'il ne decide pas s'il faut repondre. Le protocole de l'espace
+    passe apres lui et garde le dernier mot.
+    """
+    lignes = []
+    if directives and getattr(directives, "response_format", ""):
+        lignes.append(f"- Format : {directives.response_format}")
+    if directives and getattr(directives, "response_tone", ""):
+        lignes.append(f"- Ton : {directives.response_tone}")
+    if directives and getattr(directives, "focus_points", None):
+        lignes.append(f"- Points de focus : {', '.join(directives.focus_points)}")
+    if directives and getattr(directives, "instructions", ""):
+        lignes.append(f"- {directives.instructions}")
+
+    # Le calibrage temporel prescrit lui aussi une FORME : meme bloc, meme
+    # subordination, meme place — avant le prompt de l'espace.
+    if calibrage:
+        lignes.append(calibrage)
+
+    if not lignes:
+        return ""
+
+    return (
+        "## Forme attendue, si tu réponds\n"
+        "Ces indications décrivent la forme d'une réponse, si tu en donnes une. Elles "
+        "ont été rédigées AVANT la recherche documentaire, donc sans savoir si la "
+        "réponse existe dans les passages. Elles ne décident pas s'il faut répondre.\n"
+        + "\n".join(lignes)
+    )
+
+
+def composer_prompt_systeme(prompt_de_role: str, prompt_espace: str,
+                            bloc_directives: str = "") -> str:
+    """Assemble le prompt de role et les regles de l'espace, sans les faire se contredire.
+
+    Quand l'espace fournit ses propres regles, la convention de citation par defaut se
+    TAIT : deux grammaires donnees ensemble en produisent une troisieme.
+
+    Ce qui n'est pas une convention de format reste dans les deux cas — le role de
+    l'agent, et la regle anti-invention, qui n'est pas une question de presentation.
+    """
+    prompt = prompt_de_role
+    # Les directives entre le role et l'espace : le protocole de refus de l'espace
+    # doit garder le dernier mot.
+    if bloc_directives:
+        prompt = f"{prompt}\n\n{bloc_directives}"
+    if prompt_espace and prompt_espace.strip():
+        prompt = prompt.replace(CONVENTION_DE_CITATION_PAR_DEFAUT + "\n", "")
+        prompt = prompt.replace("\n" + CONVENTION_DE_CITATION_PAR_DEFAUT, "")
+        prompt = f"{prompt}\n\n{prompt_espace.strip()}"
+    return prompt
+
 
 DEFAULT_PROMPTS = {
     "analyser": DEFAULT_ANALYSER_PROMPT,
@@ -118,7 +219,9 @@ async def build_agent_context(
     workspace: WorkspaceConfig | None,
     agent_role: str,
     directives: AgentDirectives | None = None,
+    calibrage: str = "",
     selected_skills: list | None = None,
+    prompt_espace: str = "",
 ) -> AgentContext:
     """Construit le contexte spécifique à un agent.
 
@@ -150,6 +253,26 @@ async def build_agent_context(
         )
 
     system_prompt = override_prompt if override_prompt else default_prompt
+
+    # LE PROMPT DE L ESPACE, COMPOSE AVEC CELUI DU ROLE.
+    #
+    # Il n arrivait pas jusqu ici : le seul consommateur de
+    # `WorkspaceContext.system_prompt` dans tout `colaig/` etait `generator.py`,
+    # c est-a-dire la PHASE 1. Deux mecanismes de configuration coexistaient sans se
+    # rencontrer — `config.yaml: system_prompt` d un cote, `.colaig/prompts/{role}.md`
+    # de l autre — et rien ne le disait.
+    #
+    # Mesure du 30/08/2026 : le pipeline agent citait TROIS FOIS MIEUX que le coeur
+    # RAG et ne refusait JAMAIS — 0/22 contre 22/22 sur les cas dont la reponse n est
+    # dans aucun passage. Le protocole de refus vit dans le prompt de l espace, et ce
+    # prompt n arrivait pas.
+    #
+    # ON COMPOSE, ON NE SUBSTITUE PAS : le prompt de role dit COMMENT repondre, celui
+    # de l espace dit CE QU EST cet espace et quelles sont ses regles. L espace vient
+    # en dernier — ses regles doivent l emporter sur la description generique du
+    # metier d agent.
+    system_prompt = composer_prompt_systeme(
+        system_prompt, prompt_espace, bloc_de_directives(directives, calibrage))
 
     # 3. Skills (pour orchestrateur et synthétiseur)
     # Priorité : selected_skills (top-k sémantique, Phase 6) > chargement en bloc (Phase 5)
@@ -199,7 +322,7 @@ async def _load_agent_prompt_override(
     Returns:
         Contenu du fichier override, ou None si inexistant.
     """
-    path = f"{workspace_path.rstrip('/')}/.colaig/prompts/{role}.md"
+    path = paths.prompt_file(workspace_path, role)
     try:
         content = await storage.download(path)
         text = content.decode("utf-8").strip()
@@ -228,7 +351,7 @@ def build_tool_registry(
     Args:
         retriever: RetrieverProtocol pour le tool search_documents.
         storage: StorageProtocol pour les tools fetch_document et list_documents.
-        albert: AlbertClientProtocol pour le tool summarize_text.
+        albert: LLMClientProtocol pour le tool summarize_text.
         workspace: Configuration workspace pour la résolution des chemins.
         document_index: DocumentIndexProtocol pour les 3 outils DocumentIndex (optionnel).
         synthesiser: Synthesiser (Phase 6) — enregistre l'outil assess_completion si fourni.
@@ -528,7 +651,11 @@ def build_background_tool_registry(
     if task.delivery_type == "document":
         registry.register(
             CREATE_DOCUMENT_DEFINITION,
-            create_document_handler(storage=storage),
+            create_document_handler(
+                storage=storage,
+                workspace_path=task.workspace_path,
+                user_id=task.user_id,
+            ),
         )
 
     # ── pause_and_ask_user (human-in-the-loop) ──────────────────────────────
@@ -584,7 +711,7 @@ async def _load_workspace_skills(storage, workspace_path: str) -> list[dict]:
     Returns:
         Liste de skills chargés. Vide si pas de dossier skills.
     """
-    skills_dir = f"{workspace_path.rstrip('/')}/.colaig/skills/"
+    skills_dir = paths.skills_dir(workspace_path)
     skills = []
 
     try:

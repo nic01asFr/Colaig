@@ -273,6 +273,40 @@ def create_task_handler(
         # Pour "once" sans next_run : exécution immédiate (next_run_at=None → is_due=True)
         delivery_target_resolved = delivery_target or _source_conversation_id
 
+        # Une livraison « document » fait écrire Colaig avec SES identifiants, à un
+        # chemin que le demandeur désigne. Sans contrôle, `.colaig/prompts/…` ferait de
+        # la réponse du modèle le prompt système de l'agent — une escalade qui contourne
+        # le partage de stockage, puisque l'écrivain n'est pas l'utilisateur.
+        #
+        # Refus à la création, pour que l'erreur soit lisible au moment où elle se
+        # commet. La barrière qui protège vraiment est à la livraison : une tâche
+        # enregistrée peut être éditée après coup.
+        # La garde est `WorkspaceACL.validate_delivery_target`, et elle EXISTAIT deja
+        # quand ce trou a ete trouve — branchee sur le seul chemin MCP. J'y ai d'abord
+        # ajoute une seconde implementation, plus faible : elle refusait `.colaig/` mais
+        # ne confinait pas la cible a l'espace. Ecrire une garde sans chercher celle qui
+        # existe est exactement le defaut que ce chantier corrige ailleurs.
+        if delivery_type in ("document", "messaging"):
+            from colaig.security.acl import WorkspaceACL
+            try:
+                delivery_target_resolved = WorkspaceACL.validate_delivery_target(
+                    delivery_type,
+                    delivery_target_resolved,
+                    user_id=_user_id,
+                    personal_workspace_path=(
+                        _workspace_path if delivery_type == "document" else ""
+                    ),
+                )
+            except Exception as exc:
+                return json.dumps({
+                    "success": False,
+                    "error": (
+                        f"destination refusée : {exc}. Une tâche livre un document dans "
+                        "l'espace documentaire, jamais dans le dossier d'instance "
+                        ".colaig/ — y écrire reviendrait à reconfigurer l'agent."
+                    ),
+                }, ensure_ascii=False)
+
         task = TaskDefinition(
             task_id=task_id,
             user_id=_user_id,
@@ -573,19 +607,51 @@ def create_pause_handler(
     return _handler
 
 
-def create_document_handler(storage) -> Callable:
+def create_document_handler(
+    storage, workspace_path: str = "", user_id: str = "",
+) -> Callable:
     """Handler pour create_document.
 
     Sauvegarde le contenu textuel dans le storage au chemin spécifié.
 
     Args:
         storage: StorageProtocol.
+        workspace_path: espace de la tâche. Fourni, la cible y est **confinée** ;
+            omis, seul le refus de `.colaig/` s'applique. Ce paramètre n'invente rien :
+            le seul appelant de production a la tâche en portée et passe sa valeur.
+        user_id: demandeur, pour la trace du refus.
     """
     _storage = storage
+    _workspace_path = workspace_path
+    _user_id = user_id
 
     async def _handler(content: str, path: str, **kwargs) -> str:
         if not path:
             return json.dumps({"success": False, "error": "path manquant"}, ensure_ascii=False)
+
+        # Ici, c'est LE MODÈLE qui choisit la cible — et ses entrées comprennent les
+        # documents de l'espace, qui sont du contenu non fiable par construction. Sans
+        # ce contrôle, une consigne déposée dans un document pouvait faire écrire l'agent
+        # dans son propre `.colaig/prompts/` : la chaîne complète, de l'injection à la
+        # persistance, sans qu'aucun utilisateur n'ait rien demandé.
+        #
+        # Le refus est ANNONCÉ au modèle, pas silencieux : un échec muet le fait
+        # réessayer, et une boucle agentique a plusieurs tours pour insister.
+        from colaig.security.acl import WorkspaceACL
+        try:
+            path = WorkspaceACL.validate_delivery_target(
+                "document", path,
+                user_id=_user_id, personal_workspace_path=_workspace_path,
+            )
+        except Exception as exc:
+            return json.dumps({
+                "success": False,
+                "error": (
+                    f"destination refusée : {exc}. Le dossier d'instance .colaig/ n'est "
+                    "pas un emplacement de document — y écrire reconfigurerait l'agent."
+                ),
+            }, ensure_ascii=False)
+
         try:
             await _storage.upload(path, content.encode("utf-8"))
             return json.dumps({

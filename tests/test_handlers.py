@@ -5,10 +5,10 @@ import pytest
 from colaig.messaging.handlers import MessageHandler
 from colaig.models import (
     ContextMode,
+    ConversationType,
     DocumentChunk,
     GeneratedResponse,
     IncomingMessage,
-    ConversationType,
     SearchResult,
     WorkspaceConfig,
     WorkspaceContext,

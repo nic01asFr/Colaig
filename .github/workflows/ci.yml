@@ -1,10 +1,19 @@
 name: CI
 
+# LA CI DOIT TOURNER LA OU LE TRAVAIL SE FAIT.
+#
+# Elle ne se declenchait que sur `main` et les PR vers `main`. Or le chantier avance
+# par lots, sur des branches `lot/*` qui ne visent pas `main` avant d'etre finies :
+# verifie le 23/08/2026, ELLE N'AVAIT JAMAIS TOURNE SUR UNE SEULE LIGNE DU CHANTIER.
+# 1819 tests passaient sur un poste, et rien ne le verifiait ailleurs.
+#
+# Une CI qui ne s'execute pas sur les branches de travail ne protege que ce qui est
+# deja livre — c'est-a-dire trop tard.
 on:
   push:
-    branches: [main]
+    branches: [main, "lot/**", "chantier/**"]
   pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   test:
@@ -32,7 +41,10 @@ jobs:
         run: ruff check colaig
 
       - name: Tests + couverture (hors tests reseau live)
-        run: pytest -q --ignore=tests/test_live.py --cov=colaig --cov-report=term-missing
+        # `--ignore` n'est plus necessaire : test_live.py skippe quand aucun service
+        # n'ecoute, au lieu d'echouer (D14). L'exclure masquerait desormais 41 tests
+        # qui savent se taire tout seuls.
+        run: pytest -q --cov=colaig --cov-report=term-missing
         env:
           COLAIG_LOG_LEVEL: WARNING
 

@@ -20,11 +20,102 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from colaig.integrations.albert import AlbertClient
 
+from colaig.capacites import (
+    PREFIXES_CREATION,
+    PREFIXES_LIAISON,
+    retirer_gestes_en_fin,
+)
+from colaig.journal_echanges import consigner_echange
 from colaig.context.layers import save_conversation_history
 from colaig.messaging.progress import ProgressReporter, resolve_channel
+from colaig.messaging.retours import GestionnaireRetours, proposer_gestes
+from colaig.messaging.sources_numerotees import numeroter_les_sources
 from colaig.models import ContextMode, IncomingMessage, IntentType, PipelinePhase
+from colaig.protocols import ReactionProtocol
 
 logger = logging.getLogger(__name__)
+
+
+def _passages_servis(resultats) -> list[dict]:
+    """Ce qui a REELLEMENT ete donne a lire, passage par passage.
+
+    Le nom du fichier ne suffit pas a juger une reponse quand le decoupage est par
+    article : `code.md` porte des dizaines de passages, et servir le fichier ne sert
+    pas l'article. Voir `journal_echanges.consigner_echange`.
+    """
+    passages: list[dict] = []
+    for r in resultats or []:
+        chunk = getattr(r, "chunk", None)
+        if chunk is None:
+            # Les resultats de l'outil `search_documents` arrivent deja aplatis en
+            # dictionnaires : ils ont ete servis autant que les autres.
+            if isinstance(r, dict):
+                passages.append({
+                    "source": r.get("source", ""),
+                    "section": r.get("section", ""),
+                    "position": r.get("position", -1),
+                    "score": r.get("score", 0.0),
+                })
+            continue
+        passages.append({
+            "source": chunk.source_name or chunk.source_path,
+            "section": chunk.section,
+            "position": chunk.position,
+            "score": round(getattr(r, "score", 0.0), 4),
+        })
+    return passages
+
+
+def _passages_du_plan(plan) -> list[dict]:
+    """Tout ce que le pipeline agent a donne a lire : sa recherche ET ses outils."""
+    servis = list(getattr(plan, "search_results", []) or [])
+    for entree in getattr(plan, "tool_results", []) or []:
+        if isinstance(entree, dict) and entree.get("tool") == "search_documents":
+            servis.extend(entree.get("results", []) or [])
+    return _passages_servis(servis)
+
+
+# Ce que Colaig sait ranger. Les IMAGES en font partie : un plan photographié, un devis
+# scanné, un panneau relevé sur le terrain sont des documents, et l'OCR existe (L1.3b).
+#
+# La VIDÉO n'y est pas : Colaig ne sait pas la lire, et l'accepter promettrait un
+# traitement qui n'existe pas.
+_TYPES_DOCUMENT = (
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument",   # docx, xlsx, pptx
+    "application/msword",
+    "application/vnd.oasis.opendocument",              # odt, ods
+    "text/",
+    "image/",
+)
+
+
+def est_audio(piece) -> bool:
+    """Cette pièce jointe est-elle une parole à transcrire ?"""
+    return (piece.content_type or "").startswith("audio/")
+
+
+def est_document(piece) -> bool:
+    """Cette pièce jointe est-elle un document à ranger ?
+
+    LE TYPE MIME FAIT FOI, PAS LE NOM. Un fichier nommé `rapport.pdf` mais annoncé
+    `video/mp4` n'est pas un PDF : se fier à l'extension, c'est se fier à ce que
+    l'expéditeur a bien voulu écrire.
+
+    UN TYPE INCONNU OU ABSENT N'EST PAS UN DOCUMENT. C'est le sens sûr : mieux vaut ne
+    pas ranger un fichier qu'on ne sait pas lire que l'écrire dans l'espace sur une
+    supposition.
+
+    SANS CONTENU, RIEN À RANGER. Le téléchargement peut échouer sans que la pièce
+    disparaisse du message ; écrire un document vide serait pire que ne rien faire — il
+    occuperait une place, serait indexé, et répondrait du vide à une question.
+    """
+    if not piece.content:
+        return False
+    mime = (piece.content_type or "").lower()
+    if not mime or est_audio(piece):
+        return False
+    return any(mime.startswith(prefixe) for prefixe in _TYPES_DOCUMENT)
 
 # Message d'erreur envoyé à l'utilisateur en cas de problème
 ERROR_MESSAGE = (
@@ -68,9 +159,29 @@ Une fois configuré, je pourrai : rechercher dans vos documents, \
 mémoriser le contexte de vos échanges, et lancer des tâches autonomes.\
 """
 
-# Commandes d'auto-configuration détectées dans les messages
-_CMD_CREATE = ("colaig créer", "colaig create", "colaig init", "/colaig init")
-_CMD_LINK = ("colaig lier", "colaig link", "/colaig link")
+# Commandes d'auto-configuration détectées dans les messages.
+#
+# Les préfixes sont déclarés dans `colaig/capacites.py`, avec les commandes `!`.
+# Ils servent à DEUX endroits qui ne doivent pas diverger : ce handler qui les
+# intercepte, et la règle d'interpellation de `matrix.py` qui décide si le message
+# parvient jusqu'ici. Deux listes écrites à la main auraient divergé au premier
+# ajout — c'est l'histoire de `_AIDE`, corrigée le 29/08.
+_CMD_CREATE = PREFIXES_CREATION
+_CMD_LINK = PREFIXES_LIAISON
+
+# Les cinq commandes réduites (L3.7). Toutes des LECTURES : aucune ne déclenche de
+# travail coûteux. Un nom hors de cet ensemble n'est PAS intercepté — il descend au
+# pipeline, plutôt que de disparaître en silence.
+_COMMANDES = ("aide", "space", "index", "classer", "skills")
+
+# Le texte d'aide n'est plus écrit ici : il est produit par `colaig/capacites.py`, à
+# partir de la même table que celle versée au prompt système.
+#
+# Il était constant, et donc faux dans deux modes sur trois. `_repondre_commande`
+# répond dans TOUS les modes ; `_handle_onboarding_command` — qui intercepte
+# `colaig lier` — est en dessous de la porte `mode == CHATBOT`. L'aide envoyait donc
+# l'utilisateur d'une conversation directe taper une commande que le pipeline traitait
+# comme une phrase ordinaire. Relevé sur le fil le 29/08/2026.
 
 
 class MessageHandler:
@@ -132,6 +243,16 @@ class MessageHandler:
         self._pre_exec_builder = pre_exec_builder
         self._user_memory = user_memory
 
+        # RETOURS PAR RÉACTION (L3.3).
+        #
+        # Le branchement est fait ICI, et non dans `main.py` qui câble `on_message` à
+        # deux endroits : un troisième câblage tenu en double se serait désynchronisé.
+        # Le handler possède déjà `messaging` et `storage` — câbler là où les pièces
+        # sont présentes rend l'oubli impossible plutôt qu'improbable.
+        self._retours = GestionnaireRetours(storage, rejouer=self._rejouer_tour)
+        if isinstance(messaging, ReactionProtocol):
+            messaging.on_reaction(self._retours.traiter)
+
     @property
     def is_phase2(self) -> bool:
         """True si les 3 agents Phase 2 sont disponibles."""
@@ -188,7 +309,11 @@ class MessageHandler:
             is_reply=True,
         )
         await temp_handler.handle_message(msg)
-        return captured[0] if captured else ""
+        # `captured[0]` rendait l'accusé d'avancement du pipeline agent, pas la
+        # réponse — voir `reponse_finale`, qui porte la mesure et le pourquoi.
+        from colaig.messaging.progress import reponse_finale
+
+        return reponse_finale(captured)
 
     async def handle_message(self, message: IncomingMessage) -> None:
         """Dispatch vers le pipeline Phase 1 ou Phase 2.
@@ -198,6 +323,22 @@ class MessageHandler:
         2. Vérifie si le salon est en mode CHATBOT et intercepte les commandes d'onboarding.
         Toute erreur lors de la pré-résolution est traitée par le pipeline.
         """
+        # AIGUILLAGE DES PIÈCES JOINTES (L3.7).
+        #
+        # Cette branche disait « pièce jointe + corps vide = message vocal ». C'était
+        # vrai tant que Matrix ne délivrait QUE de l'audio — quatre rappels enregistrés,
+        # aucun pour les fichiers. En ouvrant la réception aux documents, l'équivalence
+        # devient fausse, et déposer un PDF répondrait « Je n'arrive pas à traiter ce
+        # message vocal » : l'assistant nommerait une chose que personne n'a faite.
+        #
+        # L'audio passe D'ABORD sur un message mixte : c'est une PAROLE, elle porte une
+        # intention et attend une réponse, tandis que le document attend un rangement.
+        if (message.attachments and not message.body.strip()
+                and not any(est_audio(p) for p in message.attachments)
+                and any(est_document(p) for p in message.attachments)):
+            await self._ranger_documents(message)
+            return
+
         # Transcription audio : si message vocal sans texte → transcrire d'abord
         if message.attachments and not message.body.strip():
             await self._transcribe_audio(message)
@@ -223,6 +364,17 @@ class MessageHandler:
                 await self._handle_phase1(message)
             return
 
+        # ── Commandes réduites (L3.7) ─────────────────────────────────────────
+        #
+        # AVANT le pipeline : répondre « !skills » par un appel LLM coûterait un
+        # aller-retour pour cinq caractères, et l'assistant improviserait.
+        #
+        # Elles passent par le même canal que n'importe quel message : c'est du contenu
+        # extérieur. La garde est dans `_repondre_commande`, qui ne lit rien tant qu'un
+        # espace n'est pas lié — même frontière que D42/D43.
+        if await self._repondre_commande(message, pre_context):
+            return
+
         if pre_context.mode == ContextMode.CHATBOT:
             # Essayer d'intercepter une commande d'auto-configuration
             handled = await self._handle_onboarding_command(message)
@@ -232,6 +384,17 @@ class MessageHandler:
             if not message.is_reply:
                 await self._send_onboarding(message)
                 return
+
+        # ── Reprise d'un appel destructif suspendu (L2.4b) ─────────────────────
+        #
+        # AVANT tout le reste : si une action attend un accord dans cette conversation,
+        # le message courant est une reponse a cette question, pas une nouvelle demande.
+        #
+        # La reconnaissance est MECANIQUE — aucun modele ne decide de ce qui vaut
+        # confirmation, sinon une consigne deposee dans un document fabriquerait la
+        # sienne.
+        if await self._reprendre_confirmation(message):
+            return
 
         # ── Détection tâche waiting_for_user (Mode C human-in-the-loop) ─────────
         # Si c'est un DM en mode PERSONAL et qu'une tâche attend une réponse :
@@ -245,6 +408,68 @@ class MessageHandler:
             await self._handle_phase2(message, context=pre_context)
         else:
             await self._handle_phase1(message, context=pre_context)
+
+    async def _reprendre_confirmation(self, message: IncomingMessage) -> bool:
+        """Traite le message comme une reponse a une confirmation en attente.
+
+        Returns:
+            True si le message a ete consomme — il ne doit pas descendre dans le
+            pipeline, sinon un « oui » relancerait une analyse d'intention sur le mot
+            « oui ».
+        """
+        from colaig.security.confirmation import (
+            ANNULE,
+            CONFIRME,
+            attentes_en_cours,
+            lire_reponse,
+        )
+
+        attentes = attentes_en_cours()
+        if not attentes.en_attente(message.conversation_id):
+            return False
+
+        verdict = lire_reponse(message.body)
+
+        if verdict == CONFIRME:
+            attente = attentes.reprendre(message.conversation_id)
+            if attente is None:
+                # Expiree entre la question et la reponse. On ne l'execute pas : une
+                # confirmation qu'on peut donner le lendemain n'en est plus une.
+                await self._messaging.send(
+                    message.conversation_id,
+                    "La demande a expire. Reformulez-la si elle est toujours d'actualite.",
+                )
+                return True
+            logger.info(
+                "confirmation accordee : %s dans %s",
+                attente.outil, message.conversation_id,
+            )
+            # L'accord est enregistre pour le PROCHAIN appel de cet outil — a usage
+            # unique, borne au salon et dans le temps.
+            #
+            # Rejouer l'appel ici serait plus direct, mais le tour interactif ne sait pas
+            # reprendre un appel d'outil isole hors de la boucle agentique. Faire
+            # reformuler est moins elegant et parfaitement honnete : l'action ne
+            # s'execute qu'apres un accord explicite, et l'accord ne vaut qu'une fois.
+            # TODO-NORMALE : rejouer l'appel directement quand la boucle saura reprendre.
+            attentes.accorder(message.conversation_id, attente.outil)
+            await self._messaging.send(
+                message.conversation_id,
+                f"Accord enregistre pour `{attente.outil}`. "
+                "Reformulez votre demande : elle sera executee sans nouvelle question.",
+            )
+            return True
+
+        attentes.oublier(message.conversation_id)
+        if verdict == ANNULE:
+            # Ni oui ni non : le doute ne vaut pas accord. On abandonne l'attente ET on
+            # laisse le message suivre son cours — c'est peut-etre une vraie question.
+            logger.info("confirmation abandonnee (reponse non concluante) dans %s",
+                        message.conversation_id)
+            return False
+
+        await self._messaging.send(message.conversation_id, "Action abandonnee.")
+        return True
 
     async def _handle_waiting_task_reply(self, message: IncomingMessage) -> bool:
         """Injecte une réponse DM dans une tâche waiting_for_user si applicable.
@@ -321,6 +546,235 @@ class MessageHandler:
     # Audio — transcription des messages vocaux
     # =========================================================================
 
+    async def _ranger_documents(self, message: IncomingMessage) -> None:
+        """Range les documents déposés dans l'espace, et le dit.
+
+        LE CLASSEMENT N'EST PAS RÉÉCRIT ICI. `ClassificationEngine` existe, est branché
+        dans `document_index.py`, et lit ses règles dans `.colaig/rules/`. Ce chemin ne
+        fait que **déposer** le fichier dans l'espace documentaire ; l'indexation
+        incrémentale le prendra et le classera comme n'importe quel autre document.
+
+        Réécrire un second chemin de classement produirait deux règles divergentes —
+        ce dépôt en a mesuré le coût neuf fois.
+
+        LE NOM EST VALIDÉ. Un nom de fichier vient de l'extérieur : il peut contenir une
+        traversée (`../`) ou viser `.colaig/`, ce qui ferait écrire dans le dossier
+        d'instance depuis un simple dépôt en salon. C'est la même garde que pour les
+        cibles de livraison (L2.6).
+
+        ON DIT CE QU'ON A FAIT. Un dépôt silencieux laisse l'utilisateur ignorer si le
+        document est arrivé — et il le redéposera.
+        """
+        from colaig.security.path_validator import validate_storage_path
+
+        try:
+            contexte = await self._resolver.resolve(message)
+            espace = getattr(getattr(contexte, "workspace", None), "storage_path", "")
+        except Exception:
+            espace = ""
+        if not espace:
+            logger.warning("document déposé hors espace connu (%s)", message.conversation_id)
+            await self._dire(message, "Je ne sais pas dans quel espace ranger ce "
+                                      "document : ce salon n'est rattaché à aucun dossier.")
+            return
+
+        ranges, refuses = [], []
+        for piece in message.attachments:
+            if not est_document(piece):
+                continue
+            try:
+                cible = validate_storage_path(
+                    f"{espace.rstrip('/')}/{piece.filename}",
+                    allow_dotcolaig=False, context="dépôt en salon")
+                await self._storage.upload(cible, piece.content)
+                ranges.append(piece.filename)
+            except Exception as exc:
+                logger.warning("dépôt refusé pour %s : %s", piece.filename, exc)
+                refuses.append(piece.filename)
+
+        if ranges:
+            await self._dire(message, "Document déposé dans l'espace : "
+                                      + ", ".join(f"**{n}**" for n in ranges)
+                                      + ". Il sera indexé et classé à la prochaine "
+                                        "analyse.")
+        if refuses:
+            await self._dire(message, "Je n'ai pas pu ranger : "
+                                      + ", ".join(refuses) + ".")
+
+    # ── Commandes réduites (L3.7) ────────────────────────────────────
+
+    async def _repondre_commande(self, message: IncomingMessage, context) -> bool:
+        """Traite `!aide !space !index !classer !skills`. Rend True si c'est fait.
+
+        TOUTES SONT DES LECTURES. Relancer une indexation depuis une phrase de salon
+        exigerait d'injecter l'`Indexer` ici — une dépendance décidée dans `main.py`, et
+        un coût que personne n'aurait consenti en tapant cinq caractères.
+
+        Une commande INCONNUE n'est pas interceptée : elle descend au pipeline. L'avaler
+        en silence ferait croire à une commande qui n'existe pas.
+        """
+        corps = message.body.strip()
+        if not corps.startswith("!"):
+            return False
+
+        nom = corps.split()[0].lower().lstrip("!")
+        nom = {"espace": "space", "help": "aide", "competences": "skills"}.get(nom, nom)
+        if nom not in _COMMANDES:
+            return False
+
+        espace = getattr(context, "workspace", None) if context else None
+        chemin = getattr(espace, "storage_path", "") if espace else ""
+
+        mode = getattr(context, "mode", None) or ContextMode.CHATBOT
+
+        if nom == "aide":
+            from colaig.capacites import texte_aide
+            await self._dire(message, texte_aide(mode))
+            return True
+
+        # LA GARDE. Un salon que personne n'a lié n'a pas d'espace, et il ne doit y
+        # avoir AUCUNE lecture — sans quoi `!index` ferait parler Colaig d'un espace
+        # auquel ce salon n'a pas accès, et il suffirait de l'inviter.
+        if not chemin:
+            # Le conseil dépend du mode, pour la même raison que le texte d'aide :
+            # `colaig lier` n'est intercepté qu'en CHATBOT.
+            suite = ("Tapez `colaig lier <identifiant>` pour l'y rattacher, ou `!aide`."
+                     if mode == ContextMode.CHATBOT else "Tapez `!aide`.")
+            await self._dire(message, f"Ce salon n'est lié à aucun espace. {suite}")
+            return True
+
+        try:
+            await self._dire(message, await self._etat_espace(nom, espace, chemin))
+        except Exception:
+            logger.exception("commande !%s en échec sur %s", nom, chemin)
+            await self._dire(message, f"Je n'arrive pas à lire l'espace pour `!{nom}`.")
+        return True
+
+    async def _etat_espace(self, nom: str, espace, chemin: str) -> str:
+        """Rend le texte d'une commande d'état. Peut lever — l'appelant le dit."""
+        from colaig import paths
+
+        if nom == "space":
+            lignes = [f"**{espace.name}** (`{espace.workspace_id}`)",
+                      f"Dossier : `{chemin}`",
+                      f"Recherche documentaire : {'activée' if espace.rag_enabled else 'désactivée'}",
+                      f"Salons liés : {len(espace.conversations or [])}"]
+            if espace.description:
+                lignes.insert(1, espace.description)
+            return "\n".join(lignes)
+
+        if nom == "skills":
+            fichiers = await self._storage.list_files(paths.skills_dir(chemin))
+            noms = sorted(f.name.removesuffix(".md") for f in fichiers
+                          if f.name.endswith(".md"))
+            if not noms:
+                return ("Aucune procédure déposée. Ajoutez des fichiers `.md` dans "
+                        "`.colaig/skills/` de l'espace.")
+            return "Procédures disponibles :\n" + "\n".join(f"- {n}" for n in noms)
+
+        if nom == "index":
+            # CE QUE COLAIG A COMPRIS DES DOCUMENTS, PAS LA LISTE DE SES FICHIERS.
+            #
+            # Cette commande rendait « index.faiss — 20223 Ko » : trois fichiers
+            # internes et leur taille. L'utilisateur demande ce qui a ete lu de SES
+            # documents ; on lui rendait un listage de repertoire.
+            #
+            # On ne charge que `metadata.pkl` (~1 Mo) et non l'index vectoriel (~20 Mo) :
+            # decrire ne demande pas de chercher.
+            from colaig.rag.compte_rendu_espace import rediger_compte_rendu
+            from colaig.rag.faiss_store import FaissStore
+
+            try:
+                meta = await self._storage.download(
+                    paths.index_file(chemin, "metadata.pkl"))
+            except Exception:
+                return ("Aucun index pour cet espace — les documents n'ont pas encore "
+                        "été analysés.")
+
+            chunks = FaissStore.lire_metadonnees(meta)
+            fichiers = [
+                f.path for f in await self._storage.list_files(chemin, recursive=True)
+                if not f.is_directory and not paths.is_reserved_path(f.path)
+            ]
+            return rediger_compte_rendu(chunks, fichiers)
+
+        # !classer — où les documents ont été rangés.
+        #
+        # On LIT le registre de classification ; on ne le reconstruit pas. Déclencher
+        # une passe de classification coûte un appel LLM par document.
+        registre = paths.index_file(chemin, "documents") + "/registry.json"
+        if not await self._storage.exists(registre):
+            return ("Aucun classement enregistré. Les documents sont rangés lors de "
+                    "l'analyse incrémentale, pas à la demande.")
+        import json as _json
+        enregistrements = _json.loads(await self._storage.download(registre))
+        dossiers: dict[str, int] = {}
+        for record in (enregistrements.values() if isinstance(enregistrements, dict)
+                       else enregistrements):
+            chemin_virtuel = (record or {}).get("virtual_path") or "(non classé)"
+            dossiers[chemin_virtuel] = dossiers.get(chemin_virtuel, 0) + 1
+        if not dossiers:
+            return "Le registre de classement est vide."
+        return "Classement des documents :\n" + "\n".join(
+            f"- `{d}` : {n}" for d, n in sorted(dossiers.items()))
+
+    # ── Retours par réaction (L3.3) ──────────────────────────────────
+
+    async def _proposer_retour(self, message: IncomingMessage, context,
+                               reponse: str, response=None) -> None:
+        """Pose les gestes sous la réponse et retient de quoi agir dessus.
+
+        NE LÈVE JAMAIS. La réponse est le produit ; les gestes sont un confort. Un
+        homeserver qui refuse `m.reaction` ne doit pas faire échouer le tour de
+        conversation qui vient d'aboutir.
+        """
+        if not isinstance(self._messaging, ReactionProtocol):
+            return
+        try:
+            evt = self._messaging.dernier_message_envoye(message.conversation_id)
+            if not evt:
+                return
+            espace = ""
+            if context is not None and getattr(context, "workspace", None):
+                espace = context.workspace.storage_path or ""
+            self._retours.retenir(
+                evt,
+                conversation_id=message.conversation_id,
+                espace=espace,
+                question=message.body,
+                reponse=reponse,
+                # Ce qui permet de JUGER le geste a froid, sans revenir dans un
+                # salon chiffre. Sans ces deux champs, un 👎 enregistre ne dit
+                # rien d'actionnable — releve le 30/08/2026 sur le seul retour
+                # existant de l'instance.
+                sources=list(getattr(response, "sources", ()) or ()),
+                confiance=getattr(response, "confidence", None),
+            )
+            await proposer_gestes(self._messaging, message.conversation_id)
+        except Exception:
+            logger.debug("gestes non proposés dans %s", message.conversation_id)
+
+    async def _rejouer_tour(self, reaction, question: str) -> None:
+        """🔄 — rejoue le tour avec la question d'origine.
+
+        Le message reconstruit porte l'identifiant du GESTE comme `message_id` : il ne
+        se confond donc pas avec la question initiale dans les journaux, et l'on peut
+        retrouver ce qui a déclenché la seconde réponse.
+        """
+        await self.handle_message(IncomingMessage(
+            user_id=reaction.user_id,
+            conversation_id=reaction.conversation_id,
+            body=question,
+            message_id=reaction.reaction_id,
+        ))
+
+    async def _dire(self, message: IncomingMessage, texte: str) -> None:
+        """Envoie une réponse sans laisser une panne d'envoi casser la réception."""
+        try:
+            await self._messaging.send(message.conversation_id, texte)
+        except Exception:
+            logger.exception("envoi impossible dans %s", message.conversation_id)
+
     async def _transcribe_audio(self, message: IncomingMessage) -> None:
         """Transcrit les pièces jointes audio et injecte le texte dans message.body.
 
@@ -383,11 +837,18 @@ class MessageHandler:
                 await self._messaging.send_typing(message.conversation_id, typing=True)
                 try:
                     from colaig.context.workspace import create_workspace
+                    # Le créateur est inscrit PROPRIÉTAIRE.
+                    #
+                    # Sans cela, l'espace naît sans personne pour l'administrer : son
+                    # créateur ne pourrait pas y rattacher un second salon, la garde de
+                    # `can_link_conversation` le traitant comme un inconnu. Un espace
+                    # orphelin dès sa création n'est pas un espace.
                     ws = await create_workspace(
                         storage=self._storage,
                         storage_path=f"/{_slugify_msg(name)}/",
                         name=name,
                         conversations=[message.conversation_id],
+                        owners=[message.user_id] if message.user_id else None,
                     )
                     await self._resolver.register_workspace(ws)
                     await self._messaging.send(
@@ -412,15 +873,27 @@ class MessageHandler:
         # ── commande "lier workspace" ──────────────────────────────────
         for prefix in _CMD_LINK:
             if body_lower.startswith(prefix):
+                from colaig.security.acl import WorkspaceACL
+
                 workspace_id = body[len(prefix):].strip()
                 if not workspace_id:
+                    # N'énumérer QUE les espaces où le demandeur est admis.
+                    #
+                    # La liste des espaces d'une instance est en soi une information :
+                    # elle nomme les équipes, les directions, parfois les dossiers en
+                    # cours. Elle était rendue à quiconque savait inviter le bot.
+                    visibles = [
+                        ws for ws in self._resolver.workspaces
+                        if WorkspaceACL.can_link_conversation(ws, message.user_id)
+                    ]
                     await self._messaging.send(
                         message.conversation_id,
                         "Usage : `colaig lier <workspace_id>`\n"
-                        "Workspaces disponibles : "
-                        + ", ".join(
-                            f"`{ws.workspace_id}`" for ws in self._resolver.workspaces
-                        ) or "aucun",
+                        + ("Espaces auxquels vous êtes déclaré : "
+                           + ", ".join(f"`{ws.workspace_id}`" for ws in visibles)
+                           if visibles else
+                           "Vous n'êtes déclaré sur aucun espace existant. "
+                           "Utilisez `colaig créer <nom>` pour ouvrir le vôtre."),
                     )
                     return True
 
@@ -436,6 +909,31 @@ class MessageHandler:
                         await self._messaging.send(
                             message.conversation_id,
                             f"❌ Workspace `{workspace_id}` introuvable.",
+                        )
+                        return True
+
+                    # LA GARDE QUI COMPTE — l'appariement salon → espace EST la
+                    # frontière d'accès du chemin conversationnel. Une fois le salon
+                    # rattaché, tout ce qui s'y dit interroge le corpus de l'espace,
+                    # sans autre contrôle : `WorkspaceACL` garde les outils
+                    # d'administration, la délégation et les tâches, jamais ce chemin.
+                    #
+                    # Sans cette garde, deux messages depuis n'importe quel salon
+                    # suffisaient à lire le corpus de n'importe quel espace. Mesuré.
+                    #
+                    # Le refus ne distingue pas « introuvable » de « interdit » à
+                    # dessein : distinguer redonnerait par la porte l'énumération qu'on
+                    # vient de fermer par la fenêtre.
+                    if not WorkspaceACL.can_link_conversation(target, message.user_id):
+                        logger.warning(
+                            "rattachement refusé : %s n'est pas déclaré sur %s",
+                            message.user_id, target.workspace_id,
+                        )
+                        await self._messaging.send(
+                            message.conversation_id,
+                            f"❌ Workspace `{workspace_id}` introuvable ou non "
+                            "accessible. Demandez à son administrateur de vous "
+                            "déclarer, ou créez le vôtre avec `colaig créer <nom>`.",
                         )
                         return True
 
@@ -517,7 +1015,20 @@ class MessageHandler:
             )
 
             # 5. Envoyer la réponse
-            await self._messaging.send(message.conversation_id, response.text)
+            # Le modele recopie les emojis de retour depuis ses propres reponses
+            # precedentes. On les retire AVANT l'envoi, donc avant l'historique :
+            # sinon le motif se reinstalle tout seul au tour suivant.
+            response.text = retirer_gestes_en_fin(response.text)
+            # Les sources passent en exposant, listees une seule fois a la fin.
+            # `response.text` n'est PAS ecrase : l'historique doit garder la forme
+            # `[nom.pdf]`, sinon le modele recopierait des exposants au tour suivant
+            # et `citation_checker` perdrait son ancrage — exactement le defaut des
+            # emojis ci-dessus, deux lignes plus haut.
+            texte_envoye = numeroter_les_sources(response.text, response.sources)
+            await self._messaging.send(message.conversation_id, texte_envoye)
+
+            # Proposer les gestes de retour SOUS la réponse (L3.3)
+            await self._proposer_retour(message, context, response.text, response)
 
             # Log échange complet pour suivi et amélioration de la pertinence
             logger.info(
@@ -529,6 +1040,22 @@ class MessageHandler:
                 response.confidence,
                 response.generation_time_ms,
             )
+            # Le journal du POD meurt au redeploiement — seize se sont succede le
+            # 30/08/2026. Ce qui permet de juger une reponse est donc aussi consigne
+            # SUR LE STOCKAGE, a cote des retours : c'est ce qui rend une observation
+            # sur plusieurs jours possible sans qu'un humain ait a lever le doigt.
+            await consigner_echange(
+                self._storage,
+                context.workspace.storage_path if context.workspace else "",
+                question=message.body,
+                reponse=response.text,
+                sources=list(response.sources or []),
+                passages=_passages_servis(search_results),
+                confiance=response.confidence,
+                temps_ms=response.generation_time_ms,
+                message_id=message.message_id,
+            )
+
 
             # 6. Sauvegarder l'historique
             await self._save_history(message, response.text, context)
@@ -570,17 +1097,19 @@ class MessageHandler:
             channel_format = resolve_channel(message.platform or "", message.conversation_type)
             reporter = ProgressReporter(self._messaging, message.conversation_id, channel_format)
 
-            # 2b. Charger l'historique via ConversationMemory si disponible (Phase 5)
-            if self._conversation_memory and context.workspace and context.workspace.storage_path:
-                try:
-                    history = await self._conversation_memory.load_relevant_history(
-                        workspace_path=context.workspace.storage_path,
-                        conversation_id=message.conversation_id,
-                        current_query=message.body,
-                    )
-                    context.conversation_history = history
-                except Exception:
-                    logger.warning("impossible de charger l'historique via ConversationMemory")
+            # L'HISTORIQUE EST CHARGÉ PLUS BAS, APRÈS LA CARTE DE PRÉ-EXÉCUTION (L3.5).
+            #
+            # Il l'était ici, donc AVANT que le message ne soit vectorisé — et
+            # `ConversationMemory` vectorisait alors le même texte une seconde fois pour
+            # classer l'historique par similarité.
+            #
+            # Deux allers-retours réseau pour un seul texte, sur le chemin d'un message
+            # reçu : ils s'ajoutent à la latence avant que l'utilisateur voie quoi que
+            # ce soit. Et un embedding n'est pas déterministe (2,6e-04 mesurés) : le
+            # même message pouvait donner deux vecteurs différents dans un seul tour.
+            #
+            # `pre_exec.build` ne lit pas l'historique — il n'a besoin que de l'espace
+            # et de la trame. L'ordre pouvait donc s'inverser sans rien casser.
 
             # 2c. Charger la trame vivante (Phase 6)
             trame = None
@@ -632,10 +1161,32 @@ class MessageHandler:
                             workspace_id=context.workspace.workspace_id,
                             conversation_phase=None,
                             fixed_context={"user_memory": [f.content for f in facts]},
+                            # Le vecteur est porté par la carte pour que l'historique
+                            # le réutilise : ce chemin-là aussi le calculait une fois
+                            # pour lui, et laissait la mémoire le recalculer (L3.5).
+                            message_embedding=msg_emb,
                         )
                         logger.debug("user_memory: %d faits injectés (sans Phase 6)", len(facts))
                 except Exception:
                     logger.warning("user_memory: lecture sans Phase 6 échouée — dégradation gracieuse")
+
+            # 2f. Charger l'historique — APRÈS la carte, pour réutiliser son vecteur.
+            #
+            # Voir le commentaire en 2b : sans cela, le même message était vectorisé
+            # deux fois dans un tour. `query_embedding=None` laisse `ConversationMemory`
+            # calculer le sien, ce qui préserve tous les autres appelants.
+            if self._conversation_memory and context.workspace and context.workspace.storage_path:
+                try:
+                    history = await self._conversation_memory.load_relevant_history(
+                        workspace_path=context.workspace.storage_path,
+                        conversation_id=message.conversation_id,
+                        current_query=message.body,
+                        query_embedding=(pre_exec.message_embedding
+                                         if pre_exec is not None else None),
+                    )
+                    context.conversation_history = history
+                except Exception:
+                    logger.warning("impossible de charger l'historique via ConversationMemory")
 
             # 3. THINKING — Analyse
             await self._notify_phase(PipelinePhase.THINKING, message.conversation_id)
@@ -678,7 +1229,17 @@ class MessageHandler:
 
             # 6. COMPLETE — Envoi
             await self._notify_phase(PipelinePhase.COMPLETE, message.conversation_id)
-            await self._messaging.send(message.conversation_id, response.text)
+            # Le modele recopie les emojis de retour depuis ses propres reponses
+            # precedentes. On les retire AVANT l'envoi, donc avant l'historique :
+            # sinon le motif se reinstalle tout seul au tour suivant.
+            response.text = retirer_gestes_en_fin(response.text)
+            # Les sources passent en exposant, listees une seule fois a la fin.
+            # `response.text` n'est PAS ecrase : l'historique doit garder la forme
+            # `[nom.pdf]`, sinon le modele recopierait des exposants au tour suivant
+            # et `citation_checker` perdrait son ancrage — exactement le defaut des
+            # emojis ci-dessus, deux lignes plus haut.
+            texte_envoye = numeroter_les_sources(response.text, response.sources)
+            await self._messaging.send(message.conversation_id, texte_envoye)
             if not response.sources and intent.needs_rag:
                 await self._messaging.send(
                     message.conversation_id,
@@ -696,6 +1257,22 @@ class MessageHandler:
                 response.confidence,
                 response.generation_time_ms,
             )
+            # Le journal du POD meurt au redeploiement — seize se sont succede le
+            # 30/08/2026. Ce qui permet de juger une reponse est donc aussi consigne
+            # SUR LE STOCKAGE, a cote des retours : c'est ce qui rend une observation
+            # sur plusieurs jours possible sans qu'un humain ait a lever le doigt.
+            await consigner_echange(
+                self._storage,
+                context.workspace.storage_path if context.workspace else "",
+                question=message.body,
+                reponse=response.text,
+                sources=list(response.sources or []),
+                passages=_passages_du_plan(plan),
+                confiance=response.confidence,
+                temps_ms=response.generation_time_ms,
+                message_id=message.message_id,
+            )
+
 
             # Mettre à jour et persister la trame vivante (Phase 6)
             if trame and self._trame_manager and context.workspace and context.workspace.storage_path:
@@ -708,6 +1285,9 @@ class MessageHandler:
                     logger.debug("trame sauvegardée conv=%s", message.conversation_id)
                 except Exception:
                     logger.warning("trame non sauvegardée conv=%s", message.conversation_id)
+
+            # Proposer les gestes de retour SOUS la réponse (L3.3)
+            await self._proposer_retour(message, context, response.text, response)
 
             # Sauvegarder l'historique (via ConversationMemory si disponible)
             if self._conversation_memory and context.workspace and context.workspace.storage_path:

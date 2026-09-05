@@ -25,3 +25,9 @@ _local/
 # Overlays d'outillage
 .wikichat/
 .claude-session
+_chantier/mesures/remesure-prompt-production.txt
+.cache-embeddings-*.npz
+_chantier/mesures/.cache-embeddings-*
+_chantier/mesures/dispersion-durci-*.json
+_chantier/mesures/dispersion-avant_d50-*.json
+_chantier/mesures/regime-complet-*.json

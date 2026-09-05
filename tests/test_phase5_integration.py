@@ -8,6 +8,9 @@ sémantique, config, pipeline complet Analyser → Orchestrateur → Synthétise
 
 import pytest
 
+from colaig.agents import Analyser, Orchestrator, Synthesiser, build_tool_registry
+from colaig.agents.tool_registry import ToolRegistry
+from colaig.context.conversation_memory import ConversationMemory
 from colaig.models import (
     ChatCompletionResult,
     ColaigConfig,
@@ -20,12 +23,7 @@ from colaig.models import (
     WorkspaceConfig,
     WorkspaceContext,
 )
-from colaig.agents import Analyser, Orchestrator, Synthesiser, build_tool_registry
-from colaig.agents.tool_registry import ToolRegistry
-from colaig.context.conversation_memory import ConversationMemory
-
 from tests.conftest import MockAlbertClient, MockStorage
-
 
 # =============================================================================
 # Fixtures partagées

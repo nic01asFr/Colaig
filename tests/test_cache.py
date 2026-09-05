@@ -1,10 +1,6 @@
 """Tests pour colaig/storage/cache.py — Cache in-memory avec TTL."""
 
 import asyncio
-import time
-from unittest.mock import patch
-
-import pytest
 
 from colaig.storage.cache import TTLCache
 

@@ -29,6 +29,8 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 
+from colaig.security.acl import WorkspaceACL
+
 logger = logging.getLogger(__name__)
 
 # Concurrence maximale par défaut — surchargeable via ColaigConfig.task_max_concurrent
@@ -721,11 +723,40 @@ async def _deliver_result(
         if not storage:
             logger.warning("_deliver_result: storage non disponible pour tâche %s", task.task_id)
             return
+        # DERNIÈRE BARRIÈRE — le résultat ne sort pas du périmètre documentaire.
+        #
+        # Le modèle de confiance de Colaig repose sur le partage de stockage : écrire
+        # dans `.colaig/prompts/` revient à administrer l'agent, et c'est assumé. Mais
+        # ce raisonnement suppose que Colaig n'écrit pas À LA PLACE de l'utilisateur.
+        # Ici, si, et **avec ses propres identifiants de service** : les droits du
+        # demandeur sur `.colaig/` ne sont jamais consultés, et ne peuvent pas l'être —
+        # `StorageProtocol` n'a aucune notion de droits.
+        #
+        # Sans ce contrôle, une tâche visant `.colaig/prompts/synthesiser.md` faisait de
+        # la réponse du modèle le prompt système du tour suivant.
+        #
+        # Le contrôle est ici ET à la création. Les tâches enregistrées avant ce
+        # correctif portent une cible non validée, et `.colaig/tasks/{id}.json` est
+        # lui-même modifiable par qui écrit sur l'espace : valider seulement à la
+        # création laisserait passer une tâche éditée après coup.
         try:
-            await storage.upload(task.delivery_target, response_text.encode("utf-8"))
+            cible = WorkspaceACL.validate_delivery_target(
+                "document", task.delivery_target,
+                user_id=task.user_id,
+                personal_workspace_path=task.workspace_path or "",
+            )
+        except Exception as exc:
+            logger.error(
+                "_deliver_result: cible refusée pour la tâche %s (%s) — %s",
+                task.task_id, task.delivery_target, exc,
+            )
+            return
+
+        try:
+            await storage.upload(cible, response_text.encode("utf-8"))
             logger.info(
                 "_deliver_result: document tâche %s créé → %s",
-                task.task_id, task.delivery_target,
+                task.task_id, cible,
             )
         except Exception as exc:
             logger.error(

@@ -23,20 +23,51 @@ from nio import (
     JoinError,
     KeysQueryResponse,
     LoginResponse,
+    MegolmEvent,
+    ReactionEvent,
     RoomEncryptedAudio,
+    RoomEncryptedFile,
+    RoomEncryptedImage,
     RoomMessageAudio,
+    RoomMessageFile,
+    RoomMessageImage,
     RoomMessageText,
     SyncError,
 )
 from nio.crypto.device import TrustState
 
+from colaig import paths
 from colaig.exceptions import MessagingError
-from colaig.models import Attachment, ConversationType, IncomingMessage
+from colaig.models import Attachment, ConversationType, IncomingMessage, Reaction
 
 logger = logging.getLogger(__name__)
 
 # Messages de plus de 5 minutes ignorés au démarrage
 _STALE_MESSAGE_SECONDS = 300
+
+# Combien de fils l'instance retient. Un processus qui tourne des semaines ne peut pas
+# se souvenir de tous les siens : même exigence que le verrou d'historique et que la
+# retenue des messages indéchiffrables — une structure qui ne décroît jamais finit par
+# tenir la mémoire.
+#
+# La purge retire les PLUS ANCIENS. Purger au hasard, ou purger le dernier, ferait
+# perdre la conversation en cours — précisément celle que l'utilisateur écrit.
+_MAX_FILS_SUIVIS = 1024
+
+# Combien de salons dont on retient le dernier message émis (L3.3).
+#
+# Sert à poser une réaction sous SA PROPRE réponse, qui exige d'en connaître
+# l'identifiant. Même raison de borner que ci-dessus : une entrée par salon jamais
+# purgée croît avec le nombre de salons vus, pas avec l'activité.
+_MAX_SALONS_SUIVIS = 512
+
+# Taille maximale d'une piece jointe acceptee, en octets.
+#
+# Le telechargement se fait EN MEMOIRE — comme celui de l'audio, dont ce chemin
+# reutilise le code. Un fichier de plusieurs centaines de megaoctets tuerait le
+# processus, et un salon partage en contient tot ou tard un : une video, une archive,
+# un plan. Le refus est journalise, jamais silencieux.
+_MAX_PIECE_JOINTE_OCTETS = 25 * 1024 * 1024
 
 
 # ── Helpers Markdown → HTML (SPEC-48 : Matrix utilise HTML sanitisé) ─────────
@@ -138,14 +169,50 @@ def _markdown_to_html(text: str) -> str:
             result.append(f"<li>{_inline_markdown(ol.group(1))}</li>")
             continue
 
-        # ── Ligne vide → séparateur ────────────────────────────────────────────
+        # ── Ligne vide → séparateur de paragraphes ─────────────────────────────
+        #
+        # Elle n'ajoutait qu'une entree vide, que le HTML repliait comme le reste.
+        # Vu dans Tchap le 30/08/2026 sur la reponse de `!index` : les deux
+        # paragraphes arrivaient colles, « …1272 passages. 18 documents sont des
+        # copies… ». Le correctif precedent ne traitait que deux lignes de texte
+        # CONSECUTIVES ; celle-ci est l'autre moitie du meme defaut.
+        #
+        # Un saut est pose ICI, le second viendra de la ligne de texte suivante :
+        # deux ensemble font un blanc de paragraphe. La condition sur `endswith(">")`
+        # evite d'en ajouter apres une balise fermante — `</ul>`, `</h2>` separent
+        # deja, et un saut de plus y creerait un trou.
         if not line.strip():
             _close_lists()
-            result.append("")
+            if result and result[-1] and not result[-1].endswith(">"):
+                result.append("<br /><br />")
             continue
 
         # ── Texte normal ───────────────────────────────────────────────────────
+        #
+        # UN RETOUR A LA LIGNE ECRIT EST UN RETOUR A LA LIGNE VOULU.
+        #
+        # En CommonMark, un simple `\n` est un espace : il faut deux espaces terminaux
+        # ou une ligne vide pour couper. Le convertisseur suivait donc la norme — et
+        # fusionnait toute suite de lignes de texte. Vu dans Tchap le 30/08/2026, sur le
+        # bloc de sources numerotees :
+        #
+        #     ¹ AccEvtGrave Support participants septembre 2024.pdf ² Fiche metier...
+        #
+        # sur une seule ligne. Les titres et les listes s'en tiraient — ils produisent
+        # leurs propres balises — ce qui explique que le defaut ait survecu : le modele
+        # redige surtout en listes.
+        #
+        # Colaig ecrit dans une MESSAGERIE, pas dans un document. Element, dont Tchap
+        # derive, rend les retours a la ligne tels quels, parce qu'un utilisateur qui
+        # appuie sur Entree attend une nouvelle ligne. On aligne le rendu sur l'attente
+        # du lecteur, pas sur la norme du document.
+        #
+        # La condition porte sur la ligne PRECEDENTE : on ne coupe qu'entre deux lignes
+        # de texte. Une balise fermante (`</ul>`, `</h2>`, `</pre>`) ou une ligne vide
+        # separent deja, et y ajouter un saut creerait un blanc de trop.
         _close_lists()
+        if result and result[-1] and not result[-1].endswith(">"):
+            result[-1] += "<br />"
         result.append(_inline_markdown(line))
 
     _close_lists()
@@ -176,6 +243,46 @@ def _strip_markdown(text: str) -> str:
     return text.strip()
 
 
+def _exiger_e2e() -> None:
+    """Vérifie que le chiffrement de bout en bout est réellement disponible.
+
+    ON TESTE LA CAPACITÉ, PAS SON IMPLÉMENTATION.
+
+    La première version faisait `import olm`. C'était juste pour `matrix-nio` 0.25 et
+    **faux à partir de 0.26**, qui a remplacé libolm par `vodozemac`, sa réimplémentation
+    en Rust. Vérifié en conteneur : avec nio 0.26, `olm` est absent, `vodozemac` est là,
+    et `AsyncClientConfig(encryption_enabled=True)` passe sans broncher.
+
+    Le contrôle aurait donc **refusé de démarrer sur une installation parfaitement
+    capable** — un garde-fou qui bloque ce qui fonctionne, et pour une raison que son
+    message d'erreur aurait rendue incompréhensible : « installez python-olm » sur un
+    système qui n'en a pas besoin.
+
+    D'où la règle : on demande à nio s'il sait chiffrer, et on le laisse répondre. Quel
+    que soit le paquet qui le lui permet, aujourd'hui ou demain.
+
+    Sans cette vérification, l'échec survient à la première connexion sous la forme d'un
+    `ImportWarning` remonté des entrailles de nio : il ne nomme ni le paquet à installer,
+    ni la dépendance système en cause, ni le fait que Tchap chiffre tous ses salons —
+    donc que désactiver le chiffrement n'est pas une échappatoire.
+
+    Ce n'est pas une dépendance optionnelle qu'on pourrait contourner : **sur Tchap,
+    sans chiffrement, il n'y a pas de lecture possible des messages.**
+    """
+    try:
+        AsyncClientConfig(encryption_enabled=True)
+    except Exception as exc:
+        raise MessagingError(
+            "Le backend Matrix exige le chiffrement de bout en bout (Tchap chiffre "
+            f"tous ses salons), et matrix-nio ne peut pas l'activer : {exc}." + chr(10) +
+            "Installer l'extra : pip install 'matrix-nio[e2e]'" + chr(10) +
+            "Selon la version, il apporte python-olm — qui se compile contre libolm, "
+            "soit apt install libolm-dev — ou vodozemac, qui n'a pas cette contrainte. "
+            "Sous Windows aucune roue de python-olm n'est publiée : utiliser une "
+            "version de nio >= 0.26, WSL, ou un conteneur."
+        ) from exc
+
+
 class MatrixMessaging:
     """Client Matrix/Tchap pour Colaig.
 
@@ -200,10 +307,51 @@ class MatrixMessaging:
         self._client: AsyncClient | None = None
         self._message_callbacks: list[Callable] = []
         self._start_time: float = 0.0
+        # L'IDENTITE QUE LE HOMESERVER NOUS DONNE, et qui fait foi pour tout ce qui
+        # decide. `_username` est ce qu'on a TAPE dans la configuration : il sert a se
+        # connecter, plus a se reconnaitre.
+        #
+        # Matrix ne delivre que des MXID complets (`@smoke:agent.tchap.gouv.fr`). Une
+        # configuration portant l'identifiant nu faisait echouer trois controles EN
+        # SILENCE — dont celui qui empeche le bot de se repondre a lui-meme.
+        self._identite: str = ""
+        # Un salon n'est prévenu qu'une fois d'un message illisible (L2.6) : un appareil
+        # mal apparié en produit des dizaines, et un message répété cesse d'être lu.
+        self._salons_prevenus_indechiffrable: set[str] = set()
+        # Les fils ouverts sur une réponse du bot (L3.2). Un `dict` et non un `set` :
+        # il faut un ORDRE pour purger les plus anciens, et l'ordre d'insertion d'un
+        # dict est garanti depuis Python 3.7.
+        self._fils_suivis: dict[str, None] = {}
+        # Le dernier message NON-STATUT émis par salon (L3.3) — pour poser une réaction
+        # sous sa propre réponse. Même structure ordonnée, même raison de purge.
+        self._derniers_envois: dict[str, str] = {}
+        self._reaction_callback: Callable | None = None
         # Fichier de persistance du token (évite de créer une nouvelle session à chaque démarrage)
-        self._token_store = token_store or Path.home() / ".colaig" / "matrix_token.json"
+        self._token_store = token_store or paths.local_file("matrix_token.json")
         # Répertoire du crypto store E2E (clés Olm/Megolm — nécessite matrix-nio[e2e])
         self._store_path = self._token_store.parent / "e2e_store"
+        # Notre propre nom d'affichage, obtenu du profil a la connexion. Initialise
+        # ici pour que `_corps_sans_mention` ne leve pas avant que connect() ait eu
+        # lieu — chemin emprunte par les tests a doublure.
+        self._nom_affiche: str = ""
+
+    @property
+    def identite(self) -> str:
+        """Le MXID qui fait foi : celui du homeserver, sinon la configuration.
+
+        Le repli permet au pipeline de tourner sans connexion — sans lui, tout test de
+        reception exigerait un homeserver.
+        """
+        return self._identite or self._username
+
+    def _retenir_identite(self, mxid: str) -> None:
+        """Retient l'identite rendue par le serveur. Une valeur VIDE est ignoree.
+
+        Un `whoami` degrade ne doit pas effacer ce qu'on savait : comparer `event.sender`
+        a la chaine vide reviendrait a ne jamais reconnaitre ses propres messages.
+        """
+        if mxid:
+            self._identite = mxid
 
     async def connect(self) -> None:
         """Connexion au homeserver Matrix (login ou réutilisation du token existant)."""
@@ -214,6 +362,8 @@ class MatrixMessaging:
                 saved_device_id = json.loads(self._token_store.read_text()).get("device_id", "")
             except Exception:
                 pass
+
+        _exiger_e2e()
 
         # Créer le répertoire du store E2E (clés Olm/Megolm — requis par Tchap E2E)
         self._store_path.mkdir(parents=True, exist_ok=True)
@@ -233,6 +383,8 @@ class MatrixMessaging:
             config=client_config,
         )
         self._start_time = time.time()
+        # Un salon n'est prevenu qu'une fois d'un message illisible (L2.6).
+        self._salons_prevenus_indechiffrable: set[str] = set()
 
         # Réutiliser le token existant via restore_login() qui initialise aussi le store Olm
         if self._token_store.exists():
@@ -252,6 +404,7 @@ class MatrixMessaging:
                 if not hasattr(resp, "user_id"):
                     raise ValueError(f"token rejeté par le serveur: {resp}")
                 logger.info("token validé (user_id=%s)", resp.user_id)
+                self._retenir_identite(resp.user_id)
             except Exception as e:
                 logger.warning("token Matrix invalide (%s), re-login...", e)
                 self._token_store.unlink(missing_ok=True)
@@ -263,6 +416,28 @@ class MatrixMessaging:
             "matrix connecté à %s en tant que %s",
             self._homeserver, self._username,
         )
+
+        # NOTRE PROPRE NOM D'AFFICHAGE, OBTENU DU PROFIL.
+        #
+        # `_corps_sans_mention` doit retirer « <nom>: » en tete d'une question. Il le
+        # tirait de `room.user_name()`, c'est-a-dire de l'etat des membres du SALON,
+        # charge de facon asynchrone. Mesure du 30/08/2026, meme salon, meme pod :
+        # a deux minutes de vie la question arrivait prefixee, a huit elle etait
+        # propre. La mention polluait donc l'embedding, l'historique persiste et la
+        # reformulation de l'Analyseur — sur les premiers messages apres chaque
+        # redemarrage, et sans que rien ne le signale.
+        #
+        # Le profil ne depend d'aucun salon. Un echec ici n'est pas bloquant : les
+        # deux replis d'origine (etat du salon, localpart) restent en place.
+        try:
+            profil = await self._client.get_displayname()
+            nom = getattr(profil, "displayname", "") or ""
+            if nom:
+                self._nom_affiche = nom
+                logger.info("nom d'affichage du profil: %s", nom)
+        except Exception as e:
+            logger.warning("nom d'affichage indisponible (%s) — repli sur l'etat "
+                           "du salon puis le localpart", e)
 
         # Upload des clés E2E — obligatoire pour que Synapse accepte ce device dans le sync
         # (sans clés, le sync worker peut bloquer sur la distribution des clés de session)
@@ -287,6 +462,20 @@ class MatrixMessaging:
         # Audio : non-chiffré (rare) ET chiffré E2E (Tchap = RoomEncryptedAudio)
         self._client.add_event_callback(self._on_room_audio, RoomMessageAudio)
         self._client.add_event_callback(self._on_room_audio, RoomEncryptedAudio)
+        # Fichiers et images, clairs ET chiffres (Tchap chiffre par defaut). Sans ces
+        # quatre rappels, deposer un PDF dans un salon ne produisait RIEN — ni erreur,
+        # ni trace. Colaig etait aveugle aux documents dans le canal meme ou on lui en
+        # parle, alors que le classement documentaire est sa raison d'etre.
+        self._client.add_event_callback(self._on_room_file, RoomMessageFile)
+        self._client.add_event_callback(self._on_room_file, RoomMessageImage)
+        self._client.add_event_callback(self._on_room_file, RoomEncryptedFile)
+        self._client.add_event_callback(self._on_room_file, RoomEncryptedImage)
+        # Messages que nio n'a pas pu dechiffrer. Sans ce rappel ils sont ignores
+        # EN SILENCE : l'utilisateur voit un assistant qui ne repond pas (L2.6).
+        # Reactions (L3.3) : le retour de l'utilisateur en un seul geste.
+        self._client.add_event_callback(self._on_reaction, ReactionEvent)
+
+        self._client.add_event_callback(self._on_undecryptable, MegolmEvent)
 
     def _do_auto_trust(self) -> None:
         """Marque tous les devices non-vérifiés comme user_ignored (pattern bot).
@@ -322,6 +511,7 @@ class MatrixMessaging:
             "device_id": response.device_id,
             "user_id": response.user_id,
         }))
+        self._retenir_identite(response.user_id)
         logger.info("matrix token sauvegardé (device_id=%s)", response.device_id)
 
     async def _handle_sync_failure(self) -> None:
@@ -426,12 +616,31 @@ class MatrixMessaging:
             "formatted_body": formatted or _markdown_to_html(text),  # Rendu riche
         }
 
-        await self._client.room_send(
+        reponse = await self._client.room_send(
             room_id=conversation_id,
             message_type="m.room.message",
             content=content,
             ignore_unverified_devices=True,
         )
+
+        # RETENIR CE MESSAGE COMME RACINE DE FIL POSSIBLE (L3.2).
+        #
+        # C'est ce qui rend le critère du lot opérant : « un fil ouvert sur une réponse
+        # du bot est suivi sans nouvelle mention ». Sans cet enregistrement,
+        # `suivre_fil` existerait sans que rien ne l'appelle — le motif « écrit et non
+        # branché » que ce dépôt a trouvé neuf fois.
+        #
+        # Les messages de STATUT en sont exclus : un indicateur de progression n'est
+        # pas une réponse, et ouvrir un fil dessus n'aurait pas de sens.
+        #
+        # La signature reste `-> None` : la remonter changerait `MessagingProtocol`,
+        # donc TOUS les canaux. L'identifiant est exposé par `dernier_message_envoye()`,
+        # sur le Protocol optionnel `ReactionProtocol`, où il ne coûte rien à ceux qui
+        # ne savent pas réagir (L3.3, D51).
+        if not is_status:
+            event_id = getattr(reponse, "event_id", "") or ""
+            self.suivre_fil(event_id)
+            self._retenir_envoi(conversation_id, event_id)
 
     async def send_typing(
         self,
@@ -459,7 +668,7 @@ class MatrixMessaging:
         """Auto-join quand invité dans un salon."""
         if self._client is None:
             return
-        if event.state_key != self._username:
+        if event.state_key != self.identite:
             return
 
         result = await self._client.join(room.room_id)
@@ -467,6 +676,257 @@ class MatrixMessaging:
             logger.error("impossible de rejoindre %s: %s", room.room_id, result)
         else:
             logger.info("salon rejoint: %s", room.room_id)
+
+    async def _on_undecryptable(self, room, event) -> None:
+        """Un message que nio n'a pas pu dechiffrer.
+
+        Sans ce traitement, l'evenement etait ignore SANS UN MOT. Ce n'est pas
+        theorique : D34 a releve des « undecryptable Megolm event from a unknown
+        device » dans le journal du bot, et note qu'un appareil neuf ne lit pas
+        l'historique chiffre. L'utilisateur, lui, voit un assistant qui ne repond pas.
+
+        Le salon n'est prevenu QU'UNE FOIS par processus : un appareil mal apparie
+        produit des dizaines d'evenements illisibles, et un message repete cesse d'etre
+        lu — ce qui reviendrait au silence par un autre chemin.
+        """
+        salon = getattr(room, "room_id", "") or ""
+        logger.warning(
+            "message non dechiffre dans %s (expediteur %s, session %s) — Colaig ne "
+            "peut pas le lire. Cause habituelle : l'appareil du bot est plus recent "
+            "que le message, ou les cles n'ont pas ete partagees avec lui.",
+            salon, getattr(event, "sender", "?"), getattr(event, "session_id", "?"),
+        )
+
+        # Un message illisible ANCIEN est de l'historique, pas une attente.
+        #
+        # La retenue par salon ci-dessous est en memoire de PROCESSUS : chaque
+        # redemarrage la vide, et la relecture de l'historique chiffre reprevient. La
+        # campagne du 29/08/2026 a compte 22 avertissements pour 46 messages apres six
+        # redeploiements — pres d'un message sur deux. En CrashLoopBackOff, le salon de
+        # l'utilisateur se remplit.
+        #
+        # Les quatre autres rappels de ce module ecartent deja l'anterieur au demarrage.
+        # Celui-ci ne le faisait pas. Un horodatage ABSENT ne vaut pas « ancien » : le
+        # defaut par exces de silence est precisement celui que ce traitement corrige.
+        horodatage = getattr(event, "server_timestamp", None)
+        if (horodatage is not None
+                and horodatage / 1000 < self._start_time - _STALE_MESSAGE_SECONDS):
+            logger.debug("message illisible anterieur au demarrage dans %s — "
+                         "le salon n'est pas prevenu", salon)
+            return
+
+        if salon in self._salons_prevenus_indechiffrable:
+            return
+        self._salons_prevenus_indechiffrable.add(salon)
+
+        try:
+            await self.send(
+                salon,
+                "Je ne parviens pas a dechiffrer un message de ce salon — il a "
+                "probablement ete envoye avant que je n'y sois, ou depuis un appareil "
+                "dont je n'ai pas les cles. Reformulez-le et je pourrai le lire.",
+            )
+        except Exception as exc:  # noqa: BLE001
+            # Prevenir est un mieux, pas une obligation : un envoi en echec ne doit pas
+            # arreter la boucle de reception.
+            logger.warning("impossible de prevenir %s (%s)", salon, exc)
+
+    def suivre_fil(self, event_id: str) -> None:
+        """Retient un fil ouvert sur une réponse du bot.
+
+        Appelé après l'envoi d'une réponse : les tours suivants de ce fil n'auront pas
+        à mentionner le bot de nouveau. C'est le critère du lot L3.2 — exiger une
+        mention à chaque tour rendrait le fil inutile, autant écrire dans le salon.
+        """
+        if not event_id:
+            return
+        self._fils_suivis.pop(event_id, None)      # remettre en tête s'il existait
+        self._fils_suivis[event_id] = None
+        while len(self._fils_suivis) > _MAX_FILS_SUIVIS:
+            self._fils_suivis.pop(next(iter(self._fils_suivis)))
+
+    # ── ReactionProtocol (L3.3, D51) ─────────────────────────────────
+
+    def _retenir_envoi(self, conversation_id: str, event_id: str) -> None:
+        """Retient le dernier message non-statut émis dans ce salon."""
+        if not conversation_id or not event_id:
+            return
+        self._derniers_envois.pop(conversation_id, None)   # remettre en tête
+        self._derniers_envois[conversation_id] = event_id
+        while len(self._derniers_envois) > _MAX_SALONS_SUIVIS:
+            self._derniers_envois.pop(next(iter(self._derniers_envois)))
+
+    def dernier_message_envoye(self, conversation_id: str) -> str:
+        """Identifiant du dernier message NON-STATUT émis ici. `""` si aucun."""
+        return self._derniers_envois.get(conversation_id, "")
+
+    async def reagir(self, conversation_id: str, message_id: str, emoji: str) -> None:
+        """Pose une réaction sur un message.
+
+        NE LÈVE JAMAIS. Poser une réaction est un confort ; la réponse est le produit.
+        Un homeserver qui refuse `m.reaction` ne doit pas faire échouer le tour de
+        conversation qui vient d'aboutir.
+        """
+        if self._client is None or not message_id or not emoji:
+            return
+        try:
+            await self._client.room_send(
+                room_id=conversation_id,
+                message_type="m.reaction",
+                content={"m.relates_to": {"rel_type": "m.annotation",
+                                          "event_id": message_id,
+                                          "key": emoji}},
+                ignore_unverified_devices=True,
+            )
+        except Exception:
+            logger.debug("réaction %s non posée dans %s", emoji, conversation_id)
+
+    def on_reaction(self, callback: Callable) -> None:
+        """Enregistre le rappel appelé pour chaque réaction porteuse de signal."""
+        self._reaction_callback = callback
+
+    async def _on_reaction(self, room, event: ReactionEvent) -> None:
+        """Réaction reçue — trois filtres avant de la faire remonter.
+
+        **1. Pas les nôtres.** Colaig pose lui-même les gestes proposés sous chaque
+        réponse. Si sa propre pose remontait, chaque réponse s'auto-attribuerait autant
+        de retours qu'elle propose de gestes, et le premier chiffre lu sur la qualité
+        serait entièrement fabriqué par nous.
+
+        **2. Seulement sur NOS messages.** `_fils_suivis` est exactement l'ensemble des
+        messages que nous avons émis : le réutiliser évite un second registre qui
+        divergerait. Deux collègues qui se félicitent dans un salon ne parlent pas de
+        Colaig.
+
+        **3. Pas l'historique rejoué.** Au démarrage, le serveur redélivre le passé ;
+        sans ce garde, chaque relance réenregistrerait tous les retours déjà comptés.
+        """
+        if event.sender == self.identite:
+            return
+
+        reagit_a = getattr(event, "reacts_to", "") or ""
+        if reagit_a not in self._fils_suivis:
+            return
+
+        if event.server_timestamp / 1000 < self._start_time - _STALE_MESSAGE_SECONDS:
+            return
+
+        if self._reaction_callback is None:
+            return
+
+        reaction = Reaction(
+            user_id=event.sender,
+            conversation_id=room.room_id,
+            message_id=reagit_a,
+            emoji=getattr(event, "key", "") or "",
+            reaction_id=event.event_id,
+            horodatage=event.server_timestamp,
+        )
+        try:
+            await self._reaction_callback(reaction)
+        except Exception:
+            logger.exception("traitement de réaction en échec: %s", event.event_id)
+
+    def _corps_sans_mention(self, corps: str, nom_affiche: str = "") -> str:
+        """Retire la mention en tete, qui n'appartient pas a la question.
+
+        Les clients Matrix rendent une mention en texte brut sous la forme
+        « <nom affiche>: <texte> ». Le nom du destinataire se retrouvait donc DANS la
+        question — et se propageait : dans le retour persiste, donc dans la seule mesure
+        de qualite issue des usages reels ; dans le titre des notes versees par le geste
+        « garder » ; et dans la reformulation de l'Analyseur, a qui l'on donnait a
+        interpreter un nom propre etranger a la demande.
+
+        Releve le 30/08/2026 : dans un salon la question arrivait prefixee, dans un fil
+        — ou la mention est inutile — elle arrivait propre. La comparaison des deux a
+        rendu l'ecart visible.
+
+        LA BORNE. Le nom doit etre EN TETE et suivi d'un separateur. Une phrase qui
+        commence par le nom sans separateur parle du bot ; elle ne lui parle pas. Et un
+        message reduit a la seule mention reste intact : le vider ferait descendre au
+        pipeline une question sans texte.
+        """
+        texte = (corps or "").strip()
+        if not texte:
+            return corps
+
+        localpart = self.identite.split(":")[0].lstrip("@")
+        # `nom_affiche` vient de l'etat du salon ; il AFFINE, il ne conditionne pas.
+        # Mesure du 30/08/2026, meme salon, meme utilisateur, meme pod :
+        #
+        #   a ~2 min  question='Colaig Assistant [Developpement-Durable]: que faut-il...'
+        #   a ~8 min  question='quel est le delai pour faire etablir le certificat ?'
+        #
+        # Sur les premiers messages apres un redemarrage, l'etat des membres n'est pas
+        # charge et `room.user_name()` rend None : la mention restait collee a la
+        # question, donc dans l'embedding de recherche, l'historique persiste et la
+        # reformulation de l'Analyseur. Le correctif d'origine etait juste, mais il
+        # dependait d'un etat charge de facon ASYNCHRONE — ce n'etait pas un correctif,
+        # c'etait une course.
+        #
+        # `self._nom_affiche` vient du PROFIL, obtenu une fois a la connexion : Colaig
+        # connait son propre nom sans avoir besoin d'un salon.
+        for nom in (nom_affiche, getattr(self, "_nom_affiche", ""), localpart):
+            if not nom or not texte.startswith(nom):
+                continue
+            reste = texte[len(nom):].lstrip()
+            if reste[:1] in (":", ","):
+                reste = reste[1:].lstrip()
+            elif not reste.startswith(":"):
+                continue
+            if reste:
+                return reste
+        return corps
+
+    def _nous_concerne(self, event, contenu: dict, thread_root: str) -> bool:
+        """En salon, ce message appelle-t-il l'assistant ?
+
+        TROIS RÈGLES, DANS CET ORDRE.
+
+        **1. Un fil que le bot a ouvert se poursuit sans mention.** C'est le critère du
+        lot : quelqu'un pose une question, Colaig répond, la conversation continue dans
+        le fil. Le bot ne suit QUE les fils enracinés sur ses propres réponses — sans
+        cela, « suivre les fils » reviendrait à répondre à tout, et l'on aurait
+        remplacé un excès de zèle par un autre.
+
+        **2. `m.mentions` fait foi quand il est présent.** C'est le champ natif de
+        Matrix depuis la version 1.7, renseigné par le client quand l'utilisateur pose
+        une vraie mention : une DÉCLARATION D'INTENTION, et non une coïncidence de
+        vocabulaire. S'il est là et ne nomme pas le bot, la réponse est non — même si
+        le corps contient son nom.
+
+        **3. À défaut, le corps du message.** Repli pour les clients qui ne posent pas
+        `m.mentions` : anciens clients, ponts, bots.
+
+        CE QUE LA RÈGLE 2 CORRIGE. La décision se prenait par recherche de sous-chaîne
+        dans le corps, sur le LOCALPART de l'identifiant — donc « il faudrait demander
+        à colaig ce qu'il en pense » réveillait l'assistant. Dans un salon actif, il
+        répondait à des messages qui parlaient de lui.
+        """
+        if thread_root and thread_root in self._fils_suivis:
+            return True
+
+        # UNE COMMANDE EXPLICITE EST UNE INTERPELLATION.
+        #
+        # AVANT `m.mentions`, car les clients recents le posent systematiquement et,
+        # vide, il opposait un refus definitif. Consequence relevee le 30/08/2026 :
+        # « colaig lier colaig-mesure-sst » a ete recu et ignore — la commande qui sert
+        # a CONFIGURER le salon y etait inatteignable. Les cinq commandes de L3.7
+        # passaient par la meme porte et subissaient le meme sort.
+        #
+        # La regle reste etroite : la commande doit etre EN TETE. Sans cette borne on
+        # remplacerait un exces de zele par un autre — celui que `m.mentions` corrige.
+        from colaig.capacites import est_une_commande
+        if est_une_commande(getattr(event, "body", "") or ""):
+            return True
+
+        mentions = contenu.get("m.mentions")
+        if isinstance(mentions, dict):
+            return self.identite in (mentions.get("user_ids") or [])
+
+        corps = getattr(event, "body", "") or ""
+        localpart = self.identite.split(":")[0].lstrip("@")
+        return localpart in corps or self.identite in corps
 
     async def _on_room_message(self, room, event: RoomMessageText) -> None:
         """Traite un message reçu dans un salon."""
@@ -476,7 +936,7 @@ class MatrixMessaging:
         logger.info("message reçu: sender=%s room=%s body_chars=%d", event.sender, room.room_id, len(event.body))
 
         # Ignorer ses propres messages
-        if event.sender == self._username:
+        if event.sender == self.identite:
             logger.debug("ignoré: propre message")
             return
 
@@ -489,32 +949,43 @@ class MatrixMessaging:
         # Déterminer le type de conversation
         conversation_type = await self._resolve_conversation_type(room.room_id)
 
-        # En salon (non-DM), ignorer si pas mentionné
+        contenu = (event.source or {}).get("content", {}) if isinstance(
+            getattr(event, "source", None), dict) else {}
+
+        # Le FIL, distinct de la citation.
+        #
+        # `rel_type: m.thread` ouvre une conversation séparée, qui a sa propre
+        # continuité. `m.in_reply_to` seul est une CITATION dans le flux du salon.
+        # Les confondre ferait suivre comme un fil toute réponse citée, et
+        # l'assistant s'inviterait dans des échanges qui ne le concernent pas.
+        relates = contenu.get("m.relates_to") or {}
+        thread_root = (relates.get("event_id", "")
+                       if relates.get("rel_type") == "m.thread" else "")
+        in_reply = relates.get("m.in_reply_to") or {}
+        is_reply = bool(in_reply.get("event_id"))
+        reply_to = in_reply.get("event_id", "")
+
+        # En salon (non-DM), décider s'il faut répondre.
         if conversation_type not in (ConversationType.DM, ConversationType.UNKNOWN):
-            bot_display = self._username.split(":")[0].lstrip("@")
-            if bot_display not in event.body and self._username not in event.body:
+            if not self._nous_concerne(event, contenu, thread_root):
                 return
 
-        # Détecter les réponses
-        is_reply = False
-        reply_to = ""
-        if hasattr(event, "source") and isinstance(event.source, dict):
-            relates = event.source.get("content", {}).get("m.relates_to", {})
-            in_reply = relates.get("m.in_reply_to", {})
-            if in_reply.get("event_id"):
-                is_reply = True
-                reply_to = in_reply["event_id"]
-
         # Construire l'IncomingMessage (noms provider-agnostic)
+        #
+        # Le corps est nettoye de la mention en tete : le nom du destinataire n'est pas
+        # une partie de ce qu'on lui demande, et il se propageait jusque dans les
+        # retours persistes et les notes.
         message = IncomingMessage(
             user_id=event.sender,
             conversation_id=room.room_id,
-            body=event.body,
+            body=self._corps_sans_mention(
+                event.body, room.user_name(self.identite) or ""),
             conversation_type=conversation_type,
             message_id=event.event_id,
             display_name=room.user_name(event.sender) or event.sender,
             is_reply=is_reply,
             reply_to=reply_to,
+            thread_root=thread_root,
             platform="matrix",
         )
 
@@ -531,7 +1002,7 @@ class MatrixMessaging:
             return
 
         # Ignorer ses propres messages
-        if event.sender == self._username:
+        if event.sender == self.identite:
             return
 
         # Ignorer les messages trop vieux (replay au démarrage)
@@ -579,6 +1050,82 @@ class MatrixMessaging:
                 await callback(message)
             except Exception:
                 logger.exception("erreur handler audio pour %s", room.room_id)
+
+    async def _on_room_file(self, room, event) -> None:
+        """Traite un fichier déposé dans un salon — document, image, clair ou chiffré.
+
+        POURQUOI UNE PIÈCE JOINTE N'EXIGE PAS DE MENTION. Le texte en salon en demande
+        une (L3.2) ; le fichier, non : **déposer un document EST l'intention**.
+        Personne n'écrit « @colaig » en glissant un PDF, et le chemin audio suit déjà
+        cette règle.
+
+        La contrepartie est assumée : Colaig ne RÉPOND pas à un fichier, il le classe.
+        Répondre à chaque dépôt inonderait un salon où des collègues s'échangent des
+        documents.
+
+        LE CORPS RESTE VIDE. Le nom du fichier n'est pas une question : le mettre dans
+        `body` ferait chercher « marche-2026.pdf » dans le corpus par le pipeline de
+        réponse, alors que le fichier ne demande rien.
+        """
+        if self._client is None:
+            return
+        if event.sender == self.identite:
+            # Colaig produit des documents ; les réingérer ferait une boucle.
+            return
+
+        # Au démarrage, le serveur rejoue l'historique : sans ce garde, un redémarrage
+        # réingérerait tous les documents du salon.
+        if event.server_timestamp / 1000 < self._start_time - _STALE_MESSAGE_SECONDS:
+            logger.info("ignoré: fichier trop vieux (%s)", event.event_id)
+            return
+
+        contenu = (event.source or {}).get("content", {}) if isinstance(
+            getattr(event, "source", None), dict) else {}
+        info = contenu.get("info") or {}
+        nom = getattr(event, "body", None) or "piece-jointe"
+        annonce = int(info.get("size") or 0)
+
+        # Refus AVANT téléchargement : la borne ne servirait à rien si l'on chargeait
+        # d'abord en mémoire ce qu'on refuse ensuite.
+        if annonce > _MAX_PIECE_JOINTE_OCTETS:
+            logger.warning(
+                "pièce jointe refusée: %s annonce %.1f Mo (plafond %.0f Mo) — salon %s",
+                nom, annonce / 1e6, _MAX_PIECE_JOINTE_OCTETS / 1e6, room.room_id)
+            return
+
+        # `_download_audio` gère `mxc://` ET le déchiffrement E2E. Rien dans son corps
+        # n'est propre à l'audio — seul son nom le laisse croire.
+        octets = await self._download_audio(event)
+        if not octets:
+            logger.warning("téléchargement impossible: %s (%s)", nom, event.event_id)
+            return
+        if len(octets) > _MAX_PIECE_JOINTE_OCTETS:
+            # Un `info.size` absent ou menteur ne doit pas contourner la borne.
+            logger.warning("pièce jointe refusée après téléchargement: %s (%.1f Mo)",
+                           nom, len(octets) / 1e6)
+            return
+
+        piece = Attachment(
+            filename=nom,
+            content_type=info.get("mimetype", "application/octet-stream"),
+            size=len(octets),
+            content=octets,
+        )
+        message = IncomingMessage(
+            user_id=event.sender,
+            conversation_id=room.room_id,
+            body="",
+            conversation_type=await self._resolve_conversation_type(room.room_id),
+            message_id=event.event_id,
+            display_name=room.user_name(event.sender) or event.sender,
+            platform="matrix",
+            attachments=[piece],
+        )
+        for callback in self._message_callbacks:
+            try:
+                await callback(message)
+            except Exception:
+                logger.exception("erreur handler fichier pour %s", room.room_id)
 
     async def _download_audio(self, event: RoomMessageAudio) -> bytes | None:
         """Télécharge (et décrypte si E2E) l'audio d'un événement Matrix.
@@ -648,6 +1195,29 @@ class MatrixMessaging:
         if self._client is None:
             return ConversationType.UNKNOWN
 
+        room = self._client.rooms.get(room_id)
+
+        # UN SALON NOMME N'EST PAS UNE CONVERSATION DIRECTE.
+        #
+        # La regle d'origine tenait en un decompte : deux membres, donc un DM. Or TOUT
+        # SALON D'EQUIPE COMMENCE A DEUX — l'assistant et la premiere personne. Elle
+        # declarait donc prives tous les salons neufs, au moment precis ou l'on essaie
+        # de les configurer.
+        #
+        # Releve sur le fil le 30/08/2026 : un salon nomme « Colaig - Mesure SST », avec
+        # sujet et invitation, a ete resolu en PERSONAL. `colaig lier` n'a pas ete
+        # intercepte — la commande est derriere la porte `mode == CHATBOT` — un espace
+        # personnel parasite a ete cree, et le corpus de 51 documents est reste hors
+        # d'atteinte, `rag_enabled` etant faux en mode personnel.
+        #
+        # Un nom est un ACTE : quelqu'un l'a ecrit. Une conversation directe n'en a pas.
+        # C'est un discriminant plus sur qu'un decompte, et `matrix-nio` l'expose.
+        if room is not None and getattr(room, "is_named", False):
+            if getattr(room, "join_rule", "") == "public":
+                return ConversationType.PUBLIC
+            return ConversationType.PRIVATE
+
+        # Salon SANS nom : le compte de membres reste le meilleur indice disponible.
         try:
             response = await self._client.joined_members(room_id)
             if hasattr(response, "members"):
@@ -657,7 +1227,6 @@ class MatrixMessaging:
             pass
 
         # Vérifier si le salon est public
-        room = self._client.rooms.get(room_id)
         if room:
             if hasattr(room, "join_rule") and room.join_rule == "public":
                 return ConversationType.PUBLIC

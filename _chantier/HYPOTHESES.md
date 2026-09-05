@@ -9,8 +9,8 @@ Si un lot bute dessus : arrêter le lot, inscrire le blocage dans `AVANCEMENT.md
 | **H1b** | **SSPCloud** sert un chat **avec tool calling** (`qwen3-6-35b-moe`) | ✅ **levée le 22/08/2026** | — | mesurée : `mesures/llm-capabilities-sspcloud.md` |
 | **H2** | Un reranker est disponible (SSPCloud ou Albert) | ⚠️ **levée pour Albert, PAS pour SSPCloud** | L4.1 — impose un arbitrage | Albert : `bge-reranker-v2-m3` OK (0,12 s). SSPCloud : **aucun reranker au catalogue**. Voir « Arbitrage reranker » ci-dessous. |
 | **H3** | La latence du **stockage S3 SSPCloud** est compatible avec une réponse < 10 s | ✅ **levée le 22/08/2026 pour les opérations unitaires** | — | mesurée : `mesures/s3-sspcloud.md`. 31 ms en LIST non récursif. |
-| **H3ter** | Le **listing récursif** tient à l'échelle d'un corpus réel | ❌ **non levée** | L4.1, stratégie d'indexation | mesuré sur 14 objets seulement — ne dit rien de l'échelle. À remesurer sur un espace représentatif. |
-| **H3bis** | Les credentials S3 SSPCloud peuvent être **non expirantes** | ✅ **levée le 22/08/2026 par la documentation** | — | un **compte de service** MinIO donne un couple access/secret permanent, rattaché à un projet. Console : `minio-console.lab.sspcloud.fr`. Reste à le créer. |
+| **H3ter** | Le **listing récursif** tient à l'échelle d'un corpus réel | ⚠️ **levée à 59 documents, inconnue au-delà** | L4.1, stratégie d'indexation | 47 ms de médiane sur 63 objets / 43,8 Mo. Loin du seuil de 10 s. Reste à éprouver sur un corpus de plusieurs milliers de documents. |
+| **H3bis** | Les credentials S3 SSPCloud peuvent être **non expirantes** | ✅ **levée** — compte de service cadré côté Onyxia (23/08/2026) | — | couple access/secret permanent rattaché au projet. La création relève de l'exploitant, pas du chantier. |
 | **H4** | `colaig-0` a assez d'historique pour ≥ 200 cas dorés | ❌ non levée | L1.4 | compter les `.colaig/conversations/*.json` |
 | **H5** | Le corpus reste sous le seuil de `IndexFlatIP` (exact, O(n)) | ❌ non levée | L4.1 | compter documents et poids par espace |
 | **H6** | L'agent peut pousser sur GitHub et déployer sur SSPCloud | ✅ **levée pour GitHub le 22/08/2026** | — | PAT fine-grained vérifié : `push: true` sur `nic01asFr/Colaig`. Déploiement SSPCloud : voir L3.6. |
@@ -48,7 +48,7 @@ Réseau sortant : github 200 · pypi 200 · llm.lab.sspcloud.fr 200
 | **Bucket S3 SSPCloud** (endpoint, bucket, access/secret, éventuel session token) + quelques documents | L1.1, lever H3 | phase 1 |
 | **Accès aux conversations de `colaig-0`** + feu vert anonymisation | L1.4, jeu doré | phase 1, donc phase 4 |
 | Droit de créer/détruire des services Onyxia | L3.6, chart Helm | phase 3 |
-| Licence retenue + autorisation de publication Cerema | D4 | publication |
+| Licence retenue + autorisation de publication | D4 | publication |
 
 ---
 
@@ -65,8 +65,16 @@ Rapport intégral : `mesures/llm-capabilities-albert.md`.
 | Embeddings | `qwen3-vl-embedding-8b` — **dimension 4096** |
 | Reranker | `bge-reranker-v2-m3` — 0,12 s |
 
-**Piège de configuration hérité :** `ALBERT_API_URL` de v3 omet `/v1`, ce qui renvoie
-404 sur tous les appels. À corriger au portage de la configuration.
+**Correction du 22/08/2026 — ce paragraphe disait le contraire de la vérité.**
+Il affirmait qu'`ALBERT_API_URL` « omet `/v1`, ce qui renvoie 404 sur tous les appels ».
+C'était un diagnostic erroné, tiré du comportement de la sonde et non de celui du code.
+
+Vérification faite : `integrations/albert.py` et `llm/openai_client.py` construisent
+eux-mêmes `f"{base_url}/v1/chat/completions"`. La base **doit donc être sans `/v1`**, et
+le défaut de `config.py` — `https://albert.api.etalab.gouv.fr` — est **correct**.
+Mesuré : cette base suivie de `/v1/models`, exactement ce que construit le client,
+retourne 200 et 10 modèles. **Ajouter `/v1` à la configuration produirait `/v1/v1/` et
+casserait tout.** C'est la sonde qui appelait `/models` sans préfixe, pas le code.
 
 **Ce qui n'est PAS mesuré :** SSPCloud. Le catalogue ci-dessus est celui d'Albert et rien
 ne permet de le transposer. `qwen3-6-35b-moe` reste **INCONNU**.
@@ -135,7 +143,7 @@ avant de pousser quoi que ce soit — les 16 commits de v3 ne contiennent **aucu
 et `config/.env.example`. **L'historique est propre, le push est sûr de ce point de vue.**
 
 Reste que la publication en open source est une **porte humaine** (point 8 du cadrage :
-licence retenue, autorisation Cerema). Pousser dans un dépôt déjà public revient de fait
+licence retenue, autorisation de publication). Pousser dans un dépôt déjà public revient de fait
 à publier : à confirmer avant le premier push, pas après.
 
 ---
@@ -338,3 +346,247 @@ jeton hérité d'une session.
 
 Sources : [Stockage de données — docs.sspcloud.fr](https://docs.sspcloud.fr/content/storage.html),
 [S3 Configuration — docs.onyxia.sh](https://docs.onyxia.sh/admin-doc/s3-configuration).
+
+
+---
+
+## Mesures sur corpus réaliste — 23/08/2026
+
+Corpus **privé** monté dans `nicolaslaval/colaig-mesure-sst/` : 59 documents, 43,8 Mo,
+51 PDF, arborescence à 14 sous-dossiers. Bucket vérifié privé avant dépôt (aucune
+politique de bucket, `GET` anonyme → 403). **Ce corpus n'est jamais commité — seuls les
+chiffres le sont.**
+
+| opération | médiane | échantillon |
+|---|---|---|
+| LIST non récursif | **31 ms** | 3 mesures |
+| **LIST récursif, espace entier** | **47 ms** | 6 mesures, 63 objets |
+| GET | 31–47 ms | |
+| PUT / DELETE | 47 ms / 31 ms | |
+| Dépôt initial | 43,8 Mo en 17,1 s | 2,6 Mo/s depuis le poste |
+
+### H3ter — levée à cette échelle, pas au-delà
+
+Le listing récursif est l'opération qui faisait exploser les timeouts de la version
+déployée. À 59 documents il coûte **47 ms** : le seuil de 10 s au-delà duquel il faudrait
+l'interdire dans le code n'est pas approché. **Mais 59 documents restent peu.** Ce qui
+est établi, c'est que le mécanisme n'est pas intrinsèquement lent ; ce qui reste inconnu,
+c'est son comportement sur un espace de plusieurs milliers de documents. À ne pas
+extrapoler.
+
+### H5 — corrigé : l'index pèse ~3 fois le corpus, pas dix
+
+> **Correction du 23/08/2026.** Ce qui suit dimensionnait sur `qwen3-vl-embedding-8b`
+> (4096), parce que la sonde prenait le premier modèle d'embedding du catalogue. Or
+> `colaig-v3/.env` configure `BAAI/bge-m3`, mesuré à **1024**. À 1024 l'index estimé
+> tombe à **~120 Mo** pour 44 Mo de corpus, et non 479 Mo. Le raisonnement ci-dessous
+> reste valable en tant que borne haute, et la décision est en **D10**.
+
+59 documents, 43,8 Mo de source. En estimant ~1500 octets de texte utile par chunk :
+**~29 000 chunks**, soit **~479 Mo d'index** en float32.
+
+Le facteur est la dimension. Les deux endpoints réels servent du **4096** — 16 Ko par
+vecteur, contre 4 Ko pour un `bge-m3` à 1024. **Un corpus de 44 Mo produit donc un index
+d'un demi-gigaoctet.** À dix espaces de cette taille, on parle de 5 Go en mémoire pour
+un `IndexFlatIP`, ce qui n'est plus une décision d'implémentation mais de dimensionnement
+du pod.
+
+C'est une **estimation**, pas une mesure : le nombre réel de chunks dépend du découpage,
+qui dépend du format — un PDF scanné passe par l'OCR, un Markdown se coupe aux titres.
+À confirmer par une indexation réelle. Mais l'ordre de grandeur suffit à poser la
+question maintenant plutôt qu'au lot L4.1.
+
+### Deux défauts de la sonde, corrigés en produisant ces chiffres
+
+1. **Elle mesurait le mauvais dossier.** Le listing récursif portait sur le *premier*
+   sous-préfixe rencontré — qui, sur un espace Colaig, est `.colaig/` : quatre fichiers
+   de configuration. Elle annonçait donc un « LIST récursif » de 47 ms qui n'avait
+   parcouru ni les documents ni l'arborescence. Un chiffre faux ayant l'apparence d'une
+   mesure. Elle liste désormais l'espace entier.
+2. **Elle ne mesurait qu'une fois.** Le premier appel porte l'établissement TLS : la
+   première lecture donnait **1094 ms**, ce qui franchissait le seuil « > 1 s → index
+   local persistant requis » et aurait fait conclure l'inverse de la vérité. Six mesures
+   consécutives donnent 360 ms puis 62, puis 47 quatre fois. Médiane de trois désormais,
+   comme les autres lignes.
+
+Même erreur que le PUT à 437 ms deux jours plus tôt. **Un chiffre unique ne vaut pas
+mesure** — c'est maintenant appliqué à toutes les lignes de la sonde.
+
+---
+
+## H5 — **mesurée**, 23/08/2026 · l'estimation était fausse d'un facteur 28
+
+Indexation réelle du corpus SST avec le **vrai** `extract_text()` et le **vrai**
+`Chunker` de Colaig (`chunk_size=800`, `chunk_overlap=100`).
+
+| | estimé | **mesuré** |
+|---|---|---|
+| chunks | ~29 000 | **1 059** |
+| index à 4096 | 479 Mo | **17 Mo** |
+| index à 1024 | 120 Mo | **4 Mo** |
+
+### Pourquoi l'estimation était fausse
+
+Elle divisait le poids du corpus par ~1500 octets de texte par chunk. **Elle supposait
+donc qu'un PDF est du texte.** Il ne l'est pas : 42,6 Mo de PDF ont produit **0,61 Mo de
+texte extrait**, soit **1,4 %**. Le reste est de l'image, des polices, de la structure.
+
+**On ne peut pas estimer un nombre de chunks à partir d'une taille de fichier.** C'est
+une erreur de méthode, pas un écart de calibrage — et elle allait dans le sens du
+catastrophisme, ce qui la rendait d'autant plus crédible.
+
+| format | docs | Mo source | Mo texte extrait | chunks |
+|---|---|---|---|---|
+| pdf | 51 | 42,6 | 0,61 | 1011 |
+| odt | 7 | 0,2 | 0,03 | 48 |
+| png | 1 | 1,0 | 0,00 | 0 |
+
+Chunks : médiane 789 caractères, moyenne 656, max 1996.
+Extraction des 59 documents : **1,0 s**. Découpage : négligeable.
+
+### H5 est levée, et largement
+
+1 059 chunks contre un seuil de ~100 000 pour `IndexFlatIP`. Il faudrait **cent espaces
+de cette taille** pour l'approcher. La recherche exacte en O(n) n'est pas un problème à
+cette échelle, et le débat sur l'index approché ne se pose pas.
+
+### Ce que cela fait à D10
+
+**L'argument mémoire de D10 s'effondre.** J'y écrivais « à 4096, dix espaces de 44 Mo
+font 5 Go d'index ». Mesuré, c'est **170 Mo**. La différence entre 4096 et 1024 sur ce
+corpus est de 17 Mo contre 4 Mo — dérisoire des deux côtés.
+
+Le choix de la dimension **ne se décide donc plus sur la mémoire, mais sur la seule
+qualité de restitution**. La décision reste suspendue à L1.5, mais pour une autre raison
+que celle que j'avais donnée. D10 est amendée en conséquence.
+
+### Le vrai problème est ailleurs : 29 % du corpus est invisible
+
+**8 documents sur 59 ne produisent aucun texte** — 7 PDF et 1 PNG, soit **17,2 Mo,
+29 % du poids du corpus**. Ce sont des documents scannés.
+
+Sans OCR, ils ne génèrent aucun chunk : ils sont **absents de la recherche**, et rien
+dans l'interface ne le signale. Sur un corpus de santé et sécurité au travail, cela veut
+dire que la fiche réflexe dont quelqu'un a besoin peut être précisément celle qui est un
+scan — et l'assistant répondra qu'il n'a rien trouvé, ou pire, répondra à partir d'un
+document voisin.
+
+**L'OCR n'est donc pas une option de confort sur ce type de corpus.** Le catalogue Albert
+sert `lightonocr-2-1b`, SSPCloud sert `chandra-ocr-2`, et `albert.py` implémente déjà un
+chemin OCR. À inscrire comme exigence, pas comme amélioration.
+
+**Et il manque un signalement.** Qu'un document soit indexé à zéro chunk devrait être
+visible — dans un rapport d'indexation, et à l'utilisateur qui demande ce que contient
+l'espace. Silencieusement absent est le pire état possible.
+
+---
+
+## Audit de la chaîne de mesure et test OCR — 23/08/2026
+
+Reprise de chaque étape ayant produit les chiffres précédents, avant d'en ajouter.
+
+### Ce qui tient
+
+**Les paramètres de chunking étaient les bons.** La production instancie
+`Chunker(chunk_size=config.chunk_size, chunk_overlap=config.chunk_overlap)` — soit
+**800 / 100** par défaut, ce qui a bien été employé. Les 1 059 chunks sont donc mesurés
+dans les conditions réelles.
+
+*Incohérence mineure relevée au passage :* `Chunker.__init__` a un défaut d'overlap de
+**200**, alors que `config.py` en pose **100**. Qui instancie `Chunker()` sans arguments
+— un test, un script — n'obtient pas le comportement de production.
+
+### Ce qui était surévalué — correction
+
+J'ai écrit que « 29 % du corpus est invisible pour la recherche ». **C'est trop fort.**
+`indexer.py:124` contient déjà un repli OCR : si l'extraction native est vide, que le
+fichier est un PDF **et** qu'un client LLM est câblé, l'OCR est tenté.
+
+L'énoncé exact est donc : ces documents sont invisibles **si aucun client LLM n'est
+fourni à l'indexeur**. Avec, ils sont traités.
+
+### Ce qui reste vrai, et plus précis
+
+**1. Le repli OCR ne couvre que les PDF.** La condition est
+`filename.lower().endswith(".pdf")`. Le PNG du corpus — 1,0 Mo — n'est jamais traité, et
+`extract_text` le rejette avec « format non supporté ». **Une image scannée déposée dans
+un espace est perdue en silence**, même OCR disponible.
+
+**2. Tous les échecs sont muets.** `logger.debug("OCR vide, document ignoré")`,
+`logger.debug("document vide après extraction")`, puis `return False`. Au niveau de log
+courant, rien n'apparaît. Ni l'exploitant ni l'utilisateur ne sait qu'un document du
+corpus n'est pas interrogeable. **Silencieusement absent reste le pire état possible.**
+
+### L'OCR fonctionne — mesuré sur les trois modèles disponibles
+
+Test sur un PDF scanné de 2 pages, rendu en PNG 150 dpi, via `/chat/completions`
+multimodal. Aucun contenu affiché : seuls comptes, durées et indicateurs.
+
+| modèle | caractères | s/page | mots | 5-grammes uniques |
+|---|---|---|---|---|
+| **`lightonocr-2-1b`** (Albert) | 4 329 | **1,6** | 654 | **99,4 %** |
+| `chandra-ocr-2` (SSPCloud) | 6 135 | 6,9 | 1 047 | 93,4 % |
+| `qwen3-vl` (SSPCloud) | 4 366 | 10,1 | 685 | — |
+
+Les trois produisent du français plausible (19 à 27 % de mots-outils).
+
+**Comparaison des deux principaux, sans lire le contenu :**
+
+- Jaccard sur le vocabulaire : **80,9 %**
+- `chandra` retrouve **98,4 %** du vocabulaire de `lightonocr` — 6 mots seulement lui
+  échappent
+- `lightonocr` ne retrouve que **82 %** de celui de `chandra` — **80 mots** lui manquent
+
+`lightonocr` est donc un **sous-ensemble quasi propre** de `chandra` : il omet plutôt
+qu'il n'invente. `chandra` produit 80 mots de plus, mais avec **6,6 % de 5-grammes
+répétés** contre 0,6 %.
+
+**Ce qui ne peut pas être tranché ici :** ces 80 mots supplémentaires sont-ils du texte
+réellement capté, ou du bruit ? Sans vérité terrain, la question reste ouverte — et la
+répétition accrue de `chandra` invite à la prudence. **C'est une décision de plus à
+suspendre à la référence L1.5.**
+
+### Le coût de l'OCR est négligeable
+
+| | |
+|---|---|
+| PDF du corpus | 51 documents, **421 pages** |
+| PDF sans texte natif | 7 documents, **37 pages** — 8,8 % des pages, mais 29 % du poids |
+| OCR avec `lightonocr` | **1,0 min** en séquentiel, 6 s à 8 en parallèle |
+| OCR avec `chandra` | 4,3 min en séquentiel, 32 s à 8 en parallèle |
+
+**Ce n'est pas une capacité coûteuse, c'est une minute de traitement qui n'a pas lieu.**
+L'écart entre 29 % du poids et 8,8 % des pages s'explique : une page scannée pèse
+beaucoup plus qu'une page de texte.
+
+### Ce qu'il faut en faire
+
+1. **Étendre le repli OCR aux images** (`.png`, `.jpg`, `.tiff`), pas seulement aux PDF.
+2. **Remonter les documents non indexés au niveau `warning`**, et les exposer dans un
+   rapport d'indexation — un document à zéro chunk doit être visible.
+3. Modèle d'OCR par défaut : `lightonocr-2-1b` pour sa vitesse et sa propreté, **sous
+   réserve** de la mesure L1.5 sur les 18 % de vocabulaire qu'il n'atteint pas.
+
+
+---
+
+## Instance déployée — observation du 23/08/2026
+
+En vérifiant les invitations en attente sur le compte bot avant tout `run()` :
+
+```
+15 salons rejoints
+1 invitation en attente : !TLXtMkoaBjKBKmqMwa:agent.interieur.tchap.gouv.fr
+```
+
+**Une invitation non acceptée est un indice sur l'état de l'instance déployée.**
+`matrix.py::_on_invite` rejoint automatiquement toute invitation reçue, et ce callback
+est déclenché par `sync_forever` dans `run()`. Si `colaig-0` tournait avec sa boucle
+d'écoute, cette invitation aurait déjà été acceptée.
+
+Deux lectures possibles, et rien ne permet de trancher d'ici : soit **l'instance ne
+tourne pas**, soit **sa boucle est bloquée**. Dans les deux cas, quelqu'un du ministère
+de l'Intérieur a invité l'assistant et n'a jamais eu de réponse.
+
+À vérifier côté exploitation — ce n'est pas une question de chantier, mais ça n'a pas
+sa place dans un angle mort.

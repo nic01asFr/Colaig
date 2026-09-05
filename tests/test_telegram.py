@@ -8,7 +8,7 @@ sans appel réseau réel.
 from __future__ import annotations
 
 import time
-from unittest.mock import AsyncMock, MagicMock, call
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -18,7 +18,6 @@ from colaig.integrations.messaging.telegram import (
     _chat_type_to_conversation_type,
 )
 from colaig.models import ConversationType, IncomingMessage
-
 
 # =============================================================================
 # Helper factories

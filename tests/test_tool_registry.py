@@ -8,9 +8,16 @@ Couvre :
 - build_tool_registry (context_builder.py)
 """
 
-import json
 import pytest
 
+from colaig.agents.context_builder import build_tool_registry
+from colaig.agents.tool_registry import ToolRegistry
+from colaig.agents.tools.rag_tools import SEARCH_DOCUMENTS_DEFINITION
+from colaig.agents.tools.storage_tools import (
+    FETCH_DOCUMENT_DEFINITION,
+    LIST_DOCUMENTS_DEFINITION,
+)
+from colaig.agents.tools.summarize_tools import SUMMARIZE_TEXT_DEFINITION
 from colaig.models import (
     ChatCompletionResult,
     ToolCall,
@@ -18,17 +25,6 @@ from colaig.models import (
     ToolParameter,
     ToolResult,
 )
-from colaig.agents.tool_registry import ToolRegistry
-from colaig.agents.context_builder import build_tool_registry
-from colaig.agents.tools.rag_tools import SEARCH_DOCUMENTS_DEFINITION, create_search_handler
-from colaig.agents.tools.storage_tools import (
-    FETCH_DOCUMENT_DEFINITION,
-    LIST_DOCUMENTS_DEFINITION,
-    create_fetch_handler,
-    create_list_handler,
-)
-from colaig.agents.tools.summarize_tools import SUMMARIZE_TEXT_DEFINITION, create_summarize_handler
-
 
 # =============================================================================
 # Fixtures

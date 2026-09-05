@@ -18,6 +18,7 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from colaig import paths
 from colaig.models import ToolDefinition, ToolParameter
 from colaig.rag.colaig_index import ColaigIndex
 
@@ -64,7 +65,7 @@ def create_search_skill_handler(
     Args:
         storage: StorageProtocol pour lire .colaig/skills/*.md.
         workspace_path: Chemin du workspace (ex: "/espace-rh/").
-        albert: AlbertClientProtocol pour embed() — requis pour mode sémantique.
+        albert: LLMClientProtocol pour embed() — requis pour mode sémantique.
         index_registry: FaissIndexRegistry — requis pour mode sémantique.
 
     Returns:
@@ -99,7 +100,7 @@ def create_search_skill_handler(
 
     async def _keyword_fallback(query: str, k: int) -> list[dict[str, str]]:
         """Fallback : scan .colaig/skills/*.md avec correspondance de mots-clés."""
-        skills_path = f"{_ws_path}/.colaig/skills"
+        skills_path = paths.skills_dir(_ws_path)
         try:
             files = await _storage.list_files(skills_path)
         except Exception:
