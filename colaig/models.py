@@ -700,6 +700,18 @@ class Intent:
     """
     intent_type: IntentType
     query_reformulated: str = ""   # Question reformulée pour la recherche RAG
+    # LA QUESTION TELLE QU'ELLE A ETE POSEE.
+    #
+    # `query_reformulated` est ECRITE PAR LE LLM a chaque tour. Tant qu'elle etait la
+    # seule requete, la recherche heritait entierement de l'instabilite du modele qui
+    # la formulait : six campagnes du 04-05/09/2026 sur le service donnent, au grain
+    # du passage, 51 cas ou l'article attendu est TOUJOURS servi, 9 ou il ne l'est
+    # JAMAIS, et 53 ou il l'est UNE FOIS SUR DEUX.
+    #
+    # Ce champ porte le socle qui, lui, ne bouge pas d'un tour a l'autre. Il ne
+    # remplace pas la reformulation — celle-ci apporte le vocabulaire du domaine la
+    # ou l'usager emploie le sien — il s'y ajoute.
+    query_posee: str = ""
     entities: dict = field(default_factory=dict)  # Entités extraites (dates, noms, etc.)
     needs_rag: bool = True         # L'orchestrateur doit-il chercher dans les docs ?
     needs_tools: bool = False      # L'orchestrateur doit-il utiliser des outils MCP ?

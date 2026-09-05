@@ -593,6 +593,7 @@ class Analyser:
         return Intent(
             intent_type=intent_type,
             query_reformulated=data.get("query_reformulated", original_query),
+            query_posee=original_query,
             entities=data.get("entities", {}),
             needs_rag=data.get("needs_rag", True),
             needs_tools=data.get("needs_tools", False),
@@ -626,6 +627,7 @@ class Analyser:
             return Intent(
                 intent_type=IntentType.QUESTION,
                 query_reformulated=original_query,
+                query_posee=original_query,
                 needs_rag=True,
                 confidence=0.3,
                 raw_analysis=raw,
@@ -664,6 +666,7 @@ class Analyser:
         return Intent(
             intent_type=intent_type,
             query_reformulated=data.get("query_reformulated", original_query),
+            query_posee=original_query,
             entities=data.get("entities", {}),
             needs_rag=data.get("needs_rag", True),
             needs_tools=data.get("needs_tools", False),

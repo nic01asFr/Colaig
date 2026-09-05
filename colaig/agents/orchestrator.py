@@ -88,6 +88,20 @@ Requête : {query}
 """
 
 
+def _sans_doublon(resultats: list) -> list:
+    """Un meme passage servi par deux requetes ne prend pas deux places."""
+    vus: set = set()
+    gardes = []
+    for r in resultats:
+        chunk = getattr(r, "chunk", None)
+        cle = (getattr(chunk, "source_path", ""), getattr(chunk, "position", -1))
+        if cle in vus:
+            continue
+        vus.add(cle)
+        gardes.append(r)
+    return gardes
+
+
 class Orchestrator:
     """Agent Orchestrateur — boucle agentique ou coordination déterministe.
 
@@ -977,14 +991,38 @@ class Orchestrator:
         k = context.workspace.max_results if context.workspace else 5
         threshold = context.workspace.similarity_threshold if context.workspace else 0.3
 
-        retrieve_kwargs: dict = dict(query=query, k=k, score_threshold=threshold)
-        # Isolation par workspace + recherche hybride (voir `_index_de_l_espace`).
+        # LA QUESTION POSEE EST TOUJOURS L'UNE DES REQUETES.
+        #
+        # `query` vient de `intent.query_reformulated` — une chaine ECRITE PAR LE LLM a
+        # chaque tour. Tant qu'elle etait la seule, la recherche heritait entierement de
+        # l'instabilite du modele qui la formulait. Six campagnes du 04-05/09/2026 sur
+        # le service, jugees au grain du passage :
+        #
+        #     article attendu TOUJOURS servi   51
+        #     servi PARFOIS                    53      <-- un cas sur deux
+        #     JAMAIS servi                      9
+        #
+        # Le probleme n'etait pas que la recherche ne trouve pas, c'est qu'elle trouvait
+        # une fois sur deux. La question de l'usager, elle, ne servait JAMAIS de requete.
+        #
+        # Le socle s'ajoute a la reformulation, il ne la remplace pas : celle-ci apporte
+        # le vocabulaire du domaine la ou l'usager emploie le sien.
+        posee = (getattr(plan.intent, "query_posee", "") or "").strip()
+        requetes = [query] + ([posee] if posee and posee != query else [])
+
         vectoriel, lexical = self._index_de_l_espace(context)
+        kwargs: dict = dict(k=k, score_threshold=threshold)
         if vectoriel is not None:
-            retrieve_kwargs["store"] = vectoriel
+            kwargs["store"] = vectoriel
         if lexical is not None:
-            retrieve_kwargs["bm25_store"] = lexical
-        results = await self._retriever.retrieve(**retrieve_kwargs)
+            kwargs["bm25_store"] = lexical
+
+        if len(requetes) == 1:
+            results = await self._retriever.retrieve(requetes[0], **kwargs)
+        else:
+            # `retrieve_many` groupe la VECTORISATION : deux requetes, un aller-retour.
+            trouves = await self._retriever.retrieve_many(requetes, **kwargs)
+            results = _sans_doublon([r for lot in trouves for r in lot])
         plan.search_results.extend(results)
         step.result = {
             "count": len(results),
