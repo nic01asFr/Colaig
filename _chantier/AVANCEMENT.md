@@ -5110,3 +5110,36 @@ etant descendu a une dizaine de cas, son cas se tranche desormais en deux campag
    n'est appele nulle part. Sans effet aujourd'hui : `COLAIG_AGENTS_PHASE6_ENABLED`
    n'est pas pose. La brique est morte le jour ou on l'allumera.
 5. **Cas dores a arbitrer** : mp-130, mp-135, probablement mp-040.
+
+### Cloture du lot L1.5b — 05/09/2026
+
+**Critere de fin.** Le decoupage par article est en service (`COLAIG_CHUNK_STRATEGIE:
+auto`, 1149 chunks, ordre du Code verifie dans `metadata.pkl`), et il est mesure contre
+la reference L1.5 sur l'instance, pas sur une reconstitution locale.
+
+**Etat a la cloture** — deux campagnes du 05/09 sur `colaig-test`, image
+`tronc-2d62c00` :
+
+    refus sur negatifs        20/22, 20/22
+    cite l'attendu            89/113, 90/113
+    article servi TOUJOURS    95/113
+    bascules entre deux campagnes identiques   8 a 12 cas
+
+Point de depart du lot, pour memoire : 52/113 avec le decoupage en fenetre et sans
+prompt, sur un compteur qui ignorait un onzieme du jeu.
+
+**Ce que le lot etablit.** Un seul gain se distingue du hasard : chercher aussi avec la
+question que l'usager a ecrite (p = 0,000 / 0,001 / 0,029 / 0,052 sur quatre
+comparaisons croisees). Tout le reste est soit une correction de justesse sans effet
+mesurable, soit un reglage encore a trancher.
+
+**Ce que le lot laisse ouvert.** Trois reglages actifs sans preuve (hybride, voisins,
+budget), deux motifs d'echec non traites (legislatif contre reglementaire ; le bon
+article du mauvais CCAG), et les points 1 a 5 ci-dessus.
+
+**Reserve sur la forme.** Ce lot est le neuvieme enchaine sur la meme branche depuis
+L0.2 : 283 commits separent `lot/L1.5b-decoupage-par-article` de
+`chantier/tronc-unique`, et aucun lot anterieur n'a ete fusionne. `CLAUDE.md` §4.5
+demande « un lot = une branche = une PR, jamais de gros merge ». La regle n'est pas
+tenue, et la dette grossit a chaque lot. Une PR de 283 commits n'est pas relisible ;
+la resorber demande un arbitrage humain sur la strategie de fusion.
