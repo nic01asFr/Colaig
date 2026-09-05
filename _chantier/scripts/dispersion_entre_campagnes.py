@@ -19,11 +19,32 @@ Un ecart de montage n'est interpretable que s'il depasse ce bruit-la.
 from __future__ import annotations
 
 import json
+import math
 import sys
 from pathlib import Path
 
 RACINE = Path(__file__).resolve().parents[2]
 JEU = RACINE / "tests" / "golden" / "v1.jsonl"
+
+
+def _mcnemar(gagnes: int, perdus: int) -> float:
+    """Probabilite d'observer un desequilibre au moins aussi marque, par pur hasard.
+
+    Test des signes exact sur les cas DISCORDANTS — ceux qui reussissent d'un cote et
+    echouent de l'autre. Les cas identiques n'apportent rien : ils ne distinguent pas
+    les deux campagnes.
+
+    Comparer deux agregats (73 contre 77) ignore que ce ne sont pas les MEMES cas. Le
+    test apparie regarde le seul chiffre qui informe : parmi ceux qui ont change,
+    combien ont change dans chaque sens. Onze gagnes contre sept perdus, c'est ce
+    qu'un tirage a pile ou face produit sans peine ; dix-huit contre zero, non.
+    """
+    n = gagnes + perdus
+    if n == 0:
+        return 1.0
+    k = min(gagnes, perdus)
+    queue = sum(math.comb(n, i) for i in range(k + 1)) / (2 ** n)
+    return min(1.0, 2 * queue)
 
 
 def _charger(chemin: str) -> dict[str, dict]:
@@ -59,6 +80,10 @@ def main() -> int:
     print(f"    gagnes en B            : {len(gagnes)}  {' '.join(gagnes) or '-'}")
     print(f"    perdus en B            : {len(perdus)}  {' '.join(perdus) or '-'}")
     print(f"  cas identiques           : {stables}")
+    p = _mcnemar(len(gagnes), len(perdus))
+    verdict = ("un tirage produit cela sans peine" if p > 0.05
+               else "un tirage ne produit pas cela facilement")
+    print(f"  test apparie (signes)    : p = {p:.3f} — {verdict}")
     print()
     print(f"cas negatifs               : {len(negatifs)}")
     print(f"  refus qui changent       : {len(refus_change)}  {' '.join(refus_change) or '-'}")

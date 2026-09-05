@@ -66,7 +66,9 @@ ENV_DE_L_INSTANCE = {
     # Alignee sur la temperature de la reference : sans quoi les deux
     # systemes ne sont pas comparables, et l'ecart mesure est en partie
     # celui de leurs reglages.
-    "COLAIG_SYNTHESISER_TEMPERATURE": "0.1",
+    # 0 depuis le 05/09 : sur 18 bascules entre deux campagnes identiques, 7
+    # viennent de la seule redaction — meme passage servi, citation differente.
+    "COLAIG_SYNTHESISER_TEMPERATURE": "0",
     # Deux campagnes identiques du 05/09 ont donne 68 puis 75 sur 113 : la
     # dispersion depassait tous les ecarts qu'on cherchait a trancher. L'Analyseur
     # et l'Orchestrateur ecrivent les requetes ; a 0 le decodage devient glouton.

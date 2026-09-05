@@ -100,7 +100,21 @@ extraEnv:
   #
   # Sur du droit, la constance prime sur le naturel de la redaction. A remesurer : si
   # l'inconstance ne cede pas, la cause est ailleurs et ce reglage doit repartir.
-  COLAIG_SYNTHESISER_TEMPERATURE: "0.1"
+  # Passee de 0,3 a 0,1 le 02/09, puis a 0 le 05/09. Le commentaire d'alors disait :
+  # « A remesurer : si l'inconstance ne cede pas, la cause est ailleurs et ce reglage
+  # doit repartir. » Elle n'a pas cede — et on sait maintenant d'ou elle vient.
+  #
+  # Sur les 18 cas qui basculent entre deux campagnes identiques (Analyseur et
+  # Orchestrateur deja a 0), l'attribution est mesurable en comparant les passages
+  # SERVIS de part et d'autre :
+  #
+  #   11  la recherche a servi autre chose
+  #    7  MEME passage servi, redaction differente   <- le Synthetiseur
+  #
+  # Sept bascules sur dix-huit tiennent donc a la seule redaction. Sur du droit, la
+  # constance prime sur le naturel : la meme question, avec les memes passages, doit
+  # rendre la meme citation.
+  COLAIG_SYNTHESISER_TEMPERATURE: "0"
   # LA DISPERSION ETAIT PLUS GRANDE QUE TOUT CE QU'ON COMPARAIT.
   #
   # Deux campagnes du 05/09/2026, MONTAGE STRICTEMENT IDENTIQUE, sans redeploiement
