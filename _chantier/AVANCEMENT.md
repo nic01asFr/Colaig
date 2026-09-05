@@ -4964,3 +4964,82 @@ cite l'attendu **100/113 / 96/113**, latence **2,0 s / 6,4 s**.
 Trois tirages de chaque système, en mode négatifs seuls, pour que la dispersion cesse
 d'être une conjecture. **Tout écart inférieur à 3 cas ne veut rien dire tant que ce
 n'est pas fait** — y compris ceux que ce lot a mesurés.
+
+---
+
+## L1.5b — decoupage par article, et ce que la mesure ne pouvait pas dire
+
+**05/09/2026** — branche `lot/L1.5b-decoupage-par-article`, commits `a524270` a `5acdbb0`.
+Instance de mesure `colaig-test`, espace `colaig-mesure-marches-publics`, jeu dore v1
+(135 cas, 113 positifs porteurs d'un article attendu).
+
+### L'avertissement etait deja ecrit ici
+
+Le lot precedent se clot sur : *« La dispersion domine tout. Tout ecart inferieur a
+3 cas ne veut rien dire tant que ce n'est pas fait »*. Trois tirages par systeme
+n'avaient pas ete faits. La journee du 04-05/09 a compare, a UN tirage, la recherche
+hybride, l'elargissement aux voisins et le budget documentaire — et a conclu a chaque
+fois. Les trois conclusions etaient sans fondement.
+
+### Cinq capacites ecrites, jamais branchees
+
+| capacite | ce qui manquait |
+|---|---|
+| recherche hybride BM25 | l'Orchestrateur ne passait pas `bm25_store` a `retrieve()` — le drapeau etait decoratif, l'index construit et persiste, jamais consulte |
+| seuil de score | `albert_reranked` pose a True apres un reranking qui n'avait PAS eu lieu ; la fusion RRF ne survivait que par cet accident |
+| journal des echanges | le nom du fichier derivait du seul `message_id`, que `/ask` ne fournit pas : 135 questions ecrivaient 135 fois le meme fichier |
+| compteur de citations | `identifiants=` existait pour les articles hors motif (« CCAG Travaux 4 ») ; le harnais du pod ne le passait pas |
+| budget documentaire | 6000 jetons codes en dur, sur une fenetre de 131072 relevee sur l'endpoint — c'est lui, non la recherche, qui decidait de ce qui etait servi |
+| question de l'usager | **jamais utilisee comme requete** : la recherche ne cherchait qu'avec la reformulation ecrite par le LLM |
+
+### Ce que la mesure dit, et ce qu'elle ne peut pas dire
+
+Au grain du PASSAGE — le journal porte desormais la section de chaque passage servi, et
+non le seul nom de fichier ; au grain du fichier, la mesure surestimait le service de
+21 cas sur 102 :
+
+    six campagnes    article TOUJOURS servi  51   PARFOIS  53   JAMAIS  9
+
+**Le probleme n'est pas que la recherche ne trouve pas : elle trouve une fois sur
+deux.** Neuf cas seulement echouent de facon reproductible.
+
+Deux campagnes IDENTIQUES different sur 18 cas (16 %), 25 (22 %) avant que l'Analyseur
+et l'Orchestrateur passent a temperature nulle. Test des signes sur les cas discordants :
+
+    deux campagnes IDENTIQUES a 0,1   16 gagnes /  9 perdus   p = 0,23
+    deux campagnes IDENTIQUES a 0     11 gagnes /  7 perdus   p = 0,48
+    voisins eteints contre allumes    13 gagnes / 10 perdus   p = 0,68
+
+Avec 18 discordants, un effet net de cinq cas donne p ~ 0,36. **Ce jeu, a une
+repetition, ne tranche qu'un effet d'une douzaine de cas.**
+
+### Le seul effet etabli
+
+Les cas ou l'article attendu n'est pas servi ALORS QUE son fichier l'est passent de 22
+sans elargissement a 7, 15 et 12 avec. L'effet mecanique est la ; il ne se transmet pas
+a la citation, ou le bruit le noie.
+
+### Reglages poses sur l'instance, et pourquoi
+
+- `COLAIG_HYBRID_SEARCH_ENABLED` — l'index existe, autant qu'il serve. Effet non etabli.
+- `COLAIG_VOISINS_ENABLED=true`, rayon 1 — peremption au prochain lot si la constance
+  ne progresse pas.
+- `COLAIG_BUDGET_JETONS=20000` — 15 % de la fenetre relevee. Effet non etabli.
+- `COLAIG_ANALYSER_TEMPERATURE=0`, `COLAIG_ORCHESTRATOR_TEMPERATURE=0` — ces agents
+  DECIDENT, ils ne redigent pas ; un plan doit etre reproductible.
+- `COLAIG_SYNTHESISER_TEMPERATURE=0` — 7 des 18 bascules tenaient a la seule redaction.
+
+### Points ouverts
+
+1. **Le socle de requete est deploye, pas encore juge.** Reference a battre, sur deux
+   campagnes a nombre egal : article servi TOUJOURS 73, PARFOIS 14, JAMAIS 26.
+2. **Neuf cas echouent toujours** : mp-021, mp-037, mp-046, mp-066, mp-070, mp-082,
+   mp-103, mp-116, mp-118. Aucun n'a ete diagnostique.
+3. **`000-SOMMAIRE.md` est servi dans 50 a 77 % des questions** sans jamais porter
+   d'article. Aucune exclusion par fichier n'existe dans Colaig — `.colaig-ignore`
+   ecarte un DOSSIER de la decouverte, pas un document de l'indexation.
+4. **`PreExecutionBuilder` cherche dans un magasin VIDE** — il appelle `retrieve_many`
+   sans `store`, et le retriever global porte un `FaissStore` neuf ; `set_store()`
+   n'est appele nulle part. Sans effet aujourd'hui : `COLAIG_AGENTS_PHASE6_ENABLED`
+   n'est pas pose. La brique est morte le jour ou on l'allumera.
+5. **Cas dores a arbitrer** : mp-130, mp-135, probablement mp-040.
