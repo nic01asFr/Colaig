@@ -57,26 +57,31 @@ Réponds directement, sans introduction."""
 # des voisins mediocres.
 _FACTEUR_DE_VIVIER_DEFAUT = 2
 
-# ELARGISSEMENT AUX VOISINS — ce que le decoupage a separe, la lecture le rejoint.
+# L'ELARGISSEMENT AUX VOISINS A ETE MESURE, PUIS RETIRE (L4.1, 05/09/2026).
 #
-# Mesure du 04/09/2026 sur le service : sur les 102 cas dores dont l'article attendu
-# est un numero de code, le FICHIER qui le porte est servi 89 fois, mais 21 reponses
-# ne le citent pas. En les lisant, le motif est constant — le modele cite les articles
-# VOISINS et declare que l'information ne figure pas dans les passages fournis :
+# L'idee : autour de chaque passage retenu, servir ses voisins immediats du meme
+# document — ceux que le decoupage par article a separes et que le redacteur du Code
+# avait ecrits ensemble. Le defaut vise etait reel et documente : sur 102 cas dores,
+# le fichier portant l'article attendu etait servi 89 fois sans que l'article le soit.
 #
-#     attendu R2111-12   servis R2111-15
-#     attendu R2113-6    servis R2113-4
-#     attendu L2113-14   servis L2113-12, L2113-13
-#     attendu R2124-3    servis R2124-4
+# Mesure a montage egal, deux campagnes contre deux, corpus reordonne et dispersion
+# retombee a 7 % :
 #
-# Le decoupage etant PAR ARTICLE, servir le fichier ne sert pas l'article : un fichier
-# en porte des dizaines. La recherche ne part pas ailleurs, elle s'arrete a deux ou
-# trois rangs — et le refus qui suit est CORRECT au vu de ce qui a ete servi.
+#                          avec        sans
+#   article servi TOUJOURS   95          96
+#   article cite  TOUJOURS   84          86
+#   agregat              89, 90      89, 91
 #
-# Le rayon coute des passages : a k=5 et rayon 1, on sert jusqu'a 15 passages au lieu
-# de 5. Le budget de jetons s'applique APRES, et tranche.
-_RAYON_DES_VOISINS_DEFAUT = 1
-
+#   test apparie, quatre croisements : p = 1,00 / 0,79 / 1,00 / 1,00
+#
+# Aucun effet. Le code part avec son drapeau : un drapeau eteint qu'on garde « au cas
+# ou » est exactement ce que ce chantier passe son temps a deterrer.
+#
+# CE QUE LA MESURE A APPRIS AU PASSAGE, et qui vaut plus que la fonctionnalite : les
+# trois premieres campagnes, qui ne montraient rien non plus, ne prouvaient rien —
+# le corpus triait alors ses articles comme des chaines, et l'elargissement servait
+# des voisins ARBITRAIRES une fois sur deux. Une fonctionnalite qui ne fait pas ce
+# qu'elle annonce se mesure a zero pour la mauvaise raison.
 
 # BUDGET DOCUMENTAIRE, EN JETONS. Lu a chaque appel, comme le facteur de vivier.
 #
@@ -426,12 +431,6 @@ class Retriever:
         else:
             effective_threshold = score_threshold
         filtered = [r for r in reranked if r.score >= effective_threshold]
-
-        # 5b. Elargissement aux voisins (opt-in) — AVANT le budget, qui doit trancher
-        # sur ce qui sera reellement servi.
-        rayon = _elargissement_aux_voisins()
-        if rayon:
-            filtered = _avec_les_voisins(filtered, effective_store, rayon)
 
         # 6. Budget tokens : éviter de dépasser la fenêtre de contexte du modèle.
         # Estimation : 4 chars ≈ 1 token.

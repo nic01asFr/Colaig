@@ -86,6 +86,19 @@ def main() -> int:
 
     n = len(sys.argv) - 1
     complets = [i for i in vus if vus[i] == n]
+
+    # UN JOURNAL TRONQUE NE DOIT PAS RENDRE UN CHIFFRE.
+    #
+    # La lecture passe par `kubectl exec` : une sortie interrompue rend un journal
+    # partiel, et le compte se calcule alors sur une poignee de cas sans que rien ne
+    # le dise. Releve le 05/09/2026 — le script a rendu « toujours 16, jamais 2 » sur
+    # 113 cas attendus, chiffre qui ne voulait rien dire et avait l'air d'un resultat.
+    attendus = len([c for c in cas.values()
+                    if not c.get("attendu_refus") and (c.get("articles_attendus") or [])])
+    if len(complets) < attendus:
+        raise SystemExit(
+            f"JOURNAL INCOMPLET — {len(complets)} cas apparies sur {attendus} attendus. "
+            "La lecture du journal de l'espace a ete tronquee ; relancer.")
     print(f"campagnes comparees : {n}")
     print(f"cas observes partout : {len(complets)}"
           f"  (sur {len(vus)} vus au moins une fois)")

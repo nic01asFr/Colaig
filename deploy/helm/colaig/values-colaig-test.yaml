@@ -206,22 +206,19 @@ extraEnv:
   #
   # PEREMPTION : si la campagne comparative ne montre pas de gain, ce reglage part
   # au meme lot que la mesure qui l'a introduit.
-  # ETEINT LE 05/09/2026 — LOT L4.1, MESURE EN COURS.
+  # LE VIVIER — ce que le PLAN L4.1 demande de mesurer, et qui ne l'a jamais ete.
   #
-  # Trois campagnes n'ont montre aucun effet, mais elles ne prouvaient rien : la
-  # dispersion valait alors 20 % des cas, et l'elargissement servait de surcroit des
-  # voisins ARBITRAIRES une fois sur deux — le corpus triait ses articles comme des
-  # chaines, « R2194-10 » entre « R2194-1 » et « R2194-2 ».
+  # « pool ~20 → rerank → 3-5 MESURE ». Le vivier vaut `k * COLAIG_RETRIEVER_POOL_FACTOR`,
+  # soit 10 pour k=5 avec le defaut de 2. Le plan en demande une vingtaine.
   #
-  # Depuis, le corpus est ordonne et la dispersion est retombee a une dizaine de cas.
-  # L'elargissement sert enfin les bons voisins, et le montage complet donne
-  # 89 et 90 sur 113, article servi TOUJOURS 95. Ce montage-ci mesure ce qu'il en
-  # reste sans lui : s'il n'apporte rien, il part, comme sa peremption le prevoit.
+  # Ce que le vivier change, et pourquoi ce n'est pas gratuit : il decide de ce que
+  # voient le RRF, la deduplication et le MMR — trois etages dont aucun n'est lineaire.
+  # Trop large, il peut DEGRADER en noyant les bons candidats sous des voisins
+  # mediocres. C'est donc une mesure, pas une evidence.
   #
-  # LE BUDGET SUIT LE MEME SORT. Il n'a ete porte a 20000 que parce que les voisins
-  # saturaient les 6000 et REMPLACAIENT au lieu d'ajouter. Sans eux, la raison de le
-  # tenir ouvert tombe : les deux se mesurent ensemble ou pas du tout.
-  COLAIG_VOISINS_ENABLED: "false"
+  # L'elargissement aux voisins et le budget a 20000 ont ete retires au meme lot :
+  # mesures a montage egal, p = 1,00 / 0,79 / 1,00 / 1,00 sur quatre croisements.
+  COLAIG_RETRIEVER_POOL_FACTOR: "4"
   # BUDGET DOCUMENTAIRE. Il valait 6000 jetons, code en dur, et c'est LUI qui
   # tranchait : avec l'elargissement aux voisins, le nombre de passages servis n'a
   # pas bouge (mediane 10, moyenne 14,7 contre 14,8) — les voisins ont REMPLACE les

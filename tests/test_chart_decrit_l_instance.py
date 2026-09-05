@@ -83,10 +83,9 @@ ENV_DE_L_INSTANCE = {
     # Elargissement aux voisins. Mesure du 04/09 au grain du PASSAGE : sur les
     # 34 cas ou l'article attendu n'est pas servi, 21 ont pourtant leur FICHIER
     # servi — la recherche trouve le bon document et sert l'article voisin.
-    # Eteints le 05/09 — lot L4.1 : les trois campagnes qui ne montraient aucun effet
-    # ne prouvaient rien (dispersion a 20 %, et voisins arbitraires un cas sur deux).
-    # Le montage sobre mesure ce qu'il reste sans eux.
-    "COLAIG_VOISINS_ENABLED": "false",
+    # Le vivier, que le PLAN L4.1 demande de mesurer et qui ne l'a jamais ete :
+    # « pool ~20 » quand le defaut de 2 donne 10 pour k=5.
+    "COLAIG_RETRIEVER_POOL_FACTOR": "4",
     # Le budget documentaire valait 6000 jetons code en dur, sur une fenetre de
     # 131072 relevee sur l'endpoint. Il saturait avant les voisins comme apres.
     "COLAIG_BUDGET_JETONS": "6000",
