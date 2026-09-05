@@ -31,7 +31,7 @@ Le corpus local est versionne dans git : il tient lieu de sauvegarde.
 
 from __future__ import annotations
 
-import base64
+import hashlib
 import re
 import subprocess
 import sys
@@ -82,6 +82,22 @@ def reordonner(texte: str) -> tuple[str, bool]:
     return preambule + "\n## Article " + "\n## Article ".join(blocs_ordonnes), True
 
 
+LECTURE_DES_EMPREINTES = """
+import asyncio, hashlib
+from colaig.config import load_config
+from colaig.main import create_storage
+async def m():
+    s = create_storage(load_config())
+    for f in await s.list_files('{espace}'):
+        nom = f.path.rsplit('/', 1)[-1]
+        if not nom.endswith('.md'):
+            continue
+        b = await s.download(f.path)
+        print(nom + ' ' + hashlib.sha256(b).hexdigest()[:16])
+asyncio.run(m())
+"""
+
+
 def _pod() -> str:
     out = subprocess.run(
         ["kubectl", "get", "pods", "-n", NAMESPACE,
@@ -91,20 +107,51 @@ def _pod() -> str:
     return out.stdout.strip()
 
 
-def _televerser(pod: str, nom: str, contenu: bytes) -> str:
-    script = (
-        "import asyncio, base64\n"
-        "from colaig.config import load_config\n"
-        "from colaig.main import create_storage\n"
-        "async def m():\n"
-        "    s = create_storage(load_config())\n"
-        f"    await s.upload('{ESPACE}{nom}', base64.b64decode('{base64.b64encode(contenu).decode()}'))\n"
-        f"    print('ECRIT {nom}')\n"
-        "asyncio.run(m())\n"
-    )
+def _empreintes_de_l_espace(pod: str) -> dict:
+    """sha256 tronquee de chaque document de l'espace, lue depuis le pod.
+
+    On pousse ce qui DIFFERE, pas « ce qu'on vient de reordonner » : une fois le
+    corpus local corrige, cette derniere liste est vide et le script ne ferait rien,
+    en silence.
+    """
+    script = LECTURE_DES_EMPREINTES.format(espace=ESPACE)
     out = subprocess.run(["kubectl", "exec", "-n", NAMESPACE, pod, "--", "python", "-c", script],
                          capture_output=True, text=True, encoding="utf-8")
-    return (out.stdout.strip() or out.stderr.strip()[-200:])
+    empreintes = {}
+    for ligne in out.stdout.splitlines():
+        bouts = ligne.strip().split()
+        if len(bouts) == 2 and bouts[0].endswith(".md"):
+            empreintes[bouts[0]] = bouts[1]
+    if not empreintes:
+        print("  [!] aucune empreinte lue : " + out.stderr.strip()[-200:], file=sys.stderr)
+    return empreintes
+
+
+ECRITURE = """
+import asyncio, sys
+from colaig.config import load_config
+from colaig.main import create_storage
+async def m():
+    s = create_storage(load_config())
+    await s.upload('{chemin}', sys.stdin.buffer.read())
+    print('ECRIT {nom}')
+asyncio.run(m())
+"""
+
+
+def _televerser(pod: str, nom: str, contenu: bytes) -> str:
+    """Televerse un document dans l'espace.
+
+    LE CONTENU PASSE PAR L'ENTREE STANDARD. Une premiere version l'encodait en
+    base64 dans la ligne de commande : Windows la limite a 32 ko, et un document du
+    corpus la depasse — l'echec arrive apres cinq fichiers, a moitie du travail.
+    """
+    script = ECRITURE.format(chemin=ESPACE + nom, nom=nom)
+    out = subprocess.run(
+        ["kubectl", "exec", "-i", "-n", NAMESPACE, pod, "--", "python", "-c", script],
+        input=contenu, capture_output=True)
+    sortie = out.stdout.decode("utf-8", "replace").strip()
+    return sortie or out.stderr.decode("utf-8", "replace").strip()[-200:]
 
 
 def main() -> int:
@@ -131,12 +178,21 @@ def main() -> int:
         print(f"\n{len(changes)} fichiers reecrits localement")
 
     if pousser:
+        # On ne pousse pas « ce qu'on vient de reordonner » — une fois le local
+        # corrige, cette liste est vide et le script ne ferait rien en silence.
+        # On pousse ce qui DIFFERE de l'espace, empreinte contre empreinte.
         pod = _pod()
-        print(f"\npod : {pod}")
+        print(f"pod : {pod}")
+        distantes = _empreintes_de_l_espace(pod)
+        pousses = 0
         for f in sorted(CORPUS.glob("*.md")):
-            if not any(f == g for g, _ in changes):
+            octets = f.read_bytes()
+            locale = hashlib.sha256(octets).hexdigest()[:16]
+            if distantes.get(f.name) == locale:
                 continue
-            print("  " + _televerser(pod, f.name, f.read_bytes()))
+            print("  " + _televerser(pod, f.name, octets))
+            pousses += 1
+        print(f"{pousses} fichiers pousses, {len(distantes)} presents dans l'espace")
     return 0
 
 
