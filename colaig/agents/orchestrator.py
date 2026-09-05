@@ -177,13 +177,22 @@ class Orchestrator:
         lexical = (self._bm25_stores or {}).get(ws.workspace_id)
         return vectoriel, lexical
 
-    def _handler_de_recherche(self, context):
-        """Handler `search_documents` lie aux index de l'espace, ou None."""
+    def _handler_de_recherche(self, context, question_posee: str = ""):
+        """Handler `search_documents` lie aux index de l'espace, ou None.
+
+        C'EST LE SEUL CHEMIN EMPRUNTE EN SERVICE. `execute()` bascule sur
+        `_execute_agentic` des que l'orchestrateur a un client LLM et un registre
+        d'outils — le cas de l'instance — et `_execute_rag_search` n'y est jamais
+        appele. Releve sur le journal du service le 05/09/2026, 1079 echanges :
+        17043 passages servis, dont 17043 par cet outil et zero par la recherche du
+        plan. Toute correction de la recherche doit passer ici.
+        """
         vectoriel, lexical = self._index_de_l_espace(context)
         if vectoriel is None:
             return None
         from colaig.agents.tools.rag_tools import create_search_handler
-        return create_search_handler(self._retriever, store=vectoriel, bm25_store=lexical)
+        return create_search_handler(self._retriever, store=vectoriel, bm25_store=lexical,
+                                     question_posee=question_posee)
 
     @property
     def is_agentic(self) -> bool:
@@ -281,7 +290,8 @@ class Orchestrator:
         # Isolation workspace : remplacer search_documents par un handler lié aux
         # index de l'espace — vectoriel ET lexical (voir `_index_de_l_espace`).
         if available_tools.get("search_documents"):
-            handler = self._handler_de_recherche(context)
+            handler = self._handler_de_recherche(
+                context, question_posee=getattr(intent, "query_posee", "") or "")
             if handler is not None:
                 from colaig.agents.tools.rag_tools import SEARCH_DOCUMENTS_DEFINITION
                 available_tools.register(SEARCH_DOCUMENTS_DEFINITION, handler)

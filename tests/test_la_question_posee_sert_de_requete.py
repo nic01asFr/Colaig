@@ -131,3 +131,45 @@ async def test_sans_question_posee_le_comportement_ne_change_pas(contexte):
     await orch._execute_rag_search(step, plan, contexte)
 
     assert retriever.requetes == ["avance au titulaire"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# L'OUTIL `search_documents` EST LE SEUL CHEMIN EMPRUNTE EN SERVICE.
+#
+# `execute()` bascule sur `_execute_agentic` des que l'orchestrateur a un client LLM
+# et un registre d'outils — le cas de l'instance. `_execute_rag_search`, qui sert le
+# mode deterministe, n'y est jamais appele.
+#
+# Releve sur le journal du service le 05/09/2026, 1079 echanges, 17043 passages :
+#
+#     venus de l'outil search_documents   17043   (100 %)
+#     venus de la recherche du plan            0   (  0 %)
+#
+# Corriger la recherche du plan sans corriger le handler, c'est corriger un chemin
+# que personne n'emprunte. C'est la septieme fois de la journee.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_l_outil_cherche_aussi_avec_la_question_posee(contexte):
+    retriever = RetrieverTemoin()
+    orch = Orchestrator(storage=None, retriever=retriever,
+                        workspace_stores={"mesure": object()})
+
+    handler = orch._handler_de_recherche(contexte, question_posee="Dois-je verser une avance ?")
+    await handler("conditions de versement de l'avance")
+
+    assert "Dois-je verser une avance ?" in retriever.requetes
+    assert "conditions de versement de l'avance" in retriever.requetes
+
+
+@pytest.mark.asyncio
+async def test_l_outil_sans_question_posee_cherche_comme_avant(contexte):
+    retriever = RetrieverTemoin()
+    orch = Orchestrator(storage=None, retriever=retriever,
+                        workspace_stores={"mesure": object()})
+
+    handler = orch._handler_de_recherche(contexte)
+    await handler("conditions de versement de l'avance")
+
+    assert retriever.requetes == ["conditions de versement de l'avance"]
