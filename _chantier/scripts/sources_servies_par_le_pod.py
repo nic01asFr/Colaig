@@ -32,6 +32,9 @@ from pathlib import Path
 RACINE = Path(__file__).resolve().parents[2]
 CORPUS = RACINE / "tests" / "golden" / "corpus-marches-publics"
 JEU = RACINE / "tests" / "golden" / "v1.jsonl"
+sys.path.insert(0, str(RACINE / "_chantier" / "scripts"))
+from lecture_des_mesures import cas_dores, cite_attendu, reponses  # noqa: E402
+
 NAMESPACE = "user-nic01asfr"
 ESPACE = "/colaig-mesure-marches-publics/"
 
@@ -143,23 +146,12 @@ def _carte_des_articles() -> dict[str, set[str]]:
     return carte
 
 
-def _reponses(chemin) -> list:
-    """Les reponses d'un fichier de mesure, quelle que soit sa forme.
-
-    Les fichiers anterieurs au 05/09/2026 sont une liste nue ; depuis, ils portent
-    aussi le montage qui les a produits.
-    """
-    d = json.loads(Path(chemin).read_text(encoding="utf-8"))
-    return d["reponses"] if isinstance(d, dict) else d
-
-
 def main() -> int:
     if len(sys.argv) < 2:
         print(__doc__)
         return 2
-    mesure = _reponses(sys.argv[1])
-    cas = {c["id"]: c for c in
-           (json.loads(l) for l in JEU.read_text(encoding="utf-8").splitlines() if l.strip())}
+    mesure = reponses(sys.argv[1])
+    cas = cas_dores()
     carte = _carte_des_articles()
     pod = _pod()
     brut = _journal_du_stockage(pod, ESPACE)
@@ -230,7 +222,7 @@ def main() -> int:
                 non_servis += 1
                 if au_niveau_du_fichier:
                     fichier_sans_passage += 1
-                if r.get("cite_attendu"):
+                if cite_attendu(r, cas):
                     cite_sans_service += 1
                 manques.append((r["id"], attendus, au_niveau_du_fichier))
         else:

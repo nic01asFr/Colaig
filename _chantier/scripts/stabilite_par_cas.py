@@ -33,6 +33,9 @@ from pathlib import Path
 RACINE = Path(__file__).resolve().parents[2]
 JEU = RACINE / "tests" / "golden" / "v1.jsonl"
 SOURCES = RACINE / "_chantier" / "scripts" / "sources_servies_par_le_pod.py"
+sys.path.insert(0, str(RACINE / "_chantier" / "scripts"))
+from lecture_des_mesures import cas_dores, cite_attendu, reponses  # noqa: E402
+
 
 
 def _module_des_sources():
@@ -40,16 +43,6 @@ def _module_des_sources():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
-
-
-def _reponses(chemin) -> list:
-    """Les reponses d'un fichier de mesure, quelle que soit sa forme.
-
-    Les fichiers anterieurs au 05/09/2026 sont une liste nue ; depuis, ils portent
-    aussi le montage qui les a produits.
-    """
-    d = json.loads(Path(chemin).read_text(encoding="utf-8"))
-    return d["reponses"] if isinstance(d, dict) else d
 
 
 def main() -> int:
@@ -60,15 +53,14 @@ def main() -> int:
     m = _module_des_sources()
     journal = {(q, m._empreinte_reponse(r)): p
                for q, _s, p, r in m._journal_du_stockage(m._pod(), m.ESPACE)}
-    cas = {c["id"]: c for c in
-           (json.loads(l) for l in JEU.read_text(encoding="utf-8").splitlines() if l.strip())}
+    cas = cas_dores()
 
     servi = collections.Counter()
     cite = collections.Counter()
     vus = collections.Counter()
 
     for chemin in sys.argv[1:]:
-        for r in _reponses(chemin):
+        for r in reponses(chemin):
             if r.get("negatif"):
                 continue
             attendus = set(cas.get(r["id"], {}).get("articles_attendus") or [])
@@ -81,7 +73,7 @@ def main() -> int:
             titres = {t[len("Article "):] if t.startswith("Article ") else t for t in passages}
             if titres & attendus:
                 servi[r["id"]] += 1
-            if r.get("cite_attendu"):
+            if cite_attendu(r, cas):
                 cite[r["id"]] += 1
 
     n = len(sys.argv) - 1

@@ -25,6 +25,9 @@ from pathlib import Path
 
 RACINE = Path(__file__).resolve().parents[2]
 JEU = RACINE / "tests" / "golden" / "v1.jsonl"
+sys.path.insert(0, str(RACINE / "_chantier" / "scripts"))
+from lecture_des_mesures import cas_dores, cite_attendu, reponses  # noqa: E402
+
 
 
 def _mcnemar(gagnes: int, perdus: int) -> float:
@@ -48,17 +51,20 @@ def _mcnemar(gagnes: int, perdus: int) -> float:
 
 
 def _charger(chemin: str) -> dict[str, dict]:
-    return {r["id"]: r for r in _reponses(chemin)}
+    """Le champ `cite_attendu` est RECOMPTE avec le compteur courant.
 
-
-def _reponses(chemin) -> list:
-    """Les reponses d'un fichier de mesure, quelle que soit sa forme.
-
-    Les fichiers anterieurs au 05/09/2026 sont une liste nue ; depuis, ils portent
-    aussi le montage qui les a produits.
+    Celui du fichier date du jour de la campagne. Le compteur a ete corrige quatre fois
+    en deux jours ; garder le champ fige reviendrait a comparer deux campagnes sous des
+    mesures differentes.
     """
-    d = json.loads(Path(chemin).read_text(encoding="utf-8"))
-    return d["reponses"] if isinstance(d, dict) else d
+    cas = cas_dores()
+    lues = {}
+    for r in reponses(chemin):
+        r = dict(r)
+        if not r.get("negatif"):
+            r["cite_attendu"] = cite_attendu(r, cas)
+        lues[r["id"]] = r
+    return lues
 
 
 def main() -> int:
