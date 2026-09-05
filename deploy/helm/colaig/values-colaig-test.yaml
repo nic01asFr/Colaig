@@ -29,7 +29,7 @@
 
 image:
   repository: ghcr.io/nic01asfr/colaig
-  tag: tronc-2d62c00
+  tag: tronc-33ec8d1
 
 # `Recreate` + volume persistant : les deux sont lies. Voir le commentaire de
 # `strategy` dans le template — deux pods ne peuvent pas se partager le magasin de
