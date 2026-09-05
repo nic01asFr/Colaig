@@ -206,8 +206,22 @@ extraEnv:
   #
   # PEREMPTION : si la campagne comparative ne montre pas de gain, ce reglage part
   # au meme lot que la mesure qui l'a introduit.
-  COLAIG_VOISINS_ENABLED: "true"
-  COLAIG_VOISINS_RAYON: "1"
+  # ETEINT LE 05/09/2026 — LOT L4.1, MESURE EN COURS.
+  #
+  # Trois campagnes n'ont montre aucun effet, mais elles ne prouvaient rien : la
+  # dispersion valait alors 20 % des cas, et l'elargissement servait de surcroit des
+  # voisins ARBITRAIRES une fois sur deux — le corpus triait ses articles comme des
+  # chaines, « R2194-10 » entre « R2194-1 » et « R2194-2 ».
+  #
+  # Depuis, le corpus est ordonne et la dispersion est retombee a une dizaine de cas.
+  # L'elargissement sert enfin les bons voisins, et le montage complet donne
+  # 89 et 90 sur 113, article servi TOUJOURS 95. Ce montage-ci mesure ce qu'il en
+  # reste sans lui : s'il n'apporte rien, il part, comme sa peremption le prevoit.
+  #
+  # LE BUDGET SUIT LE MEME SORT. Il n'a ete porte a 20000 que parce que les voisins
+  # saturaient les 6000 et REMPLACAIENT au lieu d'ajouter. Sans eux, la raison de le
+  # tenir ouvert tombe : les deux se mesurent ensemble ou pas du tout.
+  COLAIG_VOISINS_ENABLED: "false"
   # BUDGET DOCUMENTAIRE. Il valait 6000 jetons, code en dur, et c'est LUI qui
   # tranchait : avec l'elargissement aux voisins, le nombre de passages servis n'a
   # pas bouge (mediane 10, moyenne 14,7 contre 14,8) — les voisins ont REMPLACE les
@@ -221,7 +235,7 @@ extraEnv:
   # 20000 : trois fois le defaut, 15 % de la fenetre. Assez pour que les voisins
   # s'ajoutent au lieu de remplacer, sans diluer l'attention sur cent passages. La
   # valeur suivante, s'il en faut une, sera choisie par la mesure.
-  COLAIG_BUDGET_JETONS: "20000"
+  COLAIG_BUDGET_JETONS: "6000"
   COLAIG_CHUNK_STRATEGIE: auto
   ALBERT_MODEL_MEDIUM: qwen3-6-35b-moe
   ALBERT_MODEL_LIGHT: qwen3-6-35b-moe

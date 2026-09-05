@@ -83,11 +83,13 @@ ENV_DE_L_INSTANCE = {
     # Elargissement aux voisins. Mesure du 04/09 au grain du PASSAGE : sur les
     # 34 cas ou l'article attendu n'est pas servi, 21 ont pourtant leur FICHIER
     # servi — la recherche trouve le bon document et sert l'article voisin.
-    "COLAIG_VOISINS_ENABLED": "true",
-    "COLAIG_VOISINS_RAYON": "1",
+    # Eteints le 05/09 — lot L4.1 : les trois campagnes qui ne montraient aucun effet
+    # ne prouvaient rien (dispersion a 20 %, et voisins arbitraires un cas sur deux).
+    # Le montage sobre mesure ce qu'il reste sans eux.
+    "COLAIG_VOISINS_ENABLED": "false",
     # Le budget documentaire valait 6000 jetons code en dur, sur une fenetre de
     # 131072 relevee sur l'endpoint. Il saturait avant les voisins comme apres.
-    "COLAIG_BUDGET_JETONS": "20000",
+    "COLAIG_BUDGET_JETONS": "6000",
     "COLAIG_CHUNK_STRATEGIE": "auto",
     "ALBERT_MODEL_MEDIUM": "qwen3-6-35b-moe",
     "ALBERT_MODEL_LIGHT": "qwen3-6-35b-moe",
