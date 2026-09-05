@@ -170,70 +170,42 @@ extraEnv:
   #
   # « auto » detecte par document : par article si le texte en porte, fenetre sinon.
   # CHANGER CE REGLAGE IMPOSE DE REINDEXER — l'index existant suit l'ancien decoupage.
-  # RECHERCHE HYBRIDE — BM25 lexical fusionne au vectoriel par RRF.
-  #
-  # Mesure du 04/09/2026 sur le service : sur 113 cas positifs, le fichier portant
-  # l'article attendu n'est PAS SERVI dans 37 cas. Le modele ne peut donc pas le
-  # citer — on ne le lui donne jamais. Et sur les 37, aucun article voisin n'etait
-  # servi non plus : la recherche ne rate pas de peu, elle part ailleurs.
-  #
-  # BM25 capture les correspondances EXACTES de termes — numeros d'article, sigles,
-  # noms propres — la ou les embeddings les manquent. C'est precisement le mode
-  # d'echec observe. La fusion RRF ne remplace pas le vectoriel : elle additionne
-  # les rangs des deux, un passage present dans les deux index remontant plus haut.
-  #
-  # ACTIVER IMPOSE DE REINDEXER : le bm25.pkl n'existe pas dans l'index actuel,
-  # construit sans lui.
-  COLAIG_HYBRID_SEARCH_ENABLED: "true"
-  # ELARGISSEMENT AUX VOISINS — ce que le decoupage a separe, la lecture le rejoint.
-  #
-  # Mesure du 04/09/2026 sur le service, au grain du PASSAGE (le journal porte
-  # desormais la section de chaque passage servi, et non plus le seul nom de
-  # fichier — au grain du fichier, cette mesure surestimait le service de 21 cas) :
-  #
-  #   article attendu servi        79/113
-  #   article attendu NON servi    34/113
-  #     dont son FICHIER etait servi   21   <-- la recherche s'arrete a quelques rangs
-  #
-  # Vingt et un cas sur trente-quatre ne sont pas des recherches qui partent
-  # ailleurs : le bon document est trouve, et c'est l'article VOISIN qui est servi.
-  # Le modele le dit lui-meme — il cite R2111-15 et declare que l'information ne
-  # figure pas dans les passages fournis, alors qu'on attendait R2111-12.
-  #
-  # Rayon 1 : un article et ses deux voisins immediats dans le meme document. Le
-  # budget de jetons tranche apres. NE DEMANDE PAS DE REINDEXATION — l'elargissement
-  # se fait a la lecture, sur l'index existant.
-  #
-  # PEREMPTION : si la campagne comparative ne montre pas de gain, ce reglage part
-  # au meme lot que la mesure qui l'a introduit.
-  # LE VIVIER — ce que le PLAN L4.1 demande de mesurer, et qui ne l'a jamais ete.
-  #
-  # « pool ~20 → rerank → 3-5 MESURE ». Le vivier vaut `k * COLAIG_RETRIEVER_POOL_FACTOR`,
-  # soit 10 pour k=5 avec le defaut de 2. Le plan en demande une vingtaine.
-  #
-  # Ce que le vivier change, et pourquoi ce n'est pas gratuit : il decide de ce que
-  # voient le RRF, la deduplication et le MMR — trois etages dont aucun n'est lineaire.
-  # Trop large, il peut DEGRADER en noyant les bons candidats sous des voisins
-  # mediocres. C'est donc une mesure, pas une evidence.
-  #
-  # L'elargissement aux voisins et le budget a 20000 ont ete retires au meme lot :
-  # mesures a montage egal, p = 1,00 / 0,79 / 1,00 / 1,00 sur quatre croisements.
-  COLAIG_RETRIEVER_POOL_FACTOR: "4"
-  # BUDGET DOCUMENTAIRE. Il valait 6000 jetons, code en dur, et c'est LUI qui
-  # tranchait : avec l'elargissement aux voisins, le nombre de passages servis n'a
-  # pas bouge (mediane 10, moyenne 14,7 contre 14,8) — les voisins ont REMPLACE les
-  # documents les plus faibles au lieu de s'y ajouter. Treize cas ont ainsi perdu
-  # leur document quand sept en gagnaient un.
-  #
-  # La fenetre du modele a ete RELEVEE sur l'endpoint le 04/09/2026, en poussant une
-  # requete jusqu'au refus : « maximum context length is 131072 tokens ». Le budget
-  # en consommait 4,6 %.
-  #
-  # 20000 : trois fois le defaut, 15 % de la fenetre. Assez pour que les voisins
-  # s'ajoutent au lieu de remplacer, sans diluer l'attention sur cent passages. La
-  # valeur suivante, s'il en faut une, sera choisie par la mesure.
-  COLAIG_BUDGET_JETONS: "6000"
   COLAIG_CHUNK_STRATEGIE: auto
+  # LE BUDGET DOCUMENTAIRE, EN JETONS.
+  #
+  # Il valait 6000 CODE EN DUR, sur une fenetre de 131072 relevee sur l'endpoint le
+  # 04/09/2026 en poussant une requete jusqu'au refus. Porte a 20000 pour que
+  # l'elargissement aux voisins s'ajoute au lieu de remplacer, il revient a son defaut
+  # avec le retrait de celui-ci. Ce qui comptait etait qu'il devienne reglable.
+  COLAIG_BUDGET_JETONS: "6000"
+  # LE VIVIER A ETE MESURE (PLAN L4.1, « pool ~20 »), ET LE DEFAUT L'EMPORTE.
+  #
+  # Facteur 4 — 20 candidats pour k=5 — contre le defaut de 2, deux campagnes contre
+  # deux :
+  #
+  #                          x2          x4
+  #   article servi TOUJOURS   96          99
+  #                 parfois     7           2
+  #   article cite  TOUJOURS   86          86
+  #   agregat              89, 91      89, 90
+  #   latence mediane        10,8 s      11,5 s
+  #
+  # Le « 99 contre 96 » a l'air d'un gain ; le test apparie SUR LE SERVICE — ce que le
+  # vivier modifie pourtant directement — donne p = 0,73 / 0,73 / 1,00 / 1,00. C'est de
+  # la constance de tirage, pas un gain. Reste le cout : +0,7 s par question.
+  # `COLAIG_RETRIEVER_POOL_FACTOR` n'est donc pas pose : rien ne le justifie.
+  #
+  # CE QUE LA MESURE MONTRE VRAIMENT : l'article attendu est servi dans 96 a 99 cas sur
+  # 113, et cite dans 86. Le goulot n'est plus la recherche.
+  #
+  # RECHERCHE HYBRIDE — BM25 fusionne au vectoriel par RRF. Dernier reglage actif sans
+  # preuve de ce lot : les campagnes du 04/09 qui l'ont juge portaient sur un
+  # orchestrateur qui ne transmettait pas l'index lexical, puis sur une dispersion de
+  # 20 % des cas. On la mesure ici a conditions egales.
+  #
+  # L'ETEINDRE NE DEMANDE PAS DE REINDEXER : `bm25.pkl` reste sur le stockage, il
+  # cesse simplement d'etre consulte.
+  COLAIG_HYBRID_SEARCH_ENABLED: "false"
   ALBERT_MODEL_MEDIUM: qwen3-6-35b-moe
   ALBERT_MODEL_LIGHT: qwen3-6-35b-moe
   MATRIX_HOMESERVER: https://matrix.agent.dev-durable.tchap.gouv.fr

@@ -79,13 +79,12 @@ ENV_DE_L_INSTANCE = {
     # ne se voit nulle part et se defait au premier reglage pose a la main.
     # 45 points de couverture separent « auto » de « fenetre » — mesure du 04/09.
     # BM25 + RRF : 37 des 113 cas positifs ne recevaient pas le bon fichier.
-    "COLAIG_HYBRID_SEARCH_ENABLED": "true",
+    # Mesure au lot L4.1 : dernier reglage actif sans preuve. Le vivier x4 a ete
+    # mesure et rendu a son defaut — p = 0,73 / 0,73 / 1,00 / 1,00 sur le service.
+    "COLAIG_HYBRID_SEARCH_ENABLED": "false",
     # Elargissement aux voisins. Mesure du 04/09 au grain du PASSAGE : sur les
     # 34 cas ou l'article attendu n'est pas servi, 21 ont pourtant leur FICHIER
     # servi — la recherche trouve le bon document et sert l'article voisin.
-    # Le vivier, que le PLAN L4.1 demande de mesurer et qui ne l'a jamais ete :
-    # « pool ~20 » quand le defaut de 2 donne 10 pour k=5.
-    "COLAIG_RETRIEVER_POOL_FACTOR": "4",
     # Le budget documentaire valait 6000 jetons code en dur, sur une fenetre de
     # 131072 relevee sur l'endpoint. Il saturait avant les voisins comme apres.
     "COLAIG_BUDGET_JETONS": "6000",
